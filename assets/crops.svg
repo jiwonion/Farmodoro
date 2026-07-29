@@ -1,0 +1,342 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#75b84f"/>
+      <stop offset="1" stop-color="#347843"/>
+    </linearGradient>
+    <linearGradient id="soil" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#9a6841"/>
+      <stop offset="1" stop-color="#684129"/>
+    </linearGradient>
+
+    <g id="leaves">
+      <path d="M32 24C19 23 14 14 15 7c9 0 16 5 18 14C36 12 43 7 51 8c1 8-6 16-18 17z" fill="url(#leaf)" stroke="#285c39" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M32 11v20" fill="none" stroke="#285c39" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <g id="round-fruit">
+      <circle cx="32" cy="39" r="17" fill="currentColor" stroke="#713d2f" stroke-width="2.5"/>
+      <use href="#leaves"/>
+      <path d="M21 35c3-6 8-9 14-10" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g id="root-crop">
+      <use href="#leaves"/>
+      <path d="M20 26c3-7 21-7 24 0 2 7-7 25-12 31-5-6-14-24-12-31z" fill="currentColor" stroke="#713d2f" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M25 31h6m-4 7h8m-5 7h6" stroke="#713d2f" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
+    </g>
+    <g id="leafy-crop">
+      <path d="M32 56C15 55 8 43 13 29c3-9 11-15 19-20 9 5 17 11 20 20 5 14-3 26-20 27z" fill="currentColor" stroke="#285c39" stroke-width="2.5"/>
+      <path d="M32 17v34M19 29l13 9 13-10M17 39l15 7 16-8" fill="none" stroke="#e3f1cf" stroke-opacity=".65" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <g id="grain-crop">
+      <path d="M30 57V14m5 43V9" stroke="#4f7938" stroke-width="3" stroke-linecap="round"/>
+      <g fill="currentColor" stroke="#926c2d" stroke-width="1.5">
+        <ellipse cx="25" cy="21" rx="4" ry="7" transform="rotate(-38 25 21)"/>
+        <ellipse cx="25" cy="32" rx="4" ry="7" transform="rotate(-38 25 32)"/>
+        <ellipse cx="25" cy="43" rx="4" ry="7" transform="rotate(-38 25 43)"/>
+        <ellipse cx="40" cy="17" rx="4" ry="7" transform="rotate(38 40 17)"/>
+        <ellipse cx="40" cy="28" rx="4" ry="7" transform="rotate(38 40 28)"/>
+        <ellipse cx="40" cy="39" rx="4" ry="7" transform="rotate(38 40 39)"/>
+      </g>
+    </g>
+    <g id="berry-crop">
+      <path d="M32 27c-8-1-13-6-14-12 7-2 12 1 15 7 3-6 8-9 15-7-1 7-7 12-16 12z" fill="url(#leaf)" stroke="#285c39" stroke-width="2"/>
+      <g fill="currentColor" stroke="#713d50" stroke-width="1.5">
+        <circle cx="24" cy="32" r="7"/><circle cx="40" cy="32" r="7"/>
+        <circle cx="19" cy="43" r="7"/><circle cx="32" cy="43" r="7"/><circle cx="45" cy="43" r="7"/>
+        <circle cx="26" cy="53" r="7"/><circle cx="39" cy="53" r="7"/>
+      </g>
+      <path d="M22 29l3-1" stroke="#fff" stroke-opacity=".5" stroke-width="2" stroke-linecap="round"/>
+    </g>
+  </defs>
+
+  <symbol id="stage-seed" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="50" rx="22" ry="6" fill="#6f482e" opacity=".3"/>
+    <path d="M21 34c5-13 22-15 25-3 2 10-9 20-19 17-7-2-9-8-6-14z" fill="#a86f3e" stroke="#694329" stroke-width="3"/>
+    <path d="M27 32c4-4 9-5 13-3" fill="none" stroke="#e3bd78" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="stage-sprout" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="54" rx="23" ry="6" fill="url(#soil)"/>
+    <path d="M32 51V25" stroke="#3e7e42" stroke-width="4" stroke-linecap="round"/>
+    <path d="M31 32C20 31 15 25 16 17c9-1 16 5 16 14zM33 26c1-9 7-14 16-13 1 8-5 14-16 14z" fill="url(#leaf)" stroke="#285c39" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-growing" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="56" rx="25" ry="5" fill="url(#soil)"/>
+    <path d="M32 53V16M31 38L18 25M33 32l13-14" stroke="#377342" stroke-width="4" stroke-linecap="round"/>
+    <path d="M19 27C10 27 6 21 7 14c9-1 15 4 14 13zM45 20c-1-9 5-14 13-14 1 8-4 14-13 14zM31 39c-10 1-16-4-17-12 9-2 16 3 17 12z" fill="url(#leaf)" stroke="#285c39" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-flower" viewBox="0 0 64 64">
+    <use href="#stage-growing"/>
+    <g fill="#fff1a8" stroke="#c99838" stroke-width="1.5">
+      <circle cx="32" cy="14" r="6"/><circle cx="25" cy="18" r="6"/><circle cx="39" cy="18" r="6"/>
+      <circle cx="27" cy="10" r="6"/><circle cx="37" cy="10" r="6"/>
+    </g>
+    <circle cx="32" cy="14" r="4" fill="#dc8b3f"/>
+  </symbol>
+
+  <symbol id="stage-root-sprout" viewBox="0 0 64 64">
+    <use href="#stage-sprout"/>
+    <path d="M28 48c1-7 7-7 8 0l-4 8z" fill="#e69a58" stroke="#8b5a36" stroke-width="1.5"/>
+  </symbol>
+  <symbol id="stage-root-growing" viewBox="0 0 64 64">
+    <use href="#stage-growing"/>
+    <path d="M25 48c2-10 12-10 14 0l-7 12z" fill="#e69a58" stroke="#8b5a36" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-root-flower" viewBox="0 0 64 64"><use href="#stage-flower"/><path d="M27 48h10l-5 12z" fill="#bd7188"/></symbol>
+
+  <symbol id="stage-leafy-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/><path d="M20 46c7-8 17-8 24 0-8 7-16 7-24 0z" fill="#75b858"/></symbol>
+  <symbol id="stage-leafy-growing" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="54" rx="23" ry="6" fill="url(#soil)"/>
+    <path d="M32 53C17 52 12 41 17 30c3-7 9-12 15-16 7 4 13 9 16 16 5 11 0 22-16 23z" fill="#6eac50" stroke="#2f6e3d" stroke-width="2.5"/>
+    <path d="M32 21v28M22 31l10 8 10-8" fill="none" stroke="#c6e499" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-leafy-flower" viewBox="0 0 64 64"><use href="#stage-leafy-growing"/><circle cx="32" cy="16" r="5" fill="#f0d05e"/></symbol>
+
+  <symbol id="stage-grain-sprout" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="55" rx="22" ry="5" fill="url(#soil)"/>
+    <path d="M26 53l2-30M35 53l3-36M32 53l1-26" stroke="#65a24a" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="stage-grain-growing" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="24" ry="4" fill="url(#soil)"/>
+    <path d="M22 56l4-40M32 56V10M42 56l-4-37" stroke="#568f44" stroke-width="3" stroke-linecap="round"/>
+    <path d="M25 31l-9-8M39 34l10-9M31 25l-8-8" stroke="#79ad4d" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="stage-grain-flower" viewBox="0 0 64 64"><use href="#stage-grain-growing"/><g fill="#d9b94d"><circle cx="31" cy="10" r="3"/><circle cx="26" cy="16" r="3"/><circle cx="38" cy="18" r="3"/></g></symbol>
+
+  <symbol id="stage-vine-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/><path d="M34 42c10 0 15 5 14 12" fill="none" stroke="#4e8843" stroke-width="2.5" stroke-linecap="round"/></symbol>
+  <symbol id="stage-vine-growing" viewBox="0 0 64 64">
+    <use href="#stage-growing"/>
+    <path d="M31 49c10 7 21 4 21-5 0-7-7-9-11-5" fill="none" stroke="#4b8642" stroke-width="3" stroke-linecap="round"/>
+    <path d="M46 45c-1-6 3-10 9-10 1 6-3 10-9 10z" fill="#6aaa4c"/>
+  </symbol>
+  <symbol id="stage-vine-flower" viewBox="0 0 64 64"><use href="#stage-vine-growing"/><circle cx="48" cy="35" r="6" fill="#f2d665"/><circle cx="48" cy="35" r="2.5" fill="#d28a38"/></symbol>
+
+  <symbol id="stage-berry-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/><path d="M18 49h28" stroke="#4b7940" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="stage-berry-growing" viewBox="0 0 64 64"><use href="#stage-growing"/><path d="M17 48c8-7 22-7 30 0" fill="none" stroke="#4d7f41" stroke-width="3"/><g fill="#8aa3cf"><circle cx="24" cy="45" r="3"/><circle cx="39" cy="45" r="3"/></g></symbol>
+  <symbol id="stage-berry-flower" viewBox="0 0 64 64"><use href="#stage-berry-growing"/><g fill="#f5e6ee"><circle cx="22" cy="36" r="4"/><circle cx="42" cy="35" r="4"/></g></symbol>
+
+  <symbol id="stage-tree-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/><path d="M32 50V28" stroke="#76513a" stroke-width="5"/></symbol>
+  <symbol id="stage-tree-growing" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="23" ry="4" fill="url(#soil)"/>
+    <path d="M32 55V27M31 38L20 28M33 37l11-11" stroke="#76513a" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="20" cy="24" r="10" fill="#69a451" stroke="#346d3d" stroke-width="2"/><circle cx="43" cy="22" r="11" fill="#75b058" stroke="#346d3d" stroke-width="2"/><circle cx="32" cy="16" r="12" fill="#65a04e" stroke="#346d3d" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-tree-flower" viewBox="0 0 64 64"><use href="#stage-tree-growing"/><g fill="#f6c8d3"><circle cx="22" cy="21" r="3"/><circle cx="34" cy="14" r="3"/><circle cx="44" cy="24" r="3"/></g></symbol>
+
+  <symbol id="stage-tropical-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/><path d="M22 43l10-18 10 18" fill="#5e9d49" stroke="#34713e" stroke-width="2"/></symbol>
+  <symbol id="stage-tropical-growing" viewBox="0 0 64 64"><ellipse cx="32" cy="56" rx="22" ry="5" fill="url(#soil)"/><path d="M32 51L14 27l18 12L25 12l8 23 8-24-3 27 14-13-18 27z" fill="#5d9f48" stroke="#34713e" stroke-width="2"/></symbol>
+  <symbol id="stage-tropical-flower" viewBox="0 0 64 64"><use href="#stage-tropical-growing"/><circle cx="32" cy="43" r="6" fill="#dda83f"/></symbol>
+
+  <symbol id="stage-fungus-sprout" viewBox="0 0 64 64"><ellipse cx="32" cy="54" rx="22" ry="5" fill="url(#soil)"/><path d="M28 49h8l2 6H26z" fill="#eee1cb"/><path d="M23 48c1-8 5-12 9-12s8 4 9 12z" fill="#d76a55" stroke="#824235" stroke-width="2"/></symbol>
+  <symbol id="stage-fungus-growing" viewBox="0 0 64 64"><use href="#stage-fungus-sprout"/><g transform="translate(-14 12) scale(.7)"><use href="#stage-fungus-sprout"/></g></symbol>
+  <symbol id="stage-fungus-flower" viewBox="0 0 64 64"><use href="#stage-fungus-growing"/></symbol>
+
+  <symbol id="stage-flower-sprout" viewBox="0 0 64 64"><use href="#stage-sprout"/></symbol>
+  <symbol id="stage-flower-growing" viewBox="0 0 64 64"><use href="#stage-growing"/><circle cx="32" cy="13" r="7" fill="#6d873f"/></symbol>
+  <symbol id="stage-flower-flower" viewBox="0 0 64 64"><use href="#stage-flower"/></symbol>
+
+  <symbol id="stage-root-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="56" rx="23" ry="5" fill="#76513a" opacity=".35"/>
+    <path d="M32 52c-1-15 3-24 10-30" fill="none" stroke="#8b6a3f" stroke-width="4" stroke-linecap="round"/>
+    <path d="M40 24c7 0 11 4 10 10-7 1-11-3-10-10zM31 35c-7-2-11 1-12 7 6 3 11 0 12-7z" fill="#ad8345" stroke="#765632" stroke-width="2"/>
+    <path d="M26 46c2-8 10-8 12 0l-6 12z" fill="#c47b4f" stroke="#815139" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-leafy-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="56" rx="24" ry="5" fill="#76513a" opacity=".35"/>
+    <path d="M32 53V29" stroke="#856b3e" stroke-width="4"/>
+    <path d="M31 34C18 31 13 37 16 47c9 1 15-4 15-13zM33 39c12-5 18 0 16 10-9 2-15-2-16-10zM32 29c-8-6-7-13 0-18 7 6 7 12 0 18z" fill="#a68d4d" stroke="#6e6338" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-grain-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="58" rx="24" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M23 56c1-15 6-27 15-37M34 56c0-15 4-25 12-31" fill="none" stroke="#9b7b3d" stroke-width="3" stroke-linecap="round"/>
+    <g fill="#b28a44" stroke="#765b32" stroke-width="1.5">
+      <ellipse cx="39" cy="18" rx="4" ry="7" transform="rotate(55 39 18)"/>
+      <ellipse cx="45" cy="25" rx="4" ry="7" transform="rotate(55 45 25)"/>
+      <ellipse cx="46" cy="32" rx="4" ry="7" transform="rotate(62 46 32)"/>
+    </g>
+  </symbol>
+  <symbol id="stage-vine-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="24" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M15 51c8-2 13-8 14-18 1-8 7-12 15-11 9 1 10 10 4 14" fill="none" stroke="#8e7040" stroke-width="4" stroke-linecap="round"/>
+    <path d="M26 38c-8-2-12 2-12 9 7 2 12-1 12-9zM43 23c3-7 9-8 14-4-2 7-7 9-14 4z" fill="#a48745" stroke="#6d6036" stroke-width="2"/>
+    <circle cx="47" cy="39" r="5" fill="#c37b45" stroke="#7d4f35" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-berry-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="24" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M20 54c2-16 8-26 19-32M36 53c-1-11 2-19 10-25" fill="none" stroke="#80683d" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M28 33c-7-2-11 2-11 8 7 2 11-1 11-8zM41 30c2-7 7-9 13-6-1 7-7 10-13 6z" fill="#9c8548" stroke="#665a35" stroke-width="2"/>
+    <g fill="#9a5965"><circle cx="36" cy="43" r="3"/><circle cx="42" cy="46" r="3"/><circle cx="34" cy="49" r="3"/></g>
+  </symbol>
+  <symbol id="stage-tree-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="58" rx="25" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M31 56c2-15 1-24-2-32M30 38L18 28M31 34l13-12" fill="none" stroke="#79543b" stroke-width="5" stroke-linecap="round"/>
+    <path d="M18 29c-7-1-11 3-10 9 7 2 12-2 10-9zM43 23c2-7 8-9 13-5-1 7-7 9-13 5zM28 24c-5-5-3-11 2-14 6 5 5 10-2 14z" fill="#9c8245" stroke="#675b35" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-tropical-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="24" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M31 53L13 35l18 9-9-24 12 20 6-25 1 25 14-16-11 28z" fill="#a48543" stroke="#6e6034" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M26 46c3-7 10-7 13 0l-2 10H28z" fill="#bd7740" stroke="#7c5034" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-fungus-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="23" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M28 52c5-8 7-15 6-23l8 2c-1 10-4 18-8 24z" fill="#c5a77a" stroke="#78644b" stroke-width="2"/>
+    <path d="M24 29c6-9 16-9 23-1-5 7-16 8-23 1z" fill="#a65f45" stroke="#744235" stroke-width="2.5"/>
+    <path d="M15 54c2-5 3-9 2-14l6 1c0 6-1 10-3 14z" fill="#c5a77a" stroke="#78644b" stroke-width="1.5"/>
+    <path d="M10 40c4-6 11-6 16-1-3 5-11 6-16 1z" fill="#b36a4a" stroke="#744235" stroke-width="2"/>
+  </symbol>
+  <symbol id="stage-flower-wilted" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="58" rx="24" ry="4" fill="#76513a" opacity=".35"/>
+    <path d="M31 55c3-14 4-25 3-34" fill="none" stroke="#80683d" stroke-width="4" stroke-linecap="round"/>
+    <path d="M30 39c-8-2-12 2-12 9 7 2 12-1 12-9z" fill="#9c8245" stroke="#675b35" stroke-width="2"/>
+    <g transform="rotate(25 36 20)" fill="#c58d3d" stroke="#79542f" stroke-width="1.5">
+      <ellipse cx="36" cy="12" rx="4" ry="8"/><ellipse cx="36" cy="28" rx="4" ry="8"/>
+      <ellipse cx="28" cy="20" rx="8" ry="4"/><ellipse cx="44" cy="20" rx="8" ry="4"/>
+      <circle cx="36" cy="20" r="6" fill="#765033"/>
+    </g>
+  </symbol>
+
+  <symbol id="crop-carrot" viewBox="0 0 64 64" color="#ef7f35"><use href="#root-crop"/></symbol>
+  <symbol id="crop-tomato" viewBox="0 0 64 64" color="#e95445"><use href="#round-fruit"/></symbol>
+  <symbol id="crop-potato" viewBox="0 0 64 64">
+    <path d="M14 35c1-14 11-22 27-19 13 2 16 13 10 26-5 12-14 16-27 12-9-3-12-10-10-19z" fill="#c99a61" stroke="#765236" stroke-width="2.5"/>
+    <g fill="#765236"><circle cx="25" cy="28" r="2"/><circle cx="42" cy="34" r="2"/><circle cx="29" cy="45" r="2"/></g>
+  </symbol>
+  <symbol id="crop-sweetPotato" viewBox="0 0 64 64">
+    <path d="M11 35c5-14 19-20 34-14 13 5 11 17 1 27-11 10-27 11-34 2-4-5-4-10-1-15z" fill="#a85c77" stroke="#63374e" stroke-width="2.5"/>
+    <path d="M20 31c7-7 15-8 23-5" fill="none" stroke="#e7a5b4" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-strawberry" viewBox="0 0 64 64">
+    <use href="#leaves"/>
+    <path d="M16 26c3-8 29-8 32 0 3 10-8 27-16 33-8-6-19-23-16-33z" fill="#e84d52" stroke="#833542" stroke-width="2.5"/>
+    <g fill="#ffd878"><circle cx="25" cy="34" r="1.5"/><circle cx="38" cy="34" r="1.5"/><circle cx="31" cy="43" r="1.5"/><circle cx="25" cy="48" r="1.5"/><circle cx="39" cy="47" r="1.5"/></g>
+  </symbol>
+  <symbol id="crop-eggplant" viewBox="0 0 64 64">
+    <use href="#leaves"/>
+    <path d="M27 22c12-1 22 6 21 18-1 14-15 20-29 15-10-3-9-12-3-16 8-5 7-10 11-17z" fill="#7451a1" stroke="#493165" stroke-width="2.5"/>
+    <path d="M25 29c7-3 13-1 17 4" fill="none" stroke="#bca5d7" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-pepper" viewBox="0 0 64 64">
+    <use href="#leaves"/>
+    <path d="M17 31c2-10 11-13 16-6 6-7 14-3 15 7 2 14-7 25-16 25S14 45 17 31z" fill="#55a84f" stroke="#2f6c3e" stroke-width="2.5"/>
+    <path d="M27 29c-3 9-2 17 3 23M39 29c3 9 2 17-3 23" fill="none" stroke="#88ca6d" stroke-width="2"/>
+  </symbol>
+  <symbol id="crop-cucumber" viewBox="0 0 64 64">
+    <path d="M13 43c-4-10 5-25 17-30 10-4 22 1 23 10 2 12-9 25-23 30-8 3-14-2-17-10z" fill="#59a852" stroke="#2d6b3c" stroke-width="2.5"/>
+    <g fill="#b8da72"><circle cx="25" cy="38" r="1.5"/><circle cx="35" cy="29" r="1.5"/><circle cx="43" cy="21" r="1.5"/><circle cx="21" cy="45" r="1.5"/></g>
+  </symbol>
+  <symbol id="crop-corn" viewBox="0 0 64 64">
+    <path d="M22 20c5-9 15-9 20 0v25c-5 10-15 10-20 0z" fill="#f0c94e" stroke="#9b742d" stroke-width="2.5"/>
+    <path d="M22 26c-9 4-12 14-8 25 8-2 14-8 17-16M42 26c9 4 12 14 8 25-8-2-14-8-17-16" fill="#65a94c" stroke="#39753e" stroke-width="2"/>
+    <path d="M27 19v28m10-28v28M22 27h20M22 36h20" stroke="#d99f31" stroke-width="1.5"/>
+  </symbol>
+  <symbol id="crop-pumpkin" viewBox="0 0 64 64">
+    <path d="M32 21c18-8 29 3 26 18-3 17-18 21-26 17-8 4-23 0-26-17-3-15 8-26 26-18z" fill="#ee9439" stroke="#8c572b" stroke-width="2.5"/>
+    <path d="M32 22v33M22 23c-7 9-6 23 1 31M42 23c7 9 6 23-1 31" fill="none" stroke="#c66d2d" stroke-width="2"/>
+    <path d="M31 22c-1-7 2-12 8-14" fill="none" stroke="#39753e" stroke-width="4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-onion" viewBox="0 0 64 64" color="#d9b8dc"><use href="#root-crop"/></symbol>
+  <symbol id="crop-garlic" viewBox="0 0 64 64">
+    <path d="M32 12c-2 13-22 17-20 31 2 17 38 17 40 0 2-14-18-18-20-31z" fill="#f1e7d3" stroke="#9a8b77" stroke-width="2.5"/>
+    <path d="M32 19v35M25 28c-6 9-5 18 0 26M39 28c6 9 5 18 0 26" fill="none" stroke="#c4b6a3" stroke-width="2"/>
+    <path d="M32 18c-3-6-2-10 2-14" fill="none" stroke="#4a8744" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-cabbage" viewBox="0 0 64 64" color="#7fba58"><use href="#leafy-crop"/></symbol>
+  <symbol id="crop-broccoli" viewBox="0 0 64 64">
+    <path d="M29 55V34h7v21" fill="#8fcf6a" stroke="#397542" stroke-width="2.5"/>
+    <path d="M18 38c-9-2-11-14-2-18-2-9 11-14 17-7 6-7 19-2 17 7 9 4 7 16-2 18z" fill="#4d944b" stroke="#2e673b" stroke-width="2.5"/>
+    <g fill="#74b95c"><circle cx="22" cy="23" r="5"/><circle cx="34" cy="20" r="5"/><circle cx="44" cy="27" r="5"/></g>
+  </symbol>
+  <symbol id="crop-watermelon" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="38" rx="26" ry="18" fill="#4f9e4a" stroke="#2e673b" stroke-width="2.5"/>
+    <path d="M16 25c-5 8-5 18 0 26M27 20c-4 11-4 25 0 36M48 25c5 8 5 18 0 26M37 20c4 11 4 25 0 36" fill="none" stroke="#8bca64" stroke-width="3"/>
+  </symbol>
+  <symbol id="crop-melon" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="38" rx="24" ry="19" fill="#b5cf68" stroke="#677b3a" stroke-width="2.5"/>
+    <path d="M12 31h40M9 40h46M14 49h36M25 20l-8 34M39 20l8 34" fill="none" stroke="#e4e6a2" stroke-width="2"/>
+  </symbol>
+  <symbol id="crop-rice" viewBox="0 0 64 64" color="#e3c65a"><use href="#grain-crop"/></symbol>
+  <symbol id="crop-mushroom" viewBox="0 0 64 64">
+    <path d="M25 36h14l5 20H20z" fill="#eee1cb" stroke="#806b59" stroke-width="2.5"/>
+    <path d="M8 35c1-17 11-27 24-27s23 10 24 27c-12 5-36 5-48 0z" fill="#d96550" stroke="#824235" stroke-width="2.5"/>
+    <g fill="#f7d8b8"><circle cx="23" cy="22" r="4"/><circle cx="41" cy="28" r="3"/><circle cx="36" cy="16" r="3"/></g>
+  </symbol>
+  <symbol id="crop-sunflower" viewBox="0 0 64 64">
+    <path d="M32 58V28" stroke="#4d8744" stroke-width="4"/>
+    <path d="M31 45c-9 1-14-3-15-10 8-2 14 2 15 10zM33 39c9 1 14-3 15-10-8-2-14 2-15 10z" fill="#67aa50" stroke="#39753e" stroke-width="2"/>
+    <g fill="#f1bd42" stroke="#a87727" stroke-width="1.5">
+      <ellipse cx="32" cy="9" rx="6" ry="11"/><ellipse cx="32" cy="27" rx="6" ry="11"/>
+      <ellipse cx="23" cy="18" rx="11" ry="6"/><ellipse cx="41" cy="18" rx="11" ry="6"/>
+      <ellipse cx="25" cy="11" rx="6" ry="10" transform="rotate(-45 25 11)"/><ellipse cx="39" cy="25" rx="6" ry="10" transform="rotate(-45 39 25)"/>
+      <ellipse cx="39" cy="11" rx="6" ry="10" transform="rotate(45 39 11)"/><ellipse cx="25" cy="25" rx="6" ry="10" transform="rotate(45 25 25)"/>
+    </g>
+    <circle cx="32" cy="18" r="10" fill="#74472b"/>
+    <circle cx="29" cy="15" r="1.5" fill="#d49a3c"/><circle cx="35" cy="20" r="1.5" fill="#d49a3c"/>
+  </symbol>
+
+  <symbol id="crop-beet" viewBox="0 0 64 64" color="#a84468"><use href="#root-crop"/></symbol>
+  <symbol id="crop-radish" viewBox="0 0 64 64" color="#f2eee1"><use href="#root-crop"/></symbol>
+  <symbol id="crop-turnip" viewBox="0 0 64 64" color="#d8a6cd"><use href="#root-crop"/></symbol>
+  <symbol id="crop-chili" viewBox="0 0 64 64">
+    <path d="M19 18c4 1 7 4 9 8" fill="none" stroke="#39753e" stroke-width="4" stroke-linecap="round"/>
+    <path d="M27 24c12-4 22 2 22 11 0 13-16 23-36 22 13-8 7-27 14-33z" fill="#d9463e" stroke="#842f30" stroke-width="2.5"/>
+    <path d="M29 29c6-2 11-1 14 3" fill="none" stroke="#f58d6e" stroke-width="2.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-lettuce" viewBox="0 0 64 64" color="#82bd58"><use href="#leafy-crop"/></symbol>
+  <symbol id="crop-spinach" viewBox="0 0 64 64" color="#4e9b4c"><use href="#leafy-crop"/></symbol>
+  <symbol id="crop-kale" viewBox="0 0 64 64" color="#397d45"><use href="#leafy-crop"/></symbol>
+  <symbol id="crop-celery" viewBox="0 0 64 64">
+    <path d="M19 55l4-34h7l2 34M45 55l-4-34h-7l-2 34" fill="#86bd62" stroke="#397542" stroke-width="2.5"/>
+    <path d="M24 25C13 22 10 15 12 8c9 0 15 6 15 15M40 25c11-3 14-10 12-17-9 0-15 6-15 15M32 23C25 17 26 10 32 5c7 5 7 13 0 18z" fill="url(#leaf)" stroke="#285c39" stroke-width="2"/>
+  </symbol>
+  <symbol id="crop-pea" viewBox="0 0 64 64">
+    <path d="M8 34c13-17 32-18 48-5-6 20-30 28-48 5z" fill="#70b75a" stroke="#34743f" stroke-width="2.5"/>
+    <path d="M14 35c12 8 25 7 37-3" fill="none" stroke="#b7dd79" stroke-width="2"/>
+    <g fill="#a9d96d"><circle cx="22" cy="35" r="5"/><circle cx="34" cy="35" r="5"/><circle cx="45" cy="32" r="5"/></g>
+  </symbol>
+  <symbol id="crop-bean" viewBox="0 0 64 64">
+    <path d="M17 13c13-6 26 1 26 13 0 7-5 9-2 15 2 5 8 6 12 4-5 13-22 16-31 7-7-7-3-14 2-19 6-7 2-16-7-20z" fill="#b84e55" stroke="#70343d" stroke-width="2.5"/>
+    <path d="M23 17c8 0 14 5 14 12" fill="none" stroke="#e58a82" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-peanut" viewBox="0 0 64 64">
+    <path d="M25 8c11 0 14 10 10 19 10-3 19 2 19 12 0 13-13 20-23 14-5 8-18 5-21-5-3-9 3-15 11-16-8-7-6-24 4-24z" fill="#d5a55b" stroke="#816037" stroke-width="2.5"/>
+    <path d="M22 15l8 7m-11 16l9 7m10-13l8 8" stroke="#a97e46" stroke-width="2"/>
+  </symbol>
+  <symbol id="crop-wheat" viewBox="0 0 64 64" color="#e3bd4d"><use href="#grain-crop"/></symbol>
+  <symbol id="crop-barley" viewBox="0 0 64 64" color="#cfad55"><use href="#grain-crop"/></symbol>
+  <symbol id="crop-oat" viewBox="0 0 64 64" color="#b7a06c"><use href="#grain-crop"/></symbol>
+  <symbol id="crop-grape" viewBox="0 0 64 64" color="#7653a6"><use href="#berry-crop"/></symbol>
+  <symbol id="crop-blueberry" viewBox="0 0 64 64" color="#526fab"><use href="#berry-crop"/></symbol>
+  <symbol id="crop-raspberry" viewBox="0 0 64 64" color="#c74769"><use href="#berry-crop"/></symbol>
+  <symbol id="crop-apple" viewBox="0 0 64 64" color="#d94b46"><use href="#round-fruit"/></symbol>
+  <symbol id="crop-pear" viewBox="0 0 64 64">
+    <path d="M32 10c-1 11-5 13-11 21-10 14-3 27 11 27s21-13 11-27c-6-8-10-10-11-21z" fill="#b7c957" stroke="#677634" stroke-width="2.5"/>
+    <path d="M32 13c3-8 8-10 14-8" fill="none" stroke="#4b7c3e" stroke-width="3" stroke-linecap="round"/>
+    <path d="M25 33c2-5 6-8 11-9" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-peach" viewBox="0 0 64 64">
+    <path d="M32 17c13-9 28 1 25 17-3 17-16 25-25 25S10 51 7 34c-3-16 12-26 25-17z" fill="#ee987e" stroke="#a15455" stroke-width="2.5"/>
+    <path d="M32 18c7 10 7 27 0 40" fill="none" stroke="#cd6b69" stroke-width="2"/>
+    <use href="#leaves"/>
+  </symbol>
+  <symbol id="crop-cherry" viewBox="0 0 64 64">
+    <path d="M23 39C23 22 29 14 39 8M43 39C42 25 37 17 29 13" fill="none" stroke="#477b3d" stroke-width="3" stroke-linecap="round"/>
+    <path d="M34 11c6-7 13-7 19-2-4 8-11 10-19 2z" fill="#62a54c" stroke="#37703b" stroke-width="2"/>
+    <circle cx="21" cy="45" r="11" fill="#d53e4c" stroke="#83303b" stroke-width="2.5"/>
+    <circle cx="44" cy="45" r="11" fill="#e34c52" stroke="#83303b" stroke-width="2.5"/>
+  </symbol>
+  <symbol id="crop-lemon" viewBox="0 0 64 64">
+    <path d="M10 35c5-5 5-16 17-20 14-5 27 6 27 18S42 57 28 53c-12-3-13-13-18-18z" fill="#efd34d" stroke="#9d842f" stroke-width="2.5"/>
+    <path d="M22 24c6-5 13-6 20-3" fill="none" stroke="#fff3a1" stroke-width="3" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="crop-orange" viewBox="0 0 64 64" color="#ee963b"><use href="#round-fruit"/></symbol>
+  <symbol id="crop-pineapple" viewBox="0 0 64 64">
+    <path d="M32 25c-11-8-13-17-9-23 7 3 10 9 9 18 1-9 6-15 13-17 3 7-1 16-13 22z" fill="#5b9b48" stroke="#34713e" stroke-width="2"/>
+    <path d="M15 29c8-9 26-9 34 0 8 10 4 27-17 31-21-4-25-21-17-31z" fill="#dda83f" stroke="#8e672b" stroke-width="2.5"/>
+    <path d="M17 34l30 18M47 34L17 52M14 43h36" stroke="#b67c30" stroke-width="2"/>
+  </symbol>
+  <symbol id="crop-kiwi" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="36" rx="24" ry="19" fill="#9b7650" stroke="#62472f" stroke-width="2.5"/>
+    <ellipse cx="32" cy="36" rx="18" ry="14" fill="#79b653"/>
+    <ellipse cx="32" cy="36" rx="5" ry="4" fill="#e8e1b0"/>
+    <g fill="#33412b"><circle cx="32" cy="25" r="1.5"/><circle cx="41" cy="29" r="1.5"/><circle cx="43" cy="39" r="1.5"/><circle cx="36" cy="46" r="1.5"/><circle cx="24" cy="45" r="1.5"/><circle cx="20" cy="34" r="1.5"/><circle cx="25" cy="27" r="1.5"/></g>
+  </symbol>
+</svg>

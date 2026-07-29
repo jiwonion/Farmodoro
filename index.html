@@ -42,15 +42,6 @@
 
         <div class="sidebar-spacer"></div>
 
-        <div class="level-card">
-          <div class="level-card-top">
-            <span>농장 레벨 4</span>
-            <strong>72%</strong>
-          </div>
-          <div class="level-track"><span></span></div>
-          <p>오늘 3 Coin 더 모으면 레벨업</p>
-        </div>
-
         <button class="profile-button" type="button">
           <span class="avatar">하</span>
           <span class="profile-copy">
@@ -386,7 +377,9 @@
                   <h2>햇살 밭</h2>
                 </div>
                 <div class="farm-header-actions">
-                  <button class="decorate-mode-button" id="toggleDecorMode" type="button">꾸미기 모드</button>
+                  <button class="open-farm-kitchen" id="openFarmKitchen" type="button">
+                    <span>🍳 농장 주방</span>
+                  </button>
                   <div class="farm-wallet">
                     <span>●</span>
                     <strong id="farmCoinBalance">0</strong>
@@ -395,38 +388,17 @@
                 </div>
               </header>
 
-              <div class="seed-inventory">
-                <div class="seed-inventory-title">
-                  <strong>씨앗 보관함</strong>
-                  <span>씨앗을 고른 뒤 빈 밭을 눌러.</span>
-                </div>
-                <div class="seed-inventory-list" id="seedInventory"></div>
-              </div>
+              <nav class="farm-storage-toolbar" aria-label="농장 보관함">
+                <button type="button" data-open-storage="harvest">🧺 수확물 <small id="harvestStorageCount">0</small></button>
+                <button type="button" data-open-storage="seed">🌱 씨앗 <small id="seedStorageCount">0</small></button>
+                <button type="button" data-open-storage="supply">🎒 농장 용품 <small id="supplyStorageCount">0</small></button>
+              </nav>
 
               <section class="farm-scene">
-                <div class="decor-workshop hidden" id="decorWorkshop">
-                  <div class="decor-workshop-header">
-                    <div>
-                      <strong>농장 장식 보관함</strong>
-                      <span>장식을 고른 뒤 밭 주변의 초록색 칸에 놓아.</span>
-                    </div>
-                    <small>놓은 장식은 회전하거나 다시 보관할 수 있어.</small>
-                  </div>
-                  <div class="decor-inventory" id="decorInventory"></div>
-                </div>
                 <div class="farm-scene-grid">
-                  <div class="decor-grid" id="decorGrid" aria-label="농장 장식 공간"></div>
                   <div class="farm-grid" id="farmGrid" aria-label="4 곱하기 4 농장 밭"></div>
                 </div>
               </section>
-
-              <div class="crop-storage">
-                <div class="crop-storage-title">
-                  <strong>수확물 보관함</strong>
-                  <span>다 자란 작물을 수확하면 여기에 들어와.</span>
-                </div>
-                <div class="crop-storage-list" id="harvestInventory"></div>
-              </div>
 
             </div>
 
@@ -436,22 +408,24 @@
                 <div>
                   <span class="section-kicker">MORRISON'S MARKET</span>
                   <h2>Morrison</h2>
-                  <p>씨앗도 팔고 수확물도 사줄게.</p>
+                  <p>오늘의 씨앗을 팔고 특별한 음식을 사줄게.</p>
                 </div>
               </header>
               <div class="market-balance">
                 <span>보유 Farm Money</span>
                 <strong>✦ <span id="marketFarmMoneyBalance">0</span></strong>
               </div>
+              <button class="open-permanent-market" id="openPermanentMarket" type="button">
+                <span>모리슨 상시 시장</span>
+                <small>비료·티켓·특별 용품 구매</small>
+              </button>
               <h3 class="market-section-title">씨앗 판매대</h3>
               <div class="seed-shop-list" id="seedShop"></div>
-              <h3 class="market-section-title">수확물 매입</h3>
+              <h3 class="market-section-title">오늘의 음식 매입</h3>
               <div class="morrison-buy-list" id="morrisonBuyList"></div>
-              <h3 class="market-section-title">꾸미기 판매대</h3>
-              <div class="decor-shop-list" id="decorShop"></div>
               <div class="farm-rule-note">
                 <strong>성장은 현실에서 시작돼.</strong>
-                <p>Coin으로 키우고, 수확물은 Farm Money로 바꿔.</p>
+                <p>Coin으로 원하는 만큼 물을 줘. 마지막으로 물을 준 뒤 단계에 따라 1~2일의 유예가 있어.</p>
               </div>
             </aside>
           </section>
@@ -459,7 +433,84 @@
       </main>
     </div>
 
+    <div class="market-modal hidden" id="permanentMarketModal" role="dialog" aria-modal="true" aria-labelledby="permanentMarketTitle">
+      <div class="market-modal-backdrop" data-close-market></div>
+      <section class="market-modal-panel">
+        <header>
+          <div>
+            <span class="section-kicker">MORRISON'S PERMANENT MARKET</span>
+            <h2 id="permanentMarketTitle">모리슨 상시 시장</h2>
+            <p>Farm Money로 비료, 티켓, 특별 농장 용품을 구매해.</p>
+          </div>
+          <button type="button" data-close-market aria-label="시장 닫기">×</button>
+        </header>
+        <div class="modal-market-balance">보유 Farm Money <strong>✦ <span id="modalFarmMoneyBalance">0</span></strong></div>
+        <div class="farm-item-shop" id="farmItemShop"></div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="farmKitchenModal" role="dialog" aria-modal="true" aria-labelledby="farmKitchenTitle">
+      <div class="market-modal-backdrop" data-close-kitchen></div>
+      <section class="market-modal-panel kitchen-modal-panel">
+        <header>
+          <div>
+            <span class="section-kicker">FARM KITCHEN</span>
+            <h2 id="farmKitchenTitle">농장 주방</h2>
+            <p>수확한 재료를 조합해 음식을 만들고 레시피 도감을 채워.</p>
+          </div>
+          <button type="button" data-close-kitchen aria-label="주방 닫기">×</button>
+        </header>
+        <section class="farm-kitchen">
+          <div class="recipe-lab">
+            <select id="recipeIngredient1" aria-label="첫 번째 요리 재료"></select>
+            <select id="recipeIngredient2" aria-label="두 번째 요리 재료"></select>
+            <select id="recipeIngredient3" aria-label="세 번째 요리 재료"></select>
+            <button id="cookRecipeButton" type="button">조합하기</button>
+          </div>
+          <div class="food-inventory" id="foodInventory"></div>
+          <details class="recipe-book" open>
+            <summary>레시피 도감 <strong id="recipeBookProgress">0 / 0</strong></summary>
+            <div id="recipeBook"></div>
+          </details>
+        </section>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="harvestStorageModal" role="dialog" aria-modal="true" aria-labelledby="harvestStorageTitle">
+      <div class="market-modal-backdrop" data-close-storage></div>
+      <section class="market-modal-panel storage-modal-panel">
+        <header>
+          <div><span class="section-kicker">FARM STORAGE</span><h2 id="harvestStorageTitle">수확물 보관함</h2><p>수확한 작물을 요리 재료로 사용해.</p></div>
+          <button type="button" data-close-storage aria-label="수확물 보관함 닫기">×</button>
+        </header>
+        <div class="crop-storage-list storage-grid-44" id="harvestInventory"></div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="seedStorageModal" role="dialog" aria-modal="true" aria-labelledby="seedStorageTitle">
+      <div class="market-modal-backdrop" data-close-storage></div>
+      <section class="market-modal-panel storage-modal-panel">
+        <header>
+          <div><span class="section-kicker">FARM STORAGE</span><h2 id="seedStorageTitle">씨앗 보관함</h2><p>씨앗을 선택한 뒤 빈 밭을 눌러 심어.</p></div>
+          <button type="button" data-close-storage aria-label="씨앗 보관함 닫기">×</button>
+        </header>
+        <div class="seed-inventory-list storage-grid-44" id="seedInventory"></div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="supplyStorageModal" role="dialog" aria-modal="true" aria-labelledby="supplyStorageTitle">
+      <div class="market-modal-backdrop" data-close-storage></div>
+      <section class="market-modal-panel storage-modal-panel supply-storage-modal">
+        <header>
+          <div><span class="section-kicker">FARM STORAGE</span><h2 id="supplyStorageTitle">농장 용품 보관함</h2><p>아이콘에 마우스를 올리면 용품 설명을 확인할 수 있어.</p></div>
+          <button type="button" data-close-storage aria-label="농장 용품 보관함 닫기">×</button>
+        </header>
+        <div class="farm-supply-list" id="farmItemInventory"></div>
+      </section>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./assets/crops-sprite.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

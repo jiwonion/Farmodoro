@@ -3,77 +3,423 @@ const STORAGE_KEY = "farmodoro-dashboard-v1";
 const CROPS = {
   carrot: {
     name: "당근",
-    emoji: "🥕",
     seedPrice: 1,
     sellPrice: 5,
     stages: ["•", "🌱", "🌿", "🥕"],
   },
   tomato: {
     name: "토마토",
-    emoji: "🍅",
     seedPrice: 2,
     sellPrice: 9,
     stages: ["•", "🌱", "🌿", "🌼", "🍅"],
   },
   corn: {
     name: "옥수수",
-    emoji: "🌽",
     seedPrice: 3,
     sellPrice: 12,
     stages: ["•", "🌱", "🌿", "🌾", "🌽"],
   },
+  potato: {
+    name: "감자",
+    seedPrice: 2,
+    sellPrice: 8,
+    stages: ["•", "🌱", "🌿", "🌼", "🥔"],
+  },
+  sweetPotato: {
+    name: "고구마",
+    seedPrice: 3,
+    sellPrice: 11,
+    stages: ["•", "🌱", "🌿", "🌸", "🍠"],
+  },
+  strawberry: {
+    name: "딸기",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["•", "🌱", "🌿", "🌼", "🍓"],
+  },
+  eggplant: {
+    name: "가지",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["•", "🌱", "🌿", "🌸", "🍆"],
+  },
+  pepper: {
+    name: "피망",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["•", "🌱", "🌿", "🌼", "🫑"],
+  },
+  cucumber: {
+    name: "오이",
+    seedPrice: 2,
+    sellPrice: 10,
+    stages: ["•", "🌱", "🌿", "🌼", "🥒"],
+  },
+  pumpkin: {
+    name: "호박",
+    seedPrice: 4,
+    sellPrice: 16,
+    stages: ["•", "🌱", "🌿", "🌼", "🎃"],
+  },
+  onion: {
+    name: "양파",
+    seedPrice: 2,
+    sellPrice: 9,
+    stages: ["•", "🌱", "🌿", "🌼", "🧅"],
+  },
+  garlic: {
+    name: "마늘",
+    seedPrice: 2,
+    sellPrice: 9,
+    stages: ["•", "🌱", "🌿", "🌼", "🧄"],
+  },
+  cabbage: {
+    name: "배추",
+    seedPrice: 3,
+    sellPrice: 11,
+    stages: ["•", "🌱", "🌿", "🥬"],
+  },
+  broccoli: {
+    name: "브로콜리",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["•", "🌱", "🌿", "🥦"],
+  },
+  watermelon: {
+    name: "수박",
+    seedPrice: 5,
+    sellPrice: 20,
+    stages: ["•", "🌱", "🌿", "🌼", "🍉"],
+  },
+  melon: {
+    name: "멜론",
+    seedPrice: 5,
+    sellPrice: 20,
+    stages: ["•", "🌱", "🌿", "🌼", "🍈"],
+  },
+  rice: {
+    name: "벼",
+    seedPrice: 3,
+    sellPrice: 14,
+    stages: ["•", "🌱", "🌿", "🌾"],
+  },
+  mushroom: {
+    name: "버섯",
+    seedPrice: 4,
+    sellPrice: 15,
+    stages: ["•", "◦", "♧", "🍄"],
+  },
+  sunflower: {
+    name: "해바라기",
+    seedPrice: 4,
+    sellPrice: 15,
+    stages: ["•", "🌱", "🌿", "🌼", "🌻"],
+  },
+  beet: {
+    name: "비트",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["seed", "sprout", "leaf", "비트"],
+  },
+  radish: {
+    name: "무",
+    seedPrice: 2,
+    sellPrice: 9,
+    stages: ["seed", "sprout", "leaf", "무"],
+  },
+  turnip: {
+    name: "순무",
+    seedPrice: 3,
+    sellPrice: 11,
+    stages: ["seed", "sprout", "leaf", "순무"],
+  },
+  chili: {
+    name: "고추",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "flower", "고추"],
+  },
+  lettuce: {
+    name: "상추",
+    seedPrice: 2,
+    sellPrice: 8,
+    stages: ["seed", "sprout", "leaf", "상추"],
+  },
+  spinach: {
+    name: "시금치",
+    seedPrice: 2,
+    sellPrice: 9,
+    stages: ["seed", "sprout", "leaf", "시금치"],
+  },
+  kale: {
+    name: "케일",
+    seedPrice: 3,
+    sellPrice: 11,
+    stages: ["seed", "sprout", "leaf", "케일"],
+  },
+  celery: {
+    name: "셀러리",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["seed", "sprout", "leaf", "셀러리"],
+  },
+  pea: {
+    name: "완두콩",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["seed", "sprout", "leaf", "flower", "완두콩"],
+  },
+  bean: {
+    name: "강낭콩",
+    seedPrice: 3,
+    sellPrice: 12,
+    stages: ["seed", "sprout", "leaf", "flower", "강낭콩"],
+  },
+  peanut: {
+    name: "땅콩",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "flower", "땅콩"],
+  },
+  wheat: {
+    name: "밀",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "밀"],
+  },
+  barley: {
+    name: "보리",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "보리"],
+  },
+  oat: {
+    name: "귀리",
+    seedPrice: 3,
+    sellPrice: 14,
+    stages: ["seed", "sprout", "leaf", "귀리"],
+  },
+  grape: {
+    name: "포도",
+    seedPrice: 5,
+    sellPrice: 21,
+    stages: ["seed", "sprout", "leaf", "flower", "포도"],
+  },
+  blueberry: {
+    name: "블루베리",
+    seedPrice: 5,
+    sellPrice: 21,
+    stages: ["seed", "sprout", "leaf", "flower", "블루베리"],
+  },
+  raspberry: {
+    name: "라즈베리",
+    seedPrice: 5,
+    sellPrice: 22,
+    stages: ["seed", "sprout", "leaf", "flower", "라즈베리"],
+  },
+  apple: {
+    name: "사과",
+    seedPrice: 6,
+    sellPrice: 25,
+    stages: ["seed", "sprout", "leaf", "flower", "사과"],
+  },
+  pear: {
+    name: "배",
+    seedPrice: 6,
+    sellPrice: 25,
+    stages: ["seed", "sprout", "leaf", "flower", "배"],
+  },
+  peach: {
+    name: "복숭아",
+    seedPrice: 6,
+    sellPrice: 26,
+    stages: ["seed", "sprout", "leaf", "flower", "복숭아"],
+  },
+  cherry: {
+    name: "체리",
+    seedPrice: 6,
+    sellPrice: 26,
+    stages: ["seed", "sprout", "leaf", "flower", "체리"],
+  },
+  lemon: {
+    name: "레몬",
+    seedPrice: 6,
+    sellPrice: 25,
+    stages: ["seed", "sprout", "leaf", "flower", "레몬"],
+  },
+  orange: {
+    name: "오렌지",
+    seedPrice: 6,
+    sellPrice: 25,
+    stages: ["seed", "sprout", "leaf", "flower", "오렌지"],
+  },
+  pineapple: {
+    name: "파인애플",
+    seedPrice: 7,
+    sellPrice: 29,
+    stages: ["seed", "sprout", "leaf", "flower", "파인애플"],
+  },
+  kiwi: {
+    name: "키위",
+    seedPrice: 6,
+    sellPrice: 27,
+    stages: ["seed", "sprout", "leaf", "flower", "키위"],
+  },
 };
 
-const DECORATIONS = {
-  flower: { name: "꽃", emoji: "🌷", price: 8 },
-  fence: { name: "울타리", emoji: "🪵", price: 12 },
-  stone: { name: "돌", emoji: "🪨", price: 10 },
-  tree: { name: "나무", emoji: "🌳", price: 25 },
-  bench: { name: "벤치", emoji: "🪑", price: 20 },
-  well: { name: "우물", emoji: "⛲", price: 35 },
-};
-
-const DECORATION_SLOTS = Array.from({ length: 144 }, (_, index) => ({
-  row: Math.floor(index / 12) + 1,
-  column: (index % 12) + 1,
-})).filter(
-  ({ row, column }) =>
-    !(row >= 3 && row <= 10 && column >= 3 && column <= 10),
+const CROP_GROWTH_TYPES = Object.fromEntries(
+  [
+    ["root", "carrot potato sweetPotato onion garlic beet radish turnip peanut"],
+    ["leafy", "cabbage broccoli lettuce spinach kale celery"],
+    ["grain", "corn rice wheat barley oat"],
+    ["vine", "tomato strawberry eggplant pepper cucumber pumpkin watermelon melon chili pea bean grape"],
+    ["berry", "blueberry raspberry"],
+    ["tree", "apple pear peach cherry lemon orange kiwi"],
+    ["tropical", "pineapple"],
+    ["fungus", "mushroom"],
+    ["flower", "sunflower"],
+  ].flatMap(([type, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, type])),
 );
 
+const CROP_GROWTH_COSTS = Object.fromEntries(
+  [
+    [2, "radish lettuce spinach mushroom pea"],
+    [3, "carrot potato onion garlic cabbage kale celery beet turnip broccoli rice wheat barley oat"],
+    [4, "tomato corn sweetPotato eggplant pepper cucumber strawberry chili bean peanut sunflower"],
+    [5, "pumpkin watermelon melon grape blueberry raspberry pineapple"],
+    [6, "apple pear peach cherry lemon orange kiwi"],
+  ].flatMap(([cost, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, cost])),
+);
+
+const FARM_ITEMS = {
+  luckyFertilizer: {
+    name: "행운 비료",
+    icon: "✦",
+    price: 240,
+    description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해.",
+    type: "plot",
+  },
+  moistureFertilizer: {
+    name: "보습 비료",
+    icon: "💧",
+    price: 220,
+    description: "다음 수확까지 물 1회당 2단계 성장해.",
+    type: "plot",
+  },
+  premiumFertilizer: {
+    name: "프리미엄 비료",
+    icon: "♛",
+    price: 420,
+    description: "행운 비료와 보습 비료 효과를 함께 적용해.",
+    type: "plot",
+  },
+  goldenFestivalPass: {
+    name: "황금 수확제 초대장",
+    icon: "🎟",
+    price: 650,
+    description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼.",
+    type: "instant",
+  },
+  farmFestivalPass: {
+    name: "푸른 들판 축제권",
+    icon: "🎐",
+    price: 550,
+    description: "사용 후 24시간 동안 모든 작물이 시들지 않아.",
+    type: "instant",
+  },
+  freePass: {
+    name: "농부의 프리패스",
+    icon: "✓",
+    price: 480,
+    description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해.",
+    type: "target",
+  },
+  revivalTonic: {
+    name: "새벽이슬 회복제",
+    icon: "☘",
+    price: 180,
+    description: "시든 작물 하나를 되살려.",
+    type: "plot",
+  },
+  growthTonic: {
+    name: "햇살 성장제",
+    icon: "☀",
+    price: 220,
+    description: "작물 하나를 Coin 소비 없이 2단계 성장시켜.",
+    type: "plot",
+  },
+};
+
+const RECIPES = {
+  countryStew: { name: "시골 채소 스튜", icon: "🍲", ingredients: ["carrot", "potato"], sellPrice: 42 },
+  sunsetSoup: { name: "노을 토마토 수프", icon: "🥣", ingredients: ["tomato", "corn"], sellPrice: 48 },
+  berryParfait: { name: "딸기 멜론 파르페", icon: "🍨", ingredients: ["strawberry", "melon"], sellPrice: 76 },
+  berryTart: { name: "들판 딸기 타르트", icon: "🥧", ingredients: ["wheat", "strawberry"], sellPrice: 58 },
+  mushroomRice: { name: "버섯 영양밥", icon: "🍚", ingredients: ["rice", "mushroom"], sellPrice: 55 },
+  pumpkinSoup: { name: "황금 호박 수프", icon: "🥣", ingredients: ["pumpkin", "onion"], sellPrice: 62 },
+  appleJam: { name: "사과 레몬 잼", icon: "🍯", ingredients: ["apple", "lemon"], sellPrice: 92 },
+  gardenSalad: { name: "정원 샐러드", icon: "🥗", ingredients: ["cabbage", "carrot", "cucumber"], sellPrice: 68 },
+  ratatouille: { name: "모리슨 라따뚜이", icon: "🍛", ingredients: ["eggplant", "tomato", "pepper"], sellPrice: 78 },
+  farmPizza: { name: "농장 피자", icon: "🍕", ingredients: ["wheat", "tomato", "corn"], sellPrice: 82 },
+  friedRice: { name: "피망 완두 볶음밥", icon: "🍳", ingredients: ["rice", "pepper", "pea"], sellPrice: 74 },
+  tropicalPunch: { name: "열대 과일 펀치", icon: "🍹", ingredients: ["pineapple", "orange", "kiwi"], sellPrice: 118 },
+  cornChowder: { name: "옥수수 감자 차우더", icon: "🥣", ingredients: ["corn", "potato", "onion"], sellPrice: 72 },
+  gazpacho: { name: "토마토 오이 가스파초", icon: "🍅", ingredients: ["tomato", "cucumber", "pepper"], sellPrice: 70 },
+  beetAppleJuice: { name: "비트 사과 주스", icon: "🧃", ingredients: ["beet", "apple"], sellPrice: 78 },
+  broccoliMushroom: { name: "브로콜리 버섯볶음", icon: "🥘", ingredients: ["broccoli", "mushroom"], sellPrice: 58 },
+  cabbageRiceRoll: { name: "배추 쌈밥", icon: "🍙", ingredients: ["cabbage", "rice"], sellPrice: 54 },
+  applePie: { name: "햇살 사과 파이", icon: "🥧", ingredients: ["wheat", "apple"], sellPrice: 88 },
+  blueberryCake: { name: "블루베리 레몬 케이크", icon: "🍰", ingredients: ["wheat", "blueberry", "lemon"], sellPrice: 112 },
+  grapePeachPunch: { name: "포도 복숭아 펀치", icon: "🍹", ingredients: ["grape", "peach"], sellPrice: 96 },
+  pumpkinPorridge: { name: "호박 쌀죽", icon: "🥣", ingredients: ["pumpkin", "rice"], sellPrice: 66 },
+  spicyPeanut: { name: "매콤 땅콩 볶음", icon: "🥜", ingredients: ["peanut", "chili"], sellPrice: 64 },
+  carrotOrangeJuice: { name: "당근 오렌지 주스", icon: "🧃", ingredients: ["carrot", "orange"], sellPrice: 76 },
+  pearKiwiSmoothie: { name: "배 키위 스무디", icon: "🥤", ingredients: ["pear", "kiwi"], sellPrice: 102 },
+  watermelonBerryPunch: { name: "수박 딸기 화채", icon: "🍧", ingredients: ["watermelon", "strawberry"], sellPrice: 90 },
+  barleyMushroomPilaf: { name: "보리 버섯 필라프", icon: "🍛", ingredients: ["barley", "mushroom", "onion"], sellPrice: 75 },
+  oatBlueberryPorridge: { name: "귀리 블루베리죽", icon: "🥣", ingredients: ["oat", "blueberry"], sellPrice: 82 },
+};
+
 const defaultState = {
-  schemaVersion: 4,
+  schemaVersion: 7,
   coins: 999,
   farmMoney: 999,
+  productionBoostUntil: 0,
+  wiltProtectionUntil: 0,
+  marketRotationDate: "",
+  dailySeedOffers: [],
+  dailyFoodOffers: [],
+  foodInventory: Object.fromEntries(Object.keys(RECIPES).map((recipeId) => [recipeId, 0])),
+  discoveredRecipes: [],
+  wasteCount: 0,
+  farmItemInventory: Object.fromEntries(
+    Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
+  ),
   focusRewardSeconds: 0,
   settings: {
     focusMinutes: 25,
     breakEnabled: true,
     breakMinutes: 5,
   },
-  seedInventory: {
-    carrot: 0,
-    tomato: 0,
-    corn: 0,
-  },
-  harvestInventory: {
-    carrot: 0,
-    tomato: 0,
-    corn: 0,
-  },
-  decorationInventory: Object.fromEntries(
-    Object.keys(DECORATIONS).map((decorationId) => [decorationId, 0]),
-  ),
-  farmDecorations: Array.from({ length: DECORATION_SLOTS.length }, (_, index) => ({
-    id: index,
-    decoration: null,
-    rotation: 0,
-  })),
-  farmPlots: Array.from({ length: 16 }, (_, index) => ({
-    id: index,
-    crop: null,
-    growth: 0,
-  })),
+  seedInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
+  harvestInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
+  farmPlots: Array.from({ length: 16 }, (_, index) => {
+    const wiltedExamples = [
+      { crop: "carrot", growth: 1 },
+      { crop: "tomato", growth: 2 },
+      { crop: "sunflower", growth: 3 },
+    ];
+    const example = wiltedExamples[index];
+    return {
+      id: index,
+      crop: example?.crop ?? null,
+      growth: example?.growth ?? 0,
+      plantedDate: example ? "2000-01-01" : "",
+      lastWateredDate: example ? "2000-01-01" : "",
+      wilted: Boolean(example),
+      fertilizer: null,
+    };
+  }),
   groups: [
     { id: "work", name: "업무" },
     { id: "study", name: "공부" },
@@ -116,8 +462,7 @@ let taskGroupFilter = "all";
 let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedSeed = null;
-let selectedDecoration = null;
-let decorationMode = false;
+let selectedFarmItem = null;
 
 const taskForm = document.querySelector("#taskForm");
 const taskInput = document.querySelector("#taskInput");
@@ -137,27 +482,66 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!saved) return structuredClone(defaultState);
-    const migratedCoins = (saved.schemaVersion ?? 1) < 4 ? 999 : saved.coins;
+    delete saved.decorationInventory;
+    delete saved.farmDecorations;
+    const savedSchemaVersion = saved.schemaVersion ?? 1;
+    const migratedCoins = savedSchemaVersion < 4 ? 999 : saved.coins;
     const migratedFarmMoney =
-      (saved.schemaVersion ?? 1) < 4 ? 999 : (saved.farmMoney ?? 0);
-    const decorationInventory = {
-      ...structuredClone(defaultState.decorationInventory),
-      ...(saved.decorationInventory ?? {}),
-    };
-    const savedDecorations = Array.isArray(saved.farmDecorations)
-      ? saved.farmDecorations
-      : [];
-    savedDecorations.slice(DECORATION_SLOTS.length).forEach((cell) => {
-      if (cell?.decoration && decorationInventory[cell.decoration] !== undefined) {
-        decorationInventory[cell.decoration] += 1;
-      }
-    });
+      savedSchemaVersion < 4 ? 999 : (saved.farmMoney ?? 0);
+    const migratedFarmPlots =
+      Array.isArray(saved.farmPlots) && saved.farmPlots.length === 16
+        ? saved.farmPlots.map((plot, index) => ({
+            id: plot.id ?? index,
+            crop: plot.crop ?? null,
+            growth: plot.growth ?? 0,
+            plantedDate:
+              plot.plantedDate ??
+              (plot.crop ? plot.lastWateredDate ?? toLocalDateString() : ""),
+            lastWateredDate:
+              plot.lastWateredDate ?? (plot.crop ? toLocalDateString() : ""),
+            wilted: plot.wilted ?? false,
+            fertilizer: plot.fertilizer ?? null,
+          }))
+        : structuredClone(defaultState.farmPlots);
+
+    if (savedSchemaVersion < 5) {
+      const examples = [
+        { crop: "carrot", growth: 1 },
+        { crop: "tomato", growth: 2 },
+        { crop: "sunflower", growth: 3 },
+      ];
+      const emptyPlots = migratedFarmPlots.filter((plot) => !plot.crop).slice(0, examples.length);
+      emptyPlots.forEach((plot, index) => {
+        Object.assign(plot, {
+          ...examples[index],
+          plantedDate: "2000-01-01",
+          lastWateredDate: "2000-01-01",
+          wilted: true,
+        });
+      });
+    }
+
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 4,
+      schemaVersion: 7,
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
+      productionBoostUntil: saved.productionBoostUntil ?? 0,
+      wiltProtectionUntil: saved.wiltProtectionUntil ?? 0,
+      marketRotationDate: saved.marketRotationDate ?? "",
+      dailySeedOffers: saved.dailySeedOffers ?? [],
+      dailyFoodOffers: saved.dailyFoodOffers ?? [],
+      foodInventory: {
+        ...structuredClone(defaultState.foodInventory),
+        ...(saved.foodInventory ?? {}),
+      },
+      discoveredRecipes: saved.discoveredRecipes ?? [],
+      wasteCount: saved.wasteCount ?? 0,
+      farmItemInventory: {
+        ...structuredClone(defaultState.farmItemInventory),
+        ...(saved.farmItemInventory ?? {}),
+      },
       settings: {
         ...structuredClone(defaultState.settings),
         ...(saved.settings ?? {}),
@@ -170,18 +554,7 @@ function loadState() {
         ...structuredClone(defaultState.harvestInventory),
         ...(saved.harvestInventory ?? {}),
       },
-      decorationInventory,
-      farmDecorations: savedDecorations.length
-        ? structuredClone(defaultState.farmDecorations).map((cell, index) => ({
-            ...cell,
-            decoration: savedDecorations[index]?.decoration ?? null,
-            rotation: savedDecorations[index]?.rotation ?? 0,
-          }))
-        : structuredClone(defaultState.farmDecorations),
-      farmPlots:
-        Array.isArray(saved.farmPlots) && saved.farmPlots.length === 16
-          ? saved.farmPlots
-          : structuredClone(defaultState.farmPlots),
+      farmPlots: migratedFarmPlots,
       groups: saved.groups ?? structuredClone(defaultState.groups),
       tasks: (saved.tasks ?? []).map((task) => ({
         ...task,
@@ -379,6 +752,100 @@ function toLocalDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function daysBetweenDates(fromDate, toDate = toLocalDateString()) {
+  if (!fromDate) return 0;
+  const toUtcDay = (dateString) => {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.max(0, Math.floor((toUtcDay(toDate) - toUtcDay(fromDate)) / 86400000));
+}
+
+function getCropGrowthCost(cropId) {
+  return CROP_GROWTH_COSTS[cropId] ?? 4;
+}
+
+function isProductionBoostActive() {
+  return state.productionBoostUntil > Date.now();
+}
+
+function productionCoinReward(baseAmount = 1) {
+  return baseAmount * (isProductionBoostActive() ? 2 : 1);
+}
+
+function isWiltProtectionActive() {
+  return state.wiltProtectionUntil > Date.now();
+}
+
+function getRandomSelection(values, count) {
+  const shuffled = [...values];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled.slice(0, count);
+}
+
+function ensureDailyMarket() {
+  const today = toLocalDateString();
+  if (
+    state.marketRotationDate === today &&
+    state.dailySeedOffers.length === 7 &&
+    state.dailyFoodOffers.length === 4
+  ) {
+    return;
+  }
+  state.marketRotationDate = today;
+  state.dailySeedOffers = getRandomSelection(Object.keys(CROPS), 7);
+  state.dailyFoodOffers = getRandomSelection(Object.keys(RECIPES), 4);
+}
+
+function getRecipeByIngredients(ingredientIds) {
+  const key = ingredientIds.filter(Boolean).sort().join("|");
+  return Object.entries(RECIPES).find(
+    ([, recipe]) => [...recipe.ingredients].sort().join("|") === key,
+  );
+}
+
+function launchHarvestCelebration() {
+  const celebration = document.createElement("div");
+  celebration.className = "harvest-celebration";
+  celebration.innerHTML = Array.from(
+    { length: 28 },
+    (_, index) =>
+      `<i style="--tx:${((index % 9) - 4) * 75}px;--delay:${(index % 7) * 0.04}s"></i>`,
+  ).join("");
+  document.body.append(celebration);
+  setTimeout(() => celebration.remove(), 1800);
+}
+
+function getWiltGraceDays(plot) {
+  return plot.growth <= 1 ? 1 : 2;
+}
+
+function updateWiltedCrops() {
+  if (isWiltProtectionActive()) return false;
+  let changed = false;
+  state.farmPlots.forEach((plot) => {
+    if (!plot.crop || plot.wilted) return;
+    const lastCareDate = plot.lastWateredDate || plot.plantedDate;
+    if (lastCareDate && daysBetweenDates(lastCareDate) > getWiltGraceDays(plot)) {
+      plot.wilted = true;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function clearFarmPlot(plot) {
+  plot.crop = null;
+  plot.growth = 0;
+  plot.plantedDate = "";
+  plot.lastWateredDate = "";
+  plot.wilted = false;
+  plot.fertilizer = null;
+}
+
 function isHabitScheduledOn(habit, date) {
   const dateString = toLocalDateString(date);
   const weekday = date.getDay() === 0 ? 7 : date.getDay();
@@ -478,6 +945,40 @@ function renderHabitHeatmap() {
   grid.innerHTML = `<span></span>${dayHeaders}${rows}`;
 }
 
+function cropSvg(cropId, stage = "mature") {
+  const growthType = CROP_GROWTH_TYPES[cropId] ?? "vine";
+  const symbolId =
+    stage === "mature"
+      ? `crop-${cropId}`
+      : stage === "seed"
+        ? "stage-seed"
+        : `stage-${growthType}-${stage}`;
+  return `
+    <svg class="crop-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <use href="#${symbolId}"></use>
+    </svg>
+  `;
+}
+
+function getCropStage(cropId, growth) {
+  const maxGrowth = getCropGrowthCost(cropId);
+  if (growth >= maxGrowth) return "mature";
+  if (growth === 0) return "seed";
+  if (growth === 1) return "sprout";
+  if (growth === maxGrowth - 1 && maxGrowth >= 4) return "flower";
+  return "growing";
+}
+
+function getFreePassTargets() {
+  const tasks = state.tasks
+    .filter((task) => !task.archived && task.status !== "done")
+    .map((task) => ({ value: `task:${task.id}`, label: `할 일 · ${task.title}` }));
+  const habits = state.habits
+    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
+    .map((habit) => ({ value: `habit:${habit.id}`, label: `습관 · ${habit.title}` }));
+  return [...tasks, ...habits];
+}
+
 function renderFarm() {
   const inventory = document.querySelector("#seedInventory");
   const shop = document.querySelector("#seedShop");
@@ -486,12 +987,16 @@ function renderFarm() {
   const harvestInventory = document.querySelector("#harvestInventory");
   const morrisonBuyList = document.querySelector("#morrisonBuyList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
+  const modalFarmMoney = document.querySelector("#modalFarmMoneyBalance");
   const topFarmMoney = document.querySelector("#farmMoneyBalance");
-  const decorInventory = document.querySelector("#decorInventory");
-  const decorGrid = document.querySelector("#decorGrid");
-  const decorShop = document.querySelector("#decorShop");
-  const decorWorkshop = document.querySelector("#decorWorkshop");
-  const decorModeButton = document.querySelector("#toggleDecorMode");
+  const farmItemShop = document.querySelector("#farmItemShop");
+  const farmItemInventory = document.querySelector("#farmItemInventory");
+  const foodInventory = document.querySelector("#foodInventory");
+  const recipeBook = document.querySelector("#recipeBook");
+  const recipeBookProgress = document.querySelector("#recipeBookProgress");
+  const harvestStorageCount = document.querySelector("#harvestStorageCount");
+  const seedStorageCount = document.querySelector("#seedStorageCount");
+  const supplyStorageCount = document.querySelector("#supplyStorageCount");
   if (
     !inventory ||
     !shop ||
@@ -500,34 +1005,113 @@ function renderFarm() {
     !harvestInventory ||
     !morrisonBuyList ||
     !marketFarmMoney ||
+    !modalFarmMoney ||
     !topFarmMoney ||
-    !decorInventory ||
-    !decorGrid ||
-    !decorShop ||
-    !decorWorkshop ||
-    !decorModeButton
+    !farmItemShop ||
+    !farmItemInventory ||
+    !foodInventory ||
+    !recipeBook ||
+    !recipeBookProgress ||
+    !harvestStorageCount ||
+    !seedStorageCount ||
+    !supplyStorageCount
   ) {
     return;
   }
 
+  ensureDailyMarket();
+  updateWiltedCrops();
   farmBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
+  modalFarmMoney.textContent = state.farmMoney;
   topFarmMoney.textContent = state.farmMoney;
   farmBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
-  decorWorkshop.classList.toggle("hidden", !decorationMode);
-  decorModeButton.classList.toggle("active", decorationMode);
-  decorModeButton.textContent = decorationMode ? "꾸미기 닫기" : "꾸미기 모드";
+  harvestStorageCount.textContent = Object.values(state.harvestInventory).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  seedStorageCount.textContent = Object.values(state.seedInventory).reduce(
+    (total, count) => total + count,
+    0,
+  );
+  supplyStorageCount.textContent = Object.values(state.farmItemInventory).reduce(
+    (total, count) => total + count,
+    0,
+  );
+
+  farmItemShop.innerHTML = Object.entries(FARM_ITEMS)
+    .map(
+      ([itemId, item]) => `
+        <article class="farm-item-card">
+          <span>${item.icon}</span>
+          <div>
+            <strong>${item.name}</strong>
+            <small>${item.description}</small>
+          </div>
+          <button type="button" data-buy-farm-item="${itemId}">✦ ${item.price}</button>
+        </article>
+      `,
+    )
+    .join("");
+
+  const freePassTargets = getFreePassTargets();
+  farmItemInventory.innerHTML = Object.entries(FARM_ITEMS)
+    .map(([itemId, item]) => {
+      const count = state.farmItemInventory[itemId] ?? 0;
+      const targetPicker =
+        itemId === "freePass" && count
+          ? `
+            <select id="freePassTarget" aria-label="프리패스 적용 대상">
+              ${freePassTargets.length
+                ? freePassTargets
+                    .map(
+                      (target) =>
+                        `<option value="${target.value}">${escapeHtml(target.label)}</option>`,
+                    )
+                    .join("")
+                : '<option value="">완료할 항목 없음</option>'}
+            </select>
+          `
+          : "";
+      const boostStatus =
+        itemId === "goldenFestivalPass" && isProductionBoostActive()
+          ? `<small class="boost-status">2배 효과 진행 중</small>`
+          : itemId === "farmFestivalPass" && isWiltProtectionActive()
+            ? `<small class="boost-status">시듦 방지 진행 중</small>`
+          : "";
+      return `
+        <article
+          class="farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""} ${itemId === "freePass" && count ? "target-item" : ""}"
+          data-label="${item.name}"
+        >
+          <button
+            class="supply-icon-button"
+            type="button"
+            data-use-farm-item="${itemId}"
+            title="${item.name} · ${item.description}"
+            aria-label="${item.name}: ${item.description}, ${count}개 보유"
+            ${count ? "" : "disabled"}
+          >
+            <span>${item.icon}</span>
+            <small>${count}</small>
+          </button>
+          ${boostStatus}
+          ${targetPicker}
+        </article>
+      `;
+    })
+    .join("");
 
   inventory.innerHTML = Object.entries(CROPS)
     .map(([cropId, crop]) => {
       const count = state.seedInventory[cropId] ?? 0;
       return `
         <button
-          class="inventory-seed ${selectedSeed === cropId ? "selected" : ""} ${count === 0 ? "empty" : ""}"
+          class="inventory-seed ${[...crop.name].length >= 3 ? "long-name" : ""} ${selectedSeed === cropId ? "selected" : ""} ${count === 0 ? "empty" : ""}"
           type="button"
           data-select-seed="${cropId}"
         >
-          <span>${crop.emoji}</span>
+          <span>${cropSvg(cropId)}</span>
           <strong>${crop.name}</strong>
           <small>${count}개</small>
         </button>
@@ -535,12 +1119,13 @@ function renderFarm() {
     })
     .join("");
 
-  shop.innerHTML = Object.entries(CROPS)
+  shop.innerHTML = state.dailySeedOffers
+    .map((cropId) => [cropId, CROPS[cropId]])
     .map(([cropId, crop]) => {
-      const growthCost = crop.stages.length - 1;
+      const growthCost = getCropGrowthCost(cropId);
       return `
         <article class="seed-shop-card">
-          <span class="seed-shop-emoji">${crop.emoji}</span>
+          <span class="seed-shop-emoji">${cropSvg(cropId)}</span>
           <div>
             <strong>${crop.name} 씨앗</strong>
             <small>완전 성장 ${growthCost} Coin</small>
@@ -556,8 +1141,8 @@ function renderFarm() {
   harvestInventory.innerHTML = Object.entries(CROPS)
     .map(
       ([cropId, crop]) => `
-        <span class="harvest-item ${state.harvestInventory[cropId] ? "" : "empty"}">
-          <i>${crop.emoji}</i>
+        <span class="harvest-item ${[...crop.name].length >= 3 ? "long-name" : ""} ${state.harvestInventory[cropId] ? "" : "empty"}">
+          <i>${cropSvg(cropId)}</i>
           <strong>${crop.name}</strong>
           <small>${state.harvestInventory[cropId] ?? 0}개</small>
         </span>
@@ -565,79 +1150,69 @@ function renderFarm() {
     )
     .join("");
 
-  morrisonBuyList.innerHTML = Object.entries(CROPS)
+  morrisonBuyList.innerHTML = state.dailyFoodOffers
     .map(
-      ([cropId, crop]) => `
-        <article class="morrison-buy-card">
-          <span>${crop.emoji}</span>
-          <div>
-            <strong>${crop.name}</strong>
-            <small>보유 ${state.harvestInventory[cropId] ?? 0}개</small>
-          </div>
-          <button type="button" data-sell-crop="${cropId}">
-            ✦ ${crop.sellPrice}
-          </button>
-        </article>
-      `,
-    )
-    .join("");
-
-  decorShop.innerHTML = Object.entries(DECORATIONS)
-    .map(
-      ([decorationId, decoration]) => `
-        <article class="decor-shop-card">
-          <span>${decoration.emoji}</span>
-          <strong>${decoration.name}</strong>
-          <button type="button" data-buy-decoration="${decorationId}">
-            ✦ ${decoration.price}
-          </button>
-        </article>
-      `,
-    )
-    .join("");
-
-  decorInventory.innerHTML = Object.entries(DECORATIONS)
-    .map(([decorationId, decoration]) => {
-      const count = state.decorationInventory[decorationId] ?? 0;
-      return `
-        <button
-          class="decor-inventory-item ${selectedDecoration === decorationId ? "selected" : ""} ${count === 0 ? "empty" : ""}"
-          type="button"
-          data-select-decoration="${decorationId}"
-        >
-          <span>${decoration.emoji}</span>
-          <strong>${decoration.name}</strong>
-          <small>${count}개</small>
-        </button>
-      `;
-    })
-    .join("");
-
-  decorGrid.classList.toggle("editing", decorationMode);
-  decorGrid.innerHTML = state.farmDecorations
-    .map((cell, index) => {
-      const position = DECORATION_SLOTS[index];
-      if (!cell.decoration) {
+      (recipeId) => {
+        const recipe = RECIPES[recipeId];
         return `
-          <button
-            class="decor-cell empty ${selectedDecoration ? "ready" : ""}"
-            type="button"
-            data-place-decoration="${cell.id}"
-            style="grid-row:${position.row};grid-column:${position.column}"
-            ${decorationMode ? "" : "disabled"}
-            aria-label="${cell.id + 1}번 꾸미기 칸"
-          ></button>
-        `;
-      }
-
-      const decoration = DECORATIONS[cell.decoration];
-      return `
-        <article class="decor-cell placed" style="grid-row:${position.row};grid-column:${position.column}">
-          <span style="transform: rotate(${cell.rotation}deg)">${decoration.emoji}</span>
+        <article class="morrison-buy-card">
+          <span>${recipe.icon}</span>
           <div>
-            <button type="button" data-rotate-decoration="${cell.id}" aria-label="${decoration.name} 회전">↻</button>
-            <button type="button" data-store-decoration="${cell.id}" aria-label="${decoration.name} 보관">×</button>
+            <strong>${recipe.name}</strong>
+            <small>보유 ${state.foodInventory[recipeId] ?? 0}개</small>
           </div>
+          <button type="button" data-sell-food="${recipeId}">
+            ✦ ${recipe.sellPrice}
+          </button>
+        </article>
+      `;
+      },
+    )
+    .join("");
+
+  const ingredientOptions = [
+    '<option value="">재료 선택</option>',
+    ...Object.entries(CROPS).map(
+      ([cropId, crop]) =>
+        `<option value="${cropId}">${crop.name} (${state.harvestInventory[cropId] ?? 0})</option>`,
+    ),
+  ].join("");
+  ["recipeIngredient1", "recipeIngredient2", "recipeIngredient3"].forEach((id) => {
+    const select = document.querySelector(`#${id}`);
+    if (select) select.innerHTML = ingredientOptions;
+  });
+
+  const storedFoods = Object.entries(RECIPES)
+    .filter(([recipeId]) => state.foodInventory[recipeId])
+    .map(
+      ([recipeId, recipe]) => `
+        <span class="food-item">
+          <i>${recipe.icon}</i><strong>${recipe.name}</strong><small>${state.foodInventory[recipeId]}개</small>
+        </span>
+      `,
+    )
+    .join("");
+  foodInventory.innerHTML =
+    storedFoods ||
+    '<span class="empty-food-message">완성된 음식이 아직 없어.</span>';
+  if (state.wasteCount) {
+    foodInventory.insertAdjacentHTML(
+      "beforeend",
+      `<button class="waste-item" type="button" data-discard-waste>🗑 폐기물 ${state.wasteCount}개 버리기</button>`,
+    );
+  }
+
+  recipeBookProgress.textContent = `${state.discoveredRecipes.length} / ${Object.keys(RECIPES).length}`;
+  recipeBook.innerHTML = Object.entries(RECIPES)
+    .map(([recipeId, recipe]) => {
+      const discovered = state.discoveredRecipes.includes(recipeId);
+      return `
+        <article class="recipe-entry ${discovered ? "" : "locked"}">
+          <span>${discovered ? recipe.icon : "?"}</span>
+          <strong>${discovered ? recipe.name : "알 수 없는 요리"}</strong>
+          <small>${discovered
+            ? recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")
+            : "재료를 조합해 발견해."}</small>
         </article>
       `;
     })
@@ -651,6 +1226,7 @@ function renderFarm() {
             class="farm-plot empty-plot ${selectedSeed ? "ready" : ""}"
             type="button"
             data-plant-plot="${plot.id}"
+            data-plot-id="${plot.id}"
             aria-label="${plot.id + 1}번 빈 밭"
           >
             <span>＋</span>
@@ -659,9 +1235,28 @@ function renderFarm() {
       }
 
       const crop = CROPS[plot.crop];
-      const maxGrowth = crop.stages.length - 1;
+      const maxGrowth = getCropGrowthCost(plot.crop);
       const mature = plot.growth >= maxGrowth;
-      const stage = crop.stages[Math.min(plot.growth, maxGrowth)];
+      const stage = getCropStage(plot.crop, plot.growth);
+      const fertilizerBadge = plot.fertilizer
+        ? `<span class="fertilizer-badge">${FARM_ITEMS[plot.fertilizer]?.icon ?? "✦"}</span>`
+        : "";
+
+      if (plot.wilted) {
+        return `
+          <article class="farm-plot crop-plot wilted" data-plot-id="${plot.id}">
+            ${fertilizerBadge}
+            <div class="crop-visual stage-${plot.growth}">
+              <span>${cropSvg(plot.crop, "wilted")}</span>
+            </div>
+            <div class="crop-info">
+              <strong>${crop.name}</strong>
+              <small>시들었음</small>
+            </div>
+            <button class="discard-button" type="button" data-discard-plot="${plot.id}">폐기하기</button>
+          </article>
+        `;
+      }
 
       if (!mature) {
         return `
@@ -669,27 +1264,30 @@ function renderFarm() {
             class="farm-plot crop-plot growable-plot"
             type="button"
             data-grow-plot="${plot.id}"
+            data-plot-id="${plot.id}"
             aria-label="${crop.name}에 1 Coin 주기"
           >
+            ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
-              <span>${stage}</span>
+              <span>${cropSvg(plot.crop, stage)}</span>
             </div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
-              <small>${plot.growth} / ${maxGrowth} 단계</small>
+              <small>${plot.growth} / ${maxGrowth}</small>
             </div>
           </button>
         `;
       }
 
       return `
-        <article class="farm-plot crop-plot mature">
+        <article class="farm-plot crop-plot mature" data-plot-id="${plot.id}">
+          ${fertilizerBadge}
           <div class="crop-visual stage-${plot.growth}">
-            <span>${stage}</span>
+            <span>${cropSvg(plot.crop)}</span>
           </div>
           <div class="crop-info">
             <strong>${crop.name}</strong>
-            <small>성장 완료</small>
+            <small>${plot.growth} / ${maxGrowth}</small>
           </div>
           <button class="harvest-button" type="button" data-harvest-plot="${plot.id}">수확하기</button>
         </article>
@@ -740,10 +1338,18 @@ function moveTaskTo(id, nextStatus) {
   task.status = nextStatus;
 
   if (previousStatus !== "done" && nextStatus === "done") {
-    state.coins += 1;
-    showToast("완료. 1 Coin 획득.");
+    const reward = productionCoinReward();
+    task.completionReward = reward;
+    task.completedWithFreePass = false;
+    state.coins += reward;
+    showToast(`완료. ${reward} Coin 획득.`);
   } else if (previousStatus === "done" && nextStatus !== "done") {
-    state.coins -= 1;
+    state.coins -= task.completionReward ?? 1;
+    task.completionReward = 0;
+    if (task.completedWithFreePass) {
+      state.farmItemInventory.freePass += 1;
+      task.completedWithFreePass = false;
+    }
     showToast(`완료를 취소했어. 현재 ${state.coins} Coin.`);
   } else {
     showToast(nextStatus === "doing" ? "진행 중으로 옮겼어." : "대기로 옮겼어.");
@@ -766,10 +1372,18 @@ function toggleHabit(id) {
   habit.completionDates = completeToday
     ? habit.completionDates.filter((date) => date !== toLocalDateString())
     : [...habit.completionDates, toLocalDateString()];
-  state.coins += habit.complete ? 1 : -1;
+  const reward = habit.complete ? productionCoinReward() : (habit.completionReward ?? 1);
+  state.coins += habit.complete ? reward : -reward;
+  habit.completionReward = habit.complete ? reward : 0;
+  if (habit.complete) {
+    habit.completedWithFreePass = false;
+  } else if (habit.completedWithFreePass) {
+    state.farmItemInventory.freePass += 1;
+    habit.completedWithFreePass = false;
+  }
   showToast(
     habit.complete
-      ? "습관 완료. 1 Coin 획득."
+      ? `습관 완료. ${reward} Coin 획득.`
       : `완료를 취소했어. 현재 ${state.coins} Coin.`,
   );
   render();
@@ -832,8 +1446,9 @@ function addFocusSecond() {
 
   if (state.focusRewardSeconds >= 3600) {
     state.focusRewardSeconds -= 3600;
-    state.coins += 1;
-    showToast("집중 누적 60분 완료. 1 Coin을 받았어.");
+    const reward = productionCoinReward();
+    state.coins += reward;
+    showToast(`집중 누적 60분 완료. ${reward} Coin을 받았어.`);
   }
 }
 
@@ -853,17 +1468,23 @@ function completeFocus() {
   if (item) {
     if (activeFocus.type === "task" && item.status !== "done") {
       item.status = "done";
+      item.completedWithFreePass = false;
       completedItem = true;
     }
     if (activeFocus.type === "habit" && !isHabitCompleteToday(item)) {
       item.complete = true;
       item.completedDate = toLocalDateString();
       item.completionDates.push(toLocalDateString());
+      item.completedWithFreePass = false;
       completedItem = true;
     }
   }
 
-  if (completedItem) state.coins += 1;
+  if (completedItem) {
+    const reward = productionCoinReward();
+    state.coins += reward;
+    item.completionReward = reward;
+  }
   stopFocusTimer();
 
   if (state.settings.breakEnabled) {
@@ -1254,13 +1875,136 @@ document.querySelector("#seedInventory").addEventListener("click", (event) => {
   }
 
   selectedSeed = selectedSeed === cropId ? null : cropId;
+  document.querySelector("#seedStorageModal").classList.add("hidden");
   renderFarm();
 });
 
+document.querySelector("#farmItemShop").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-buy-farm-item]");
+  if (!button) return;
+  const itemId = button.dataset.buyFarmItem;
+  const item = FARM_ITEMS[itemId];
+  if (!item) return;
+  if (state.farmMoney < item.price) {
+    showToast(`${item.name}을 사려면 ${item.price} Farm Money가 필요해.`);
+    return;
+  }
+  state.farmMoney -= item.price;
+  state.farmItemInventory[itemId] += 1;
+  showToast(`${item.name}을 구매했어.`);
+  render();
+});
+
+document.querySelector("#farmItemInventory").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-use-farm-item]");
+  if (!button) return;
+  const itemId = button.dataset.useFarmItem;
+  const item = FARM_ITEMS[itemId];
+  if (!item || !state.farmItemInventory[itemId]) return;
+
+  if (item.type === "plot") {
+    selectedFarmItem = selectedFarmItem === itemId ? null : itemId;
+    showToast(selectedFarmItem ? `${item.name}을 적용할 밭을 골라.` : "용품 선택을 취소했어.");
+    document.querySelector("#supplyStorageModal").classList.add("hidden");
+    renderFarm();
+    return;
+  }
+
+  if (itemId === "goldenFestivalPass") {
+    state.farmItemInventory[itemId] -= 1;
+    state.productionBoostUntil =
+      Math.max(Date.now(), state.productionBoostUntil) + 24 * 60 * 60 * 1000;
+    showToast("황금 수확제가 시작됐어! 24시간 동안 생산 Coin이 2배야.");
+    render();
+    return;
+  }
+
+  if (itemId === "farmFestivalPass") {
+    state.farmItemInventory[itemId] -= 1;
+    state.wiltProtectionUntil =
+      Math.max(Date.now(), state.wiltProtectionUntil) + 24 * 60 * 60 * 1000;
+    showToast("푸른 들판 축제가 시작됐어! 24시간 동안 작물이 시들지 않아.");
+    render();
+    return;
+  }
+
+  if (itemId === "freePass") {
+    const targetValue = document.querySelector("#freePassTarget")?.value;
+    if (!targetValue) {
+      showToast("완료할 수 있는 항목이 없어.");
+      return;
+    }
+    const [targetType, rawId] = targetValue.split(":");
+    const targetId = Number(rawId);
+    const reward = productionCoinReward();
+    if (targetType === "task") {
+      const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
+      if (!task) return;
+      task.status = "done";
+      task.completionReward = reward;
+      task.completedWithFreePass = true;
+    } else {
+      const habit = state.habits.find((entry) => entry.id === targetId);
+      if (!habit || isHabitCompleteToday(habit)) return;
+      habit.complete = true;
+      habit.completedDate = toLocalDateString();
+      habit.completionDates.push(toLocalDateString());
+      habit.completionReward = reward;
+      habit.completedWithFreePass = true;
+    }
+    state.coins += reward;
+    state.farmItemInventory[itemId] -= 1;
+    showToast(`프리패스로 완료 처리했어. ${reward} Coin 획득.`);
+    render();
+  }
+});
+
 document.querySelector("#farmGrid").addEventListener("click", (event) => {
+  const plotElement = event.target.closest("[data-plot-id]");
+  if (selectedFarmItem && plotElement) {
+    const plot = state.farmPlots.find(
+      (item) => item.id === Number(plotElement.dataset.plotId),
+    );
+    const itemId = selectedFarmItem;
+    const item = FARM_ITEMS[itemId];
+    if (!plot?.crop || !item || !state.farmItemInventory[itemId]) {
+      showToast("작물이 심어진 밭에만 사용할 수 있어.");
+      return;
+    }
+
+    if (itemId === "revivalTonic") {
+      if (!plot.wilted) {
+        showToast("시든 작물에만 회복제를 사용할 수 있어.");
+        return;
+      }
+      plot.wilted = false;
+      plot.lastWateredDate = toLocalDateString();
+    } else if (itemId === "growthTonic") {
+      if (plot.wilted || plot.growth >= getCropGrowthCost(plot.crop)) {
+        showToast("성장 중인 작물에만 사용할 수 있어.");
+        return;
+      }
+      plot.growth = Math.min(getCropGrowthCost(plot.crop), plot.growth + 2);
+      plot.lastWateredDate = toLocalDateString();
+    } else {
+      if (plot.wilted || plot.fertilizer) {
+        showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야." : "시든 작물에는 비료를 쓸 수 없어.");
+        return;
+      }
+      plot.fertilizer = itemId;
+    }
+
+    state.farmItemInventory[itemId] -= 1;
+    selectedFarmItem = null;
+    showToast(`${item.name}을 적용했어.`);
+    render();
+    return;
+  }
+
   const plantButton = event.target.closest("[data-plant-plot]");
   const growButton = event.target.closest("[data-grow-plot]");
   const harvestButton = event.target.closest("[data-harvest-plot]");
+  const discardButton = event.target.closest("[data-discard-plot]");
 
   if (plantButton) {
     if (!selectedSeed || !state.seedInventory[selectedSeed]) {
@@ -1275,10 +2019,26 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 
     plot.crop = selectedSeed;
     plot.growth = 0;
+    plot.plantedDate = toLocalDateString();
+    plot.lastWateredDate = "";
+    plot.wilted = false;
     state.seedInventory[selectedSeed] -= 1;
     const cropName = CROPS[selectedSeed].name;
     if (state.seedInventory[selectedSeed] === 0) selectedSeed = null;
     showToast(`${cropName} 씨앗을 심었어.`);
+    render();
+    return;
+  }
+
+  if (discardButton) {
+    const plot = state.farmPlots.find(
+      (item) => item.id === Number(discardButton.dataset.discardPlot),
+    );
+    if (!plot?.crop || !plot.wilted) return;
+
+    const cropName = CROPS[plot.crop].name;
+    clearFarmPlot(plot);
+    showToast(`시든 ${cropName}을 폐기했어.`);
     render();
     return;
   }
@@ -1290,14 +2050,23 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     if (!plot?.crop) return;
 
     const crop = CROPS[plot.crop];
-    const maxGrowth = crop.stages.length - 1;
-    if (plot.growth < maxGrowth) return;
+    const maxGrowth = getCropGrowthCost(plot.crop);
+    if (plot.wilted || plot.growth < maxGrowth) return;
 
-    state.harvestInventory[plot.crop] += 1;
+    const fertilizer = plot.fertilizer;
+    const hasLuckEffect =
+      fertilizer === "luckyFertilizer" || fertilizer === "premiumFertilizer";
+    const jackpot = hasLuckEffect && Math.random() < 0.05;
+    const harvestAmount = hasLuckEffect ? (jackpot ? 5 : 2) : 1;
+    state.harvestInventory[plot.crop] += harvestAmount;
     const cropName = crop.name;
-    plot.crop = null;
-    plot.growth = 0;
-    showToast(`${cropName}을 수확해서 보관함에 넣었어.`);
+    clearFarmPlot(plot);
+    if (jackpot) launchHarvestCelebration();
+    showToast(
+      jackpot
+        ? `대풍년! ${cropName}을 5개 수확했어!`
+        : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어.`,
+    );
     render();
     return;
   }
@@ -1309,15 +2078,21 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     if (!plot?.crop) return;
 
     const crop = CROPS[plot.crop];
-    const maxGrowth = crop.stages.length - 1;
-    if (plot.growth >= maxGrowth) return;
+    const maxGrowth = getCropGrowthCost(plot.crop);
+    if (plot.wilted || plot.growth >= maxGrowth) return;
     if (state.coins < 1) {
       showToast("작물을 키우려면 1 Coin이 필요해.");
       return;
     }
 
     state.coins -= 1;
-    plot.growth += 1;
+    const growthAmount =
+      plot.fertilizer === "moistureFertilizer" ||
+      plot.fertilizer === "premiumFertilizer"
+        ? 2
+        : 1;
+    plot.growth = Math.min(maxGrowth, plot.growth + growthAmount);
+    plot.lastWateredDate = toLocalDateString();
     showToast(
       plot.growth >= maxGrowth
         ? `${crop.name}이 다 자랐어.`
@@ -1328,104 +2103,113 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 });
 
 document.querySelector("#morrisonBuyList").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-sell-crop]");
+  const button = event.target.closest("[data-sell-food]");
   if (!button) return;
 
-  const cropId = button.dataset.sellCrop;
-  const crop = CROPS[cropId];
-  if (!crop || !state.harvestInventory[cropId]) {
-    showToast("Morrison에게 팔 수확물이 없어.");
+  const recipeId = button.dataset.sellFood;
+  const recipe = RECIPES[recipeId];
+  if (!recipe || !state.foodInventory[recipeId]) {
+    showToast("오늘 모리슨에게 팔 수 있는 음식이 없어.");
     return;
   }
 
-  state.harvestInventory[cropId] -= 1;
-  state.farmMoney += crop.sellPrice;
-  showToast(`${crop.name} 1개를 팔고 ${crop.sellPrice} Farm Money를 받았어.`);
+  state.foodInventory[recipeId] -= 1;
+  state.farmMoney += recipe.sellPrice;
+  showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어.`);
   render();
 });
 
-document.querySelector("#toggleDecorMode").addEventListener("click", () => {
-  decorationMode = !decorationMode;
-  renderFarm();
-});
-
-document.querySelector("#decorShop").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-buy-decoration]");
-  if (!button) return;
-
-  const decorationId = button.dataset.buyDecoration;
-  const decoration = DECORATIONS[decorationId];
-  if (!decoration) return;
-  if (state.farmMoney < decoration.price) {
-    showToast(`${decoration.name}을 사려면 ${decoration.price} Farm Money가 필요해.`);
+document.querySelector("#cookRecipeButton").addEventListener("click", () => {
+  const ingredientIds = [1, 2, 3]
+    .map((index) => document.querySelector(`#recipeIngredient${index}`).value)
+    .filter(Boolean);
+  if (ingredientIds.length < 2) {
+    showToast("재료를 두 가지 이상 골라.");
     return;
   }
 
-  state.farmMoney -= decoration.price;
-  state.decorationInventory[decorationId] += 1;
-  selectedDecoration = decorationId;
-  decorationMode = true;
-  showToast(`${decoration.name}을 샀어. 마당에 놓아봐.`);
+  const requiredCounts = ingredientIds.reduce((counts, cropId) => {
+    counts[cropId] = (counts[cropId] ?? 0) + 1;
+    return counts;
+  }, {});
+  const missingIngredient = Object.entries(requiredCounts).find(
+    ([cropId, count]) => (state.harvestInventory[cropId] ?? 0) < count,
+  );
+  if (missingIngredient) {
+    showToast(`${CROPS[missingIngredient[0]].name}이 부족해.`);
+    return;
+  }
+
+  Object.entries(requiredCounts).forEach(([cropId, count]) => {
+    state.harvestInventory[cropId] -= count;
+  });
+
+  const recipeEntry = getRecipeByIngredients(ingredientIds);
+  if (!recipeEntry) {
+    state.wasteCount += 1;
+    showToast("도감에 없는 조합이야. 폐기물이 생겼어.");
+    render();
+    return;
+  }
+
+  const [recipeId, recipe] = recipeEntry;
+  state.foodInventory[recipeId] += 1;
+  const firstDiscovery = !state.discoveredRecipes.includes(recipeId);
+  if (firstDiscovery) state.discoveredRecipes.push(recipeId);
+  showToast(
+    firstDiscovery
+      ? `새 레시피 발견! ${recipe.name}`
+      : `${recipe.name}을 만들었어.`,
+  );
   render();
 });
 
-document.querySelector("#decorInventory").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-select-decoration]");
+document.querySelector("#foodInventory").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-discard-waste]");
   if (!button) return;
-
-  const decorationId = button.dataset.selectDecoration;
-  if (!state.decorationInventory[decorationId]) {
-    showToast("보관 중인 장식이 없어.");
-    return;
-  }
-
-  selectedDecoration = selectedDecoration === decorationId ? null : decorationId;
-  renderFarm();
+  state.wasteCount = 0;
+  showToast("폐기물을 모두 버렸어.");
+  render();
 });
 
-document.querySelector("#decorGrid").addEventListener("click", (event) => {
-  const placeButton = event.target.closest("[data-place-decoration]");
-  const rotateButton = event.target.closest("[data-rotate-decoration]");
-  const storeButton = event.target.closest("[data-store-decoration]");
-
-  if (placeButton) {
-    if (!selectedDecoration || !state.decorationInventory[selectedDecoration]) {
-      showToast("보관함에서 놓을 장식을 먼저 골라.");
-      return;
-    }
-
-    const cell = state.farmDecorations.find(
-      (item) => item.id === Number(placeButton.dataset.placeDecoration),
-    );
-    if (!cell || cell.decoration) return;
-
-    cell.decoration = selectedDecoration;
-    cell.rotation = 0;
-    state.decorationInventory[selectedDecoration] -= 1;
-    if (state.decorationInventory[selectedDecoration] === 0) selectedDecoration = null;
-    render();
-    return;
+const permanentMarketModal = document.querySelector("#permanentMarketModal");
+document.querySelector("#openPermanentMarket").addEventListener("click", () => {
+  permanentMarketModal.classList.remove("hidden");
+});
+permanentMarketModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-market]")) {
+    permanentMarketModal.classList.add("hidden");
   }
-
-  if (rotateButton) {
-    const cell = state.farmDecorations.find(
-      (item) => item.id === Number(rotateButton.dataset.rotateDecoration),
-    );
-    if (!cell?.decoration) return;
-    cell.rotation = (cell.rotation + 90) % 360;
-    render();
-    return;
+});
+const farmKitchenModal = document.querySelector("#farmKitchenModal");
+document.querySelector("#openFarmKitchen").addEventListener("click", () => {
+  farmKitchenModal.classList.remove("hidden");
+});
+farmKitchenModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-kitchen]")) {
+    farmKitchenModal.classList.add("hidden");
   }
-
-  if (storeButton) {
-    const cell = state.farmDecorations.find(
-      (item) => item.id === Number(storeButton.dataset.storeDecoration),
-    );
-    if (!cell?.decoration) return;
-    state.decorationInventory[cell.decoration] += 1;
-    cell.decoration = null;
-    cell.rotation = 0;
-    render();
+});
+const storageModals = {
+  harvest: document.querySelector("#harvestStorageModal"),
+  seed: document.querySelector("#seedStorageModal"),
+  supply: document.querySelector("#supplyStorageModal"),
+};
+document.querySelector(".farm-storage-toolbar").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-open-storage]");
+  if (!button) return;
+  storageModals[button.dataset.openStorage]?.classList.remove("hidden");
+});
+Object.values(storageModals).forEach((modal) => {
+  modal.addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-storage]")) modal.classList.add("hidden");
+  });
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    permanentMarketModal.classList.add("hidden");
+    farmKitchenModal.classList.add("hidden");
+    Object.values(storageModals).forEach((modal) => modal.classList.add("hidden"));
   }
 });
 
@@ -1541,6 +2325,10 @@ document.querySelector("#nextHabitMonth").addEventListener("click", () => {
   );
   renderHabitHeatmap();
 });
+
+setInterval(() => {
+  if (updateWiltedCrops()) render();
+}, 60000);
 
 render();
 syncFocusSettingsForm();
