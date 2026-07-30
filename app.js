@@ -296,56 +296,56 @@ const FARM_ITEMS = {
     name: "행운 비료",
     icon: "✦",
     price: 240,
-    description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해.",
+    description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해",
     type: "plot",
   },
   moistureFertilizer: {
     name: "보습 비료",
     icon: "💧",
     price: 220,
-    description: "다음 수확까지 물 1회당 2단계 성장해.",
+    description: "다음 수확까지 물 1회당 2단계 성장해",
     type: "plot",
   },
   premiumFertilizer: {
     name: "프리미엄 비료",
     icon: "♛",
     price: 420,
-    description: "행운 비료와 보습 비료 효과를 함께 적용해.",
+    description: "행운 비료와 보습 비료 효과를 함께 적용해",
     type: "plot",
   },
   goldenFestivalPass: {
     name: "황금 수확제 초대장",
     icon: "🎟",
     price: 650,
-    description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼.",
+    description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼",
     type: "instant",
   },
   farmFestivalPass: {
     name: "푸른 들판 축제권",
     icon: "🎐",
     price: 550,
-    description: "사용 후 24시간 동안 모든 작물이 시들지 않아.",
+    description: "사용 후 24시간 동안 모든 작물이 시들지 않아",
     type: "instant",
   },
   freePass: {
     name: "농부의 프리패스",
     icon: "✓",
     price: 480,
-    description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해.",
+    description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해",
     type: "target",
   },
   revivalTonic: {
     name: "새벽이슬 회복제",
     icon: "☘",
     price: 180,
-    description: "시든 작물 하나를 되살려.",
+    description: "시든 작물 하나를 되살려",
     type: "plot",
   },
   growthTonic: {
     name: "햇살 성장제",
     icon: "☀",
     price: 220,
-    description: "작물 하나를 Coin 소비 없이 2단계 성장시켜.",
+    description: "작물 하나를 Coin 소비 없이 2단계 성장시켜",
     type: "plot",
   },
 };
@@ -384,6 +384,7 @@ const defaultState = {
   schemaVersion: 7,
   coins: 999,
   farmMoney: 999,
+  farmName: "햇살 밭",
   productionBoostUntil: 0,
   wiltProtectionUntil: 0,
   marketRotationDate: "",
@@ -439,17 +440,25 @@ const defaultState = {
 };
 
 let state = loadState();
-state.habits = state.habits.map((habit) => ({
-  ...habit,
-  completedDate: habit.completedDate ?? (habit.complete ? toLocalDateString() : ""),
-  completionDates:
+state.habits = state.habits.map((habit) => {
+  const completionDates =
     habit.completionDates ??
     (habit.completedDate
       ? [habit.completedDate]
       : habit.complete
         ? [toLocalDateString()]
-        : []),
-}));
+        : []);
+  return {
+    ...habit,
+    completedDate: habit.completedDate ?? (habit.complete ? toLocalDateString() : ""),
+    completionDates,
+    progressByDate:
+      habit.progressByDate ??
+      (habit.measureType === "count"
+        ? Object.fromEntries(completionDates.map((date) => [date, habit.targetValue ?? 1]))
+        : {}),
+  };
+});
 let toastTimer;
 let focusInterval;
 let focusSeconds = state.settings.focusMinutes * 60;
@@ -470,6 +479,9 @@ const taskGroup = document.querySelector("#taskGroup");
 const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
+const habitModal = document.querySelector("#habitModal");
+const habitInlineSlot = document.querySelector("#habitInlineSlot");
+const habitModalFormSlot = document.querySelector("#habitModalFormSlot");
 const habitInput = document.querySelector("#habitInput");
 const habitMeasureType = document.querySelector("#habitMeasureType");
 const habitTargetValue = document.querySelector("#habitTargetValue");
@@ -527,6 +539,7 @@ function loadState() {
       schemaVersion: 7,
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
+      farmName: saved.farmName ?? defaultState.farmName,
       productionBoostUntil: saved.productionBoostUntil ?? 0,
       wiltProtectionUntil: saved.wiltProtectionUntil ?? 0,
       marketRotationDate: saved.marketRotationDate ?? "",
@@ -859,8 +872,19 @@ function isHabitScheduledToday(habit) {
   return isHabitScheduledOn(habit, new Date());
 }
 
+function getHabitProgress(habit, dateString = toLocalDateString()) {
+  if (habit.measureType !== "count") {
+    return habit.completionDates.includes(dateString) ? habit.targetValue : 0;
+  }
+  return Math.max(0, Number(habit.progressByDate?.[dateString] ?? 0));
+}
+
+function getHabitProgressRatio(habit, dateString = toLocalDateString()) {
+  return Math.min(1, getHabitProgress(habit, dateString) / Math.max(1, habit.targetValue));
+}
+
 function isHabitCompleteToday(habit) {
-  return habit.completionDates.includes(toLocalDateString());
+  return getHabitProgressRatio(habit) >= 1;
 }
 
 function formatHabitSchedule(habit) {
@@ -883,8 +907,29 @@ function renderHabits() {
     .map((habit) => {
       const scheduledToday = isHabitScheduledToday(habit);
       const completeToday = isHabitCompleteToday(habit);
-      return `
-        <article class="habit-item ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}">
+      const countProgress = getHabitProgress(habit);
+      const isCountHabit = habit.measureType === "count";
+      const control = isCountHabit
+        ? `
+          <div class="habit-count-control" aria-label="${escapeHtml(habit.title)} 진행 횟수">
+            <button
+              type="button"
+              data-adjust-habit="${habit.id}"
+              data-delta="1"
+              aria-label="횟수 늘리기"
+              ${!scheduledToday || countProgress >= habit.targetValue ? "disabled" : ""}
+            >＋</button>
+            <strong>${countProgress}</strong>
+            <button
+              type="button"
+              data-adjust-habit="${habit.id}"
+              data-delta="-1"
+              aria-label="횟수 줄이기"
+              ${!scheduledToday || countProgress <= 0 ? "disabled" : ""}
+            >−</button>
+          </div>
+        `
+        : `
           <button
             class="habit-check"
             type="button"
@@ -892,11 +937,19 @@ function renderHabits() {
             aria-label="${escapeHtml(habit.title)} ${completeToday ? "완료 취소" : "완료"}"
             ${scheduledToday ? "" : "disabled"}
           >✓</button>
+        `;
+      const focusAction =
+        habit.measureType === "time"
+          ? `<button class="habit-focus-button" type="button" data-focus-habit="${habit.id}" ${scheduledToday ? "" : "disabled"}>◷ 집중 시작</button>`
+          : "";
+      return `
+        <article class="habit-item ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}">
+          ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
-            <small>${scheduledToday ? (completeToday ? "오늘 완료" : `목표 ${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · 집중 ${formatFocusTime(habit.focusSeconds)}</small>
+            <small>${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `목표 ${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · 집중 ${formatFocusTime(habit.focusSeconds)}</small>
             <small class="habit-schedule">${escapeHtml(formatHabitSchedule(habit))}</small>
-            <button class="habit-focus-button" type="button" data-focus-habit="${habit.id}" ${scheduledToday ? "" : "disabled"}>◷ 집중 시작</button>
+            ${focusAction}
           </span>
           <span>
             <span class="streak">${habit.streak}일</span>
@@ -929,10 +982,30 @@ function renderHabitHeatmap() {
       const cells = Array.from({ length: daysInMonth }, (_, index) => {
         const date = new Date(year, month, index + 1);
         const dateString = toLocalDateString(date);
-        const completed = habit.completionDates.includes(dateString);
+        const progress = getHabitProgress(habit, dateString);
+        const progressRatio = getHabitProgressRatio(habit, dateString);
+        const completed = progressRatio >= 1;
         const scheduled = isHabitScheduledOn(habit, date);
-        const className = completed ? "completed" : scheduled ? "scheduled" : "inactive";
-        return `<span class="heatmap-cell ${className}" title="${dateString} · ${completed ? "완료" : scheduled ? "예정" : "일정 없음"}"></span>`;
+        const progressClass =
+          habit.measureType === "count" && progressRatio > 0
+            ? progressRatio >= 0.75
+              ? "progress-3"
+              : progressRatio >= 0.5
+                ? "progress-2"
+                : "progress-1"
+            : "";
+        const className = completed
+          ? "completed"
+          : progressClass || (scheduled ? "scheduled" : "inactive");
+        const status =
+          habit.measureType === "count" && scheduled
+            ? `${progress} / ${habit.targetValue}${habit.unit}`
+            : completed
+              ? "완료"
+              : scheduled
+                ? "예정"
+                : "일정 없음";
+        return `<span class="heatmap-cell ${className}" title="${dateString} · ${escapeHtml(status)}"></span>`;
       }).join("");
 
       return `
@@ -997,6 +1070,8 @@ function renderFarm() {
   const harvestStorageCount = document.querySelector("#harvestStorageCount");
   const seedStorageCount = document.querySelector("#seedStorageCount");
   const supplyStorageCount = document.querySelector("#supplyStorageCount");
+  const supplyModalCount = document.querySelector("#supplyModalCount");
+  const farmNameLabel = document.querySelector("#farmNameLabel");
   if (
     !inventory ||
     !shop ||
@@ -1014,7 +1089,9 @@ function renderFarm() {
     !recipeBookProgress ||
     !harvestStorageCount ||
     !seedStorageCount ||
-    !supplyStorageCount
+    !supplyStorageCount ||
+    !supplyModalCount ||
+    !farmNameLabel
   ) {
     return;
   }
@@ -1038,6 +1115,8 @@ function renderFarm() {
     (total, count) => total + count,
     0,
   );
+  supplyModalCount.textContent = supplyStorageCount.textContent;
+  farmNameLabel.textContent = state.farmName;
 
   farmItemShop.innerHTML = Object.entries(FARM_ITEMS)
     .map(
@@ -1081,21 +1160,23 @@ function renderFarm() {
           : "";
       return `
         <article
-          class="farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""} ${itemId === "freePass" && count ? "target-item" : ""}"
-          data-label="${item.name}"
+          class="farm-item-card farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""} ${itemId === "freePass" && count ? "target-item" : ""}"
         >
-          <button
-            class="supply-icon-button"
-            type="button"
-            data-use-farm-item="${itemId}"
-            title="${item.name} · ${item.description}"
-            aria-label="${item.name}: ${item.description}, ${count}개 보유"
-            ${count ? "" : "disabled"}
-          >
-            <span>${item.icon}</span>
-            <small>${count}</small>
-          </button>
-          ${boostStatus}
+          <span class="supply-card-icon">${item.icon}</span>
+          <div class="supply-card-copy">
+            <strong>${item.name}</strong>
+            <small>${item.description}</small>
+            ${boostStatus}
+          </div>
+          <div class="supply-card-actions">
+            <em>${count}개</em>
+            <button
+              type="button"
+              data-use-farm-item="${itemId}"
+              aria-label="${item.name} 사용, ${count}개 보유"
+              ${count ? "" : "disabled"}
+            >사용</button>
+          </div>
           ${targetPicker}
         </article>
       `;
@@ -1194,7 +1275,7 @@ function renderFarm() {
     .join("");
   foodInventory.innerHTML =
     storedFoods ||
-    '<span class="empty-food-message">완성된 음식이 아직 없어.</span>';
+    '<span class="empty-food-message">완성된 음식이 아직 없어</span>';
   if (state.wasteCount) {
     foodInventory.insertAdjacentHTML(
       "beforeend",
@@ -1212,7 +1293,7 @@ function renderFarm() {
           <strong>${discovered ? recipe.name : "알 수 없는 요리"}</strong>
           <small>${discovered
             ? recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")
-            : "재료를 조합해 발견해."}</small>
+            : "재료를 조합해 발견해"}</small>
         </article>
       `;
     })
@@ -1296,6 +1377,79 @@ function renderFarm() {
     .join("");
 }
 
+function renderFocusPicker() {
+  const label = document.querySelector("#focusItemLabel");
+  const menu = document.querySelector("#focusItemMenu");
+  if (!label || !menu) return;
+
+  const taskOptions = state.tasks
+    .filter((task) => !task.archived && task.status !== "done")
+    .map((task) => ({
+      value: `task:${task.id}`,
+      label: task.title,
+    }));
+  const habitOptions = state.habits
+    .filter(
+      (habit) =>
+        habit.measureType === "time" &&
+        isHabitScheduledToday(habit) &&
+        !isHabitCompleteToday(habit),
+    )
+    .map((habit) => ({
+      value: `habit:${habit.id}`,
+      label: habit.title,
+    }));
+
+  const selectedValue = activeFocus ? `${activeFocus.type}:${activeFocus.id}` : "";
+  const selectedOption = [...taskOptions, ...habitOptions].find(
+    (option) => option.value === selectedValue,
+  );
+  label.textContent = selectedOption
+    ? `${activeFocus.type === "task" ? "할 일" : "습관"} · ${selectedOption.label}`
+    : "할 일 또는 시간형 습관 선택";
+
+  const renderGroup = (title, options) =>
+    options.length
+      ? `
+        <div class="focus-item-group-label">${title}</div>
+        ${options
+          .map(
+            (option) => `
+              <button
+                class="focus-item-option${option.value === selectedValue ? " selected" : ""}"
+                type="button"
+                role="option"
+                aria-selected="${option.value === selectedValue}"
+                data-focus-value="${option.value}"
+              >
+                ${escapeHtml(option.label)}
+              </button>
+            `,
+          )
+          .join("")}
+      `
+      : "";
+
+  menu.innerHTML = `
+    <button
+      class="focus-item-option clear-option${selectedValue ? "" : " selected"}"
+      type="button"
+      role="option"
+      aria-selected="${!selectedValue}"
+      data-focus-value=""
+    >
+      선택 안 함
+    </button>
+    ${renderGroup("할 일", taskOptions)}
+    ${renderGroup("시간형 습관", habitOptions)}
+    ${
+      !taskOptions.length && !habitOptions.length
+        ? '<p class="focus-item-empty">선택할 항목이 없어</p>'
+        : ""
+    }
+  `;
+}
+
 function renderSummary() {
   const activeTasks = state.tasks.filter((task) => !task.archived);
   const todoDone = activeTasks.filter((task) => task.status === "done").length;
@@ -1303,7 +1457,12 @@ function renderSummary() {
   const habitDone = scheduledHabits.filter(isHabitCompleteToday).length;
   const total = activeTasks.length + scheduledHabits.length;
   const completed = todoDone + habitDone;
-  const percent = total ? Math.round((completed / total) * 100) : 0;
+  const habitProgress = scheduledHabits.reduce(
+    (sum, habit) => sum + getHabitProgressRatio(habit),
+    0,
+  );
+  const progressScore = todoDone + habitProgress;
+  const percent = total ? Math.round((progressScore / total) * 100) : 0;
 
   document.querySelector("#coinBalance").textContent = state.coins;
   document.querySelector(".currency.coin").classList.toggle("negative", state.coins < 0);
@@ -1326,6 +1485,7 @@ function render() {
   renderHabits();
   renderHabitHeatmap();
   renderFarm();
+  renderFocusPicker();
   renderSummary();
   saveState();
 }
@@ -1342,7 +1502,7 @@ function moveTaskTo(id, nextStatus) {
     task.completionReward = reward;
     task.completedWithFreePass = false;
     state.coins += reward;
-    showToast(`완료. ${reward} Coin 획득.`);
+    showToast(`완료 ${reward} Coin 획득`);
   } else if (previousStatus === "done" && nextStatus !== "done") {
     state.coins -= task.completionReward ?? 1;
     task.completionReward = 0;
@@ -1350,43 +1510,92 @@ function moveTaskTo(id, nextStatus) {
       state.farmItemInventory.freePass += 1;
       task.completedWithFreePass = false;
     }
-    showToast(`완료를 취소했어. 현재 ${state.coins} Coin.`);
+    showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
   } else {
-    showToast(nextStatus === "doing" ? "진행 중으로 옮겼어." : "대기로 옮겼어.");
+    showToast(nextStatus === "doing" ? "진행 중으로 옮겼어" : "대기로 옮겼어");
   }
 
   render();
+}
+
+function applyHabitCompletionChange(habit, wasComplete, complete) {
+  if (wasComplete === complete) return null;
+  const today = toLocalDateString();
+  habit.complete = complete;
+  habit.completedDate = complete ? today : "";
+  habit.completionDates = complete
+    ? [...new Set([...habit.completionDates, today])]
+    : habit.completionDates.filter((date) => date !== today);
+
+  if (complete) {
+    const reward = productionCoinReward();
+    state.coins += reward;
+    habit.completionReward = reward;
+    habit.completedWithFreePass = false;
+    return { complete: true, reward };
+  }
+
+  const reward = habit.completionReward ?? 1;
+  state.coins -= reward;
+  habit.completionReward = 0;
+  if (habit.completedWithFreePass) {
+    state.farmItemInventory.freePass += 1;
+    habit.completedWithFreePass = false;
+  }
+  return { complete: false, reward };
 }
 
 function toggleHabit(id) {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit) return;
   if (!isHabitScheduledToday(habit)) {
-    showToast("오늘 일정에 없는 습관이야.");
+    showToast("오늘 일정에 없는 습관이야");
     return;
   }
 
-  const completeToday = isHabitCompleteToday(habit);
-  habit.complete = !completeToday;
-  habit.completedDate = completeToday ? "" : toLocalDateString();
-  habit.completionDates = completeToday
-    ? habit.completionDates.filter((date) => date !== toLocalDateString())
-    : [...habit.completionDates, toLocalDateString()];
-  const reward = habit.complete ? productionCoinReward() : (habit.completionReward ?? 1);
-  state.coins += habit.complete ? reward : -reward;
-  habit.completionReward = habit.complete ? reward : 0;
-  if (habit.complete) {
-    habit.completedWithFreePass = false;
-  } else if (habit.completedWithFreePass) {
-    state.farmItemInventory.freePass += 1;
-    habit.completedWithFreePass = false;
-  }
+  const wasComplete = isHabitCompleteToday(habit);
+  const result = applyHabitCompletionChange(habit, wasComplete, !wasComplete);
   showToast(
-    habit.complete
-      ? `습관 완료. ${reward} Coin 획득.`
-      : `완료를 취소했어. 현재 ${state.coins} Coin.`,
+    result.complete
+      ? `습관 완료 ${result.reward} Coin 획득`
+      : `완료를 취소했어 현재 ${state.coins} Coin`,
   );
   render();
+}
+
+function adjustHabitCount(id, delta) {
+  const habit = state.habits.find((item) => item.id === id);
+  if (!habit || habit.measureType !== "count") return;
+  if (!isHabitScheduledToday(habit)) {
+    showToast("오늘 일정에 없는 습관이야");
+    return;
+  }
+
+  const today = toLocalDateString();
+  const wasComplete = isHabitCompleteToday(habit);
+  const nextProgress = Math.min(
+    habit.targetValue,
+    Math.max(0, getHabitProgress(habit) + delta),
+  );
+  habit.progressByDate ??= {};
+  habit.progressByDate[today] = nextProgress;
+  const complete = getHabitProgressRatio(habit) >= 1;
+  const result = applyHabitCompletionChange(habit, wasComplete, complete);
+
+  if (result?.complete) {
+    showToast(`습관 완료 ${result.reward} Coin 획득`);
+  } else if (result && !result.complete) {
+    showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
+  } else {
+    showToast(`${nextProgress} / ${habit.targetValue}${habit.unit}`);
+  }
+  renderHabits();
+  renderHabitHeatmap();
+  renderSummary();
+  const farmCoinBalance = document.querySelector("#farmCoinBalance");
+  farmCoinBalance.textContent = state.coins;
+  farmCoinBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
+  saveState();
 }
 
 function showToast(message) {
@@ -1409,31 +1618,33 @@ function updateFocusTarget() {
   const target = document.querySelector("#focusTarget");
   const description = document.querySelector("#focusDescription");
   const focusButton = document.querySelector("#focusButton");
+  description.hidden = false;
 
   if (timerPhase === "break") {
     focusButton.disabled = false;
-    target.textContent = "잠깐 쉬어.";
-    description.textContent = `${state.settings.breakMinutes}분 휴식 후 다시 집중해.`;
+    target.textContent = "잠깐 쉬어";
+    description.textContent = `${state.settings.breakMinutes}분 휴식 후 다시 집중해`;
     return;
   }
 
   if (focusMode === "quick") {
     focusButton.disabled = false;
-    target.textContent = `그냥 ${state.settings.focusMinutes}분 집중해.`;
-    description.textContent = "할 일이나 습관에 연결하지 않고 집중 시간을 기록해.";
+    target.textContent = `그냥 ${state.settings.focusMinutes}분 집중해`;
+    description.textContent = "할 일이나 습관에 연결하지 않고 집중 시간을 기록해";
     return;
   }
 
   if (!item) {
     focusButton.disabled = true;
-    target.textContent = "집중할 항목을 선택해.";
-    description.textContent = "아래 할 일이나 습관에서 집중 버튼을 눌러.";
+    target.textContent = "집중할 항목을 선택해";
+    description.textContent = "위의 집중 항목에서 할 일이나 습관을 골라";
+    description.hidden = currentPage !== "focus";
     return;
   }
 
   focusButton.disabled = false;
   target.textContent = item.title;
-  description.textContent = `${activeFocus.type === "task" ? "이 할 일" : "이 습관"}에 ${state.settings.focusMinutes}분 동안 집중해.`;
+  description.textContent = `${activeFocus.type === "task" ? "이 할 일" : "이 습관"}에 ${state.settings.focusMinutes}분 동안 집중해`;
 }
 
 function stopFocusTimer() {
@@ -1448,7 +1659,7 @@ function addFocusSecond() {
     state.focusRewardSeconds -= 3600;
     const reward = productionCoinReward();
     state.coins += reward;
-    showToast(`집중 누적 60분 완료. ${reward} Coin을 받았어.`);
+    showToast(`집중 누적 60분 완료 ${reward} Coin을 받았어`);
   }
 }
 
@@ -1501,15 +1712,15 @@ function completeFocus() {
   render();
   showToast(
     completedItem
-      ? "집중 세트와 항목을 완료했어. 항목 보상 1 Coin."
-      : "집중 세트를 완료했어.",
+      ? "집중 세트와 항목을 완료했어 항목 보상 1 Coin"
+      : "집중 세트를 완료했어",
   );
 }
 
 function completeBreak() {
   stopFocusTimer();
   resetToFocus();
-  showToast("휴식 끝. 다음 세트를 시작하면 돼.");
+  showToast("휴식 끝 다음 세트를 시작하면 돼");
 }
 
 function toggleFocus() {
@@ -1517,6 +1728,12 @@ function toggleFocus() {
   focusRunning = !focusRunning;
 
   if (focusRunning) {
+    const linkedItem = focusMode === "linked" ? getFocusItem() : null;
+    if (activeFocus?.type === "task" && linkedItem?.status === "waiting") {
+      linkedItem.status = "doing";
+      renderTasks();
+      saveState();
+    }
     button.innerHTML =
       timerPhase === "focus"
         ? "<span>Ⅱ</span> 집중 멈춤"
@@ -1573,7 +1790,7 @@ function startItemFocus(type, id) {
   if (type === "habit" && !isHabitScheduledToday(item)) {
     activeFocus = null;
     updateFocusTarget();
-    showToast("오늘 일정에 없는 습관이야.");
+    showToast("오늘 일정에 없는 습관이야");
     return;
   }
 
@@ -1587,7 +1804,7 @@ function startItemFocus(type, id) {
   render();
   toggleFocus();
   document.querySelector(".focus-card").scrollIntoView({ behavior: "smooth", block: "center" });
-  showToast(`‘${item.title}’ 집중 측정을 시작했어.`);
+  showToast(`‘${item.title}’ 집중 측정을 시작했어`);
 }
 
 document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("ko-KR", {
@@ -1601,25 +1818,60 @@ document.querySelector("#openTaskForm").addEventListener("click", () => {
   if (!taskForm.classList.contains("hidden")) taskInput.focus();
 });
 
+function closeHabitModal() {
+  habitModal.classList.add("hidden");
+  habitForm.classList.add("hidden");
+}
+
 document.querySelector("#openHabitForm").addEventListener("click", () => {
-  habitForm.classList.toggle("hidden");
-  if (!habitForm.classList.contains("hidden")) {
-    if (!habitStartDate.value) habitStartDate.value = toLocalDateString();
-    habitInput.focus();
+  if (currentPage === "today") {
+    habitModal.classList.add("hidden");
+    habitInlineSlot.appendChild(habitForm);
+    habitForm.classList.toggle("hidden");
+    if (!habitForm.classList.contains("hidden")) {
+      if (!habitStartDate.value) habitStartDate.value = toLocalDateString();
+      window.setTimeout(() => habitInput.focus(), 0);
+    }
+    return;
   }
+
+  habitModalFormSlot.appendChild(habitForm);
+  habitModal.classList.remove("hidden");
+  habitForm.classList.remove("hidden");
+  if (!habitStartDate.value) habitStartDate.value = toLocalDateString();
+  window.setTimeout(() => habitInput.focus(), 0);
+});
+
+habitModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-habit-modal]")) closeHabitModal();
 });
 
 function syncHabitMeasureFields() {
   const units = { count: "회", time: "분" };
   const isAmount = habitMeasureType.value === "amount";
   habitUnit.readOnly = !isAmount;
-  habitTargetValue.step = habitMeasureType.value === "count" ? "1" : "any";
+  habitTargetValue.min = "1";
+  habitTargetValue.step = "1";
+  if (!Number.isInteger(Number(habitTargetValue.value))) {
+    habitTargetValue.value = Math.max(1, Math.round(Number(habitTargetValue.value) || 1));
+  }
   if (!isAmount) habitUnit.value = units[habitMeasureType.value];
   if (isAmount && ["회", "분"].includes(habitUnit.value)) habitUnit.value = "";
   habitUnit.placeholder = isAmount ? "단위" : "";
 }
 
 habitMeasureType.addEventListener("change", syncHabitMeasureFields);
+
+habitTargetValue.addEventListener("keydown", (event) => {
+  if ([".", ",", "e", "E", "-", "+"].includes(event.key)) event.preventDefault();
+});
+
+habitTargetValue.addEventListener("input", () => {
+  if (!habitTargetValue.value) return;
+  habitTargetValue.value = String(
+    Math.max(1, Math.trunc(Number(habitTargetValue.value) || 1)),
+  );
+});
 
 document.querySelector("#toggleGroupManager").addEventListener("click", () => {
   groupManager.classList.toggle("hidden");
@@ -1630,7 +1882,7 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
   const name = groupInput.value.trim();
   if (!name) return;
   if (state.groups.some((group) => group.name === name)) {
-    showToast("이미 있는 그룹이야.");
+    showToast("이미 있는 그룹이야");
     return;
   }
 
@@ -1639,7 +1891,7 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
   groupInput.value = "";
   render();
   taskGroup.value = group.id;
-  showToast(`‘${name}’ 그룹을 추가했어.`);
+  showToast(`‘${name}’ 그룹을 추가했어`);
 });
 
 groupInput.addEventListener("keydown", (event) => {
@@ -1661,7 +1913,7 @@ document.querySelector("#groupList").addEventListener("click", (event) => {
     if (task.groupId === groupId) task.groupId = null;
   });
   render();
-  showToast(`‘${group?.name ?? "그룹"}’을 삭제하고 할 일은 그룹 없음으로 옮겼어.`);
+  showToast(`‘${group?.name ?? "그룹"}’을 삭제하고 할 일은 그룹 없음으로 옮겼어`);
 });
 
 taskForm.addEventListener("submit", (event) => {
@@ -1680,7 +1932,7 @@ taskForm.addEventListener("submit", (event) => {
   });
   taskInput.value = "";
   taskForm.classList.add("hidden");
-  showToast("대기 목록에 추가했어.");
+  showToast("대기 목록에 추가했어");
   render();
 });
 
@@ -1695,23 +1947,23 @@ habitForm.addEventListener("submit", (event) => {
   const unit = habitUnit.value.trim();
 
   if (!weekdays.length) {
-    showToast("반복할 요일을 하나 이상 선택해.");
+    showToast("반복할 요일을 하나 이상 선택해");
     return;
   }
   if (!targetValue || targetValue <= 0) {
-    showToast("목표값을 확인해.");
+    showToast("목표값을 확인해");
     return;
   }
-  if (habitMeasureType.value === "count" && !Number.isInteger(targetValue)) {
-    showToast("횟수는 정수로 입력해.");
+  if (!Number.isInteger(targetValue)) {
+    showToast("목표값은 정수로 입력해");
     return;
   }
   if (!unit) {
-    showToast("목표 단위를 입력해.");
+    showToast("목표 단위를 입력해");
     return;
   }
   if (habitEndDate.value && habitEndDate.value < habitStartDate.value) {
-    showToast("종료일은 시작일보다 빠를 수 없어.");
+    showToast("종료일은 시작일보다 빠를 수 없어");
     return;
   }
 
@@ -1722,6 +1974,7 @@ habitForm.addEventListener("submit", (event) => {
     complete: false,
     completedDate: "",
     completionDates: [],
+    progressByDate: {},
     focusSeconds: 0,
     measureType: habitMeasureType.value,
     targetValue,
@@ -1740,8 +1993,8 @@ habitForm.addEventListener("submit", (event) => {
   habitStartDate.value = toLocalDateString();
   habitEndDate.value = "";
   syncHabitMeasureFields();
-  habitForm.classList.add("hidden");
-  showToast("새 습관을 추가했어.");
+  closeHabitModal();
+  showToast("새 습관을 추가했어");
   render();
 });
 
@@ -1757,7 +2010,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task) {
       task.archived = true;
       task.archivedAt = new Date().toISOString();
-      showToast("완료한 할 일을 보관함에 넣었어.");
+      showToast("완료한 할 일을 보관함에 넣었어");
       render();
     }
     return;
@@ -1767,14 +2020,14 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task) {
       task.archived = false;
       task.archivedAt = "";
-      showToast("보관함에서 다시 꺼냈어.");
+      showToast("보관함에서 다시 꺼냈어");
       render();
     }
     return;
   }
   if (deleteButton) {
     state.tasks = state.tasks.filter((task) => task.id !== Number(deleteButton.dataset.deleteTask));
-    showToast("할 일을 삭제했어.");
+    showToast("할 일을 삭제했어");
     render();
   }
 });
@@ -1829,18 +2082,25 @@ document.querySelector("#taskBoard").addEventListener("dragend", () => {
 document.querySelector("#habitList").addEventListener("click", (event) => {
   const focusButton = event.target.closest("[data-focus-habit]");
   const toggleButton = event.target.closest("[data-toggle-habit]");
+  const adjustButton = event.target.closest("[data-adjust-habit]");
   const deleteButton = event.target.closest("[data-delete-habit]");
 
   if (focusButton) startItemFocus("habit", Number(focusButton.dataset.focusHabit));
   if (toggleButton) toggleHabit(Number(toggleButton.dataset.toggleHabit));
+  if (adjustButton) {
+    adjustHabitCount(
+      Number(adjustButton.dataset.adjustHabit),
+      Number(adjustButton.dataset.delta),
+    );
+  }
   if (deleteButton) {
     const habitId = Number(deleteButton.dataset.deleteHabit);
     const habit = state.habits.find((item) => item.id === habitId);
-    if (!window.confirm(`‘${habit?.title ?? "이 습관"}’을 삭제할까?\n삭제한 습관은 복구할 수 없어.`)) {
+    if (!window.confirm(`‘${habit?.title ?? "이 습관"}’을 삭제할까?\n삭제한 습관은 복구할 수 없어`)) {
       return;
     }
     state.habits = state.habits.filter((item) => item.id !== habitId);
-    showToast("습관을 삭제했어.");
+    showToast("습관을 삭제했어");
     render();
   }
 });
@@ -1853,14 +2113,14 @@ document.querySelector("#seedShop").addEventListener("click", (event) => {
   const crop = CROPS[cropId];
   if (!crop) return;
   if (state.coins < crop.seedPrice) {
-    showToast(`${crop.name} 씨앗을 사려면 ${crop.seedPrice} Coin이 필요해.`);
+    showToast(`${crop.name} 씨앗을 사려면 ${crop.seedPrice} Coin이 필요해`);
     return;
   }
 
   state.coins -= crop.seedPrice;
   state.seedInventory[cropId] += 1;
   if (!selectedSeed) selectedSeed = cropId;
-  showToast(`${crop.name} 씨앗을 1개 샀어.`);
+  showToast(`${crop.name} 씨앗을 1개 샀어`);
   render();
 });
 
@@ -1870,7 +2130,7 @@ document.querySelector("#seedInventory").addEventListener("click", (event) => {
 
   const cropId = button.dataset.selectSeed;
   if (!state.seedInventory[cropId]) {
-    showToast("보유한 씨앗이 없어.");
+    showToast("보유한 씨앗이 없어");
     return;
   }
 
@@ -1886,12 +2146,12 @@ document.querySelector("#farmItemShop").addEventListener("click", (event) => {
   const item = FARM_ITEMS[itemId];
   if (!item) return;
   if (state.farmMoney < item.price) {
-    showToast(`${item.name}을 사려면 ${item.price} Farm Money가 필요해.`);
+    showToast(`${item.name}을 사려면 ${item.price} Farm Money가 필요해`);
     return;
   }
   state.farmMoney -= item.price;
   state.farmItemInventory[itemId] += 1;
-  showToast(`${item.name}을 구매했어.`);
+  showToast(`${item.name}을 구매했어`);
   render();
 });
 
@@ -1904,7 +2164,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
 
   if (item.type === "plot") {
     selectedFarmItem = selectedFarmItem === itemId ? null : itemId;
-    showToast(selectedFarmItem ? `${item.name}을 적용할 밭을 골라.` : "용품 선택을 취소했어.");
+    showToast(selectedFarmItem ? `${item.name}을 적용할 밭을 골라` : "용품 선택을 취소했어");
     document.querySelector("#supplyStorageModal").classList.add("hidden");
     renderFarm();
     return;
@@ -1914,7 +2174,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
     state.farmItemInventory[itemId] -= 1;
     state.productionBoostUntil =
       Math.max(Date.now(), state.productionBoostUntil) + 24 * 60 * 60 * 1000;
-    showToast("황금 수확제가 시작됐어! 24시간 동안 생산 Coin이 2배야.");
+    showToast("황금 수확제가 시작됐어! 24시간 동안 생산 Coin이 2배야");
     render();
     return;
   }
@@ -1923,7 +2183,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
     state.farmItemInventory[itemId] -= 1;
     state.wiltProtectionUntil =
       Math.max(Date.now(), state.wiltProtectionUntil) + 24 * 60 * 60 * 1000;
-    showToast("푸른 들판 축제가 시작됐어! 24시간 동안 작물이 시들지 않아.");
+    showToast("푸른 들판 축제가 시작됐어! 24시간 동안 작물이 시들지 않아");
     render();
     return;
   }
@@ -1931,7 +2191,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
   if (itemId === "freePass") {
     const targetValue = document.querySelector("#freePassTarget")?.value;
     if (!targetValue) {
-      showToast("완료할 수 있는 항목이 없어.");
+      showToast("완료할 수 있는 항목이 없어");
       return;
     }
     const [targetType, rawId] = targetValue.split(":");
@@ -1946,6 +2206,10 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
     } else {
       const habit = state.habits.find((entry) => entry.id === targetId);
       if (!habit || isHabitCompleteToday(habit)) return;
+      if (habit.measureType === "count") {
+        habit.progressByDate ??= {};
+        habit.progressByDate[toLocalDateString()] = habit.targetValue;
+      }
       habit.complete = true;
       habit.completedDate = toLocalDateString();
       habit.completionDates.push(toLocalDateString());
@@ -1954,7 +2218,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
     }
     state.coins += reward;
     state.farmItemInventory[itemId] -= 1;
-    showToast(`프리패스로 완료 처리했어. ${reward} Coin 획득.`);
+    showToast(`프리패스로 완료 처리했어 ${reward} Coin 획득`);
     render();
   }
 });
@@ -1968,27 +2232,27 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     const itemId = selectedFarmItem;
     const item = FARM_ITEMS[itemId];
     if (!plot?.crop || !item || !state.farmItemInventory[itemId]) {
-      showToast("작물이 심어진 밭에만 사용할 수 있어.");
+      showToast("작물이 심어진 밭에만 사용할 수 있어");
       return;
     }
 
     if (itemId === "revivalTonic") {
       if (!plot.wilted) {
-        showToast("시든 작물에만 회복제를 사용할 수 있어.");
+        showToast("시든 작물에만 회복제를 사용할 수 있어");
         return;
       }
       plot.wilted = false;
       plot.lastWateredDate = toLocalDateString();
     } else if (itemId === "growthTonic") {
       if (plot.wilted || plot.growth >= getCropGrowthCost(plot.crop)) {
-        showToast("성장 중인 작물에만 사용할 수 있어.");
+        showToast("성장 중인 작물에만 사용할 수 있어");
         return;
       }
       plot.growth = Math.min(getCropGrowthCost(plot.crop), plot.growth + 2);
       plot.lastWateredDate = toLocalDateString();
     } else {
       if (plot.wilted || plot.fertilizer) {
-        showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야." : "시든 작물에는 비료를 쓸 수 없어.");
+        showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야" : "시든 작물에는 비료를 쓸 수 없어");
         return;
       }
       plot.fertilizer = itemId;
@@ -1996,7 +2260,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 
     state.farmItemInventory[itemId] -= 1;
     selectedFarmItem = null;
-    showToast(`${item.name}을 적용했어.`);
+    showToast(`${item.name}을 적용했어`);
     render();
     return;
   }
@@ -2008,7 +2272,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 
   if (plantButton) {
     if (!selectedSeed || !state.seedInventory[selectedSeed]) {
-      showToast("씨앗 보관함에서 심을 씨앗을 먼저 골라.");
+      showToast("씨앗 보관함에서 심을 씨앗을 먼저 골라");
       return;
     }
 
@@ -2025,7 +2289,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     state.seedInventory[selectedSeed] -= 1;
     const cropName = CROPS[selectedSeed].name;
     if (state.seedInventory[selectedSeed] === 0) selectedSeed = null;
-    showToast(`${cropName} 씨앗을 심었어.`);
+    showToast(`${cropName} 씨앗을 심었어`);
     render();
     return;
   }
@@ -2038,7 +2302,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 
     const cropName = CROPS[plot.crop].name;
     clearFarmPlot(plot);
-    showToast(`시든 ${cropName}을 폐기했어.`);
+    showToast(`시든 ${cropName}을 폐기했어`);
     render();
     return;
   }
@@ -2065,7 +2329,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     showToast(
       jackpot
         ? `대풍년! ${cropName}을 5개 수확했어!`
-        : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어.`,
+        : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어`,
     );
     render();
     return;
@@ -2081,7 +2345,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     const maxGrowth = getCropGrowthCost(plot.crop);
     if (plot.wilted || plot.growth >= maxGrowth) return;
     if (state.coins < 1) {
-      showToast("작물을 키우려면 1 Coin이 필요해.");
+      showToast("작물을 키우려면 1 Coin이 필요해");
       return;
     }
 
@@ -2095,8 +2359,8 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     plot.lastWateredDate = toLocalDateString();
     showToast(
       plot.growth >= maxGrowth
-        ? `${crop.name}이 다 자랐어.`
-        : `${crop.name}이 한 단계 자랐어.`,
+        ? `${crop.name}이 다 자랐어`
+        : `${crop.name}이 한 단계 자랐어`,
     );
     render();
   }
@@ -2109,13 +2373,13 @@ document.querySelector("#morrisonBuyList").addEventListener("click", (event) => 
   const recipeId = button.dataset.sellFood;
   const recipe = RECIPES[recipeId];
   if (!recipe || !state.foodInventory[recipeId]) {
-    showToast("오늘 모리슨에게 팔 수 있는 음식이 없어.");
+    showToast("오늘 모리슨에게 팔 수 있는 음식이 없어");
     return;
   }
 
   state.foodInventory[recipeId] -= 1;
   state.farmMoney += recipe.sellPrice;
-  showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어.`);
+  showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
   render();
 });
 
@@ -2124,7 +2388,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
     .map((index) => document.querySelector(`#recipeIngredient${index}`).value)
     .filter(Boolean);
   if (ingredientIds.length < 2) {
-    showToast("재료를 두 가지 이상 골라.");
+    showToast("재료를 두 가지 이상 골라");
     return;
   }
 
@@ -2136,7 +2400,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
     ([cropId, count]) => (state.harvestInventory[cropId] ?? 0) < count,
   );
   if (missingIngredient) {
-    showToast(`${CROPS[missingIngredient[0]].name}이 부족해.`);
+    showToast(`${CROPS[missingIngredient[0]].name}이 부족해`);
     return;
   }
 
@@ -2147,7 +2411,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   const recipeEntry = getRecipeByIngredients(ingredientIds);
   if (!recipeEntry) {
     state.wasteCount += 1;
-    showToast("도감에 없는 조합이야. 폐기물이 생겼어.");
+    showToast("도감에 없는 조합이야 폐기물이 생겼어");
     render();
     return;
   }
@@ -2159,7 +2423,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   showToast(
     firstDiscovery
       ? `새 레시피 발견! ${recipe.name}`
-      : `${recipe.name}을 만들었어.`,
+      : `${recipe.name}을 만들었어`,
   );
   render();
 });
@@ -2168,7 +2432,7 @@ document.querySelector("#foodInventory").addEventListener("click", (event) => {
   const button = event.target.closest("[data-discard-waste]");
   if (!button) return;
   state.wasteCount = 0;
-  showToast("폐기물을 모두 버렸어.");
+  showToast("폐기물을 모두 버렸어");
   render();
 });
 
@@ -2205,17 +2469,320 @@ Object.values(storageModals).forEach((modal) => {
     if (event.target.closest("[data-close-storage]")) modal.classList.add("hidden");
   });
 });
+
+const farmNameDisplay = document.querySelector("#farmNameDisplay");
+const farmNameForm = document.querySelector("#farmNameForm");
+const farmNameInput = document.querySelector("#farmNameInput");
+
+document.querySelector("#editFarmName").addEventListener("click", () => {
+  farmNameInput.value = state.farmName;
+  farmNameDisplay.hidden = true;
+  farmNameForm.hidden = false;
+  farmNameInput.focus();
+  farmNameInput.select();
+});
+
+farmNameForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const nextName = farmNameInput.value.trim();
+  if (!nextName) {
+    showToast("밭 이름을 입력해");
+    return;
+  }
+
+  state.farmName = nextName;
+  farmNameForm.hidden = true;
+  farmNameDisplay.hidden = false;
+  showToast(`밭 이름을 '${nextName}'으로 바꿨어`);
+  render();
+});
+
+document.querySelector("#cancelFarmName").addEventListener("click", () => {
+  farmNameForm.hidden = true;
+  farmNameDisplay.hidden = false;
+});
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     permanentMarketModal.classList.add("hidden");
     farmKitchenModal.classList.add("hidden");
     Object.values(storageModals).forEach((modal) => modal.classList.add("hidden"));
+    closeHabitModal();
+    closeFocusItemMenu();
   }
 });
 
 document.querySelector("#focusButton").addEventListener("click", toggleFocus);
 document.querySelectorAll("[data-focus-mode]").forEach((button) => {
   button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
+});
+
+const focusItemPicker = document.querySelector(".focus-item-picker");
+const focusItemTrigger = document.querySelector("#focusItemTrigger");
+const focusItemMenu = document.querySelector("#focusItemMenu");
+
+function closeFocusItemMenu() {
+  focusItemMenu.classList.add("hidden");
+  focusItemTrigger.setAttribute("aria-expanded", "false");
+}
+
+focusItemTrigger.addEventListener("click", () => {
+  const willOpen = focusItemMenu.classList.contains("hidden");
+  focusItemMenu.classList.toggle("hidden", !willOpen);
+  focusItemTrigger.setAttribute("aria-expanded", String(willOpen));
+});
+
+focusItemMenu.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-focus-value]");
+  if (!option) return;
+  const [type, id] = option.dataset.focusValue.split(":");
+  activeFocus = type && id ? { type, id: Number(id) } : null;
+  setFocusMode("linked");
+  renderFocusPicker();
+  closeFocusItemMenu();
+  if (activeFocus) {
+    const item = getFocusItem();
+    showToast(`‘${item.title}’을 집중 항목으로 골랐어`);
+  }
+});
+
+document.addEventListener("click", (event) => {
+  if (!focusItemPicker.contains(event.target)) closeFocusItemMenu();
+});
+
+const focusPageStage = document.querySelector("#focusPageStage");
+const focusFullscreenButton = document.querySelector("#toggleFocusFullscreen");
+const focusAudioButton = document.querySelector("#toggleFocusAudio");
+const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
+const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
+const FOCUS_PLAYLIST = [
+  { title: "Sunlit Field Walk 1", src: "./assets/audio/sunlit-field-walk-1.mp3" },
+  { title: "Sunlit Field Walk 2", src: "./assets/audio/sunlit-field-walk-2.mp3" },
+  { title: "Riverbend Afterglow 1", src: "./assets/audio/riverbend-afterglow-1.mp3" },
+  { title: "Riverbend Afterglow 2", src: "./assets/audio/riverbend-afterglow-2.mp3" },
+  { title: "Velvet Pocket Duel 1", src: "./assets/audio/velvet-pocket-duel-1.mp3" },
+  { title: "Velvet Pocket Duel 2", src: "./assets/audio/velvet-pocket-duel-2.mp3" },
+  { title: "Hayfield Afterglow 1", src: "./assets/audio/hayfield-afterglow-1.mp3" },
+  { title: "Hayfield Afterglow 2", src: "./assets/audio/hayfield-afterglow-2.mp3" },
+  { title: "Late Afternoon Harvest 1", src: "./assets/audio/late-afternoon-harvest-1.mp3" },
+  { title: "Late Afternoon Harvest 2", src: "./assets/audio/late-afternoon-harvest-2.mp3" },
+  { title: "Dust on the Porch 1", src: "./assets/audio/dust-on-the-porch-1.mp3" },
+  { title: "Dust on the Porch 2", src: "./assets/audio/dust-on-the-porch-2.mp3" },
+];
+let focusAudioPlayer = null;
+let focusNextAudio = null;
+let focusPlaylistQueue = [];
+let currentFocusTrack = null;
+let focusBackgroundObjectUrl = null;
+
+function openFocusBackgroundDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("farmodoro-focus-assets", 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("backgrounds")) {
+        request.result.createObjectStore("backgrounds");
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readFocusBackground() {
+  const database = await openFocusBackgroundDatabase();
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction("backgrounds", "readonly")
+      .objectStore("backgrounds")
+      .get("custom");
+    request.onsuccess = () => {
+      database.close();
+      resolve(request.result ?? null);
+    };
+    request.onerror = () => {
+      database.close();
+      reject(request.error);
+    };
+  });
+}
+
+async function writeFocusBackground(file) {
+  const database = await openFocusBackgroundDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction("backgrounds", "readwrite");
+    transaction.objectStore("backgrounds").put(file, "custom");
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+async function deleteFocusBackground() {
+  const database = await openFocusBackgroundDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction("backgrounds", "readwrite");
+    transaction.objectStore("backgrounds").delete("custom");
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      database.close();
+      reject(transaction.error);
+    };
+  });
+}
+
+function applyFocusBackground(file) {
+  if (focusBackgroundObjectUrl) URL.revokeObjectURL(focusBackgroundObjectUrl);
+  focusBackgroundObjectUrl = file ? URL.createObjectURL(file) : null;
+  if (focusBackgroundObjectUrl) {
+    focusPageStage.style.setProperty(
+      "--focus-background-image",
+      `url("${focusBackgroundObjectUrl}")`,
+    );
+  } else {
+    focusPageStage.style.removeProperty("--focus-background-image");
+  }
+}
+
+focusBackgroundInput.addEventListener("change", async () => {
+  const [file] = focusBackgroundInput.files;
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    showToast("이미지 파일만 배경으로 사용할 수 있어");
+    return;
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    showToast("배경 이미지는 15MB 이하로 골라");
+    return;
+  }
+
+  try {
+    await writeFocusBackground(file);
+    applyFocusBackground(file);
+    showToast("집중 배경을 바꿨어");
+  } catch {
+    showToast("배경 이미지를 저장하지 못했어");
+  } finally {
+    focusBackgroundInput.value = "";
+  }
+});
+
+resetFocusBackgroundButton.addEventListener("click", async () => {
+  try {
+    await deleteFocusBackground();
+    applyFocusBackground(null);
+    showToast("기본 집중 배경으로 돌렸어");
+  } catch {
+    showToast("기본 배경으로 변경하지 못했어");
+  }
+});
+
+readFocusBackground()
+  .then((file) => {
+    if (file) applyFocusBackground(file);
+  })
+  .catch(() => {});
+
+focusFullscreenButton.addEventListener("click", async () => {
+  try {
+    if (document.fullscreenElement === focusPageStage) {
+      await document.exitFullscreen();
+    } else {
+      await focusPageStage.requestFullscreen();
+    }
+  } catch {
+    showToast("이 브라우저에서는 전체 화면을 사용할 수 없어");
+  }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  const active = document.fullscreenElement === focusPageStage;
+  focusFullscreenButton.innerHTML = active
+    ? '<span aria-hidden="true">×</span> 전체 화면 종료'
+    : '<span aria-hidden="true">⛶</span> 전체 화면';
+});
+
+function stopFocusAudio() {
+  focusAudioPlayer?.pause();
+  focusAudioButton.classList.remove("active");
+  focusAudioButton.setAttribute("aria-pressed", "false");
+  focusAudioButton.innerHTML = '<span aria-hidden="true">♪</span> 음악 계속 듣기';
+}
+
+function shuffleFocusPlaylist() {
+  const tracks = [...FOCUS_PLAYLIST];
+  for (let index = tracks.length - 1; index > 0; index -= 1) {
+    const target = Math.floor(Math.random() * (index + 1));
+    [tracks[index], tracks[target]] = [tracks[target], tracks[index]];
+  }
+
+  if (tracks[0] === currentFocusTrack && tracks.length > 1) {
+    [tracks[0], tracks[1]] = [tracks[1], tracks[0]];
+  }
+  focusPlaylistQueue = tracks;
+}
+
+function takeNextFocusTrack() {
+  if (!focusPlaylistQueue.length) shuffleFocusPlaylist();
+  return focusPlaylistQueue.shift();
+}
+
+function createFocusAudio(track) {
+  const audio = new Audio(track.src);
+  audio.preload = "auto";
+  audio.volume = 0.4;
+  audio.dataset.title = track.title;
+  audio.addEventListener("ended", playNextFocusTrack, { once: true });
+  return audio;
+}
+
+function prepareNextFocusTrack() {
+  if (focusNextAudio) return;
+  focusNextAudio = createFocusAudio(takeNextFocusTrack());
+  focusNextAudio.load();
+}
+
+async function playNextFocusTrack() {
+  focusAudioPlayer = focusNextAudio ?? createFocusAudio(takeNextFocusTrack());
+  focusNextAudio = null;
+  currentFocusTrack = FOCUS_PLAYLIST.find(
+    (track) => track.title === focusAudioPlayer.dataset.title,
+  );
+  prepareNextFocusTrack();
+  try {
+    await focusAudioPlayer.play();
+  } catch {
+    stopFocusAudio();
+    showToast("음악을 재생하지 못했어");
+    return;
+  }
+  focusAudioButton.classList.add("active");
+  focusAudioButton.setAttribute("aria-pressed", "true");
+  focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+}
+
+function startFocusAudio() {
+  if (focusAudioPlayer && focusAudioPlayer.paused && !focusAudioPlayer.ended) {
+    focusAudioPlayer.play().catch(() => showToast("음악을 재생하지 못했어"));
+    focusAudioButton.classList.add("active");
+    focusAudioButton.setAttribute("aria-pressed", "true");
+    focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+    return;
+  }
+  prepareNextFocusTrack();
+  playNextFocusTrack();
+}
+
+focusAudioButton.addEventListener("click", () => {
+  if (focusAudioPlayer && !focusAudioPlayer.paused) stopFocusAudio();
+  else startFocusAudio();
 });
 
 const focusSettings = document.querySelector("#focusSettings");
@@ -2252,7 +2819,7 @@ document.querySelector("#saveFocusSettings").addEventListener("click", () => {
   resetToFocus();
   saveState();
   focusSettings.classList.add("hidden");
-  showToast("집중 설정을 저장했어.");
+  showToast("집중 설정을 저장했어");
 });
 
 const todayWorkspace = document.querySelector("#todayWorkspace");
@@ -2264,6 +2831,28 @@ const focusPageSlot = document.querySelector("#focusPageSlot");
 
 function showPage(page) {
   const validPage = ["today", "tasks", "habits", "focus", "farm"].includes(page) ? page : "today";
+
+  if (currentPage !== validPage) {
+    taskForm.classList.add("hidden");
+    groupManager.classList.add("hidden");
+  }
+
+  if (validPage !== "today" && habitForm.parentElement === habitInlineSlot) {
+    habitForm.classList.add("hidden");
+  }
+  if (validPage !== "habits" && !habitModal.classList.contains("hidden")) {
+    closeHabitModal();
+  }
+
+  if (
+    currentPage === "focus" &&
+    validPage !== "focus" &&
+    focusAudioPlayer &&
+    !focusAudioPlayer.paused
+  ) {
+    stopFocusAudio();
+  }
+
   currentPage = validPage;
 
   if (validPage === "today") {
@@ -2302,6 +2891,7 @@ function showPage(page) {
   document.title = `${titles[validPage]} · Farmodoro`;
   renderTasks();
   renderHabitHeatmap();
+  updateFocusTarget();
 }
 
 window.addEventListener("hashchange", () => {
