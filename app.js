@@ -1,4 +1,7 @@
 const STORAGE_KEY = "farmodoro-dashboard-v1";
+const LAST_PAGE_STORAGE_KEY = "farmodoro-last-page";
+const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
+const GROUP_COLOR_COUNT = 8;
 
 const CROPS = {
   carrot: {
@@ -291,6 +294,8 @@ const CROP_GROWTH_COSTS = Object.fromEntries(
   ].flatMap(([cost, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, cost])),
 );
 
+const FARM_WATER_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+
 const FARM_ITEMS = {
   luckyFertilizer: {
     name: "행운 비료",
@@ -350,6 +355,39 @@ const FARM_ITEMS = {
   },
 };
 
+const MOCK_FARM_FRIENDS = [
+  { id: "dawn", name: "새벽이슬", farmName: "푸른 언덕 농장", avatar: "🌿" },
+  { id: "potato", name: "감자대장", farmName: "포근한 감자밭", avatar: "🥔" },
+  { id: "luna", name: "달빛 호미", farmName: "달맞이 농원", avatar: "🌙" },
+  { id: "bean", name: "콩콩이", farmName: "작은 콩밭", avatar: "🫛" },
+];
+
+const SYSTEM_FARM_SENDER = {
+  id: "system",
+  name: "시스템",
+  farmName: "Farmodoro 운영국",
+  avatar: "🤖",
+};
+
+const MOCK_FARM_RANKINGS = [
+  { name: "새벽이슬 농장", score: 840 },
+  { name: "감자대장", score: 715 },
+  { name: "달빛 호미", score: 590 },
+  { name: "토마토 연구소", score: 465 },
+  { name: "콩콩이네 밭", score: 350 },
+  { name: "노을빛 과수원", score: 245 },
+  { name: "초보 새싹", score: 130 },
+];
+
+const DAILY_FARM_INBOX_GIFTS = [
+  { category: "harvest", itemId: "carrot" },
+  { category: "seed", itemId: "strawberry" },
+  { category: "supply", itemId: "moistureFertilizer" },
+  { category: "food", itemId: "countryStew" },
+  { category: "harvest", itemId: "tomato" },
+  { category: "seed", itemId: "sunflower" },
+];
+
 const RECIPES = {
   countryStew: { name: "시골 채소 스튜", icon: "🍲", ingredients: ["carrot", "potato"], sellPrice: 42 },
   sunsetSoup: { name: "노을 토마토 수프", icon: "🥣", ingredients: ["tomato", "corn"], sellPrice: 48 },
@@ -381,9 +419,19 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 7,
+  schemaVersion: 15,
   coins: 999,
   farmMoney: 999,
+  farmRankingWeekStart: "",
+  weeklyFarmMoneyEarned: 0,
+  farmRankingDemoRewardSent: false,
+  farmRankingBoxExperienceReady: false,
+  farmRankingSecondPlaceDemoSent: false,
+  farmMailDate: "",
+  farmMailSentCount: 0,
+  farmMailHistory: [],
+  farmInboxDate: "",
+  farmInbox: [],
   farmName: "햇살 밭",
   productionBoostUntil: 0,
   wiltProtectionUntil: 0,
@@ -398,9 +446,8 @@ const defaultState = {
   ),
   focusRewardSeconds: 0,
   settings: {
-    focusMinutes: 25,
-    breakEnabled: true,
-    breakMinutes: 5,
+    linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
+    quick: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
   },
   seedInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
   harvestInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
@@ -417,20 +464,21 @@ const defaultState = {
       growth: example?.growth ?? 0,
       plantedDate: example ? "2000-01-01" : "",
       lastWateredDate: example ? "2000-01-01" : "",
+      lastFreeWaterAt: 0,
       wilted: Boolean(example),
       fertilizer: null,
     };
   }),
   groups: [
-    { id: "work", name: "업무" },
-    { id: "study", name: "공부" },
-    { id: "life", name: "생활" },
+    { id: "work", name: "업무", colorIndex: 0 },
+    { id: "study", name: "공부", colorIndex: 3 },
+    { id: "life", name: "생활", colorIndex: 1 },
   ],
   tasks: [
-    { id: 1, title: "Farmodoro 메인 화면 정리", status: "doing", focusSeconds: 0, groupId: "work", archived: false },
-    { id: 2, title: "책 20페이지 읽기", status: "waiting", focusSeconds: 0, groupId: "study", archived: false },
-    { id: 3, title: "장보기 목록 확인", status: "waiting", focusSeconds: 0, groupId: "life", archived: false },
-    { id: 4, title: "프로젝트 요구사항 작성", status: "done", focusSeconds: 0, groupId: "work", archived: false },
+    { id: 1, title: "Farmodoro 메인 화면 정리", status: "doing", focusSeconds: 0, groupId: "work", archived: false, completedDate: "" },
+    { id: 2, title: "책 20페이지 읽기", status: "waiting", focusSeconds: 0, groupId: "study", archived: false, completedDate: "" },
+    { id: 3, title: "장보기 목록 확인", status: "waiting", focusSeconds: 0, groupId: "life", archived: false, completedDate: "" },
+    { id: 4, title: "프로젝트 요구사항 작성", status: "done", focusSeconds: 0, groupId: "work", archived: false, completedDate: toLocalDateString() },
   ],
   habits: [
     { id: 11, title: "물 2L 마시기", streak: 8, complete: true, focusSeconds: 0, measureType: "amount", targetValue: 2, unit: "L", weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: "", endDate: "" },
@@ -440,6 +488,10 @@ const defaultState = {
 };
 
 let state = loadState();
+ensureWeeklyFarmRanking();
+ensureFarmRankingDemoReward();
+ensureFarmRankingBoxExperience();
+ensureFarmRankingSecondPlaceDemoReward();
 state.habits = state.habits.map((habit) => {
   const completionDates =
     habit.completionDates ??
@@ -461,10 +513,16 @@ state.habits = state.habits.map((habit) => {
 });
 let toastTimer;
 let focusInterval;
-let focusSeconds = state.settings.focusMinutes * 60;
+let focusSeconds = state.settings.linked.focusMinutes * 60;
 let focusRunning = false;
+let focusSessionStarted = false;
 let focusMode = "linked";
+let runningFocusMode = null;
 let timerPhase = "focus";
+const focusRuntimeByMode = {
+  linked: { seconds: state.settings.linked.focusMinutes * 60, phase: "focus", started: false },
+  quick: { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
+};
 let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
@@ -472,23 +530,42 @@ let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedSeed = null;
 let selectedFarmItem = null;
+let selectedMailFriendId = null;
+let selectedMailCategory = "harvest";
+let selectedMailItemId = null;
+let farmMailView = "send";
+let activeRankingRewardMailId = null;
+ensureDailyFarmMail();
+ensureDailyFarmInbox();
 
 const taskForm = document.querySelector("#taskForm");
 const taskInput = document.querySelector("#taskInput");
 const taskGroup = document.querySelector("#taskGroup");
+const customTaskGroupSelect = document.querySelector("#customTaskGroupSelect");
+const taskGroupTrigger = document.querySelector("#taskGroupTrigger");
+const taskGroupLabel = document.querySelector("#taskGroupLabel");
+const taskGroupMenu = document.querySelector("#taskGroupMenu");
 const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
 const habitModal = document.querySelector("#habitModal");
-const habitInlineSlot = document.querySelector("#habitInlineSlot");
+const openHabitFormButton = document.querySelector("#openHabitForm");
+const habitDeleteModal = document.querySelector("#habitDeleteModal");
+const habitDeleteName = document.querySelector("#habitDeleteName");
+const confirmHabitDelete = document.querySelector("#confirmHabitDelete");
 const habitModalFormSlot = document.querySelector("#habitModalFormSlot");
 const habitInput = document.querySelector("#habitInput");
 const habitMeasureType = document.querySelector("#habitMeasureType");
 const habitTargetValue = document.querySelector("#habitTargetValue");
 const habitUnit = document.querySelector("#habitUnit");
-const habitStartDate = document.querySelector("#habitStartDate");
 const habitEndDate = document.querySelector("#habitEndDate");
 const toast = document.querySelector("#toast");
+const miniFocusTimer = document.querySelector("#miniFocusTimer");
+const miniFocusStatus = document.querySelector("#miniFocusStatus");
+const miniFocusTitle = document.querySelector("#miniFocusTitle");
+const miniFocusTime = document.querySelector("#miniFocusTime");
+const miniFocusPause = document.querySelector("#miniFocusPause");
+let pendingHabitDeleteId = null;
 
 function loadState() {
   try {
@@ -511,6 +588,7 @@ function loadState() {
               (plot.crop ? plot.lastWateredDate ?? toLocalDateString() : ""),
             lastWateredDate:
               plot.lastWateredDate ?? (plot.crop ? toLocalDateString() : ""),
+            lastFreeWaterAt: Number(plot.lastFreeWaterAt ?? 0),
             wilted: plot.wilted ?? false,
             fertilizer: plot.fertilizer ?? null,
           }))
@@ -536,9 +614,19 @@ function loadState() {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 7,
+      schemaVersion: 15,
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
+      farmRankingWeekStart: saved.farmRankingWeekStart ?? "",
+      weeklyFarmMoneyEarned: Number(saved.weeklyFarmMoneyEarned ?? 0),
+      farmRankingDemoRewardSent: Boolean(saved.farmRankingDemoRewardSent),
+      farmRankingBoxExperienceReady: Boolean(saved.farmRankingBoxExperienceReady),
+      farmRankingSecondPlaceDemoSent: Boolean(saved.farmRankingSecondPlaceDemoSent),
+      farmMailDate: saved.farmMailDate ?? "",
+      farmMailSentCount: Number(saved.farmMailSentCount ?? 0),
+      farmMailHistory: Array.isArray(saved.farmMailHistory) ? saved.farmMailHistory : [],
+      farmInboxDate: saved.farmInboxDate ?? "",
+      farmInbox: Array.isArray(saved.farmInbox) ? saved.farmInbox : [],
       farmName: saved.farmName ?? defaultState.farmName,
       productionBoostUntil: saved.productionBoostUntil ?? 0,
       wiltProtectionUntil: saved.wiltProtectionUntil ?? 0,
@@ -555,10 +643,7 @@ function loadState() {
         ...structuredClone(defaultState.farmItemInventory),
         ...(saved.farmItemInventory ?? {}),
       },
-      settings: {
-        ...structuredClone(defaultState.settings),
-        ...(saved.settings ?? {}),
-      },
+      settings: normalizeFocusSettings(saved.settings),
       seedInventory: {
         ...structuredClone(defaultState.seedInventory),
         ...(saved.seedInventory ?? {}),
@@ -568,13 +653,21 @@ function loadState() {
         ...(saved.harvestInventory ?? {}),
       },
       farmPlots: migratedFarmPlots,
-      groups: saved.groups ?? structuredClone(defaultState.groups),
+      groups: (saved.groups ?? structuredClone(defaultState.groups)).map((group) => ({
+        ...group,
+        colorIndex: Number.isInteger(group.colorIndex)
+          ? group.colorIndex % GROUP_COLOR_COUNT
+          : getStableGroupColorIndex(group.id ?? group.name),
+      })),
       tasks: (saved.tasks ?? []).map((task) => ({
         ...task,
         groupId: task.groupId ?? null,
         focusSeconds: task.focusSeconds ?? 0,
         archived: task.archived ?? false,
         archivedAt: task.archivedAt ?? "",
+        completedDate:
+          task.completedDate ??
+          (task.status === "done" && !task.archived ? toLocalDateString() : ""),
       })),
       habits: (saved.habits ?? []).map((habit) => ({
         ...habit,
@@ -625,6 +718,44 @@ function getGroup(groupId) {
   return state.groups.find((group) => group.id === groupId) ?? null;
 }
 
+function normalizeFocusSettings(savedSettings = {}) {
+  const legacySettings = {
+    focusMinutes: savedSettings.focusMinutes ?? 25,
+    breakEnabled: savedSettings.breakEnabled ?? true,
+    breakMinutes: savedSettings.breakMinutes ?? 5,
+  };
+  return {
+    linked: { ...legacySettings, ...(savedSettings.linked ?? {}) },
+    quick: { ...legacySettings, ...(savedSettings.quick ?? {}) },
+  };
+}
+
+function getFocusSettings(mode = focusMode) {
+  return state.settings[mode] ?? state.settings.linked;
+}
+
+function getStableGroupColorIndex(value) {
+  const presetColors = { work: 0, "업무": 0, life: 1, "생활": 1, study: 3, "공부": 3 };
+  if (Object.hasOwn(presetColors, value)) return presetColors[value];
+
+  return [...String(value)].reduce(
+    (total, character) => (total * 31 + character.charCodeAt(0)) % GROUP_COLOR_COUNT,
+    0,
+  );
+}
+
+function getKoreanObjectParticle(value) {
+  const lastCharacter = String(value).trim().at(-1);
+  if (!lastCharacter) return "을(를)";
+  const characterCode = lastCharacter.charCodeAt(0);
+  if (characterCode < 0xac00 || characterCode > 0xd7a3) return "을(를)";
+  return (characterCode - 0xac00) % 28 === 0 ? "를" : "을";
+}
+
+function getGroupColorClass(group) {
+  return `group-color-${group.colorIndex ?? getStableGroupColorIndex(group.id ?? group.name)}`;
+}
+
 function renderGroups() {
   const currentValue = taskGroup.value;
   taskGroup.innerHTML = [
@@ -638,10 +769,19 @@ function renderGroups() {
     taskGroup.value = currentValue;
   }
 
+  const selectedGroup = getGroup(taskGroup.value);
+  taskGroupLabel.textContent = selectedGroup?.name ?? "그룹 없음";
+  taskGroupMenu.innerHTML = [
+    `<button class="custom-group-option ${taskGroup.value ? "" : "selected"}" type="button" role="option" aria-selected="${!taskGroup.value}" data-task-group-value=""><i></i><span>그룹 없음</span><b>✓</b></button>`,
+    ...state.groups.map(
+      (group) => `<button class="custom-group-option ${getGroupColorClass(group)} ${taskGroup.value === group.id ? "selected" : ""}" type="button" role="option" aria-selected="${taskGroup.value === group.id}" data-task-group-value="${group.id}"><i></i><span>${escapeHtml(group.name)}</span><b>✓</b></button>`,
+    ),
+  ].join("");
+
   document.querySelector("#groupList").innerHTML = state.groups
     .map(
       (group) => `
-        <span class="group-chip">
+        <span class="group-chip ${getGroupColorClass(group)}">
           ${escapeHtml(group.name)}
           <button type="button" data-delete-group="${group.id}" aria-label="${escapeHtml(group.name)} 그룹 삭제">×</button>
         </span>
@@ -653,7 +793,8 @@ function renderGroups() {
 function renderTaskFilters() {
   const filters = document.querySelector("#taskGroupFilters");
   const archiveButton = document.querySelector("#toggleArchiveView");
-  if (!filters || !archiveButton) return;
+  const archivePolicy = document.querySelector("#taskArchivePolicy");
+  if (!filters || !archiveButton || !archivePolicy) return;
 
   const options = [
     { id: "all", name: "전체" },
@@ -678,6 +819,9 @@ function renderTaskFilters() {
 
   archiveButton.classList.toggle("active", archiveActive);
   archiveButton.textContent = archiveActive ? "← 할 일로 돌아가기" : "보관함";
+  archivePolicy.textContent = archiveActive
+    ? "보관된 할 일은 보관 후 30일이 지나면 자동으로 삭제돼"
+    : "완료한 할 일은 다음 날 자동으로 보관함으로 이동해";
   document.querySelector("#taskBoard").classList.toggle("archive-view", archiveActive);
   document.querySelector('[data-status="done"] h3').textContent =
     archiveActive ? "보관된 할 일" : "완료";
@@ -719,11 +863,13 @@ function renderTasks() {
               <h4>${escapeHtml(task.title)}</h4>
             </div>
             <div class="task-meta">
-              ${group ? `<span class="task-category">${escapeHtml(group.name)}</span>` : ""}
+              ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
               ${
                 task.archived
                   ? '<span class="task-archived-label">보관됨</span>'
-                  : `
+                  : task.status === "done"
+                    ? `<span class="task-focus-pill completed-focus-time">◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
+                    : `
                     <button
                       class="task-focus-pill"
                       type="button"
@@ -763,6 +909,206 @@ function toLocalDateString(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getFarmWeekStart(date = new Date()) {
+  const monday = new Date(date);
+  monday.setHours(12, 0, 0, 0);
+  const daysSinceMonday = (monday.getDay() + 6) % 7;
+  monday.setDate(monday.getDate() - daysSinceMonday);
+  return toLocalDateString(monday);
+}
+
+function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
+  return [
+    ...MOCK_FARM_RANKINGS,
+    {
+      name: state.farmName || "내 농장",
+      score: userScore,
+      isMe: true,
+    },
+  ].sort((first, second) => second.score - first.score || Number(second.isMe) - Number(first.isMe));
+}
+
+function createFarmRankingRewardMail({
+  id,
+  boxCount,
+  ranking,
+  rewardWeekStart = state.farmRankingWeekStart,
+}) {
+  if (state.farmInbox.some((mail) => mail.id === id)) return false;
+  const cropIds = Object.keys(CROPS);
+  state.farmInbox.unshift({
+    id,
+    friendId: SYSTEM_FARM_SENDER.id,
+    category: "rankingBox",
+    itemId: "weeklyCropBox",
+    boxCount,
+    boxCropIds: Array.from(
+      { length: boxCount },
+      () => cropIds[Math.floor(Math.random() * cropIds.length)],
+    ),
+    openedBoxIndexes: [],
+    ranking,
+    rewardWeekStart,
+    receivedDate: toLocalDateString(),
+    claimed: false,
+  });
+  return true;
+}
+
+function addWeeklyFarmRankingReward(rewardWeekStart, userScore) {
+  const rank = getFarmRankings(userScore).findIndex((farmer) => farmer.isMe) + 1;
+  const boxCountByRank = { 1: 5, 2: 2, 3: 1 };
+  const boxCount = boxCountByRank[rank];
+  if (!boxCount) return false;
+
+  return createFarmRankingRewardMail({
+    id: `weekly-ranking-${rewardWeekStart}`,
+    boxCount,
+    ranking: rank,
+    rewardWeekStart,
+  });
+}
+
+function ensureFarmRankingDemoReward() {
+  if (state.farmRankingDemoRewardSent) return false;
+  createFarmRankingRewardMail({
+    id: "demo-weekly-ranking-first-place",
+    boxCount: 5,
+    ranking: 1,
+  });
+  state.farmRankingDemoRewardSent = true;
+  return true;
+}
+
+function ensureFarmRankingBoxExperience() {
+  if (state.farmRankingBoxExperienceReady) return false;
+  const previousDemoMail = state.farmInbox.find(
+    (mail) => mail.id === "demo-weekly-ranking-first-place",
+  );
+  if (previousDemoMail && !previousDemoMail.claimed) {
+    previousDemoMail.openedBoxIndexes = previousDemoMail.openedBoxIndexes ?? [];
+    state.farmRankingBoxExperienceReady = true;
+    return true;
+  }
+
+  createFarmRankingRewardMail({
+    id: "demo-weekly-ranking-box-opening",
+    boxCount: 5,
+    ranking: 1,
+  });
+  state.farmRankingBoxExperienceReady = true;
+  return true;
+}
+
+function ensureFarmRankingSecondPlaceDemoReward() {
+  if (state.farmRankingSecondPlaceDemoSent) return false;
+  createFarmRankingRewardMail({
+    id: "demo-weekly-ranking-second-place",
+    boxCount: 2,
+    ranking: 2,
+  });
+  state.farmRankingSecondPlaceDemoSent = true;
+  return true;
+}
+
+function ensureWeeklyFarmRanking() {
+  const currentWeekStart = getFarmWeekStart();
+  if (state.farmRankingWeekStart === currentWeekStart) return false;
+  if (state.farmRankingWeekStart) {
+    addWeeklyFarmRankingReward(
+      state.farmRankingWeekStart,
+      state.weeklyFarmMoneyEarned,
+    );
+  }
+  state.farmRankingWeekStart = currentWeekStart;
+  state.weeklyFarmMoneyEarned = 0;
+  return true;
+}
+
+function ensureDailyFarmMail() {
+  const today = toLocalDateString();
+  if (state.farmMailDate === today) return false;
+  state.farmMailDate = today;
+  state.farmMailSentCount = 0;
+  state.farmMailHistory = [];
+  selectedMailFriendId = null;
+  selectedMailItemId = null;
+  return true;
+}
+
+function ensureDailyFarmInbox() {
+  const today = toLocalDateString();
+  const previousLength = state.farmInbox.length;
+  state.farmInbox = state.farmInbox
+    .map((mail) => ({
+      ...mail,
+      receivedDate: mail.receivedDate || state.farmInboxDate || today,
+    }))
+    .filter((mail) => daysBetweenDates(mail.receivedDate, today) < 7);
+  const expiredMailRemoved = state.farmInbox.length !== previousLength;
+  const daySeed = Number(today.replaceAll("-", ""));
+  state.farmInboxDate = today;
+  const existingMailIds = new Set(state.farmInbox.map((mail) => mail.id));
+  const newMail = Array.from({ length: 7 }, (_, index) => index)
+    .filter((index) => !existingMailIds.has(`${today}-${index}`))
+    .map((index) => {
+      const gift = DAILY_FARM_INBOX_GIFTS[
+        (daySeed + index * 3) % DAILY_FARM_INBOX_GIFTS.length
+      ];
+      const friend = MOCK_FARM_FRIENDS[(daySeed + index) % MOCK_FARM_FRIENDS.length];
+      return {
+        id: `${today}-${index}`,
+        friendId: friend.id,
+        category: gift.category,
+        itemId: gift.itemId,
+        receivedDate: today,
+        claimed: false,
+      };
+    });
+  state.farmInbox = [...newMail, ...state.farmInbox];
+  return expiredMailRemoved || newMail.length > 0;
+}
+
+function earnFarmMoney(amount) {
+  ensureWeeklyFarmRanking();
+  state.farmMoney += amount;
+  state.weeklyFarmMoneyEarned += amount;
+}
+
+function formatFarmRankingWeek() {
+  const start = new Date(`${state.farmRankingWeekStart}T12:00:00`);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  return `${start.getMonth() + 1}월 ${start.getDate()}일 ― ${end.getMonth() + 1}월 ${end.getDate()}일`;
+}
+
+function getPlotWaterRemaining(plot, now = Date.now()) {
+  return Math.max(0, Number(plot.lastFreeWaterAt ?? 0) + FARM_WATER_COOLDOWN_MS - now);
+}
+
+function formatPlotWaterCooldown(milliseconds) {
+  if (milliseconds <= 0) return "물 주기";
+  const totalMinutes = Math.ceil(milliseconds / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours ? `${hours}:${String(minutes).padStart(2, "0")}` : `${minutes}분`;
+}
+
+function updateFarmWaterCooldowns() {
+  document.querySelectorAll("[data-water-plot]").forEach((button) => {
+    const plot = state.farmPlots.find((entry) => entry.id === Number(button.dataset.waterPlot));
+    if (!plot) return;
+    const remaining = getPlotWaterRemaining(plot);
+    button.disabled = remaining > 0;
+    const label = button.querySelector("span");
+    if (label) label.textContent = formatPlotWaterCooldown(remaining);
+    button.setAttribute(
+      "aria-label",
+      remaining > 0 ? `다음 무료 물주기까지 ${formatPlotWaterCooldown(remaining)}` : "무료로 물 주기",
+    );
+  });
 }
 
 function daysBetweenDates(fromDate, toDate = toLocalDateString()) {
@@ -859,13 +1205,23 @@ function clearFarmPlot(plot) {
   plot.fertilizer = null;
 }
 
+function advanceFarmPlotGrowth(plot) {
+  const maxGrowth = getCropGrowthCost(plot.crop);
+  const growthAmount =
+    plot.fertilizer === "moistureFertilizer" ||
+    plot.fertilizer === "premiumFertilizer"
+      ? 2
+      : 1;
+  plot.growth = Math.min(maxGrowth, plot.growth + growthAmount);
+  plot.lastWateredDate = toLocalDateString();
+  return maxGrowth;
+}
+
 function isHabitScheduledOn(habit, date) {
   const dateString = toLocalDateString(date);
   const weekday = date.getDay() === 0 ? 7 : date.getDay();
-  const inDateRange =
-    (!habit.startDate || habit.startDate <= dateString) &&
-    (!habit.endDate || habit.endDate >= dateString);
-  return inDateRange && habit.weekdays.includes(weekday);
+  const beforeEndDate = !habit.endDate || habit.endDate >= dateString;
+  return beforeEndDate && habit.weekdays.includes(weekday);
 }
 
 function isHabitScheduledToday(habit) {
@@ -889,16 +1245,85 @@ function isHabitCompleteToday(habit) {
 
 function formatHabitSchedule(habit) {
   const labels = ["월", "화", "수", "목", "금", "토", "일"];
+  const weekdayKey = [...habit.weekdays].sort((a, b) => a - b).join(",");
   const weekdays =
-    habit.weekdays.length === 7
+    weekdayKey === "1,2,3,4,5,6,7"
       ? "매일"
-      : habit.weekdays.map((day) => labels[day - 1]).join("·");
-  const dateRange =
-    habit.startDate || habit.endDate
-      ? `${habit.startDate || "시작 제한 없음"} ~ ${habit.endDate || "계속"}`
-      : "기간 제한 없음";
-  return `${weekdays} · ${dateRange}`;
+      : weekdayKey === "1,2,3,4,5"
+        ? "평일"
+        : weekdayKey === "6,7"
+          ? "주말"
+          : habit.weekdays.map((day) => labels[day - 1]).join("·");
+  return habit.endDate ? `${weekdays} · ${habit.endDate}까지` : weekdays;
 }
+
+const focusDailyQuotes = [
+  "작은 집중이 오늘의 흐름을 바꿔",
+  "완벽한 시작보다 꾸준한 한 걸음이 더 멀리 가",
+  "지금 이 순간에 마음을 모으면 길이 보여",
+  "천천히 가도 멈추지 않으면 충분해",
+  "오늘 쌓은 한 칸이 내일의 기반이 돼",
+  "해야 할 일보다 지금 할 한 가지에 집중해",
+  "짧은 몰입도 반복되면 큰 변화를 만들어",
+  "시작한 순간 이미 가장 어려운 고비를 넘었어",
+  "마음이 복잡할수록 다음 한 걸음만 바라봐",
+  "집중은 시간을 늘리는 가장 조용한 방법이야",
+  "조금씩 해낸 기록은 사라지지 않아",
+  "오늘의 성실함이 미래의 여유를 만들어",
+  "속도보다 방향, 방향보다 꾸준함이 중요해",
+  "한 번의 깊은 집중이 긴 망설임을 이겨",
+  "쉬어 가도 괜찮아, 다시 시작하면 돼",
+  "할 수 있는 만큼 시작하면 할 수 있는 일이 늘어나",
+  "지금의 노력은 눈에 보이지 않아도 자라고 있어",
+  "작은 완료 하나가 다음 움직임을 가볍게 해",
+  "집중할 때는 한 가지면 충분해",
+  "오늘의 최선은 어제와 달라도 괜찮아",
+  "꾸준함은 재능이 쉬는 날에도 자라",
+  "미루고 싶은 마음보다 5분 먼저 움직여 봐",
+  "차분히 쌓은 시간은 결국 결과로 답해",
+  "오늘도 나만의 속도로 앞으로 가자",
+  "생각을 줄이고 손을 움직이면 흐름이 시작돼",
+  "한 칸씩 채우다 보면 어느새 멀리 와 있어",
+  "집중한 시간은 스스로에게 주는 단단한 약속이야",
+  "잘하려는 마음보다 끝내려는 마음을 먼저 꺼내 봐",
+  "오늘 시작한 작은 일이 내일의 나를 도와줘",
+  "흔들려도 다시 돌아오는 힘이 꾸준함이야",
+  "할 일을 작게 나누면 시작할 용기가 커져",
+];
+
+function updateDailyFocusQuote() {
+  const quote = document.querySelector("#focusDailyQuote");
+  if (!quote) return;
+  const today = new Date();
+  const dayNumber = Math.floor(
+    Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000,
+  );
+  quote.textContent = focusDailyQuotes[dayNumber % focusDailyQuotes.length];
+}
+
+function closeTaskGroupMenu() {
+  taskGroupMenu.classList.add("hidden");
+  taskGroupTrigger.setAttribute("aria-expanded", "false");
+}
+
+taskGroupTrigger.addEventListener("click", () => {
+  const willOpen = taskGroupMenu.classList.contains("hidden");
+  taskGroupMenu.classList.toggle("hidden", !willOpen);
+  taskGroupTrigger.setAttribute("aria-expanded", String(willOpen));
+});
+
+taskGroupMenu.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-task-group-value]");
+  if (!option) return;
+  taskGroup.value = option.dataset.taskGroupValue;
+  renderGroups();
+  closeTaskGroupMenu();
+  taskGroupTrigger.focus();
+});
+
+document.addEventListener("click", (event) => {
+  if (!customTaskGroupSelect.contains(event.target)) closeTaskGroupMenu();
+});
 
 function renderHabits() {
   const habitList = document.querySelector("#habitList");
@@ -939,16 +1364,15 @@ function renderHabits() {
           >✓</button>
         `;
       const focusAction =
-        habit.measureType === "time"
+        habit.measureType === "time" && !completeToday
           ? `<button class="habit-focus-button" type="button" data-focus-habit="${habit.id}" ${scheduledToday ? "" : "disabled"}>◷ 집중 시작</button>`
           : "";
       return `
-        <article class="habit-item ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}">
+        <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
           ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
-            <small>${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `목표 ${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · 집중 ${formatFocusTime(habit.focusSeconds)}</small>
-            <small class="habit-schedule">${escapeHtml(formatHabitSchedule(habit))}</small>
+            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit))}${habit.measureType === "time" ? ` · 집중 ${formatFocusTime(habit.focusSeconds)}` : ""}</small>
             ${focusAction}
           </span>
           <span>
@@ -1052,6 +1476,352 @@ function getFreePassTargets() {
   return [...tasks, ...habits];
 }
 
+function renderFarmRanking() {
+  const weekLabel = document.querySelector("#farmRankingWeekLabel");
+  const weeklyEarned = document.querySelector("#weeklyFarmMoneyEarned");
+  const rankingList = document.querySelector("#farmRankingList");
+  if (!weekLabel || !weeklyEarned || !rankingList) return;
+
+  ensureWeeklyFarmRanking();
+  const rankings = getFarmRankings();
+
+  weekLabel.textContent = formatFarmRankingWeek();
+  weeklyEarned.textContent = state.weeklyFarmMoneyEarned.toLocaleString("ko-KR");
+  rankingList.innerHTML = rankings
+    .map((farmer, index) => {
+      const rank = index + 1;
+      const rankLabel = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+      return `
+        <li class="farm-ranking-row ${farmer.isMe ? "is-me" : ""}">
+          <span class="farm-ranking-rank">${rankLabel}</span>
+          <span class="farm-ranking-name">
+            <strong>${escapeHtml(farmer.name)}</strong>
+            ${farmer.isMe ? "<small>나</small>" : "<small>임시 농부</small>"}
+          </span>
+          <strong class="farm-ranking-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
+        </li>
+      `;
+    })
+    .join("");
+}
+
+function getFarmMailSender(friendId) {
+  if (friendId === SYSTEM_FARM_SENDER.id) return SYSTEM_FARM_SENDER;
+  return MOCK_FARM_FRIENDS.find((friend) => friend.id === friendId) ?? null;
+}
+
+function getFarmGiftDetails(category, itemId, mail = null) {
+  if (category === "rankingBox") {
+    const boxCount = mail?.boxCropIds?.length ?? mail?.boxCount ?? 1;
+    return {
+      name: `작물 랜덤 박스 ${boxCount}개`,
+      icon: "🎁",
+      inventory: state.harvestInventory,
+      categoryName: `주간 랭킹 ${mail?.ranking ?? ""}위 보상`,
+    };
+  }
+  if (category === "supply") {
+    const item = FARM_ITEMS[itemId];
+    return item
+      ? { name: item.name, icon: item.icon, inventory: state.farmItemInventory, categoryName: "농장 용품" }
+      : null;
+  }
+  if (category === "food") {
+    const recipe = RECIPES[itemId];
+    return recipe
+      ? { name: recipe.name, icon: recipe.icon, inventory: state.foodInventory, categoryName: "만든 음식" }
+      : null;
+  }
+  const crop = CROPS[itemId];
+  if (!crop) return null;
+  return {
+    name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
+    icon: cropSvg(itemId),
+    inventory: category === "seed" ? state.seedInventory : state.harvestInventory,
+    categoryName: category === "seed" ? "씨앗" : "수확물",
+  };
+}
+
+function getOpenedFarmRankingBoxIndexes(mail) {
+  const boxCount = mail.boxCropIds?.length ?? mail.boxCount ?? 0;
+  const openedIndexes = Array.isArray(mail.openedBoxIndexes)
+    ? mail.openedBoxIndexes
+    : [];
+  mail.openedBoxIndexes = [...new Set(openedIndexes)]
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < boxCount)
+    .sort((first, second) => first - second);
+  return mail.openedBoxIndexes;
+}
+
+function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
+  const progress = document.querySelector("#farmRewardBoxProgress");
+  const grid = document.querySelector("#farmRewardBoxGrid");
+  const guide = document.querySelector("#farmRewardBoxGuide");
+  const closeButton = document.querySelector("#closeFarmRewardBox");
+  if (!progress || !grid || !guide || !closeButton) return;
+  const openedIndexes = getOpenedFarmRankingBoxIndexes(mail);
+  const openedSet = new Set(openedIndexes);
+  const cropIds = mail.boxCropIds ?? [];
+  const completed = openedIndexes.length === cropIds.length;
+  progress.textContent = `${openedIndexes.length} / ${cropIds.length}`;
+  grid.innerHTML = cropIds
+    .map((cropId, index) => {
+      const opened = openedSet.has(index);
+      const crop = CROPS[cropId];
+      return `
+        <button
+          class="farm-reward-box ${opened ? "opened" : "sealed"} ${justOpenedIndex === index ? "just-opened" : ""}"
+          type="button"
+          data-open-reward-box="${index}"
+          ${opened ? "disabled" : ""}
+          aria-label="${opened ? `${escapeHtml(crop.name)} 획득` : `${index + 1}번째 랜덤 박스 열기`}"
+        >
+          ${opened
+            ? `<span>${cropSvg(cropId)}</span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1</small>`
+            : `<span>🎁</span><strong>${index + 1}번째 상자</strong><small>눌러서 열기</small>`}
+        </button>
+      `;
+    })
+    .join("");
+  guide.textContent = completed
+    ? "모든 작물이 수확물 보관함에 들어갔어!"
+    : `아직 ${cropIds.length - openedIndexes.length}개의 상자가 남아 있어`;
+  closeButton.textContent = completed ? "개봉 완료" : "나중에 이어서 열기";
+}
+
+function openFarmRewardBoxModal(mail) {
+  activeRankingRewardMailId = mail.id;
+  renderFarmRewardBoxes(mail);
+  document.querySelector("#farmRewardBoxModal").classList.remove("hidden");
+}
+
+function closeFarmRewardBoxModal() {
+  activeRankingRewardMailId = null;
+  document.querySelector("#farmRewardBoxModal").classList.add("hidden");
+}
+
+function revealFarmRankingBox(mail, index) {
+  const cropId = mail.boxCropIds?.[index];
+  if (!CROPS[cropId]) return;
+  const openedIndexes = getOpenedFarmRankingBoxIndexes(mail);
+  if (openedIndexes.includes(index)) return;
+  state.harvestInventory[cropId] = (state.harvestInventory[cropId] ?? 0) + 1;
+  mail.openedBoxIndexes.push(index);
+  mail.openedBoxIndexes.sort((first, second) => first - second);
+  mail.claimed = mail.openedBoxIndexes.length === mail.boxCropIds.length;
+  render();
+  renderFarmRewardBoxes(mail, index);
+  if (mail.claimed) launchHarvestCelebration();
+}
+
+function getFarmMailItems(category = selectedMailCategory) {
+  if (category === "supply") {
+    return Object.entries(FARM_ITEMS)
+      .filter(([itemId]) => (state.farmItemInventory[itemId] ?? 0) > 0)
+      .map(([itemId, item]) => ({
+        id: itemId,
+        name: item.name,
+        icon: item.icon,
+        count: state.farmItemInventory[itemId],
+        inventory: state.farmItemInventory,
+      }));
+  }
+  if (category === "food") {
+    return Object.entries(RECIPES)
+      .filter(([recipeId]) => (state.foodInventory[recipeId] ?? 0) > 0)
+      .map(([recipeId, recipe]) => ({
+        id: recipeId,
+        name: recipe.name,
+        icon: recipe.icon,
+        count: state.foodInventory[recipeId],
+        inventory: state.foodInventory,
+      }));
+  }
+
+  const inventory = category === "seed" ? state.seedInventory : state.harvestInventory;
+  return Object.entries(CROPS)
+    .filter(([cropId]) => (inventory[cropId] ?? 0) > 0)
+    .map(([cropId, crop]) => ({
+      id: cropId,
+      name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
+      icon: cropSvg(cropId),
+      count: inventory[cropId],
+      inventory,
+    }));
+}
+
+function renderFarmMail() {
+  const remaining = document.querySelector("#farmMailRemaining");
+  const friendList = document.querySelector("#farmMailFriendList");
+  const itemList = document.querySelector("#farmMailItemList");
+  const history = document.querySelector("#farmMailHistory");
+  const sendButton = document.querySelector("#sendFarmMail");
+  const categories = document.querySelector("#farmMailCategories");
+  const sendPanel = document.querySelector("#farmMailSendPanel");
+  const inboxPanel = document.querySelector("#farmMailInboxPanel");
+  const inboxList = document.querySelector("#farmMailInboxList");
+  const unreadCount = document.querySelector("#farmMailUnreadCount");
+  const headerUnreadCount = document.querySelector("#farmMailHeaderUnread");
+  const openMailButton = document.querySelector("#openFarmMail");
+  if (
+    !remaining ||
+    !friendList ||
+    !itemList ||
+    !history ||
+    !sendButton ||
+    !categories ||
+    !sendPanel ||
+    !inboxPanel ||
+    !inboxList ||
+    !unreadCount ||
+    !headerUnreadCount ||
+    !openMailButton
+  ) return;
+
+  ensureDailyFarmMail();
+  ensureDailyFarmInbox();
+  document.querySelectorAll("[data-mail-view]").forEach((button) => {
+    const active = button.dataset.mailView === farmMailView;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  sendPanel.classList.toggle("hidden", farmMailView !== "send");
+  inboxPanel.classList.toggle("hidden", farmMailView !== "inbox");
+  const unclaimedCount = state.farmInbox.filter((mail) => !mail.claimed).length;
+  unreadCount.textContent = unclaimedCount;
+  unreadCount.hidden = unclaimedCount === 0;
+  headerUnreadCount.textContent = unclaimedCount > 99 ? "99+" : unclaimedCount;
+  headerUnreadCount.hidden = unclaimedCount === 0;
+  openMailButton.classList.toggle("has-unread", unclaimedCount > 0);
+  openMailButton.setAttribute(
+    "aria-label",
+    unclaimedCount ? `농장 우편소 · 받지 않은 우편 ${unclaimedCount}통` : "농장 우편소",
+  );
+
+  inboxList.innerHTML = state.farmInbox.length
+    ? state.farmInbox
+        .map((mail) => {
+          const friend = getFarmMailSender(mail.friendId);
+          const gift = getFarmGiftDetails(mail.category, mail.itemId, mail);
+          if (!friend || !gift) return "";
+          const daysUntilDelete = Math.max(1, 7 - daysBetweenDates(mail.receivedDate));
+          return `
+            <article class="farm-mail-inbox-row ${mail.claimed ? "claimed" : ""}">
+              <span class="farm-mail-inbox-avatar">${friend.avatar}</span>
+              <div class="farm-mail-inbox-copy">
+                <div class="farm-mail-sender">
+                  <strong>${escapeHtml(friend.name)}</strong>
+                  <small>${escapeHtml(gift.categoryName)} · ${daysUntilDelete}일 후 삭제</small>
+                </div>
+                <strong>${gift.icon}<span>${escapeHtml(gift.name)}</span></strong>
+              </div>
+              <button type="button" data-claim-farm-mail="${mail.id}" ${mail.claimed ? "disabled" : ""}>
+                ${mail.claimed
+                  ? mail.category === "rankingBox" ? "개봉 완료" : "수령 완료"
+                  : mail.category === "rankingBox"
+                    ? getOpenedFarmRankingBoxIndexes(mail).length ? "계속 열기" : "상자 열기"
+                    : "받기"}
+              </button>
+            </article>
+          `;
+        })
+        .join("")
+    : '<p class="farm-mail-empty">받은 우편이 아직 없어</p>';
+
+  const items = getFarmMailItems();
+  if (!items.some((item) => item.id === selectedMailItemId)) selectedMailItemId = null;
+  const remainingCount = Math.max(0, 3 - state.farmMailSentCount);
+  remaining.textContent = remainingCount;
+
+  friendList.innerHTML = MOCK_FARM_FRIENDS.map(
+    (friend) => `
+      <button class="farm-mail-friend ${selectedMailFriendId === friend.id ? "selected" : ""}" type="button" data-mail-friend="${friend.id}">
+        <span>${friend.avatar}</span>
+        <strong>${escapeHtml(friend.name)}</strong>
+        <small>${escapeHtml(friend.farmName)}</small>
+      </button>
+    `,
+  ).join("");
+
+  categories.querySelectorAll("[data-mail-category]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.mailCategory === selectedMailCategory);
+  });
+
+  itemList.innerHTML = items.length
+    ? items
+        .map(
+          (item) => `
+            <button class="farm-mail-item ${selectedMailItemId === item.id ? "selected" : ""}" type="button" data-mail-item="${item.id}">
+              <span>${item.icon}</span>
+              <strong>${escapeHtml(item.name)}</strong>
+              <small>${item.count}개 보유</small>
+            </button>
+          `,
+        )
+        .join("")
+    : '<p class="farm-mail-empty">이 종류에는 보낼 수 있는 물건이 없어</p>';
+
+  history.innerHTML = state.farmMailHistory.length
+    ? state.farmMailHistory
+        .map(
+          (mail) => `
+            <div class="farm-mail-history-row">
+              <span>✓</span>
+              <p><strong>${escapeHtml(mail.itemName)}</strong>${getKoreanObjectParticle(mail.itemName)} ${escapeHtml(mail.friendName)}에게 보냈어</p>
+              <small>${escapeHtml(mail.sentTime)}</small>
+            </div>
+          `,
+        )
+        .join("")
+    : '<p class="farm-mail-empty">오늘 보낸 우편이 아직 없어</p>';
+
+  sendButton.disabled =
+    remainingCount === 0 || !selectedMailFriendId || !selectedMailItemId;
+  sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
+}
+
+function renderRecipeIngredientPicker(select) {
+  const picker = select.closest(".recipe-ingredient-select");
+  const label = picker?.querySelector("[data-recipe-ingredient-label]");
+  const menu = picker?.querySelector(".recipe-ingredient-menu");
+  if (!picker || !label || !menu) return;
+
+  const selectedCrop = CROPS[select.value];
+  label.textContent = selectedCrop ? selectedCrop.name : "재료 선택";
+  menu.innerHTML = [
+    `
+      <button class="recipe-ingredient-option custom-group-option ${select.value ? "" : "selected"}" type="button" role="option" aria-selected="${!select.value}" data-recipe-ingredient-value="">
+        <i aria-hidden="true"></i><span>재료 선택</span><b>✓</b>
+      </button>
+    `,
+    ...getSortedKitchenCropEntries().map(
+      ([cropId, crop]) => `
+        <button class="recipe-ingredient-option custom-group-option ${select.value === cropId ? "selected" : ""}" type="button" role="option" aria-selected="${select.value === cropId}" data-recipe-ingredient-value="${cropId}">
+          <i aria-hidden="true">${cropSvg(cropId)}</i>
+          <span><strong>${escapeHtml(crop.name)}</strong><small>${state.harvestInventory[cropId] ?? 0}개 보유</small></span>
+          <b>✓</b>
+        </button>
+      `,
+    ),
+  ].join("");
+}
+
+function getSortedKitchenCropEntries() {
+  return Object.entries(CROPS).sort(([firstId], [secondId]) => {
+    const firstAvailable = (state.harvestInventory[firstId] ?? 0) > 0;
+    const secondAvailable = (state.harvestInventory[secondId] ?? 0) > 0;
+    return Number(secondAvailable) - Number(firstAvailable);
+  });
+}
+
+function closeRecipeIngredientMenus(exceptPicker = null) {
+  document.querySelectorAll(".recipe-ingredient-select").forEach((picker) => {
+    if (picker === exceptPicker) return;
+    picker.querySelector(".recipe-ingredient-menu")?.classList.add("hidden");
+    picker.querySelector(".recipe-ingredient-trigger")?.setAttribute("aria-expanded", "false");
+  });
+}
+
 function renderFarm() {
   const inventory = document.querySelector("#seedInventory");
   const shop = document.querySelector("#seedShop");
@@ -1097,6 +1867,7 @@ function renderFarm() {
   }
 
   ensureDailyMarket();
+  ensureWeeklyFarmRanking();
   updateWiltedCrops();
   farmBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
@@ -1117,6 +1888,8 @@ function renderFarm() {
   );
   supplyModalCount.textContent = supplyStorageCount.textContent;
   farmNameLabel.textContent = state.farmName;
+  renderFarmRanking();
+  renderFarmMail();
 
   farmItemShop.innerHTML = Object.entries(FARM_ITEMS)
     .map(
@@ -1253,14 +2026,16 @@ function renderFarm() {
 
   const ingredientOptions = [
     '<option value="">재료 선택</option>',
-    ...Object.entries(CROPS).map(
+    ...getSortedKitchenCropEntries().map(
       ([cropId, crop]) =>
-        `<option value="${cropId}">${crop.name} (${state.harvestInventory[cropId] ?? 0})</option>`,
+        `<option value="${cropId}">${crop.name}</option>`,
     ),
   ].join("");
   ["recipeIngredient1", "recipeIngredient2", "recipeIngredient3"].forEach((id) => {
     const select = document.querySelector(`#${id}`);
-    if (select) select.innerHTML = ingredientOptions;
+    if (!select) return;
+    select.innerHTML = ingredientOptions;
+    renderRecipeIngredientPicker(select);
   });
 
   const storedFoods = Object.entries(RECIPES)
@@ -1340,13 +2115,11 @@ function renderFarm() {
       }
 
       if (!mature) {
+        const waterRemaining = getPlotWaterRemaining(plot);
         return `
-          <button
+          <article
             class="farm-plot crop-plot growable-plot"
-            type="button"
-            data-grow-plot="${plot.id}"
             data-plot-id="${plot.id}"
-            aria-label="${crop.name}에 1 Coin 주기"
           >
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
@@ -1356,7 +2129,17 @@ function renderFarm() {
               <strong>${crop.name}</strong>
               <small>${plot.growth} / ${maxGrowth}</small>
             </div>
-          </button>
+            <div class="plot-growth-actions">
+              <button type="button" data-grow-plot="${plot.id}" aria-label="${crop.name}에 1 Coin 주기">● 1</button>
+              <button
+                class="water-plot-button"
+                type="button"
+                data-water-plot="${plot.id}"
+                aria-label="${waterRemaining ? `다음 무료 물주기까지 ${formatPlotWaterCooldown(waterRemaining)}` : `${crop.name}에 무료로 물 주기`}"
+                ${waterRemaining ? "disabled" : ""}
+              >💧 <span>${formatPlotWaterCooldown(waterRemaining)}</span></button>
+            </div>
+          </article>
         `;
       }
 
@@ -1416,13 +2199,13 @@ function renderFocusPicker() {
           .map(
             (option) => `
               <button
-                class="focus-item-option${option.value === selectedValue ? " selected" : ""}"
+                class="focus-item-option custom-group-option focus-${option.value.split(":")[0]}${option.value === selectedValue ? " selected" : ""}"
                 type="button"
                 role="option"
                 aria-selected="${option.value === selectedValue}"
                 data-focus-value="${option.value}"
               >
-                ${escapeHtml(option.label)}
+                <i></i><span>${escapeHtml(option.label)}</span><b>✓</b>
               </button>
             `,
           )
@@ -1432,13 +2215,13 @@ function renderFocusPicker() {
 
   menu.innerHTML = `
     <button
-      class="focus-item-option clear-option${selectedValue ? "" : " selected"}"
+      class="focus-item-option custom-group-option clear-option${selectedValue ? "" : " selected"}"
       type="button"
       role="option"
       aria-selected="${!selectedValue}"
       data-focus-value=""
     >
-      선택 안 함
+      <i></i><span>선택 안 함</span><b>✓</b>
     </button>
     ${renderGroup("할 일", taskOptions)}
     ${renderGroup("시간형 습관", habitOptions)}
@@ -1490,22 +2273,88 @@ function render() {
   saveState();
 }
 
+function renderHabitUpdates() {
+  renderHabits();
+  renderHabitHeatmap();
+  renderFocusPicker();
+  updateDailyFocusQuote();
+  renderSummary();
+  renderFarm();
+  saveState();
+}
+
+function maintainTaskArchive() {
+  const today = toLocalDateString();
+  const now = Date.now();
+  const archiveRetentionMs = 30 * 24 * 60 * 60 * 1000;
+  let changed = false;
+
+  state.tasks.forEach((task) => {
+    if (
+      task.status === "done" &&
+      !task.archived &&
+      task.completedDate &&
+      task.completedDate < today
+    ) {
+      task.archived = true;
+      task.archivedAt = new Date().toISOString();
+      changed = true;
+    }
+  });
+
+  const retainedTasks = state.tasks.filter((task) => {
+    if (!task.archived || !task.archivedAt) return true;
+    const archivedTime = Date.parse(task.archivedAt);
+    return !Number.isFinite(archivedTime) || now - archivedTime < archiveRetentionMs;
+  });
+
+  if (retainedTasks.length !== state.tasks.length) {
+    state.tasks = retainedTasks;
+    changed = true;
+  }
+
+  return changed;
+}
+
 function moveTaskTo(id, nextStatus) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task || task.status === nextStatus) return;
 
   const previousStatus = task.status;
   task.status = nextStatus;
+  let stoppedLinkedFocus = false;
 
   if (previousStatus !== "done" && nextStatus === "done") {
     const reward = productionCoinReward();
     task.completionReward = reward;
     task.completedWithFreePass = false;
+    task.completedDate = toLocalDateString();
     state.coins += reward;
-    showToast(`완료 ${reward} Coin 획득`);
+    if (activeFocus?.type === "task" && activeFocus.id === task.id) {
+      activeFocus = null;
+      stopFocusTimer();
+      if (focusMode === "linked") {
+        resetToFocus();
+      } else {
+        const linkedSettings = getFocusSettings("linked");
+        focusRuntimeByMode.linked = {
+          seconds: linkedSettings.focusMinutes * 60,
+          phase: "focus",
+          started: false,
+        };
+        updateMiniFocusTimer();
+      }
+      stoppedLinkedFocus = true;
+    }
+    showToast(
+      stoppedLinkedFocus
+        ? `완료 ${reward} Coin 획득 · 집중 측정 종료`
+        : `완료 ${reward} Coin 획득`,
+    );
   } else if (previousStatus === "done" && nextStatus !== "done") {
     state.coins -= task.completionReward ?? 1;
     task.completionReward = 0;
+    task.completedDate = "";
     if (task.completedWithFreePass) {
       state.farmItemInventory.freePass += 1;
       task.completedWithFreePass = false;
@@ -1560,7 +2409,7 @@ function toggleHabit(id) {
       ? `습관 완료 ${result.reward} Coin 획득`
       : `완료를 취소했어 현재 ${state.coins} Coin`,
   );
-  render();
+  renderHabitUpdates();
 }
 
 function adjustHabitCount(id, delta) {
@@ -1589,13 +2438,7 @@ function adjustHabitCount(id, delta) {
   } else {
     showToast(`${nextProgress} / ${habit.targetValue}${habit.unit}`);
   }
-  renderHabits();
-  renderHabitHeatmap();
-  renderSummary();
-  const farmCoinBalance = document.querySelector("#farmCoinBalance");
-  farmCoinBalance.textContent = state.coins;
-  farmCoinBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
-  saveState();
+  renderHabitUpdates();
 }
 
 function showToast(message) {
@@ -1608,13 +2451,47 @@ function showToast(message) {
 function updateFocusDisplay() {
   const minutes = String(Math.floor(focusSeconds / 60)).padStart(2, "0");
   const seconds = String(focusSeconds % 60).padStart(2, "0");
+  const settings = getFocusSettings();
+  const totalSeconds = Math.max(
+    1,
+    (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
+  );
+  const remainingRatio = Math.max(0, Math.min(1, focusSeconds / totalSeconds));
+  const timerCircumference = 2 * Math.PI * 46;
+  const timerRing = document.querySelector(".timer-ring");
   document.querySelector("#focusTime").textContent = `${minutes}:${seconds}`;
-  document.querySelector(".timer-ring span").textContent =
-    timerPhase === "focus" ? "FOCUS" : "BREAK";
+  timerRing.style.setProperty(
+    "--timer-offset",
+    `${timerCircumference * (1 - remainingRatio)}`,
+  );
+  timerRing.style.setProperty(
+    "--timer-ring-color",
+    timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
+  );
+  timerRing.querySelector("span").textContent = timerPhase === "focus" ? "FOCUS" : "BREAK";
+  updateMiniFocusTimer();
+}
+
+function updateMiniFocusTimer() {
+  const fullTimerVisible = currentPage === "today" || currentPage === "focus";
+  const linkedRuntime = focusRuntimeByMode.linked;
+  const showLinkedTimer = linkedRuntime.started && (runningFocusMode === "linked" || focusMode === "linked");
+  miniFocusTimer.hidden = !showLinkedTimer || fullTimerVisible;
+  if (miniFocusTimer.hidden) return;
+
+  const item = getFocusItem();
+  const minutes = String(Math.floor(linkedRuntime.seconds / 60)).padStart(2, "0");
+  const seconds = String(linkedRuntime.seconds % 60).padStart(2, "0");
+  const linkedRunning = runningFocusMode === "linked";
+  miniFocusStatus.textContent = linkedRuntime.phase === "break" ? "휴식 중" : linkedRunning ? "집중 중" : "일시정지";
+  miniFocusTitle.textContent = linkedRuntime.phase === "break" ? "다음 집중을 위한 휴식" : item?.title ?? "항목 집중";
+  miniFocusTime.textContent = `${minutes}:${seconds}`;
+  miniFocusPause.textContent = linkedRunning ? "일시정지" : "계속";
 }
 
 function updateFocusTarget() {
   const item = getFocusItem();
+  const settings = getFocusSettings();
   const target = document.querySelector("#focusTarget");
   const description = document.querySelector("#focusDescription");
   const focusButton = document.querySelector("#focusButton");
@@ -1623,33 +2500,44 @@ function updateFocusTarget() {
   if (timerPhase === "break") {
     focusButton.disabled = false;
     target.textContent = "잠깐 쉬어";
-    description.textContent = `${state.settings.breakMinutes}분 휴식 후 다시 집중해`;
+    description.textContent = `${settings.breakMinutes}분 휴식 후 다시 집중해`;
     return;
   }
 
   if (focusMode === "quick") {
     focusButton.disabled = false;
-    target.textContent = `그냥 ${state.settings.focusMinutes}분 집중해`;
-    description.textContent = "할 일이나 습관에 연결하지 않고 집중 시간을 기록해";
+    target.textContent = `그냥 ${settings.focusMinutes}분 집중해`;
+    description.textContent = "";
+    description.hidden = true;
     return;
   }
 
   if (!item) {
     focusButton.disabled = true;
     target.textContent = "집중할 항목을 선택해";
-    description.textContent = "위의 집중 항목에서 할 일이나 습관을 골라";
-    description.hidden = currentPage !== "focus";
+    description.textContent = "";
+    description.hidden = true;
     return;
   }
 
   focusButton.disabled = false;
   target.textContent = item.title;
-  description.textContent = `${activeFocus.type === "task" ? "이 할 일" : "이 습관"}에 ${state.settings.focusMinutes}분 동안 집중해`;
+  description.textContent = "";
+  description.hidden = true;
 }
 
 function stopFocusTimer() {
   clearInterval(focusInterval);
+  runningFocusMode = null;
   focusRunning = false;
+}
+
+function saveCurrentFocusRuntime() {
+  focusRuntimeByMode[focusMode] = {
+    seconds: focusSeconds,
+    phase: timerPhase,
+    started: focusSessionStarted,
+  };
 }
 
 function addFocusSecond() {
@@ -1664,138 +2552,213 @@ function addFocusSecond() {
 }
 
 function resetToFocus() {
+  const settings = getFocusSettings();
+  focusSessionStarted = false;
   timerPhase = "focus";
-  focusSeconds = state.settings.focusMinutes * 60;
+  focusSeconds = settings.focusMinutes * 60;
+  saveCurrentFocusRuntime();
   document.querySelector("#focusButton").innerHTML =
-    `<span>▶</span> ${state.settings.focusMinutes}분 시작`;
+    `<span>▶</span> ${settings.focusMinutes}분 시작`;
   updateFocusDisplay();
   updateFocusTarget();
 }
 
-function completeFocus() {
-  const item = focusMode === "linked" ? getFocusItem() : null;
+function finishFocusRuntime(mode) {
+  const runtime = focusRuntimeByMode[mode];
+  const settings = getFocusSettings(mode);
+  const item = mode === "linked" ? getFocusItem() : null;
   let completedItem = false;
 
-  if (item) {
-    if (activeFocus.type === "task" && item.status !== "done") {
-      item.status = "done";
-      item.completedWithFreePass = false;
-      completedItem = true;
-    }
-    if (activeFocus.type === "habit" && !isHabitCompleteToday(item)) {
-      item.complete = true;
-      item.completedDate = toLocalDateString();
-      item.completionDates.push(toLocalDateString());
-      item.completedWithFreePass = false;
-      completedItem = true;
-    }
+  if (item && activeFocus?.type === "task" && item.status !== "done") {
+    item.status = "done";
+    item.completedDate = toLocalDateString();
+    item.completedWithFreePass = false;
+    completedItem = true;
   }
-
+  if (item && activeFocus?.type === "habit" && !isHabitCompleteToday(item)) {
+    item.complete = true;
+    item.completedDate = toLocalDateString();
+    item.completionDates.push(toLocalDateString());
+    item.completedWithFreePass = false;
+    completedItem = true;
+  }
   if (completedItem) {
     const reward = productionCoinReward();
     state.coins += reward;
     item.completionReward = reward;
   }
-  stopFocusTimer();
 
-  if (state.settings.breakEnabled) {
-    timerPhase = "break";
-    focusSeconds = state.settings.breakMinutes * 60;
-    document.querySelector("#focusButton").innerHTML =
-      `<span>▶</span> ${state.settings.breakMinutes}분 휴식`;
-    updateFocusDisplay();
-    updateFocusTarget();
+  clearInterval(focusInterval);
+  runningFocusMode = null;
+  if (settings.breakEnabled) {
+    runtime.phase = "break";
+    runtime.seconds = settings.breakMinutes * 60;
+    runtime.started = true;
   } else {
-    resetToFocus();
+    runtime.phase = "focus";
+    runtime.seconds = settings.focusMinutes * 60;
+    runtime.started = false;
   }
 
+  if (focusMode === mode) {
+    focusRunning = false;
+    timerPhase = runtime.phase;
+    focusSeconds = runtime.seconds;
+    focusSessionStarted = runtime.started;
+    document.querySelector("#focusButton").innerHTML = runtime.started
+      ? `<span>▶</span> ${settings.breakMinutes}분 휴식`
+      : `<span>▶</span> ${settings.focusMinutes}분 시작`;
+    updateFocusDisplay();
+    updateFocusTarget();
+  }
   render();
-  showToast(
-    completedItem
-      ? "집중 세트와 항목을 완료했어 항목 보상 1 Coin"
-      : "집중 세트를 완료했어",
-  );
+  showToast(completedItem ? "집중 세트와 항목을 완료했어" : "집중 세트를 완료했어");
 }
 
-function completeBreak() {
-  stopFocusTimer();
-  resetToFocus();
+function finishBreakRuntime(mode) {
+  const runtime = focusRuntimeByMode[mode];
+  const settings = getFocusSettings(mode);
+  clearInterval(focusInterval);
+  runningFocusMode = null;
+  runtime.phase = "focus";
+  runtime.seconds = settings.focusMinutes * 60;
+  runtime.started = false;
+  if (focusMode === mode) {
+    focusRunning = false;
+    timerPhase = "focus";
+    focusSeconds = runtime.seconds;
+    focusSessionStarted = false;
+    document.querySelector("#focusButton").innerHTML = `<span>▶</span> ${settings.focusMinutes}분 시작`;
+    updateFocusDisplay();
+    updateFocusTarget();
+  }
+  updateMiniFocusTimer();
   showToast("휴식 끝 다음 세트를 시작하면 돼");
 }
 
 function toggleFocus() {
   const button = document.querySelector("#focusButton");
-  focusRunning = !focusRunning;
+  const runtime = focusRuntimeByMode[focusMode];
 
-  if (focusRunning) {
-    const linkedItem = focusMode === "linked" ? getFocusItem() : null;
-    if (activeFocus?.type === "task" && linkedItem?.status === "waiting") {
-      linkedItem.status = "doing";
-      renderTasks();
-      saveState();
-    }
-    button.innerHTML =
-      timerPhase === "focus"
-        ? "<span>Ⅱ</span> 집중 멈춤"
-        : "<span>Ⅱ</span> 휴식 멈춤";
-    focusInterval = setInterval(() => {
-      focusSeconds -= 1;
-
-      if (timerPhase === "focus") {
-        const item = focusMode === "linked" ? getFocusItem() : null;
-        if (item) item.focusSeconds = (item.focusSeconds ?? 0) + 1;
-        addFocusSecond();
-      }
-
-      updateFocusDisplay();
-
-      if (focusSeconds <= 0) {
-        if (timerPhase === "focus") completeFocus();
-        else completeBreak();
-        return;
-      }
-
-      saveState();
-      if (focusSeconds % 10 === 0) renderSummary();
-    }, 1000);
-  } else {
+  if (runningFocusMode === focusMode) {
     clearInterval(focusInterval);
+    runningFocusMode = null;
+    focusRunning = false;
     button.innerHTML = "<span>▶</span> 계속하기";
+    updateMiniFocusTimer();
+    return;
   }
+
+  if (runningFocusMode && runningFocusMode !== focusMode) {
+    clearInterval(focusInterval);
+  }
+
+  runningFocusMode = focusMode;
+  focusRunning = true;
+  focusSessionStarted = true;
+  runtime.started = true;
+  runtime.phase = timerPhase;
+  runtime.seconds = focusSeconds;
+
+  const linkedItem = focusMode === "linked" ? getFocusItem() : null;
+  if (activeFocus?.type === "task" && linkedItem?.status === "waiting") {
+    linkedItem.status = "doing";
+    renderTasks();
+    saveState();
+  }
+  button.innerHTML = timerPhase === "focus"
+    ? "<span>Ⅱ</span> 집중 멈춤"
+    : "<span>Ⅱ</span> 휴식 멈춤";
+
+  const startedMode = focusMode;
+  focusInterval = setInterval(() => {
+    const activeRuntime = focusRuntimeByMode[startedMode];
+    activeRuntime.seconds -= 1;
+    if (activeRuntime.phase === "focus") {
+      const item = startedMode === "linked" ? getFocusItem() : null;
+      if (item) item.focusSeconds = (item.focusSeconds ?? 0) + 1;
+      addFocusSecond();
+    }
+    if (focusMode === startedMode) {
+      focusSeconds = activeRuntime.seconds;
+      timerPhase = activeRuntime.phase;
+      updateFocusDisplay();
+    } else {
+      updateMiniFocusTimer();
+    }
+    if (activeRuntime.seconds <= 0) {
+      if (activeRuntime.phase === "focus") finishFocusRuntime(startedMode);
+      else finishBreakRuntime(startedMode);
+      return;
+    }
+    saveState();
+    if (activeRuntime.seconds % 10 === 0) renderSummary();
+  }, 1000);
+  updateMiniFocusTimer();
+}
+
+function endFocusSession() {
+  stopFocusTimer();
+  activeFocus = null;
+  resetToFocus();
+  renderFocusPicker();
+  saveState();
+  showToast("집중 측정을 종료했어");
 }
 
 function setFocusMode(mode) {
-  stopFocusTimer();
+  saveCurrentFocusRuntime();
   focusMode = mode;
-  timerPhase = "focus";
-  focusSeconds = state.settings.focusMinutes * 60;
+  const settings = getFocusSettings(mode);
+  const runtime = focusRuntimeByMode[mode];
+  timerPhase = runtime.phase;
+  focusSeconds = runtime.seconds;
+  focusSessionStarted = runtime.started;
+  focusRunning = runningFocusMode === mode;
 
   document.querySelectorAll("[data-focus-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.focusMode === mode);
   });
 
-  document.querySelector("#focusButton").innerHTML =
-    `<span>▶</span> ${state.settings.focusMinutes}분 시작`;
+  document.querySelector("#focusButton").innerHTML = focusRunning
+    ? timerPhase === "focus"
+      ? "<span>Ⅱ</span> 집중 멈춤"
+      : "<span>Ⅱ</span> 휴식 멈춤"
+    : focusSessionStarted
+      ? "<span>▶</span> 계속하기"
+      : `<span>▶</span> ${settings.focusMinutes}분 시작`;
   updateFocusDisplay();
   updateFocusTarget();
+  syncFocusSettingsForm();
 }
 
 function startItemFocus(type, id) {
-  stopFocusTimer();
-  focusMode = "linked";
-  timerPhase = "focus";
-  activeFocus = { type, id };
-  const item = getFocusItem();
+  const collection = type === "task" ? state.tasks : state.habits;
+  const item = collection.find((entry) => entry.id === id);
   if (!item) return;
+  if (type === "task" && item.status === "done") {
+    showToast("이미 완료한 할 일이야");
+    return;
+  }
+  if (type === "habit" && isHabitCompleteToday(item)) {
+    showToast("이미 완료한 습관이야");
+    return;
+  }
   if (type === "habit" && !isHabitScheduledToday(item)) {
-    activeFocus = null;
-    updateFocusTarget();
     showToast("오늘 일정에 없는 습관이야");
     return;
   }
 
+  saveCurrentFocusRuntime();
+  stopFocusTimer();
+  focusMode = "linked";
+  timerPhase = "focus";
+  focusSessionStarted = false;
+  activeFocus = { type, id };
+
   if (type === "task" && item.status === "waiting") item.status = "doing";
-  focusSeconds = state.settings.focusMinutes * 60;
+  focusSeconds = getFocusSettings("linked").focusMinutes * 60;
+  saveCurrentFocusRuntime();
   document.querySelectorAll("[data-focus-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.focusMode === "linked");
   });
@@ -1803,7 +2766,6 @@ function startItemFocus(type, id) {
   updateFocusTarget();
   render();
   toggleFocus();
-  document.querySelector(".focus-card").scrollIntoView({ behavior: "smooth", block: "center" });
   showToast(`‘${item.title}’ 집중 측정을 시작했어`);
 }
 
@@ -1823,27 +2785,40 @@ function closeHabitModal() {
   habitForm.classList.add("hidden");
 }
 
-document.querySelector("#openHabitForm").addEventListener("click", () => {
-  if (currentPage === "today") {
-    habitModal.classList.add("hidden");
-    habitInlineSlot.appendChild(habitForm);
-    habitForm.classList.toggle("hidden");
-    if (!habitForm.classList.contains("hidden")) {
-      if (!habitStartDate.value) habitStartDate.value = toLocalDateString();
-      window.setTimeout(() => habitInput.focus(), 0);
-    }
-    return;
-  }
+function openHabitDeleteModal(habit) {
+  pendingHabitDeleteId = habit.id;
+  habitDeleteName.textContent = `‘${habit.title}’`;
+  habitDeleteModal.classList.remove("hidden");
+  window.setTimeout(() => confirmHabitDelete.focus(), 0);
+}
 
+function closeHabitDeleteModal() {
+  pendingHabitDeleteId = null;
+  habitDeleteModal.classList.add("hidden");
+}
+
+openHabitFormButton.addEventListener("click", () => {
+  if (currentPage !== "habits") return;
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
   habitForm.classList.remove("hidden");
-  if (!habitStartDate.value) habitStartDate.value = toLocalDateString();
   window.setTimeout(() => habitInput.focus(), 0);
 });
 
 habitModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-habit-modal]")) closeHabitModal();
+});
+
+habitDeleteModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-cancel-habit-delete]")) closeHabitDeleteModal();
+});
+
+confirmHabitDelete.addEventListener("click", () => {
+  if (pendingHabitDeleteId === null) return;
+  state.habits = state.habits.filter((habit) => habit.id !== pendingHabitDeleteId);
+  closeHabitDeleteModal();
+  showToast("습관을 삭제했어");
+  render();
 });
 
 function syncHabitMeasureFields() {
@@ -1886,11 +2861,16 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
     return;
   }
 
-  const group = { id: `group-${Date.now()}`, name };
+  const group = {
+    id: `group-${Date.now()}`,
+    name,
+    colorIndex: Math.floor(Math.random() * GROUP_COLOR_COUNT),
+  };
   state.groups.push(group);
   groupInput.value = "";
   render();
   taskGroup.value = group.id;
+  renderGroups();
   showToast(`‘${name}’ 그룹을 추가했어`);
 });
 
@@ -1929,6 +2909,7 @@ taskForm.addEventListener("submit", (event) => {
     groupId: taskGroup.value || null,
     archived: false,
     archivedAt: "",
+    completedDate: "",
   });
   taskInput.value = "";
   taskForm.classList.add("hidden");
@@ -1962,11 +2943,6 @@ habitForm.addEventListener("submit", (event) => {
     showToast("목표 단위를 입력해");
     return;
   }
-  if (habitEndDate.value && habitEndDate.value < habitStartDate.value) {
-    showToast("종료일은 시작일보다 빠를 수 없어");
-    return;
-  }
-
   state.habits.push({
     id: Date.now(),
     title,
@@ -1980,7 +2956,7 @@ habitForm.addEventListener("submit", (event) => {
     targetValue,
     unit,
     weekdays,
-    startDate: habitStartDate.value,
+    startDate: "",
     endDate: habitEndDate.value,
   });
   habitInput.value = "";
@@ -1990,7 +2966,6 @@ habitForm.addEventListener("submit", (event) => {
   document
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
-  habitStartDate.value = toLocalDateString();
   habitEndDate.value = "";
   syncHabitMeasureFields();
   closeHabitModal();
@@ -2020,6 +2995,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task) {
       task.archived = false;
       task.archivedAt = "";
+      task.completedDate = toLocalDateString();
       showToast("보관함에서 다시 꺼냈어");
       render();
     }
@@ -2035,7 +3011,9 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
 document.querySelector("#taskGroupFilters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-task-group-filter]");
   if (!button || taskArchiveView) return;
-  taskGroupFilter = button.dataset.taskGroupFilter;
+  const nextFilter = button.dataset.taskGroupFilter;
+  if (nextFilter === taskGroupFilter) return;
+  taskGroupFilter = nextFilter;
   renderTasks();
 });
 
@@ -2062,7 +3040,36 @@ document.querySelector("#taskBoard").addEventListener("dragover", (event) => {
   document.querySelectorAll(".board-column").forEach((item) => {
     item.classList.toggle("drag-over", item === column);
   });
+  document.querySelectorAll(".task-card").forEach((card) => {
+    card.classList.remove("drop-before", "drop-after");
+  });
+  const targetCard = event.target.closest(".task-card:not(.dragging)");
+  if (targetCard) {
+    const position = event.clientY < targetCard.getBoundingClientRect().top + targetCard.offsetHeight / 2;
+    targetCard.classList.add(position ? "drop-before" : "drop-after");
+  }
 });
+
+function reorderTask(taskId, status, targetId = null, placeAfter = false) {
+  const taskIndex = state.tasks.findIndex((task) => task.id === taskId);
+  if (taskIndex < 0) return;
+  const [task] = state.tasks.splice(taskIndex, 1);
+  task.status = status;
+
+  if (targetId !== null && targetId !== taskId) {
+    const targetIndex = state.tasks.findIndex((entry) => entry.id === targetId);
+    if (targetIndex >= 0) {
+      state.tasks.splice(targetIndex + (placeAfter ? 1 : 0), 0, task);
+      return;
+    }
+  }
+
+  const statusIndexes = state.tasks
+    .map((entry, index) => (entry.status === status ? index : -1))
+    .filter((index) => index >= 0);
+  const insertIndex = statusIndexes.length ? statusIndexes.at(-1) + 1 : state.tasks.length;
+  state.tasks.splice(insertIndex, 0, task);
+}
 
 document.querySelector("#taskBoard").addEventListener("drop", (event) => {
   const column = event.target.closest("[data-status]");
@@ -2070,13 +3077,63 @@ document.querySelector("#taskBoard").addEventListener("drop", (event) => {
 
   event.preventDefault();
   const taskId = Number(event.dataTransfer.getData("text/plain"));
+  const targetCard = event.target.closest(".task-card:not(.dragging)");
+  const targetId = targetCard ? Number(targetCard.dataset.taskId) : null;
+  const placeAfter = targetCard
+    ? event.clientY >= targetCard.getBoundingClientRect().top + targetCard.offsetHeight / 2
+    : false;
   document.querySelectorAll(".board-column").forEach((item) => item.classList.remove("drag-over"));
-  moveTaskTo(taskId, column.dataset.status);
+  const task = state.tasks.find((entry) => entry.id === taskId);
+  if (!task) return;
+  if (task.status !== column.dataset.status) moveTaskTo(taskId, column.dataset.status);
+  reorderTask(taskId, column.dataset.status, targetId, placeAfter);
+  renderTasks();
+  saveState();
 });
 
 document.querySelector("#taskBoard").addEventListener("dragend", () => {
   document.querySelectorAll(".board-column").forEach((item) => item.classList.remove("drag-over"));
-  document.querySelectorAll(".task-card").forEach((item) => item.classList.remove("dragging"));
+  document.querySelectorAll(".task-card").forEach((item) => item.classList.remove("dragging", "drop-before", "drop-after"));
+});
+
+document.querySelector("#habitList").addEventListener("dragstart", (event) => {
+  if (!["today", "habits"].includes(currentPage)) return;
+  const card = event.target.closest("[data-habit-id]");
+  if (!card) return;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/x-habit-id", card.dataset.habitId);
+  requestAnimationFrame(() => card.classList.add("dragging"));
+});
+
+document.querySelector("#habitList").addEventListener("dragover", (event) => {
+  if (!["today", "habits"].includes(currentPage)) return;
+  const target = event.target.closest(".habit-item:not(.dragging)");
+  if (!target) return;
+  event.preventDefault();
+  document.querySelectorAll(".habit-item").forEach((card) => card.classList.remove("drop-before", "drop-after"));
+  const placeBefore = event.clientY < target.getBoundingClientRect().top + target.offsetHeight / 2;
+  target.classList.add(placeBefore ? "drop-before" : "drop-after");
+});
+
+document.querySelector("#habitList").addEventListener("drop", (event) => {
+  if (!["today", "habits"].includes(currentPage)) return;
+  event.preventDefault();
+  const habitId = Number(event.dataTransfer.getData("text/x-habit-id"));
+  const target = event.target.closest(".habit-item:not(.dragging)");
+  if (!habitId || !target) return;
+  const targetId = Number(target.dataset.habitId);
+  const sourceIndex = state.habits.findIndex((habit) => habit.id === habitId);
+  if (sourceIndex < 0 || habitId === targetId) return;
+  const placeAfter = event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2;
+  const [habit] = state.habits.splice(sourceIndex, 1);
+  const targetIndex = state.habits.findIndex((entry) => entry.id === targetId);
+  state.habits.splice(targetIndex + (placeAfter ? 1 : 0), 0, habit);
+  renderHabits();
+  saveState();
+});
+
+document.querySelector("#habitList").addEventListener("dragend", () => {
+  document.querySelectorAll(".habit-item").forEach((card) => card.classList.remove("dragging", "drop-before", "drop-after"));
 });
 
 document.querySelector("#habitList").addEventListener("click", (event) => {
@@ -2096,12 +3153,7 @@ document.querySelector("#habitList").addEventListener("click", (event) => {
   if (deleteButton) {
     const habitId = Number(deleteButton.dataset.deleteHabit);
     const habit = state.habits.find((item) => item.id === habitId);
-    if (!window.confirm(`‘${habit?.title ?? "이 습관"}’을 삭제할까?\n삭제한 습관은 복구할 수 없어`)) {
-      return;
-    }
-    state.habits = state.habits.filter((item) => item.id !== habitId);
-    showToast("습관을 삭제했어");
-    render();
+    if (habit) openHabitDeleteModal(habit);
   }
 });
 
@@ -2201,6 +3253,7 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
       const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
       if (!task) return;
       task.status = "done";
+      task.completedDate = toLocalDateString();
       task.completionReward = reward;
       task.completedWithFreePass = true;
     } else {
@@ -2267,6 +3320,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
 
   const plantButton = event.target.closest("[data-plant-plot]");
   const growButton = event.target.closest("[data-grow-plot]");
+  const waterButton = event.target.closest("[data-water-plot]");
   const harvestButton = event.target.closest("[data-harvest-plot]");
   const discardButton = event.target.closest("[data-discard-plot]");
 
@@ -2335,6 +3389,32 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     return;
   }
 
+  if (waterButton) {
+    const plot = state.farmPlots.find(
+      (item) => item.id === Number(waterButton.dataset.waterPlot),
+    );
+    if (!plot?.crop) return;
+
+    const crop = CROPS[plot.crop];
+    const maxGrowth = getCropGrowthCost(plot.crop);
+    if (plot.wilted || plot.growth >= maxGrowth) return;
+    const remaining = getPlotWaterRemaining(plot);
+    if (remaining > 0) {
+      showToast(`다음 물주기까지 ${formatPlotWaterCooldown(remaining)} 남았어`);
+      return;
+    }
+
+    plot.lastFreeWaterAt = Date.now();
+    advanceFarmPlotGrowth(plot);
+    showToast(
+      plot.growth >= maxGrowth
+        ? `물을 주니 ${crop.name}이 다 자랐어`
+        : `물을 주니 ${crop.name}이 한 단계 자랐어`,
+    );
+    render();
+    return;
+  }
+
   if (growButton) {
     const plot = state.farmPlots.find(
       (item) => item.id === Number(growButton.dataset.growPlot),
@@ -2350,13 +3430,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     }
 
     state.coins -= 1;
-    const growthAmount =
-      plot.fertilizer === "moistureFertilizer" ||
-      plot.fertilizer === "premiumFertilizer"
-        ? 2
-        : 1;
-    plot.growth = Math.min(maxGrowth, plot.growth + growthAmount);
-    plot.lastWateredDate = toLocalDateString();
+    advanceFarmPlotGrowth(plot);
     showToast(
       plot.growth >= maxGrowth
         ? `${crop.name}이 다 자랐어`
@@ -2378,7 +3452,7 @@ document.querySelector("#morrisonBuyList").addEventListener("click", (event) => 
   }
 
   state.foodInventory[recipeId] -= 1;
-  state.farmMoney += recipe.sellPrice;
+  earnFarmMoney(recipe.sellPrice);
   showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
   render();
 });
@@ -2428,6 +3502,13 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   render();
 });
 
+document.querySelector("#toggleRecipeBook").addEventListener("click", (event) => {
+  const recipeBookPanel = document.querySelector("#recipeBookPanel");
+  const collapsed = recipeBookPanel.classList.toggle("collapsed");
+  event.currentTarget.textContent = collapsed ? "펼치기" : "접기";
+  event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
+});
+
 document.querySelector("#foodInventory").addEventListener("click", (event) => {
   const button = event.target.closest("[data-discard-waste]");
   if (!button) return;
@@ -2445,14 +3526,153 @@ permanentMarketModal.addEventListener("click", (event) => {
     permanentMarketModal.classList.add("hidden");
   }
 });
+const farmRankingModal = document.querySelector("#farmRankingModal");
+document.querySelector("#openFarmRanking").addEventListener("click", () => {
+  renderFarmRanking();
+  farmRankingModal.classList.remove("hidden");
+});
+farmRankingModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-farm-ranking]")) {
+    farmRankingModal.classList.add("hidden");
+  }
+});
+const farmMailModal = document.querySelector("#farmMailModal");
+document.querySelector("#openFarmMail").addEventListener("click", () => {
+  renderFarmMail();
+  farmMailModal.classList.remove("hidden");
+});
+farmMailModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-farm-mail]")) {
+    farmMailModal.classList.add("hidden");
+    return;
+  }
+
+  const viewButton = event.target.closest("[data-mail-view]");
+  if (viewButton) {
+    farmMailView = viewButton.dataset.mailView;
+    renderFarmMail();
+    return;
+  }
+
+  const claimButton = event.target.closest("[data-claim-farm-mail]");
+  if (claimButton) {
+    const mail = state.farmInbox.find((entry) => entry.id === claimButton.dataset.claimFarmMail);
+    if (!mail || mail.claimed) return;
+    const gift = getFarmGiftDetails(mail.category, mail.itemId, mail);
+    if (!gift) return;
+    if (mail.category === "rankingBox") {
+      openFarmRewardBoxModal(mail);
+      return;
+    }
+    gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
+    mail.claimed = true;
+    showToast(`${gift.name} 1개를 보관함에 넣었어`);
+    render();
+    return;
+  }
+
+  const friendButton = event.target.closest("[data-mail-friend]");
+  if (friendButton) {
+    selectedMailFriendId = friendButton.dataset.mailFriend;
+    renderFarmMail();
+    return;
+  }
+
+  const categoryButton = event.target.closest("[data-mail-category]");
+  if (categoryButton) {
+    selectedMailCategory = categoryButton.dataset.mailCategory;
+    selectedMailItemId = null;
+    renderFarmMail();
+    return;
+  }
+
+  const itemButton = event.target.closest("[data-mail-item]");
+  if (itemButton) {
+    selectedMailItemId = itemButton.dataset.mailItem;
+    renderFarmMail();
+  }
+});
+document.querySelector("#sendFarmMail").addEventListener("click", () => {
+  ensureDailyFarmMail();
+  if (state.farmMailSentCount >= 3) {
+    showToast("오늘 보낼 수 있는 우편을 모두 사용했어");
+    return;
+  }
+
+  const friend = MOCK_FARM_FRIENDS.find((entry) => entry.id === selectedMailFriendId);
+  const item = getFarmMailItems().find((entry) => entry.id === selectedMailItemId);
+  if (!friend || !item || item.count < 1) {
+    showToast("친구와 보낼 물건을 다시 골라줘");
+    renderFarmMail();
+    return;
+  }
+
+  item.inventory[item.id] -= 1;
+  state.farmMailSentCount += 1;
+  state.farmMailHistory.unshift({
+    id: Date.now(),
+    friendId: friend.id,
+    friendName: friend.name,
+    category: selectedMailCategory,
+    itemId: item.id,
+    itemName: item.name,
+    sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+  });
+  selectedMailItemId = null;
+  showToast(`${friend.name}에게 ${item.name} 1개를 보냈어`);
+  render();
+});
+const farmRewardBoxModal = document.querySelector("#farmRewardBoxModal");
+farmRewardBoxModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-reward-box]")) {
+    closeFarmRewardBoxModal();
+    return;
+  }
+
+  const boxButton = event.target.closest("[data-open-reward-box]");
+  if (!boxButton || !activeRankingRewardMailId) return;
+  const mail = state.farmInbox.find(
+    (entry) => entry.id === activeRankingRewardMailId,
+  );
+  if (!mail || mail.claimed) return;
+  revealFarmRankingBox(mail, Number(boxButton.dataset.openRewardBox));
+});
 const farmKitchenModal = document.querySelector("#farmKitchenModal");
 document.querySelector("#openFarmKitchen").addEventListener("click", () => {
+  closeRecipeIngredientMenus();
   farmKitchenModal.classList.remove("hidden");
 });
 farmKitchenModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-kitchen]")) {
+    closeRecipeIngredientMenus();
     farmKitchenModal.classList.add("hidden");
+    return;
   }
+
+  const trigger = event.target.closest(".recipe-ingredient-trigger");
+  if (trigger) {
+    const picker = trigger.closest(".recipe-ingredient-select");
+    const menu = picker.querySelector(".recipe-ingredient-menu");
+    const willOpen = menu.classList.contains("hidden");
+    closeRecipeIngredientMenus(picker);
+    menu.classList.toggle("hidden", !willOpen);
+    trigger.setAttribute("aria-expanded", String(willOpen));
+    return;
+  }
+
+  const option = event.target.closest("[data-recipe-ingredient-value]");
+  if (option) {
+    const picker = option.closest(".recipe-ingredient-select");
+    const select = picker.querySelector("select");
+    const triggerButton = picker.querySelector(".recipe-ingredient-trigger");
+    select.value = option.dataset.recipeIngredientValue;
+    renderRecipeIngredientPicker(select);
+    closeRecipeIngredientMenus();
+    triggerButton.focus();
+    return;
+  }
+
+  if (!event.target.closest(".recipe-ingredient-select")) closeRecipeIngredientMenus();
 });
 const storageModals = {
   harvest: document.querySelector("#harvestStorageModal"),
@@ -2505,10 +3725,14 @@ document.querySelector("#cancelFarmName").addEventListener("click", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     permanentMarketModal.classList.add("hidden");
+    farmRankingModal.classList.add("hidden");
+    farmMailModal.classList.add("hidden");
     farmKitchenModal.classList.add("hidden");
     Object.values(storageModals).forEach((modal) => modal.classList.add("hidden"));
     closeHabitModal();
+    closeHabitDeleteModal();
     closeFocusItemMenu();
+    closeTaskGroupMenu();
   }
 });
 
@@ -2786,20 +4010,28 @@ focusAudioButton.addEventListener("click", () => {
 });
 
 const focusSettings = document.querySelector("#focusSettings");
+const focusSettingsButton = document.querySelector("#toggleFocusSettings");
 const focusMinutesInput = document.querySelector("#focusMinutesInput");
 const breakEnabledInput = document.querySelector("#breakEnabledInput");
 const breakMinutesInput = document.querySelector("#breakMinutesInput");
 
 function syncFocusSettingsForm() {
-  focusMinutesInput.value = state.settings.focusMinutes;
-  breakEnabledInput.checked = state.settings.breakEnabled;
-  breakMinutesInput.value = state.settings.breakMinutes;
-  breakMinutesInput.disabled = !state.settings.breakEnabled;
+  const settings = getFocusSettings();
+  focusMinutesInput.value = settings.focusMinutes;
+  breakEnabledInput.checked = settings.breakEnabled;
+  breakMinutesInput.value = settings.breakMinutes;
+  breakMinutesInput.disabled = !settings.breakEnabled;
 }
 
-document.querySelector("#toggleFocusSettings").addEventListener("click", () => {
+focusSettingsButton.addEventListener("click", () => {
   focusSettings.classList.toggle("hidden");
   syncFocusSettingsForm();
+});
+
+document.addEventListener("click", (event) => {
+  if (focusSettings.classList.contains("hidden")) return;
+  if (focusSettings.contains(event.target) || focusSettingsButton.contains(event.target)) return;
+  focusSettings.classList.add("hidden");
 });
 
 breakEnabledInput.addEventListener("change", () => {
@@ -2810,12 +4042,12 @@ document.querySelector("#saveFocusSettings").addEventListener("click", () => {
   const focusMinutes = Math.min(120, Math.max(5, Number(focusMinutesInput.value) || 25));
   const breakMinutes = Math.min(60, Math.max(1, Number(breakMinutesInput.value) || 5));
 
-  state.settings = {
+  state.settings[focusMode] = {
     focusMinutes,
     breakEnabled: breakEnabledInput.checked,
     breakMinutes,
   };
-  stopFocusTimer();
+  if (runningFocusMode === focusMode) stopFocusTimer();
   resetToFocus();
   saveState();
   focusSettings.classList.add("hidden");
@@ -2830,16 +4062,14 @@ const focusCard = document.querySelector("#focusCard");
 const focusPageSlot = document.querySelector("#focusPageSlot");
 
 function showPage(page) {
-  const validPage = ["today", "tasks", "habits", "focus", "farm"].includes(page) ? page : "today";
+  const validPage = APP_PAGES.includes(page) ? page : "today";
+  localStorage.setItem(LAST_PAGE_STORAGE_KEY, validPage);
 
   if (currentPage !== validPage) {
     taskForm.classList.add("hidden");
     groupManager.classList.add("hidden");
   }
 
-  if (validPage !== "today" && habitForm.parentElement === habitInlineSlot) {
-    habitForm.classList.add("hidden");
-  }
   if (validPage !== "habits" && !habitModal.classList.contains("hidden")) {
     closeHabitModal();
   }
@@ -2862,6 +4092,7 @@ function showPage(page) {
     todayWorkspace.appendChild(habitSection);
     taskSection.querySelector(".section-header h2").textContent = "오늘의 할 일";
     habitSection.querySelector(".section-header h2").textContent = "오늘의 습관";
+    openHabitFormButton.hidden = true;
   }
 
   if (validPage === "tasks") {
@@ -2872,6 +4103,7 @@ function showPage(page) {
   if (validPage === "habits") {
     document.querySelector("#habitsPageSlot").appendChild(habitSection);
     habitSection.querySelector(".section-header h2").textContent = "습관 관리";
+    openHabitFormButton.hidden = false;
   }
 
   if (validPage === "focus") {
@@ -2890,12 +4122,30 @@ function showPage(page) {
   const titles = { today: "오늘", tasks: "할 일", habits: "습관", focus: "집중", farm: "내 농장" };
   document.title = `${titles[validPage]} · Farmodoro`;
   renderTasks();
+  renderHabits();
   renderHabitHeatmap();
   updateFocusTarget();
+  updateMiniFocusTimer();
+  document.documentElement.classList.remove("app-initializing");
 }
 
 window.addEventListener("hashchange", () => {
   showPage(location.hash.slice(1));
+});
+
+document.querySelector("#openMiniFocus").addEventListener("click", () => {
+  location.hash = "focus";
+});
+
+miniFocusPause.addEventListener("click", () => {
+  if (!focusRuntimeByMode.linked.started) return;
+  if (focusMode !== "linked") setFocusMode("linked");
+  toggleFocus();
+});
+
+document.querySelector("#miniFocusStop").addEventListener("click", () => {
+  if (focusMode !== "linked") setFocusMode("linked");
+  endFocusSession();
 });
 
 document.querySelector("#previousHabitMonth").addEventListener("click", () => {
@@ -2916,13 +4166,41 @@ document.querySelector("#nextHabitMonth").addEventListener("click", () => {
   renderHabitHeatmap();
 });
 
+function initializeModalScrollAreas() {
+  document
+    .querySelectorAll(".market-modal-panel, .habit-modal-panel:not(.delete-confirm-panel)")
+    .forEach((panel) => {
+      if (panel.querySelector(":scope > .modal-scroll-area")) return;
+      const scrollArea = document.createElement("div");
+      scrollArea.className = "modal-scroll-area";
+      while (panel.firstChild) scrollArea.appendChild(panel.firstChild);
+      panel.appendChild(scrollArea);
+    });
+}
+
+initializeModalScrollAreas();
+maintainTaskArchive();
+
 setInterval(() => {
-  if (updateWiltedCrops()) render();
+  updateDailyFocusQuote();
+  updateFarmWaterCooldowns();
+  const archiveChanged = maintainTaskArchive();
+  const farmChanged = updateWiltedCrops();
+  const farmRankingChanged = ensureWeeklyFarmRanking();
+  const farmMailChanged = ensureDailyFarmMail();
+  const farmInboxChanged = ensureDailyFarmInbox();
+  if (archiveChanged || farmChanged || farmRankingChanged || farmMailChanged || farmInboxChanged) render();
 }, 60000);
 
 render();
 syncFocusSettingsForm();
-habitStartDate.value = toLocalDateString();
 syncHabitMeasureFields();
 resetToFocus();
-showPage(location.hash.slice(1) || "today");
+const savedPage = localStorage.getItem(LAST_PAGE_STORAGE_KEY);
+const hashPage = location.hash.slice(1);
+const initialPage = APP_PAGES.includes(hashPage)
+  ? hashPage
+  : APP_PAGES.includes(savedPage)
+    ? savedPage
+    : "today";
+showPage(initialPage);
