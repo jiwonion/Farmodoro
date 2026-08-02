@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" class="app-initializing">
+<html lang="ko" class="app-initializing auth-resolving">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,10 +9,79 @@
       window.setTimeout(() => {
         document.documentElement.classList.remove("app-initializing");
       }, 1500);
+      window.setTimeout(() => {
+        document.documentElement.classList.remove("auth-resolving");
+      }, 8000);
     </script>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="auth-gated">
+    <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
+      <i aria-hidden="true"></i>
+    </div>
+
+    <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+      <div class="auth-landscape" aria-hidden="true">
+        <div class="auth-landscape-shade"></div>
+        <div class="auth-landscape-copy">
+          <span class="auth-landscape-kicker">GROW YOUR DAY</span>
+          <h2>하루를 심고,<br />내일을 거둬봐</h2>
+          <p>할 일을 완료하고 코인을 모아 나만의 농장을 키워봐</p>
+          <div class="auth-landscape-tags">
+            <span>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg>
+              <b>할 일과 습관</b>
+            </span>
+            <span>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" /><path d="M8 4.7V8l2.4 1.5" /></svg>
+              <b>집중 기록</b>
+            </span>
+            <span>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14V7.5" /><path d="M8 9C5.2 9 4 7.5 4 5c2.5 0 4 1.3 4 4Zm0 2.2c2.8 0 4-1.6 4-4.1-2.5 0-4 1.4-4 4.1Z" /></svg>
+              <b>나만의 농장</b>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="auth-entry">
+        <div class="auth-card">
+          <div class="auth-brand" aria-label="Farmodoro">
+            <span class="auth-brand-mark" aria-hidden="true">
+              <img src="./assets/farmodoro-logo-v2.png" alt="" />
+            </span>
+            <strong>Farmodoro</strong>
+          </div>
+
+          <header class="auth-heading">
+            <span>WELCOME, FARMER!</span>
+            <h1 id="authTitle">다시 만나 반가워</h1>
+            <p>Google 계정 하나로 기록을 안전하게 보관하고 어디서든 이어서 사용해</p>
+          </header>
+
+          <div class="google-login-button loading" id="googleSignInButton" aria-label="Google 계정으로 계속하기"></div>
+
+          <p class="auth-status" id="authStatus" role="status" aria-live="polite">
+            파머도로를 사용하려면 Google 로그인이 필요해
+          </p>
+
+          <div class="auth-benefits" aria-label="로그인하면 좋은 점">
+            <div>
+              <span aria-hidden="true">☁</span>
+              <p><strong>기록을 안전하게</strong><small>할 일과 농장 데이터를 계정에 보관해</small></p>
+            </div>
+            <div>
+              <span aria-hidden="true">↻</span>
+              <p><strong>어디서든 그대로</strong><small>다른 기기에서도 오늘을 이어가</small></p>
+            </div>
+          </div>
+
+        </div>
+
+        <p class="auth-footer">오늘도 한 칸씩, Farmodoro</p>
+      </div>
+    </section>
+
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="Farmodoro 홈">
@@ -62,14 +131,16 @@
 
         <div class="sidebar-spacer"></div>
 
-        <button class="profile-button" type="button">
-          <span class="avatar">하</span>
+        <div class="profile-button">
+          <span class="avatar" id="profileAvatar">F</span>
           <span class="profile-copy">
-            <strong>하빈</strong>
-            <small>꾸준한 농부</small>
+            <strong id="profileName">Farmodoro</strong>
+            <small id="profileAccountLabel">Google 계정</small>
           </span>
-          <span class="more-icon">•••</span>
-        </button>
+          <button class="profile-settings-button" id="openUserSettings" type="button" aria-label="사용자 설정 열기" title="사용자 설정">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.7"/><path d="M10 2.7v1.5m0 11.6v1.5M2.7 10h1.5m11.6 0h1.5M4.8 4.8l1.1 1.1m8.2 8.2 1.1 1.1m0-10.4-1.1 1.1m-8.2 8.2-1.1 1.1"/></svg>
+          </button>
+        </div>
       </aside>
 
       <main class="main-content">
@@ -82,7 +153,7 @@
             <p class="today-description">습관이나 할 일을 완료하면 Coin을 받아</p>
           </div>
           <div class="topbar-actions">
-            <div class="currency coin">
+            <div class="currency coin" id="todayCoinDisplay">
               <span>●</span>
               <strong id="coinBalance">12</strong>
               <small>Coin</small>
@@ -104,7 +175,7 @@
                   <button class="active" type="button" data-focus-mode="linked">항목 집중</button>
                   <button type="button" data-focus-mode="quick">그냥 집중</button>
                 </div>
-                <button class="focus-settings-button" id="toggleFocusSettings" type="button" aria-label="집중 설정">
+                <button class="focus-settings-button" id="toggleFocusSettings" type="button" aria-label="집중 설정" hidden>
                   ⚙
                 </button>
                 <div class="focus-settings hidden" id="focusSettings">
@@ -312,11 +383,28 @@
                 autocomplete="off"
               />
               <div class="habit-measure-row">
-                <select id="habitMeasureType" aria-label="측정 방식">
-                  <option value="count">횟수</option>
-                  <option value="time">시간</option>
-                  <option value="amount">양</option>
-                </select>
+                <div class="habit-measure-select custom-group-select">
+                  <select id="habitMeasureType" aria-label="측정 방식" hidden>
+                    <option value="count">횟수</option>
+                    <option value="time">시간</option>
+                    <option value="amount">양</option>
+                  </select>
+                  <button
+                    class="habit-measure-trigger custom-group-trigger"
+                    id="habitMeasureTrigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                  >
+                    <span id="habitMeasureLabel">횟수</span>
+                    <span aria-hidden="true"></span>
+                  </button>
+                  <div class="habit-measure-menu custom-group-menu hidden" id="habitMeasureMenu" role="listbox">
+                    <button class="habit-measure-option selected" type="button" role="option" aria-selected="true" data-habit-measure-value="count"><span>횟수</span><b>✓</b></button>
+                    <button class="habit-measure-option" type="button" role="option" aria-selected="false" data-habit-measure-value="time"><span>시간</span><b>✓</b></button>
+                    <button class="habit-measure-option" type="button" role="option" aria-selected="false" data-habit-measure-value="amount"><span>양</span><b>✓</b></button>
+                  </div>
+                </div>
                 <input id="habitTargetValue" type="number" min="1" step="1" value="1" inputmode="numeric" aria-label="목표값" />
                 <input id="habitUnit" type="text" maxlength="8" value="회" aria-label="단위" />
               </div>
@@ -445,6 +533,15 @@
         </section>
 
         <section class="page-view" id="farmPage" data-view="farm">
+          <div class="farm-festival-effects" aria-hidden="true">
+            <div class="farm-festival-garland">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div class="farm-festival-confetti">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+          </div>
           <header class="page-header">
             <div>
               <span class="section-kicker">MY FARM</span>
@@ -574,7 +671,6 @@
           <span>🥉 1개</span>
           <small>월요일 00:00에 시스템 우편으로 도착해</small>
         </div>
-        <div class="farm-ranking-demo-note">현재는 임시 농부 데이터로 순위를 미리 보여주고 있어</div>
         <ol class="farm-ranking-list" id="farmRankingList"></ol>
       </section>
     </div>
@@ -599,11 +695,22 @@
             <span>오늘 남은 발송</span>
             <strong><span id="farmMailRemaining">3</span> / 3회</strong>
           </div>
-          <div class="farm-mail-demo-note">현재는 임시 친구 목록이야. 소셜 기능 연결 후 실제 친구에게 전달돼</div>
           <section class="farm-mail-compose">
             <div class="farm-mail-step">
               <h3><span>1</span> 받을 친구</h3>
-              <div class="farm-mail-friends" id="farmMailFriendList"></div>
+              <div class="farm-mail-recipient-code">
+                <input
+                  id="farmMailFriendCode"
+                  type="text"
+                  maxlength="14"
+                  placeholder="친구 코드 입력 · FARM-0000-0000"
+                  aria-label="받을 친구 코드"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                />
+                <small>친구의 사용자 설정에 표시된 농장 코드를 입력해</small>
+              </div>
             </div>
             <div class="farm-mail-step">
               <h3><span>2</span> 선물 종류</h3>
@@ -759,6 +866,151 @@
       </section>
     </div>
 
+    <div class="market-modal hidden" id="freePassTargetModal" role="dialog" aria-modal="true" aria-labelledby="freePassTargetTitle">
+      <div class="market-modal-backdrop" data-close-free-pass></div>
+      <section class="market-modal-panel free-pass-target-modal">
+        <header>
+          <div>
+            <span class="section-kicker">FARMER'S FREE PASS</span>
+            <h2 id="freePassTargetTitle">완료할 항목 선택</h2>
+            <p>프리패스로 완료 처리할 할 일 또는 오늘의 습관을 골라</p>
+          </div>
+          <button type="button" data-close-free-pass aria-label="프리패스 대상 선택 닫기">×</button>
+        </header>
+        <div class="free-pass-target-list" id="freePassTargetList"></div>
+        <button class="free-pass-confirm" id="confirmFreePassTarget" type="button" disabled>선택한 항목 완료하기</button>
+      </section>
+    </div>
+
+    <div
+      class="habit-modal hidden"
+      id="taskDeleteModal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="taskDeleteTitle"
+      aria-describedby="taskDeleteDescription"
+    >
+      <div class="habit-modal-backdrop" data-cancel-task-delete></div>
+      <section class="habit-modal-panel delete-confirm-panel">
+        <span class="delete-confirm-icon" aria-hidden="true">×</span>
+        <span class="section-kicker">DELETE TASK</span>
+        <h2 id="taskDeleteTitle">완료한 할 일을 삭제할까?</h2>
+        <p id="taskDeleteDescription">
+          <strong id="taskDeleteName"></strong>
+          삭제하면 완료 보상으로 받은 <b id="taskDeleteCoinAmount">1 Coin</b>도 함께 차감돼.
+        </p>
+        <div class="delete-confirm-actions">
+          <button class="secondary-button" type="button" data-cancel-task-delete>취소</button>
+          <button class="danger-button" id="confirmTaskDelete" type="button">삭제하고 차감하기</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="userSettingsModal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle">
+      <div class="market-modal-backdrop" data-close-user-settings></div>
+      <section class="market-modal-panel user-settings-modal-panel">
+        <header>
+          <div>
+            <span class="section-kicker">FARMER SETTINGS</span>
+            <h2 id="userSettingsTitle">사용자 설정</h2>
+            <p>프로필과 Farmodoro 화면을 내 취향에 맞게 바꿔</p>
+          </div>
+          <button type="button" data-close-user-settings aria-label="사용자 설정 닫기">×</button>
+        </header>
+
+        <form class="user-settings-form" id="userSettingsForm">
+          <section class="settings-section profile-editor-section" aria-labelledby="profileEditorTitle">
+            <div class="settings-section-heading">
+              <div>
+                <strong id="profileEditorTitle">프로필</strong>
+                <small>랭킹과 농장 우편에 표시되는 정보야</small>
+              </div>
+            </div>
+
+            <div class="profile-avatar-editor">
+              <span class="avatar settings-avatar" id="profileSettingsAvatar">F</span>
+              <div>
+                <strong>프로필 사진</strong>
+                <small>JPG, PNG, WEBP · 최대 5MB</small>
+                <div class="profile-avatar-actions">
+                  <button class="secondary-button" id="chooseProfileAvatar" type="button">사진 선택</button>
+                  <button class="text-button" id="resetProfileAvatar" type="button">Google 사진으로</button>
+                </div>
+                <input id="profileAvatarInput" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+              </div>
+            </div>
+
+            <label class="settings-field" for="profileDisplayName">
+              <span>닉네임</span>
+              <input id="profileDisplayName" type="text" minlength="1" maxlength="30" autocomplete="nickname" required />
+              <small><span id="profileNameLength">0</span> / 30자</small>
+            </label>
+          </section>
+
+          <section class="settings-section" aria-labelledby="themeSettingsTitle">
+            <div class="settings-section-heading">
+              <div>
+                <strong id="themeSettingsTitle">화면 테마</strong>
+                <small>선택한 테마는 계정에 저장돼 어디서든 이어져</small>
+              </div>
+            </div>
+            <div class="theme-options" role="radiogroup" aria-label="화면 테마">
+              <label class="theme-option">
+                <input type="radio" name="appTheme" value="white" />
+                <span class="theme-preview theme-preview-white" aria-hidden="true"><i></i><i></i><i></i></span>
+                <strong>화이트</strong>
+              </label>
+              <label class="theme-option">
+                <input type="radio" name="appTheme" value="classic" />
+                <span class="theme-preview theme-preview-classic" aria-hidden="true"><i></i><i></i><i></i></span>
+                <strong>초록 농장</strong>
+              </label>
+              <label class="theme-option">
+                <input type="radio" name="appTheme" value="sunset" />
+                <span class="theme-preview theme-preview-sunset" aria-hidden="true"><i></i><i></i><i></i></span>
+                <strong>노을 농장</strong>
+              </label>
+              <label class="theme-option">
+                <input type="radio" name="appTheme" value="sky" />
+                <span class="theme-preview theme-preview-sky" aria-hidden="true"><i></i><i></i><i></i></span>
+                <strong>맑은 하늘</strong>
+              </label>
+              <label class="theme-option">
+                <input type="radio" name="appTheme" value="dark" />
+                <span class="theme-preview theme-preview-dark" aria-hidden="true"><i></i><i></i><i></i></span>
+                <strong>블랙</strong>
+              </label>
+            </div>
+          </section>
+
+          <section class="settings-section account-settings-section" aria-labelledby="accountSettingsTitle">
+            <div class="settings-section-heading">
+              <div>
+                <strong id="accountSettingsTitle">계정</strong>
+                <small>Google 계정 정보와 농장 우편 주소야</small>
+              </div>
+            </div>
+            <dl class="account-info-list">
+              <div><dt>이메일</dt><dd id="settingsAccountEmail">-</dd></div>
+              <div>
+                <dt>농장 코드</dt>
+                <dd><code id="settingsFarmCode">준비 중</code><button id="copyFarmCode" type="button">복사</button></dd>
+              </div>
+            </dl>
+            <button class="settings-signout-button" id="signOutButton" type="button">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 4H4.8A1.8 1.8 0 0 0 3 5.8v8.4A1.8 1.8 0 0 0 4.8 16H8M12.5 6.5 16 10l-3.5 3.5M7 10h9" /></svg>
+              Google 계정에서 로그아웃
+            </button>
+          </section>
+
+          <div class="user-settings-actions">
+            <button class="secondary-button" type="button" data-close-user-settings>취소</button>
+            <button class="primary-button" id="saveUserSettings" type="submit">변경사항 저장</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <aside class="mini-focus-timer" id="miniFocusTimer" aria-live="polite" hidden>
       <button class="mini-focus-main" id="openMiniFocus" type="button" aria-label="집중 페이지 열기">
         <span id="miniFocusStatus">집중 중</span>
@@ -773,6 +1025,8 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./assets/crops-sprite.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

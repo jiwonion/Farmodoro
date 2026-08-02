@@ -1,7 +1,639 @@
-const STORAGE_KEY = "farmodoro-dashboard-v1";
-const LAST_PAGE_STORAGE_KEY = "farmodoro-last-page";
 const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
+const APP_THEMES = new Set(["white", "classic", "sunset", "sky", "dark"]);
+
+const authGate = document.querySelector("#authGate");
+const authStatus = document.querySelector("#authStatus");
+const googleSignInButton = document.querySelector("#googleSignInButton");
+const signOutButton = document.querySelector("#signOutButton");
+const openUserSettingsButton = document.querySelector("#openUserSettings");
+const userSettingsModal = document.querySelector("#userSettingsModal");
+const userSettingsForm = document.querySelector("#userSettingsForm");
+const profileSettingsAvatar = document.querySelector("#profileSettingsAvatar");
+const profileAvatarInput = document.querySelector("#profileAvatarInput");
+const chooseProfileAvatarButton = document.querySelector("#chooseProfileAvatar");
+const resetProfileAvatarButton = document.querySelector("#resetProfileAvatar");
+const profileDisplayNameInput = document.querySelector("#profileDisplayName");
+const profileNameLength = document.querySelector("#profileNameLength");
+const settingsAccountEmail = document.querySelector("#settingsAccountEmail");
+const settingsFarmCode = document.querySelector("#settingsFarmCode");
+const copyFarmCodeButton = document.querySelector("#copyFarmCode");
+const saveUserSettingsButton = document.querySelector("#saveUserSettings");
+const profileAvatar = document.querySelector("#profileAvatar");
+const profileName = document.querySelector("#profileName");
+const profileAccountLabel = document.querySelector("#profileAccountLabel");
+const supabaseConfig = window.FARMODORO_CONFIG;
+let googleSignInNonce = null;
+let googleIdentityScriptPromise = null;
+let activeAuthUser = null;
+let currentProfile = null;
+let pendingAvatarFile = null;
+let pendingAvatarReset = false;
+let profilePreviewObjectUrl = null;
+let themeBeforeSettings = "classic";
+let taskDataHydrated = false;
+let taskDataUserId = null;
+let taskDataLoadPromise = null;
+let taskSyncTimer = null;
+let taskSyncChain = Promise.resolve();
+let lastTaskSyncSignature = "";
+let appStateHydrated = false;
+let appStateUserId = null;
+let appStateSyncTimer = null;
+let appStateSyncChain = Promise.resolve();
+let lastAppStateSyncSignature = "";
+let farmWalletHydrated = false;
+let farmWalletUserId = null;
+let farmWalletMutationChain = Promise.resolve();
+let farmDataHydrated = false;
+let farmDataUserId = null;
+let farmDataSyncTimer = null;
+let farmDataSyncChain = Promise.resolve();
+let lastFarmDataSyncSignature = "";
+let lastFarmDataSyncError = "";
+const supabaseClient = window.supabase?.createClient(
+  supabaseConfig?.supabaseUrl,
+  supabaseConfig?.supabasePublishableKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  },
+);
+
+function normalizeTheme(theme) {
+  return APP_THEMES.has(theme) ? theme : "classic";
+}
+
+function getActiveTheme() {
+  return normalizeTheme(document.documentElement.dataset.theme);
+}
+
+function applyTheme(theme) {
+  const normalizedTheme = normalizeTheme(theme);
+  document.documentElement.dataset.theme = normalizedTheme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute(
+    "content",
+    normalizedTheme === "sunset"
+      ? "#79503d"
+      : normalizedTheme === "sky"
+        ? "#315f6d"
+        : normalizedTheme === "dark"
+          ? "#121a16"
+          : normalizedTheme === "white"
+            ? "#ffffff"
+            : "#2f5d45",
+  );
+}
+
+applyTheme("classic");
+
+function setAuthStatus(message, isNotice = false) {
+  authStatus.textContent = message;
+  authStatus.classList.toggle("notice", isNotice);
+}
+
+function loadGoogleIdentityScript() {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+
+  googleIdentityScriptPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Google 로그인 모듈을 불러오지 못했어"));
+    document.head.appendChild(script);
+  });
+
+  return googleIdentityScriptPromise;
+}
+
+async function createGoogleNonce() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const nonce = btoa(String.fromCharCode(...bytes));
+  const encodedNonce = new TextEncoder().encode(nonce);
+  const hash = await crypto.subtle.digest("SHA-256", encodedNonce);
+  const hashedNonce = Array.from(new Uint8Array(hash), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+
+  return { nonce, hashedNonce };
+}
+
+async function handleGoogleCredential(response) {
+  if (!response.credential || !supabaseClient) {
+    setAuthStatus("Google 계정 정보를 받지 못했어. 다시 시도해줘", true);
+    return;
+  }
+
+  googleSignInButton.classList.add("authenticating");
+  googleSignInButton.setAttribute("aria-busy", "true");
+  setAuthStatus("Google 계정을 확인하고 있어");
+
+  const { error } = await supabaseClient.auth.signInWithIdToken({
+    provider: "google",
+    token: response.credential,
+    nonce: googleSignInNonce,
+  });
+
+  if (error) {
+    setAuthStatus(`로그인하지 못했어: ${error.message}`, true);
+    await prepareGoogleSignIn();
+  }
+}
+
+async function prepareGoogleSignIn() {
+  if (!supabaseConfig?.googleClientId) {
+    throw new Error("Google Client ID가 설정되지 않았어");
+  }
+
+  await loadGoogleIdentityScript();
+  const { nonce, hashedNonce } = await createGoogleNonce();
+  googleSignInNonce = nonce;
+  googleSignInButton.classList.remove("authenticating");
+  googleSignInButton.setAttribute("aria-busy", "false");
+  googleSignInButton.replaceChildren();
+
+  window.google.accounts.id.initialize({
+    client_id: supabaseConfig.googleClientId,
+    callback: handleGoogleCredential,
+    nonce: hashedNonce,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+  });
+
+  window.google.accounts.id.renderButton(googleSignInButton, {
+    type: "standard",
+    theme: "outline",
+    size: "large",
+    text: "continue_with",
+    shape: "rectangular",
+    logo_alignment: "left",
+    width: Math.floor(googleSignInButton.getBoundingClientRect().width),
+  });
+  googleSignInButton.classList.remove("loading");
+}
+
+function getGoogleAvatarUrl(user) {
+  const metadata = user?.user_metadata ?? {};
+  return metadata.picture || metadata.avatar_url || "";
+}
+
+function renderAvatar(target, avatarUrl, displayName) {
+  target.replaceChildren();
+
+  if (avatarUrl) {
+    const image = document.createElement("img");
+    image.src = avatarUrl;
+    image.alt = "";
+    image.referrerPolicy = "no-referrer";
+    image.addEventListener(
+      "error",
+      () => {
+        target.textContent = displayName.trim().charAt(0) || "F";
+      },
+      { once: true },
+    );
+    target.appendChild(image);
+    return;
+  }
+
+  target.textContent = displayName.trim().charAt(0) || "F";
+}
+
+function getProfileFallback(user) {
+  const metadata = user.user_metadata ?? {};
+  return {
+    display_name:
+      metadata.display_name || metadata.full_name || metadata.name || user.email?.split("@")[0] || "Farmodoro",
+    avatar_url: metadata.avatar_url || metadata.picture || "",
+    farm_code: "",
+    theme: getActiveTheme(),
+    focus_background_path: null,
+  };
+}
+
+function updateProfileFromUser(user, profile = currentProfile) {
+  const fallback = getProfileFallback(user);
+  const displayName = profile?.display_name || fallback.display_name;
+  const avatarUrl = profile?.avatar_url || fallback.avatar_url;
+
+  profileName.textContent = displayName;
+  profileAccountLabel.textContent = user.email || "Google 계정";
+  renderAvatar(profileAvatar, avatarUrl, displayName);
+}
+
+async function loadUserProfile(user) {
+  if (!supabaseClient || !user) return null;
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("display_name, avatar_url, farm_code, theme, focus_background_path")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("Farmodoro profile could not be loaded", error);
+    currentProfile = getProfileFallback(user);
+  } else {
+    currentProfile = data ?? getProfileFallback(user);
+    applyTheme(currentProfile.theme);
+  }
+
+  if (activeAuthUser?.id === user.id) updateProfileFromUser(user, currentProfile);
+  if (activeAuthUser?.id === user.id) {
+    await loadFocusBackgroundFromDatabase(user, currentProfile.focus_background_path);
+  }
+  return currentProfile;
+}
+
+function resetFarmWalletDatabaseState() {
+  farmWalletHydrated = false;
+  farmWalletUserId = null;
+  farmWalletMutationChain = Promise.resolve();
+}
+
+async function loadFarmWallet(user) {
+  if (!supabaseClient || !user) return;
+  farmWalletHydrated = false;
+  farmWalletUserId = user.id;
+
+  const { data, error } = await supabaseClient.rpc("get_my_farm_wallet");
+
+  if (activeAuthUser?.id !== user.id || farmWalletUserId !== user.id) return;
+  if (error) {
+    console.error("Farmodoro wallet could not be loaded", error);
+    showToast("지갑 데이터를 불러오지 못했어. Supabase에서 006, 012 SQL을 확인해줘");
+    return;
+  }
+
+  const wallet = Array.isArray(data) ? data[0] : data;
+  const databaseCoins = Number(wallet?.coin_balance ?? 0);
+  const databaseFarmMoney = Number(wallet?.farm_money_balance ?? 0);
+  state.coins = databaseCoins;
+  state.farmMoney = databaseFarmMoney;
+  farmWalletHydrated = true;
+  renderSummary();
+  renderFarm();
+}
+
+function applyFarmWalletChange(
+  currency,
+  amount,
+  reason,
+  referenceKey = null,
+  allowNegative = false,
+) {
+  const stateKey = currency === "coin" ? "coins" : "farmMoney";
+  const numericAmount = Math.trunc(Number(amount));
+  if (!numericAmount) return true;
+  if (
+    !farmWalletHydrated ||
+    !activeAuthUser ||
+    activeAuthUser.id !== farmWalletUserId
+  ) {
+    showToast("지갑 데이터를 불러오는 중이야");
+    return false;
+  }
+
+  const userId = activeAuthUser.id;
+  if (!allowNegative && state[stateKey] + numericAmount < 0) {
+    showToast(currency === "coin" ? "Coin이 부족해" : "Farm Money가 부족해");
+    return false;
+  }
+  state[stateKey] += numericAmount;
+  renderSummary();
+  renderFarm();
+  farmWalletMutationChain = farmWalletMutationChain
+    .then(async () => {
+      const { data, error } = await supabaseClient.rpc("change_my_farm_wallet", {
+        p_currency: currency,
+        p_amount: numericAmount,
+        p_reason: reason,
+        p_reference_key: referenceKey,
+      });
+      if (error) throw error;
+      if (activeAuthUser?.id === userId && farmWalletUserId === userId) {
+        state[stateKey] = Number(data);
+        renderSummary();
+        renderFarm();
+      }
+    })
+    .catch((error) => {
+      console.error("Farmodoro wallet change could not be saved", error);
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state[stateKey] -= numericAmount;
+      renderSummary();
+      renderFarm();
+      showToast(`지갑 DB 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
+    });
+  return true;
+}
+
+async function applyAuthSession(session) {
+  const isSignedIn = Boolean(session?.user);
+  const previousUserId = activeAuthUser?.id ?? null;
+  activeAuthUser = session?.user ?? null;
+  authGate.hidden = isSignedIn;
+  document.body.classList.toggle("auth-gated", !isSignedIn);
+
+  if (isSignedIn) {
+    currentProfile = getProfileFallback(session.user);
+    updateProfileFromUser(session.user, currentProfile);
+    if (
+      previousUserId === session.user.id &&
+      appStateHydrated &&
+      taskDataHydrated &&
+      farmWalletHydrated &&
+      farmDataHydrated &&
+      appStateUserId === session.user.id &&
+      taskDataUserId === session.user.id &&
+      farmWalletUserId === session.user.id &&
+      farmDataUserId === session.user.id
+    ) {
+      return;
+    }
+    await Promise.all([
+      loadUserProfile(session.user),
+      loadAppStateFromDatabase(session.user),
+    ]);
+    await Promise.all([
+      loadTaskDataFromDatabase(session.user),
+      loadFarmWallet(session.user),
+      loadFarmDataFromDatabase(session.user),
+    ]);
+  } else {
+    resetTaskDatabaseState();
+    resetAppStateDatabaseState();
+    resetFarmWalletDatabaseState();
+    resetFarmDataDatabaseState();
+    state = loadState();
+    applyLoadedAppStateRuntime();
+    applyTheme("classic");
+    currentProfile = null;
+    userSettingsModal.classList.add("hidden");
+    setAuthStatus("파머도로를 사용하려면 Google 로그인이 필요해");
+  }
+}
+
+function finishAuthResolution() {
+  document.documentElement.classList.remove("auth-resolving");
+}
+
+async function initializeAuth() {
+  if (!supabaseClient) {
+    setAuthStatus("로그인 모듈을 불러오지 못했어. 인터넷 연결을 확인해줘", true);
+    finishAuthResolution();
+    return;
+  }
+
+  setAuthStatus("로그인 상태를 확인하고 있어");
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    setAuthStatus("로그인 상태를 확인하지 못했어. 잠시 후 다시 시도해줘", true);
+  } else {
+    await applyAuthSession(data.session);
+  }
+
+  // Reveal exactly one resolved screen: the app for a saved session, otherwise login.
+  finishAuthResolution();
+
+  if (!data?.session) {
+    try {
+      await prepareGoogleSignIn();
+    } catch (googleError) {
+      setAuthStatus(googleError.message, true);
+    }
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    const needsAccountLoad =
+      event === "SIGNED_IN" &&
+      session?.user &&
+      (!appStateHydrated ||
+        !taskDataHydrated ||
+        !farmWalletHydrated ||
+        !farmDataHydrated ||
+        appStateUserId !== session.user.id ||
+        taskDataUserId !== session.user.id ||
+        farmWalletUserId !== session.user.id ||
+        farmDataUserId !== session.user.id);
+    if (needsAccountLoad) document.documentElement.classList.add("auth-resolving");
+    void applyAuthSession(session).finally(() => {
+      if (needsAccountLoad) finishAuthResolution();
+    });
+  });
+}
+
+function clearProfilePreviewObjectUrl() {
+  if (!profilePreviewObjectUrl) return;
+  URL.revokeObjectURL(profilePreviewObjectUrl);
+  profilePreviewObjectUrl = null;
+}
+
+function setSettingsAvatarPreview(avatarUrl) {
+  const displayName = profileDisplayNameInput.value.trim() || currentProfile?.display_name || "Farmodoro";
+  renderAvatar(profileSettingsAvatar, avatarUrl, displayName);
+}
+
+function getProfileSettingsErrorMessage(error) {
+  const message = String(error?.message ?? "");
+  if (message.includes("profiles_theme_value")) {
+    return "새 테마 저장 설정이 아직 적용되지 않았어. Supabase에서 004 SQL을 실행해줘";
+  }
+  if (message.includes("Bucket not found") || message.includes("avatars")) {
+    return "프로필 사진 저장소가 아직 준비되지 않았어. Supabase에서 002 SQL을 실행해줘";
+  }
+  if (message.startsWith("프로필 사진을")) return message;
+  return "사용자 설정을 저장하지 못했어. 잠시 후 다시 시도해줘";
+}
+
+function refreshSettingsProfileFields() {
+  if (!activeAuthUser) return;
+  const profile = currentProfile ?? getProfileFallback(activeAuthUser);
+  profileDisplayNameInput.value = profile.display_name;
+  profileNameLength.textContent = profile.display_name.length;
+  settingsAccountEmail.textContent = activeAuthUser.email || "Google 계정";
+  settingsFarmCode.textContent = profile.farm_code || "준비 중";
+  copyFarmCodeButton.disabled = !profile.farm_code;
+  setSettingsAvatarPreview(profile.avatar_url);
+}
+
+async function openUserSettings() {
+  if (!activeAuthUser) return;
+  pendingAvatarFile = null;
+  pendingAvatarReset = false;
+  clearProfilePreviewObjectUrl();
+  themeBeforeSettings = getActiveTheme();
+
+  if (!currentProfile?.farm_code) await loadUserProfile(activeAuthUser);
+  refreshSettingsProfileFields();
+
+  const themeRadio = userSettingsForm.querySelector(
+    `input[name="appTheme"][value="${normalizeTheme(currentProfile?.theme)}"]`,
+  );
+  if (themeRadio) themeRadio.checked = true;
+  userSettingsModal.classList.remove("hidden");
+  profileDisplayNameInput.focus();
+}
+
+function closeUserSettings({ keepTheme = false } = {}) {
+  if (userSettingsModal.classList.contains("hidden")) return;
+  userSettingsModal.classList.add("hidden");
+  clearProfilePreviewObjectUrl();
+  pendingAvatarFile = null;
+  pendingAvatarReset = false;
+  profileAvatarInput.value = "";
+  if (!keepTheme) applyTheme(themeBeforeSettings);
+}
+
+async function uploadProfileAvatar(user, file) {
+  const avatarPath = `${user.id}/profile`;
+  const { error } = await supabaseClient.storage.from("avatars").upload(avatarPath, file, {
+    cacheControl: "3600",
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw new Error(`프로필 사진을 올리지 못했어: ${error.message}`);
+
+  const { data } = supabaseClient.storage.from("avatars").getPublicUrl(avatarPath);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+openUserSettingsButton.addEventListener("click", () => void openUserSettings());
+
+userSettingsModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-user-settings]")) closeUserSettings();
+});
+
+chooseProfileAvatarButton.addEventListener("click", () => profileAvatarInput.click());
+
+profileAvatarInput.addEventListener("change", () => {
+  const [file] = profileAvatarInput.files;
+  if (!file) return;
+  if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+    profileAvatarInput.value = "";
+    showToast("JPG, PNG, WEBP 사진만 선택할 수 있어");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    profileAvatarInput.value = "";
+    showToast("프로필 사진은 5MB 이하로 골라줘");
+    return;
+  }
+
+  pendingAvatarFile = file;
+  pendingAvatarReset = false;
+  clearProfilePreviewObjectUrl();
+  profilePreviewObjectUrl = URL.createObjectURL(file);
+  setSettingsAvatarPreview(profilePreviewObjectUrl);
+});
+
+resetProfileAvatarButton.addEventListener("click", () => {
+  pendingAvatarFile = null;
+  pendingAvatarReset = true;
+  profileAvatarInput.value = "";
+  clearProfilePreviewObjectUrl();
+  setSettingsAvatarPreview(getGoogleAvatarUrl(activeAuthUser));
+});
+
+profileDisplayNameInput.addEventListener("input", () => {
+  profileNameLength.textContent = profileDisplayNameInput.value.length;
+  const previewImage = profileSettingsAvatar.querySelector("img");
+  if (!previewImage) setSettingsAvatarPreview("");
+});
+
+userSettingsForm.addEventListener("change", (event) => {
+  if (event.target.matches('input[name="appTheme"]')) applyTheme(event.target.value);
+});
+
+copyFarmCodeButton.addEventListener("click", async () => {
+  const farmCode = currentProfile?.farm_code;
+  if (!farmCode) {
+    showToast("농장 코드가 아직 준비되지 않았어");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(farmCode);
+    showToast("농장 코드를 복사했어");
+  } catch {
+    showToast(`농장 코드: ${farmCode}`);
+  }
+});
+
+userSettingsForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!activeAuthUser || !supabaseClient) return;
+
+  const displayName = profileDisplayNameInput.value.trim();
+  if (!displayName) {
+    showToast("닉네임을 입력해줘");
+    profileDisplayNameInput.focus();
+    return;
+  }
+
+  saveUserSettingsButton.disabled = true;
+  saveUserSettingsButton.textContent = "저장 중";
+
+  try {
+    let avatarUrl = currentProfile?.avatar_url || getProfileFallback(activeAuthUser).avatar_url;
+    if (pendingAvatarReset) avatarUrl = getGoogleAvatarUrl(activeAuthUser);
+    if (pendingAvatarFile) avatarUrl = await uploadProfileAvatar(activeAuthUser, pendingAvatarFile);
+
+    const selectedTheme = normalizeTheme(
+      userSettingsForm.querySelector('input[name="appTheme"]:checked')?.value,
+    );
+    const { data, error } = await supabaseClient
+      .from("profiles")
+      .update({ display_name: displayName, avatar_url: avatarUrl || null, theme: selectedTheme })
+      .eq("id", activeAuthUser.id)
+      .select("display_name, avatar_url, farm_code, theme, focus_background_path")
+      .single();
+    if (error) throw error;
+
+    currentProfile = data;
+    const { error: authUpdateError } = await supabaseClient.auth.updateUser({
+      data: { display_name: displayName, avatar_url: avatarUrl || null },
+    });
+    if (authUpdateError) console.warn("Auth profile metadata could not be updated", authUpdateError);
+
+    applyTheme(selectedTheme);
+    updateProfileFromUser(activeAuthUser, currentProfile);
+    closeUserSettings({ keepTheme: true });
+    showToast("사용자 설정을 저장했어");
+  } catch (error) {
+    console.error("Farmodoro user settings could not be saved", error);
+    showToast(getProfileSettingsErrorMessage(error));
+  } finally {
+    saveUserSettingsButton.disabled = false;
+    saveUserSettingsButton.textContent = "변경사항 저장";
+  }
+});
+
+signOutButton.addEventListener("click", async () => {
+  if (!supabaseClient) return;
+  signOutButton.disabled = true;
+  const { error } = await supabaseClient.auth.signOut();
+  signOutButton.disabled = false;
+
+  if (error) {
+    showToast("로그아웃하지 못했어. 다시 시도해줘");
+  } else {
+    closeUserSettings({ keepTheme: true });
+    applyAuthSession(null);
+    try {
+      await prepareGoogleSignIn();
+    } catch (googleError) {
+      setAuthStatus(googleError.message, true);
+    }
+  }
+});
+
+initializeAuth();
 
 const CROPS = {
   carrot: {
@@ -300,67 +932,74 @@ const FARM_ITEMS = {
   luckyFertilizer: {
     name: "행운 비료",
     icon: "✦",
-    price: 240,
+    price: 90,
     description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해",
     type: "plot",
   },
   moistureFertilizer: {
     name: "보습 비료",
     icon: "💧",
-    price: 220,
+    price: 70,
     description: "다음 수확까지 물 1회당 2단계 성장해",
     type: "plot",
   },
   premiumFertilizer: {
     name: "프리미엄 비료",
     icon: "♛",
-    price: 420,
+    price: 140,
     description: "행운 비료와 보습 비료 효과를 함께 적용해",
     type: "plot",
   },
   goldenFestivalPass: {
     name: "황금 수확제 초대장",
     icon: "🎟",
-    price: 650,
+    price: 240,
     description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼",
     type: "instant",
   },
   farmFestivalPass: {
     name: "푸른 들판 축제권",
     icon: "🎐",
-    price: 550,
+    price: 160,
     description: "사용 후 24시간 동안 모든 작물이 시들지 않아",
     type: "instant",
   },
   freePass: {
     name: "농부의 프리패스",
     icon: "✓",
-    price: 480,
+    price: 150,
     description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해",
     type: "target",
   },
   revivalTonic: {
     name: "새벽이슬 회복제",
     icon: "☘",
-    price: 180,
+    price: 60,
     description: "시든 작물 하나를 되살려",
     type: "plot",
   },
   growthTonic: {
     name: "햇살 성장제",
     icon: "☀",
-    price: 220,
-    description: "작물 하나를 Coin 소비 없이 2단계 성장시켜",
+    price: 280,
+    description: "성장 중인 작물 하나를 즉시 완전히 성장시켜",
     type: "plot",
   },
+  seedMarketRefresh: {
+    name: "씨앗 진열 교환권",
+    icon: "↻",
+    price: 50,
+    description: "오늘의 씨앗 판매대 7종을 즉시 새로 뽑아",
+    type: "market",
+  },
+  foodMarketRefresh: {
+    name: "매입 목록 교환권",
+    icon: "▤",
+    price: 70,
+    description: "오늘의 음식 매입 목록 4종을 즉시 새로 뽑아",
+    type: "market",
+  },
 };
-
-const MOCK_FARM_FRIENDS = [
-  { id: "dawn", name: "새벽이슬", farmName: "푸른 언덕 농장", avatar: "🌿" },
-  { id: "potato", name: "감자대장", farmName: "포근한 감자밭", avatar: "🥔" },
-  { id: "luna", name: "달빛 호미", farmName: "달맞이 농원", avatar: "🌙" },
-  { id: "bean", name: "콩콩이", farmName: "작은 콩밭", avatar: "🫛" },
-];
 
 const SYSTEM_FARM_SENDER = {
   id: "system",
@@ -368,25 +1007,6 @@ const SYSTEM_FARM_SENDER = {
   farmName: "Farmodoro 운영국",
   avatar: "🤖",
 };
-
-const MOCK_FARM_RANKINGS = [
-  { name: "새벽이슬 농장", score: 840 },
-  { name: "감자대장", score: 715 },
-  { name: "달빛 호미", score: 590 },
-  { name: "토마토 연구소", score: 465 },
-  { name: "콩콩이네 밭", score: 350 },
-  { name: "노을빛 과수원", score: 245 },
-  { name: "초보 새싹", score: 130 },
-];
-
-const DAILY_FARM_INBOX_GIFTS = [
-  { category: "harvest", itemId: "carrot" },
-  { category: "seed", itemId: "strawberry" },
-  { category: "supply", itemId: "moistureFertilizer" },
-  { category: "food", itemId: "countryStew" },
-  { category: "harvest", itemId: "tomato" },
-  { category: "seed", itemId: "sunflower" },
-];
 
 const RECIPES = {
   countryStew: { name: "시골 채소 스튜", icon: "🍲", ingredients: ["carrot", "potato"], sellPrice: 42 },
@@ -419,14 +1039,11 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 15,
-  coins: 999,
-  farmMoney: 999,
+  schemaVersion: 18,
+  coins: 0,
+  farmMoney: 0,
   farmRankingWeekStart: "",
   weeklyFarmMoneyEarned: 0,
-  farmRankingDemoRewardSent: false,
-  farmRankingBoxExperienceReady: false,
-  farmRankingSecondPlaceDemoSent: false,
   farmMailDate: "",
   farmMailSentCount: 0,
   farmMailHistory: [],
@@ -451,47 +1068,50 @@ const defaultState = {
   },
   seedInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
   harvestInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
-  farmPlots: Array.from({ length: 16 }, (_, index) => {
-    const wiltedExamples = [
-      { crop: "carrot", growth: 1 },
-      { crop: "tomato", growth: 2 },
-      { crop: "sunflower", growth: 3 },
-    ];
-    const example = wiltedExamples[index];
-    return {
+  farmPlots: Array.from({ length: 16 }, (_, index) => ({
       id: index,
-      crop: example?.crop ?? null,
-      growth: example?.growth ?? 0,
-      plantedDate: example ? "2000-01-01" : "",
-      lastWateredDate: example ? "2000-01-01" : "",
+      crop: null,
+      growth: 0,
+      plantedDate: "",
+      lastWateredDate: "",
       lastFreeWaterAt: 0,
-      wilted: Boolean(example),
+      wilted: false,
       fertilizer: null,
-    };
-  }),
+  })),
   groups: [
     { id: "work", name: "업무", colorIndex: 0 },
     { id: "study", name: "공부", colorIndex: 3 },
     { id: "life", name: "생활", colorIndex: 1 },
   ],
-  tasks: [
-    { id: 1, title: "Farmodoro 메인 화면 정리", status: "doing", focusSeconds: 0, groupId: "work", archived: false, completedDate: "" },
-    { id: 2, title: "책 20페이지 읽기", status: "waiting", focusSeconds: 0, groupId: "study", archived: false, completedDate: "" },
-    { id: 3, title: "장보기 목록 확인", status: "waiting", focusSeconds: 0, groupId: "life", archived: false, completedDate: "" },
-    { id: 4, title: "프로젝트 요구사항 작성", status: "done", focusSeconds: 0, groupId: "work", archived: false, completedDate: toLocalDateString() },
-  ],
-  habits: [
-    { id: 11, title: "물 2L 마시기", streak: 8, complete: true, focusSeconds: 0, measureType: "amount", targetValue: 2, unit: "L", weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: "", endDate: "" },
-    { id: 12, title: "30분 운동", streak: 4, complete: false, focusSeconds: 0, measureType: "time", targetValue: 30, unit: "분", weekdays: [1, 2, 3, 4, 5], startDate: "", endDate: "" },
-    { id: 13, title: "영양제 챙기기", streak: 12, complete: true, focusSeconds: 0, measureType: "count", targetValue: 1, unit: "회", weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: "", endDate: "" },
-  ],
+  tasks: [],
+  habits: [],
 };
+
+const FARM_STATE_KEYS = [
+  "farmRankingWeekStart",
+  "weeklyFarmMoneyEarned",
+  "farmMailDate",
+  "farmMailSentCount",
+  "farmMailHistory",
+  "farmInboxDate",
+  "farmInbox",
+  "farmName",
+  "productionBoostUntil",
+  "wiltProtectionUntil",
+  "marketRotationDate",
+  "dailySeedOffers",
+  "dailyFoodOffers",
+  "foodInventory",
+  "discoveredRecipes",
+  "wasteCount",
+  "farmItemInventory",
+  "seedInventory",
+  "harvestInventory",
+  "farmPlots",
+];
 
 let state = loadState();
 ensureWeeklyFarmRanking();
-ensureFarmRankingDemoReward();
-ensureFarmRankingBoxExperience();
-ensureFarmRankingSecondPlaceDemoReward();
 state.habits = state.habits.map((habit) => {
   const completionDates =
     habit.completionDates ??
@@ -509,18 +1129,20 @@ state.habits = state.habits.map((habit) => {
       (habit.measureType === "count"
         ? Object.fromEntries(completionDates.map((date) => [date, habit.targetValue ?? 1]))
         : {}),
+    focusSecondsByDate: habit.focusSecondsByDate ?? {},
   };
 });
 let toastTimer;
 let focusInterval;
-let focusSeconds = state.settings.linked.focusMinutes * 60;
+let focusLastTickAt = 0;
+let focusSeconds = 0;
 let focusRunning = false;
 let focusSessionStarted = false;
 let focusMode = "linked";
 let runningFocusMode = null;
 let timerPhase = "focus";
 const focusRuntimeByMode = {
-  linked: { seconds: state.settings.linked.focusMinutes * 60, phase: "focus", started: false },
+  linked: { seconds: 0, phase: "focus", started: false },
   quick: { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
 };
 let activeFocus = null;
@@ -530,11 +1152,13 @@ let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedSeed = null;
 let selectedFarmItem = null;
-let selectedMailFriendId = null;
+let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
 let farmMailView = "send";
 let activeRankingRewardMailId = null;
+let selectedFreePassTarget = null;
+let farmLeaderboard = [];
 ensureDailyFarmMail();
 ensureDailyFarmInbox();
 
@@ -549,16 +1173,31 @@ const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
 const habitModal = document.querySelector("#habitModal");
+const habitModalKicker = habitModal.querySelector(".section-kicker");
+const habitModalTitle = document.querySelector("#habitModalTitle");
+const habitModalDescription = habitModal.querySelector("header p");
+const habitSubmitButton = habitForm.querySelector(".habit-submit");
 const openHabitFormButton = document.querySelector("#openHabitForm");
 const habitDeleteModal = document.querySelector("#habitDeleteModal");
 const habitDeleteName = document.querySelector("#habitDeleteName");
 const confirmHabitDelete = document.querySelector("#confirmHabitDelete");
+const taskDeleteModal = document.querySelector("#taskDeleteModal");
+const taskDeleteName = document.querySelector("#taskDeleteName");
+const taskDeleteCoinAmount = document.querySelector("#taskDeleteCoinAmount");
+const confirmTaskDelete = document.querySelector("#confirmTaskDelete");
 const habitModalFormSlot = document.querySelector("#habitModalFormSlot");
 const habitInput = document.querySelector("#habitInput");
 const habitMeasureType = document.querySelector("#habitMeasureType");
+const habitMeasureSelect = document.querySelector(".habit-measure-select");
+const habitMeasureTrigger = document.querySelector("#habitMeasureTrigger");
+const habitMeasureLabel = document.querySelector("#habitMeasureLabel");
+const habitMeasureMenu = document.querySelector("#habitMeasureMenu");
 const habitTargetValue = document.querySelector("#habitTargetValue");
 const habitUnit = document.querySelector("#habitUnit");
 const habitEndDate = document.querySelector("#habitEndDate");
+const freePassTargetModal = document.querySelector("#freePassTargetModal");
+const freePassTargetList = document.querySelector("#freePassTargetList");
+const confirmFreePassTarget = document.querySelector("#confirmFreePassTarget");
 const toast = document.querySelector("#toast");
 const miniFocusTimer = document.querySelector("#miniFocusTimer");
 const miniFocusStatus = document.querySelector("#miniFocusStatus");
@@ -566,17 +1205,247 @@ const miniFocusTitle = document.querySelector("#miniFocusTitle");
 const miniFocusTime = document.querySelector("#miniFocusTime");
 const miniFocusPause = document.querySelector("#miniFocusPause");
 let pendingHabitDeleteId = null;
+let pendingTaskDeleteId = null;
+let editingTaskId = null;
+let editingTaskGroupId = null;
+let editingTaskTitle = "";
+let editingHabitId = null;
 
-function loadState() {
+function resetFarmDataDatabaseState() {
+  farmDataHydrated = false;
+  farmDataUserId = null;
+  lastFarmDataSyncSignature = "";
+  lastFarmDataSyncError = "";
+  farmDataSyncChain = Promise.resolve();
+  if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
+  farmDataSyncTimer = null;
+}
+
+function toDatabaseTimestamp(milliseconds) {
+  const value = Number(milliseconds ?? 0);
+  return value > 0 ? new Date(value).toISOString() : "";
+}
+
+function buildFarmDatabaseState(snapshot = state) {
+  const inventory = [
+    ...Object.entries(snapshot.seedInventory).map(([itemId, quantity]) => ({ category: "seed", itemId, quantity })),
+    ...Object.entries(snapshot.harvestInventory).map(([itemId, quantity]) => ({ category: "harvest", itemId, quantity })),
+    ...Object.entries(snapshot.farmItemInventory).map(([itemId, quantity]) => ({ category: "supply", itemId, quantity })),
+    ...Object.entries(snapshot.foodInventory).map(([itemId, quantity]) => ({ category: "food", itemId, quantity })),
+  ];
+  return {
+    farm: {
+      farmName: snapshot.farmName,
+      productionBoostUntil: toDatabaseTimestamp(snapshot.productionBoostUntil),
+      wiltProtectionUntil: toDatabaseTimestamp(snapshot.wiltProtectionUntil),
+      wasteCount: snapshot.wasteCount,
+    },
+    plots: snapshot.farmPlots.map((plot) => ({
+      id: plot.id,
+      crop: plot.crop ?? "",
+      growth: plot.growth ?? 0,
+      plantedDate: plot.plantedDate ?? "",
+      lastWateredDate: plot.lastWateredDate ?? "",
+      lastFreeWaterAt: toDatabaseTimestamp(plot.lastFreeWaterAt),
+      wilted: Boolean(plot.wilted),
+      fertilizer: plot.fertilizer ?? "",
+    })),
+    inventory,
+    discoveredRecipes: [...snapshot.discoveredRecipes],
+    marketRotation: {
+      date: snapshot.marketRotationDate,
+      seedOffers: [...snapshot.dailySeedOffers],
+      foodOffers: [...snapshot.dailyFoodOffers],
+    },
+  };
+}
+
+function serializeFarmData(snapshot = state) {
+  return JSON.stringify(buildFarmDatabaseState(snapshot));
+}
+
+function getFarmMailItemName(category, itemId) {
+  if (category === "supply") return FARM_ITEMS[itemId]?.name ?? itemId;
+  if (category === "food") return RECIPES[itemId]?.name ?? itemId;
+  const cropName = CROPS[itemId]?.name ?? itemId;
+  return category === "seed" ? `${cropName} 씨앗` : cropName;
+}
+
+function mapFarmInboxFromDatabase(inbox = []) {
+  return inbox.flatMap((mail) => {
+    const items = Array.isArray(mail.items) ? mail.items : [];
+    const sender = {
+      id: mail.senderUserId || SYSTEM_FARM_SENDER.id,
+      name: mail.senderName || "시스템",
+      farmName: mail.mailType === "weekly_ranking" ? "Farmodoro 운영국" : "농장 우편",
+      avatar: mail.mailType === "weekly_ranking" ? "🤖" : "📬",
+    };
+    const receivedDate = toLocalDateString(new Date(mail.sentAt));
+    if (mail.mailType === "weekly_ranking") {
+      const ranking = Number(String(mail.subject ?? "").match(/(\d+)위/)?.[1] ?? 0);
+      return [{
+        id: mail.id,
+        friendId: SYSTEM_FARM_SENDER.id,
+        sender,
+        category: "rankingBox",
+        itemId: items[0]?.itemId ?? "carrot",
+        ranking,
+        boxCropIds: items.map((item) => item.itemId),
+        dbItemIds: items.map((item) => item.id),
+        openedBoxIndexes: items
+          .map((item, index) => item.claimedAt ? index : -1)
+          .filter((index) => index >= 0),
+        claimed: items.length > 0 && items.every((item) => Boolean(item.claimedAt)),
+        receivedDate,
+      }];
+    }
+    return items.map((item) => ({
+      id: item.id,
+      mailId: mail.id,
+      dbItemId: item.id,
+      friendId: mail.senderUserId || SYSTEM_FARM_SENDER.id,
+      sender,
+      category: item.category,
+      itemId: item.itemId,
+      claimed: Boolean(item.claimedAt),
+      receivedDate,
+    }));
+  });
+}
+
+function mapFarmSentHistoryFromDatabase(sentToday = []) {
+  return sentToday.flatMap((mail) =>
+    (mail.items ?? []).map((item) => ({
+      id: `${mail.id}:${item.category}:${item.itemId}`,
+      friendName: mail.recipientName || "농부",
+      category: item.category,
+      itemId: item.itemId,
+      itemName: getFarmMailItemName(item.category, item.itemId),
+      sentTime: new Date(mail.sentAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+    })),
+  );
+}
+
+async function loadFarmDataFromDatabase(user) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  farmDataHydrated = false;
+  farmDataUserId = requestedUserId;
+  const { data, error } = await supabaseClient.rpc("get_my_farm_state");
+  if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
+  if (error) {
+    console.error("Farmodoro farm data could not be loaded", error);
+    showToast(`농장 DB 불러오기 실패 · ${error.message || "알 수 없는 오류"}`);
+    return;
+  }
+
+  const farm = data?.farm ?? {};
+  state.farmName = farm.farmName || defaultState.farmName;
+  state.productionBoostUntil = Date.parse(farm.productionBoostUntil || "") || 0;
+  state.wiltProtectionUntil = Date.parse(farm.wiltProtectionUntil || "") || 0;
+  state.wasteCount = Math.max(0, Number(farm.wasteCount ?? 0));
+
+  const plotRows = new Map((data?.plots ?? []).map((plot) => [Number(plot.id), plot]));
+  state.farmPlots = defaultState.farmPlots.map((fallback, index) => {
+    const plot = plotRows.get(index);
+    if (!plot) return structuredClone(fallback);
+    return {
+      id: index,
+      crop: CROPS[plot.crop] ? plot.crop : null,
+      growth: Math.max(0, Number(plot.growth ?? 0)),
+      plantedDate: plot.plantedDate ?? "",
+      lastWateredDate: plot.lastWateredDate ?? "",
+      lastFreeWaterAt: Date.parse(plot.lastFreeWaterAt || "") || 0,
+      wilted: Boolean(plot.wilted),
+      fertilizer: FARM_ITEMS[plot.fertilizer] ? plot.fertilizer : null,
+    };
+  });
+
+  state.seedInventory = structuredClone(defaultState.seedInventory);
+  state.harvestInventory = structuredClone(defaultState.harvestInventory);
+  state.farmItemInventory = structuredClone(defaultState.farmItemInventory);
+  state.foodInventory = structuredClone(defaultState.foodInventory);
+  const inventoryTargets = {
+    seed: state.seedInventory,
+    harvest: state.harvestInventory,
+    supply: state.farmItemInventory,
+    food: state.foodInventory,
+  };
+  (data?.inventory ?? []).forEach((entry) => {
+    const target = inventoryTargets[entry.category];
+    if (target && Object.hasOwn(target, entry.itemId)) {
+      target[entry.itemId] = Math.max(0, Number(entry.quantity ?? 0));
+    }
+  });
+
+  state.discoveredRecipes = (data?.discoveredRecipes ?? []).filter((recipeId) => RECIPES[recipeId]);
+  const rotation = data?.marketRotation ?? {};
+  state.marketRotationDate = rotation.date ?? "";
+  state.dailySeedOffers = (rotation.seedOffers ?? []).filter((cropId) => CROPS[cropId]);
+  state.dailyFoodOffers = (rotation.foodOffers ?? []).filter((recipeId) => RECIPES[recipeId]);
+  state.farmRankingWeekStart = getFarmWeekStart();
+  state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
+  state.farmInbox = mapFarmInboxFromDatabase(data?.inbox ?? []);
+  state.farmInboxDate = toLocalDateString();
+  state.farmMailHistory = mapFarmSentHistoryFromDatabase(data?.sentToday ?? []);
+  state.farmMailDate = toLocalDateString();
+  state.farmMailSentCount = (data?.sentToday ?? []).length;
+
+  farmDataHydrated = true;
+  lastFarmDataSyncSignature = serializeFarmData();
+  ensureDailyMarket();
+  render();
+}
+
+function scheduleFarmDataDatabaseSync(delay = 800) {
+  if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
+  const signature = serializeFarmData();
+  if (signature === lastFarmDataSyncSignature) return;
+  if (farmDataSyncTimer) {
+    if (delay > 0) return;
+    clearTimeout(farmDataSyncTimer);
+  }
+  farmDataSyncTimer = window.setTimeout(() => {
+    farmDataSyncTimer = null;
+    const userId = activeAuthUser?.id;
+    if (!userId || userId !== farmDataUserId) return;
+    const latestSignature = serializeFarmData();
+    const payload = JSON.parse(latestSignature);
+    farmDataSyncChain = farmDataSyncChain
+      .then(async () => {
+        const { error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload });
+        if (error) throw error;
+      })
+      .then(() => {
+        if (activeAuthUser?.id === userId) {
+          lastFarmDataSyncSignature = latestSignature;
+          lastFarmDataSyncError = "";
+        }
+      })
+      .catch((syncError) => {
+        console.error("Farmodoro farm data could not be saved", syncError);
+        if (activeAuthUser?.id === userId) {
+          const message = syncError?.message || "알 수 없는 오류";
+          if (message !== lastFarmDataSyncError) {
+            lastFarmDataSyncError = message;
+            showToast(`농장 DB 저장 실패 · ${message}`);
+          }
+        }
+      });
+  }, delay);
+}
+
+function loadState(savedState = null) {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const saved = savedState && typeof savedState === "object" ? savedState : null;
     if (!saved) return structuredClone(defaultState);
     delete saved.decorationInventory;
     delete saved.farmDecorations;
-    const savedSchemaVersion = saved.schemaVersion ?? 1;
-    const migratedCoins = savedSchemaVersion < 4 ? 999 : saved.coins;
-    const migratedFarmMoney =
-      savedSchemaVersion < 4 ? 999 : (saved.farmMoney ?? 0);
+    delete saved.farmRankingDemoRewardSent;
+    delete saved.farmRankingBoxExperienceReady;
+    delete saved.farmRankingSecondPlaceDemoSent;
+    const migratedCoins = Number(saved.coins ?? 0);
+    const migratedFarmMoney = Number(saved.farmMoney ?? 0);
     const migratedFarmPlots =
       Array.isArray(saved.farmPlots) && saved.farmPlots.length === 16
         ? saved.farmPlots.map((plot, index) => ({
@@ -594,34 +1463,14 @@ function loadState() {
           }))
         : structuredClone(defaultState.farmPlots);
 
-    if (savedSchemaVersion < 5) {
-      const examples = [
-        { crop: "carrot", growth: 1 },
-        { crop: "tomato", growth: 2 },
-        { crop: "sunflower", growth: 3 },
-      ];
-      const emptyPlots = migratedFarmPlots.filter((plot) => !plot.crop).slice(0, examples.length);
-      emptyPlots.forEach((plot, index) => {
-        Object.assign(plot, {
-          ...examples[index],
-          plantedDate: "2000-01-01",
-          lastWateredDate: "2000-01-01",
-          wilted: true,
-        });
-      });
-    }
-
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 15,
+      schemaVersion: 18,
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
       farmRankingWeekStart: saved.farmRankingWeekStart ?? "",
       weeklyFarmMoneyEarned: Number(saved.weeklyFarmMoneyEarned ?? 0),
-      farmRankingDemoRewardSent: Boolean(saved.farmRankingDemoRewardSent),
-      farmRankingBoxExperienceReady: Boolean(saved.farmRankingBoxExperienceReady),
-      farmRankingSecondPlaceDemoSent: Boolean(saved.farmRankingSecondPlaceDemoSent),
       farmMailDate: saved.farmMailDate ?? "",
       farmMailSentCount: Number(saved.farmMailSentCount ?? 0),
       farmMailHistory: Array.isArray(saved.farmMailHistory) ? saved.farmMailHistory : [],
@@ -671,7 +1520,7 @@ function loadState() {
       })),
       habits: (saved.habits ?? []).map((habit) => ({
         ...habit,
-        focusSeconds: habit.focusSeconds ?? 0,
+        focusSecondsByDate: habit.focusSecondsByDate ?? {},
         measureType: habit.measureType ?? "count",
         targetValue: habit.targetValue ?? 1,
         unit: habit.unit ?? "회",
@@ -686,7 +1535,562 @@ function loadState() {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleAppStateDatabaseSync(JSON.parse(serializeAppState()));
+  scheduleTaskDatabaseSync();
+  scheduleFarmDataDatabaseSync();
+}
+
+function serializeAppState(snapshot = state) {
+  const appState = { ...snapshot };
+  ["groups", "tasks", "habits", "coins", "farmMoney", ...FARM_STATE_KEYS]
+    .forEach((key) => delete appState[key]);
+  return JSON.stringify(appState);
+}
+
+function resetAppStateDatabaseState() {
+  appStateHydrated = false;
+  appStateUserId = null;
+  lastAppStateSyncSignature = "";
+  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
+  appStateSyncTimer = null;
+}
+
+function applyLoadedAppStateRuntime() {
+  ensureWeeklyFarmRanking();
+  ensureDailyFarmMail();
+  ensureDailyFarmInbox();
+  if (typeof focusRuntimeByMode !== "undefined") {
+    focusRuntimeByMode.linked = {
+      seconds: 0,
+      phase: "focus",
+      started: false,
+    };
+    focusRuntimeByMode.quick = {
+      seconds: state.settings.quick.focusMinutes * 60,
+      phase: "focus",
+      started: false,
+    };
+    focusSeconds = 0;
+    focusRunning = false;
+    focusSessionStarted = false;
+    runningFocusMode = null;
+    timerPhase = "focus";
+    resetToFocus();
+    syncFocusSettingsForm();
+  }
+}
+
+async function loadAppStateFromDatabase(user) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  appStateHydrated = false;
+  appStateUserId = requestedUserId;
+
+  const { data, error } = await supabaseClient
+    .from("user_app_state")
+    .select("state")
+    .eq("user_id", requestedUserId)
+    .maybeSingle();
+
+  if (activeAuthUser?.id !== requestedUserId || appStateUserId !== requestedUserId) return;
+  const productivityState = {
+    groups: state.groups,
+    tasks: state.tasks,
+    habits: state.habits,
+  };
+  if (error) {
+    console.error("Farmodoro app state could not be loaded", error);
+    state = loadState();
+    showToast("앱 데이터를 불러오지 못했어. Supabase에서 008 SQL을 실행해줘");
+  } else {
+    state = loadState(data?.state ?? null);
+  }
+  // Coin and Farm Money are owned exclusively by farm_wallets.
+  // Never display an older balance that may still exist in user_app_state.
+  state.coins = 0;
+  state.farmMoney = 0;
+  FARM_STATE_KEYS.forEach((key) => {
+    state[key] = structuredClone(defaultState[key]);
+  });
+  state.groups = productivityState.groups;
+  state.tasks = productivityState.tasks;
+  state.habits = productivityState.habits;
+
+  applyLoadedAppStateRuntime();
+  appStateHydrated = true;
+  lastAppStateSyncSignature = serializeAppState();
+  render();
+}
+
+function scheduleAppStateDatabaseSync(snapshot = null, delay = 800) {
+  if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) return;
+  const signature = snapshot ? JSON.stringify(snapshot) : serializeAppState();
+  if (signature === lastAppStateSyncSignature) return;
+  if (appStateSyncTimer) {
+    if (delay > 0) return;
+    clearTimeout(appStateSyncTimer);
+  }
+
+  appStateSyncTimer = window.setTimeout(() => {
+    appStateSyncTimer = null;
+    const userId = activeAuthUser?.id;
+    if (!userId || userId !== appStateUserId) return;
+    const latestSignature = serializeAppState();
+    const savedState = JSON.parse(latestSignature);
+    appStateSyncChain = appStateSyncChain
+      .then(async () => {
+        const { error } = await supabaseClient
+          .from("user_app_state")
+          .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
+        if (error) throw error;
+      })
+      .then(() => {
+        if (activeAuthUser?.id === userId) lastAppStateSyncSignature = latestSignature;
+      })
+      .catch((error) => {
+        console.error("Farmodoro app state could not be saved", error);
+        if (activeAuthUser?.id === userId) {
+          showToast("앱 데이터를 DB에 저장하지 못했어. 008 SQL을 확인해줘");
+        }
+      });
+  }, delay);
+}
+
+async function syncAppStateDatabaseImmediately() {
+  if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) {
+    throw new Error("로그인한 계정의 앱 데이터를 아직 불러오지 못했어");
+  }
+  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
+  appStateSyncTimer = null;
+
+  const userId = activeAuthUser.id;
+  const signature = serializeAppState();
+  const savedState = JSON.parse(signature);
+  const operation = appStateSyncChain.then(async () => {
+    const { error } = await supabaseClient
+      .from("user_app_state")
+      .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
+    if (error) throw error;
+  });
+  appStateSyncChain = operation.catch(() => {});
+  await operation;
+  if (activeAuthUser?.id === userId) lastAppStateSyncSignature = signature;
+}
+
+function createUuid() {
+  return crypto.randomUUID();
+}
+
+function resetTaskDatabaseState() {
+  taskDataHydrated = false;
+  taskDataUserId = null;
+  taskDataLoadPromise = null;
+  lastTaskSyncSignature = "";
+  if (taskSyncTimer) clearTimeout(taskSyncTimer);
+  taskSyncTimer = null;
+}
+
+function serializeTaskDatabaseState() {
+  const habitRecords = state.habits.flatMap((habit) => {
+    const recordDates = new Set([
+      ...(habit.completionDates ?? []),
+      ...Object.keys(habit.progressByDate ?? {}),
+      ...Object.keys(habit.focusSecondsByDate ?? {}),
+    ]);
+    return [...recordDates].map((recordDate) => {
+      const progressValue = habit.measureType === "count"
+        ? Math.max(0, Number(habit.progressByDate?.[recordDate] ?? 0))
+        : habit.completionDates.includes(recordDate)
+          ? Number(habit.targetValue)
+          : 0;
+      const completed =
+        habit.completionDates.includes(recordDate) ||
+        (habit.measureType === "count" && progressValue >= Number(habit.targetValue));
+      const recordMeta = habit.recordMetaByDate?.[recordDate] ?? {};
+      const isToday = recordDate === toLocalDateString();
+      return {
+        habit_id: habit.id,
+        record_date: recordDate,
+        progress_value: progressValue,
+        focus_seconds: Math.max(
+          0,
+          Math.floor(Number(habit.focusSecondsByDate?.[recordDate] ?? 0)),
+        ),
+        completed_at: completed
+          ? recordMeta.completedAt || `${recordDate}T12:00:00+09:00`
+          : null,
+        completion_reward: completed
+          ? Math.max(
+              0,
+              Math.floor(isToday ? habit.completionReward ?? 0 : recordMeta.completionReward ?? 0),
+            )
+          : 0,
+        completed_with_free_pass: completed
+          ? Boolean(
+              isToday
+                ? habit.completedWithFreePass
+                : recordMeta.completedWithFreePass,
+            )
+          : false,
+      };
+    });
+  });
+
+  return JSON.stringify({
+    groups: state.groups.map((group, sortOrder) => ({
+      id: group.id,
+      name: group.name,
+      color_index: group.colorIndex,
+      sort_order: sortOrder,
+    })),
+    tasks: state.tasks.map((task, sortOrder) => ({
+      id: task.id,
+      group_id: task.groupId || null,
+      title: task.title,
+      status: task.status,
+      sort_order: sortOrder,
+      focus_seconds: Math.max(0, Math.floor(task.focusSeconds ?? 0)),
+      completion_reward: Math.max(0, Math.floor(task.completionReward ?? 0)),
+      completed_with_free_pass: Boolean(task.completedWithFreePass),
+      completed_on: task.completedDate || null,
+      archived_at: task.archivedAt || null,
+    })),
+    habits: state.habits.map((habit, sortOrder) => ({
+      id: habit.id,
+      title: habit.title,
+      measure_type: habit.measureType,
+      target_value: Number(habit.targetValue),
+      unit: habit.unit,
+      weekdays: habit.weekdays,
+      start_date: habit.startDate || null,
+      end_date: habit.endDate || null,
+      sort_order: sortOrder,
+    })),
+    habitRecords,
+  });
+}
+
+function mapDatabaseTaskGroup(group) {
+  return {
+    id: group.id,
+    name: group.name,
+    colorIndex: group.color_index,
+  };
+}
+
+function mapDatabaseTask(task) {
+  return {
+    id: task.id,
+    title: task.title,
+    status: task.status,
+    focusSeconds: task.focus_seconds,
+    groupId: task.group_id,
+    completionReward: task.completion_reward,
+    completedWithFreePass: task.completed_with_free_pass,
+    completedDate: task.completed_on || "",
+    archived: Boolean(task.archived_at),
+    archivedAt: task.archived_at || "",
+  };
+}
+
+function mapDatabaseHabit(habit, records) {
+  const completionDates = records
+    .filter((record) => record.completed_at)
+    .map((record) => record.record_date);
+  const progressByDate = Object.fromEntries(
+    records.map((record) => [record.record_date, Number(record.progress_value)]),
+  );
+  const focusSecondsByDate = Object.fromEntries(
+    records.map((record) => [record.record_date, Number(record.focus_seconds ?? 0)]),
+  );
+  const recordMetaByDate = Object.fromEntries(
+    records.map((record) => [
+      record.record_date,
+      {
+        completedAt: record.completed_at,
+        completionReward: record.completion_reward,
+        completedWithFreePass: record.completed_with_free_pass,
+      },
+    ]),
+  );
+  const today = toLocalDateString();
+  const todayRecord = records.find((record) => record.record_date === today);
+
+  return {
+    id: habit.id,
+    title: habit.title,
+    complete: completionDates.includes(today),
+    completedDate: completionDates.includes(today) ? today : "",
+    completionDates,
+    progressByDate,
+    focusSecondsByDate,
+    recordMetaByDate,
+    measureType: habit.measure_type,
+    targetValue: Number(habit.target_value),
+    unit: habit.unit,
+    weekdays: habit.weekdays.map(Number),
+    startDate:
+      habit.start_date ||
+      (habit.created_at
+        ? new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Seoul",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(habit.created_at))
+        : ""),
+    endDate: habit.end_date || "",
+    completionReward: todayRecord?.completion_reward ?? 0,
+    completedWithFreePass: Boolean(todayRecord?.completed_with_free_pass),
+  };
+}
+
+async function loadTaskDataFromDatabase(user) {
+  if (!supabaseClient || !user) return;
+  if (taskDataUserId === user.id && taskDataHydrated) return;
+  if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
+
+  taskDataUserId = user.id;
+  taskDataHydrated = false;
+  const requestedUserId = user.id;
+
+  taskDataLoadPromise = (async () => {
+    let { data: groupRows, error: groupError } = await supabaseClient
+      .from("task_groups")
+      .select("id, name, color_index, sort_order")
+      .eq("user_id", requestedUserId)
+      .order("sort_order")
+      .order("created_at");
+
+    if (groupError) throw groupError;
+
+    const { data: taskRows, error: taskError } = await supabaseClient
+      .from("tasks")
+      .select(
+        "id, group_id, title, status, sort_order, focus_seconds, completion_reward, completed_with_free_pass, completed_on, archived_at",
+      )
+      .eq("user_id", requestedUserId)
+      .order("sort_order")
+      .order("created_at");
+
+    if (taskError) throw taskError;
+
+    const { data: habitRows, error: habitError } = await supabaseClient
+      .from("habits")
+      .select(
+        "id, title, measure_type, target_value, unit, weekdays, start_date, end_date, sort_order, created_at",
+      )
+      .eq("user_id", requestedUserId)
+      .order("sort_order")
+      .order("created_at");
+    if (habitError) throw habitError;
+
+    const { data: habitRecordRows, error: habitRecordError } = await supabaseClient
+      .from("habit_daily_records")
+      .select(
+        "habit_id, record_date, progress_value, focus_seconds, completed_at, completion_reward, completed_with_free_pass",
+      )
+      .order("record_date");
+    if (habitRecordError) throw habitRecordError;
+    if (activeAuthUser?.id !== requestedUserId || taskDataUserId !== requestedUserId) return;
+
+    state.groups = groupRows.map(mapDatabaseTaskGroup);
+    state.tasks = taskRows.map(mapDatabaseTask);
+    state.habits = habitRows.map((habit) =>
+      mapDatabaseHabit(
+        habit,
+        habitRecordRows.filter((record) => record.habit_id === habit.id),
+      ),
+    );
+    taskGroupFilter = "all";
+    activeFocus = activeFocus?.type === "task" ? null : activeFocus;
+    taskDataHydrated = true;
+    lastTaskSyncSignature = serializeTaskDatabaseState();
+    render();
+  })()
+    .catch((error) => {
+      console.error("Farmodoro task data could not be loaded", error);
+      if (activeAuthUser?.id === requestedUserId) {
+        showToast("할 일과 습관 데이터를 불러오지 못했어. 005 SQL 적용 여부를 확인해줘");
+      }
+    })
+    .finally(() => {
+      if (taskDataUserId === requestedUserId) taskDataLoadPromise = null;
+    });
+
+  return taskDataLoadPromise;
+}
+
+function scheduleTaskDatabaseSync(delay = 1500) {
+  if (!taskDataHydrated || !activeAuthUser || activeAuthUser.id !== taskDataUserId) return;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const hasInvalidId =
+    state.groups.some((group) => !uuidPattern.test(String(group.id))) ||
+    state.tasks.some(
+      (task) =>
+        !uuidPattern.test(String(task.id)) ||
+        (task.groupId && !uuidPattern.test(String(task.groupId))),
+    ) ||
+    state.habits.some((habit) => !uuidPattern.test(String(habit.id)));
+  if (hasInvalidId) {
+    taskDataHydrated = false;
+    lastTaskSyncSignature = "";
+    void loadTaskDataFromDatabase(activeAuthUser);
+    return;
+  }
+  const signature = serializeTaskDatabaseState();
+  if (signature === lastTaskSyncSignature) return;
+
+  if (taskSyncTimer) {
+    if (delay > 0) return;
+    clearTimeout(taskSyncTimer);
+  }
+  taskSyncTimer = window.setTimeout(() => {
+    taskSyncTimer = null;
+    const userId = activeAuthUser?.id;
+    const snapshot = JSON.parse(serializeTaskDatabaseState());
+    const snapshotSignature = JSON.stringify(snapshot);
+    if (!userId || userId !== taskDataUserId) return;
+
+    taskSyncChain = taskSyncChain
+      .then(() => syncTaskDatabaseSnapshot(userId, snapshot))
+      .then(() => {
+        if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
+      })
+      .catch((error) => {
+        console.error("Farmodoro task data could not be saved", error);
+        if (activeAuthUser?.id === userId) {
+          const scope = error.syncScope ? ` · ${error.syncScope}` : "";
+          const reason = error.message ? `: ${error.message}` : "";
+          showToast(`DB 저장 실패${scope}${reason}`);
+        }
+      });
+  }, delay);
+}
+
+function throwTaskSyncError(scope, error) {
+  if (!error) return;
+  error.syncScope = scope;
+  throw error;
+}
+
+async function syncTaskDatabaseImmediately() {
+  if (!taskDataHydrated || !activeAuthUser || activeAuthUser.id !== taskDataUserId) return;
+  if (taskSyncTimer) clearTimeout(taskSyncTimer);
+  taskSyncTimer = null;
+
+  const userId = activeAuthUser.id;
+  const snapshot = JSON.parse(serializeTaskDatabaseState());
+  const snapshotSignature = JSON.stringify(snapshot);
+  const operation = taskSyncChain.then(() => syncTaskDatabaseSnapshot(userId, snapshot));
+  taskSyncChain = operation.catch(() => {});
+  await operation;
+  if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
+}
+
+async function syncTaskDatabaseSnapshot(userId, snapshot) {
+  if (activeAuthUser?.id !== userId || taskDataUserId !== userId) return;
+
+  const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
+  const taskRows = snapshot.tasks.map((task) => ({ ...task, user_id: userId }));
+  const habitRows = snapshot.habits.map((habit) => ({ ...habit, user_id: userId }));
+  const habitRecordRows = snapshot.habitRecords;
+
+  if (groupRows.length) {
+    const { error } = await supabaseClient
+      .from("task_groups")
+      .upsert(groupRows, { onConflict: "id" });
+    throwTaskSyncError("그룹", error);
+  }
+
+  if (taskRows.length) {
+    const { error } = await supabaseClient.from("tasks").upsert(taskRows, { onConflict: "id" });
+    throwTaskSyncError("할 일", error);
+  }
+
+  if (habitRows.length) {
+    const { error } = await supabaseClient
+      .from("habits")
+      .upsert(habitRows, { onConflict: "id" });
+    throwTaskSyncError("습관", error);
+  }
+
+  if (habitRecordRows.length) {
+    const { error } = await supabaseClient
+      .from("habit_daily_records")
+      .upsert(habitRecordRows, { onConflict: "habit_id,record_date" });
+    throwTaskSyncError("습관 기록", error);
+  }
+
+  const [
+    { data: existingTasks, error: existingTaskError },
+    { data: existingGroups, error: existingGroupError },
+    { data: existingHabits, error: existingHabitError },
+    { data: existingHabitRecords, error: existingHabitRecordError },
+  ] = await Promise.all([
+      supabaseClient.from("tasks").select("id").eq("user_id", userId),
+      supabaseClient.from("task_groups").select("id").eq("user_id", userId),
+      supabaseClient.from("habits").select("id").eq("user_id", userId),
+      supabaseClient.from("habit_daily_records").select("habit_id, record_date"),
+    ]);
+  throwTaskSyncError("할 일 조회", existingTaskError);
+  throwTaskSyncError("그룹 조회", existingGroupError);
+  throwTaskSyncError("습관 조회", existingHabitError);
+  throwTaskSyncError("습관 기록 조회", existingHabitRecordError);
+
+  const taskIds = new Set(taskRows.map((task) => task.id));
+  const deletedTaskIds = existingTasks
+    .map((task) => task.id)
+    .filter((taskId) => !taskIds.has(taskId));
+  if (deletedTaskIds.length) {
+    const { error } = await supabaseClient
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", deletedTaskIds);
+    throwTaskSyncError("할 일 삭제", error);
+  }
+
+  const habitRecordKeys = new Set(
+    habitRecordRows.map((record) => `${record.habit_id}:${record.record_date}`),
+  );
+  const deletedHabitRecords = existingHabitRecords.filter(
+    (record) => !habitRecordKeys.has(`${record.habit_id}:${record.record_date}`),
+  );
+  for (const record of deletedHabitRecords) {
+    const { error } = await supabaseClient
+      .from("habit_daily_records")
+      .delete()
+      .eq("habit_id", record.habit_id)
+      .eq("record_date", record.record_date);
+    throwTaskSyncError("습관 기록 삭제", error);
+  }
+
+  const habitIds = new Set(habitRows.map((habit) => habit.id));
+  const deletedHabitIds = existingHabits
+    .map((habit) => habit.id)
+    .filter((habitId) => !habitIds.has(habitId));
+  if (deletedHabitIds.length) {
+    const { error } = await supabaseClient
+      .from("habits")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", deletedHabitIds);
+    throwTaskSyncError("습관 삭제", error);
+  }
+
+  const groupIds = new Set(groupRows.map((group) => group.id));
+  const deletedGroupIds = existingGroups
+    .map((group) => group.id)
+    .filter((groupId) => !groupIds.has(groupId));
+  if (deletedGroupIds.length) {
+    const { error } = await supabaseClient
+      .from("task_groups")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", deletedGroupIds);
+    throwTaskSyncError("그룹 삭제", error);
+  }
 }
 
 function escapeHtml(value) {
@@ -732,6 +2136,37 @@ function normalizeFocusSettings(savedSettings = {}) {
 
 function getFocusSettings(mode = focusMode) {
   return state.settings[mode] ?? state.settings.linked;
+}
+
+function getHabitDailyFocusSeconds(habit, dateString = toLocalDateString()) {
+  if (!habit || habit.measureType !== "time") return 0;
+  return Math.max(0, Math.floor(Number(habit.focusSecondsByDate?.[dateString] ?? 0)));
+}
+
+function getLinkedFocusSeconds(item = getFocusItem()) {
+  if (!item) return 0;
+  if (activeFocus?.type === "task") return Math.max(0, Math.floor(item.focusSeconds ?? 0));
+  const targetSeconds = Math.max(0, Number(item.targetValue) * 60);
+  return Math.max(0, targetSeconds - getHabitDailyFocusSeconds(item));
+}
+
+function prepareLinkedFocusRuntime(item = getFocusItem()) {
+  const hasProgress = item
+    ? activeFocus?.type === "task"
+      ? Number(item.focusSeconds) > 0
+      : getHabitDailyFocusSeconds(item) > 0
+    : false;
+  focusRuntimeByMode.linked = {
+    seconds: getLinkedFocusSeconds(item),
+    phase: "focus",
+    started: hasProgress,
+  };
+  if (focusMode === "linked") {
+    focusSeconds = focusRuntimeByMode.linked.seconds;
+    timerPhase = "focus";
+    focusSessionStarted = hasProgress;
+    focusRunning = runningFocusMode === "linked";
+  }
 }
 
 function getStableGroupColorIndex(value) {
@@ -811,7 +2246,6 @@ function renderTaskFilters() {
           class="${taskGroupFilter === option.id ? "active" : ""}"
           type="button"
           data-task-group-filter="${option.id}"
-          ${archiveActive ? "disabled" : ""}
         >${escapeHtml(option.name)}</button>
       `,
     )
@@ -832,8 +2266,7 @@ function getVisibleTasks(status) {
     if (task.status !== status) return false;
 
     if (currentPage === "tasks") {
-      if (taskArchiveView) return task.archived;
-      if (task.archived) return false;
+      if (taskArchiveView !== Boolean(task.archived)) return false;
       if (taskGroupFilter === "all") return true;
       if (taskGroupFilter === "none") return !task.groupId;
       return task.groupId === taskGroupFilter;
@@ -853,36 +2286,76 @@ function renderTasks() {
     list.innerHTML = tasks
       .map((task) => {
         const group = getGroup(task.groupId);
+        const isEditing = editingTaskId === task.id;
+        const editingGroup = isEditing ? getGroup(editingTaskGroupId) : null;
+        const inlineGroupOptions = isEditing
+          ? [
+              `<button class="custom-group-option ${editingTaskGroupId ? "" : "selected"}" type="button" role="option" aria-selected="${!editingTaskGroupId}" data-inline-task-group=""><i></i><span>그룹 없음</span><b>✓</b></button>`,
+              ...state.groups.map(
+                (item) => `<button class="custom-group-option ${getGroupColorClass(item)} ${editingTaskGroupId === item.id ? "selected" : ""}" type="button" role="option" aria-selected="${editingTaskGroupId === item.id}" data-inline-task-group="${item.id}"><i></i><span>${escapeHtml(item.name)}</span><b>✓</b></button>`,
+              ),
+            ].join("")
+          : "";
         return `
           <article
-            class="task-card ${status === "done" ? "done" : ""} ${task.archived ? "archived" : ""}"
-            draggable="${task.archived ? "false" : "true"}"
+            class="task-card ${status === "done" ? "done" : ""} ${task.archived ? "archived" : ""} ${isEditing ? "editing" : ""}"
+            draggable="${task.archived || isEditing ? "false" : "true"}"
             data-task-id="${task.id}"
           >
-            <div class="task-top">
-              <h4>${escapeHtml(task.title)}</h4>
-            </div>
-            <div class="task-meta">
-              ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
-              ${
-                task.archived
-                  ? '<span class="task-archived-label">보관됨</span>'
-                  : task.status === "done"
-                    ? `<span class="task-focus-pill completed-focus-time">◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
-                    : `
-                    <button
-                      class="task-focus-pill"
-                      type="button"
-                      data-focus-task="${task.id}"
-                      aria-label="${escapeHtml(task.title)} 집중 시작"
-                    >
-                      ◷ 집중 ${formatFocusTime(task.focusSeconds)}
-                    </button>
-                  `
-              }
-            </div>
             ${
-              currentPage === "tasks" && status === "done"
+              isEditing
+                ? `
+                  <form class="task-inline-edit" data-inline-task-form="${task.id}">
+                    <input
+                      class="task-inline-title"
+                      type="text"
+                      maxlength="60"
+                      value="${escapeHtml(editingTaskTitle)}"
+                      aria-label="할 일 내용"
+                      required
+                    />
+                    <div class="task-inline-edit-footer">
+                      <div class="custom-group-select task-inline-group-select">
+                        <button class="custom-group-trigger" type="button" data-inline-group-trigger aria-haspopup="listbox" aria-expanded="false">
+                          <span>${escapeHtml(editingGroup?.name ?? "그룹 없음")}</span>
+                          <span aria-hidden="true">⌄</span>
+                        </button>
+                        <div class="custom-group-menu hidden" role="listbox">${inlineGroupOptions}</div>
+                      </div>
+                      <div class="task-inline-edit-actions">
+                        <button type="button" data-cancel-task-edit>취소</button>
+                        <button type="submit">저장</button>
+                      </div>
+                    </div>
+                  </form>
+                `
+                : `
+                  <div class="task-top">
+                    <h4>${escapeHtml(task.title)}</h4>
+                  </div>
+                  <div class="task-meta">
+                    ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
+                    ${
+                      task.archived
+                        ? '<span class="task-archived-label">보관됨</span>'
+                        : task.status === "done"
+                          ? `<span class="task-focus-pill completed-focus-time">◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
+                          : `
+                          <button
+                            class="task-focus-pill"
+                            type="button"
+                            data-focus-task="${task.id}"
+                            aria-label="${escapeHtml(task.title)} 집중 시작"
+                          >
+                            ◷ 집중 ${formatFocusTime(task.focusSeconds)}
+                          </button>
+                        `
+                    }
+                  </div>
+                `
+            }
+            ${
+              !isEditing && currentPage === "tasks" && status === "done"
                 ? `
                   <button
                     class="task-archive-button"
@@ -892,9 +2365,14 @@ function renderTasks() {
                 `
                 : ""
             }
-            <div class="task-actions">
-              <button class="delete-button" type="button" data-delete-task="${task.id}" aria-label="삭제">×</button>
-            </div>
+            ${
+              isEditing
+                ? ""
+                : `<div class="task-actions">
+                    <button class="task-edit-button" type="button" data-edit-task="${task.id}" aria-label="${escapeHtml(task.title)} 수정">✎</button>
+                    <button class="delete-button" type="button" data-delete-task="${task.id}" aria-label="삭제">×</button>
+                  </div>`
+            }
           </article>
         `;
       })
@@ -920,8 +2398,8 @@ function getFarmWeekStart(date = new Date()) {
 }
 
 function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
+  if (farmLeaderboard.length) return farmLeaderboard;
   return [
-    ...MOCK_FARM_RANKINGS,
     {
       name: state.farmName || "내 농장",
       score: userScore,
@@ -930,98 +2408,9 @@ function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
   ].sort((first, second) => second.score - first.score || Number(second.isMe) - Number(first.isMe));
 }
 
-function createFarmRankingRewardMail({
-  id,
-  boxCount,
-  ranking,
-  rewardWeekStart = state.farmRankingWeekStart,
-}) {
-  if (state.farmInbox.some((mail) => mail.id === id)) return false;
-  const cropIds = Object.keys(CROPS);
-  state.farmInbox.unshift({
-    id,
-    friendId: SYSTEM_FARM_SENDER.id,
-    category: "rankingBox",
-    itemId: "weeklyCropBox",
-    boxCount,
-    boxCropIds: Array.from(
-      { length: boxCount },
-      () => cropIds[Math.floor(Math.random() * cropIds.length)],
-    ),
-    openedBoxIndexes: [],
-    ranking,
-    rewardWeekStart,
-    receivedDate: toLocalDateString(),
-    claimed: false,
-  });
-  return true;
-}
-
-function addWeeklyFarmRankingReward(rewardWeekStart, userScore) {
-  const rank = getFarmRankings(userScore).findIndex((farmer) => farmer.isMe) + 1;
-  const boxCountByRank = { 1: 5, 2: 2, 3: 1 };
-  const boxCount = boxCountByRank[rank];
-  if (!boxCount) return false;
-
-  return createFarmRankingRewardMail({
-    id: `weekly-ranking-${rewardWeekStart}`,
-    boxCount,
-    ranking: rank,
-    rewardWeekStart,
-  });
-}
-
-function ensureFarmRankingDemoReward() {
-  if (state.farmRankingDemoRewardSent) return false;
-  createFarmRankingRewardMail({
-    id: "demo-weekly-ranking-first-place",
-    boxCount: 5,
-    ranking: 1,
-  });
-  state.farmRankingDemoRewardSent = true;
-  return true;
-}
-
-function ensureFarmRankingBoxExperience() {
-  if (state.farmRankingBoxExperienceReady) return false;
-  const previousDemoMail = state.farmInbox.find(
-    (mail) => mail.id === "demo-weekly-ranking-first-place",
-  );
-  if (previousDemoMail && !previousDemoMail.claimed) {
-    previousDemoMail.openedBoxIndexes = previousDemoMail.openedBoxIndexes ?? [];
-    state.farmRankingBoxExperienceReady = true;
-    return true;
-  }
-
-  createFarmRankingRewardMail({
-    id: "demo-weekly-ranking-box-opening",
-    boxCount: 5,
-    ranking: 1,
-  });
-  state.farmRankingBoxExperienceReady = true;
-  return true;
-}
-
-function ensureFarmRankingSecondPlaceDemoReward() {
-  if (state.farmRankingSecondPlaceDemoSent) return false;
-  createFarmRankingRewardMail({
-    id: "demo-weekly-ranking-second-place",
-    boxCount: 2,
-    ranking: 2,
-  });
-  state.farmRankingSecondPlaceDemoSent = true;
-  return true;
-}
-
 function ensureWeeklyFarmRanking() {
   const currentWeekStart = getFarmWeekStart();
   if (state.farmRankingWeekStart === currentWeekStart) return false;
-  if (state.farmRankingWeekStart) {
-    addWeeklyFarmRankingReward(
-      state.farmRankingWeekStart,
-      state.weeklyFarmMoneyEarned,
-    );
-  }
   state.farmRankingWeekStart = currentWeekStart;
   state.weeklyFarmMoneyEarned = 0;
   return true;
@@ -1033,7 +2422,7 @@ function ensureDailyFarmMail() {
   state.farmMailDate = today;
   state.farmMailSentCount = 0;
   state.farmMailHistory = [];
-  selectedMailFriendId = null;
+  selectedMailFriendCode = "";
   selectedMailItemId = null;
   return true;
 }
@@ -1048,33 +2437,15 @@ function ensureDailyFarmInbox() {
     }))
     .filter((mail) => daysBetweenDates(mail.receivedDate, today) < 7);
   const expiredMailRemoved = state.farmInbox.length !== previousLength;
-  const daySeed = Number(today.replaceAll("-", ""));
   state.farmInboxDate = today;
-  const existingMailIds = new Set(state.farmInbox.map((mail) => mail.id));
-  const newMail = Array.from({ length: 7 }, (_, index) => index)
-    .filter((index) => !existingMailIds.has(`${today}-${index}`))
-    .map((index) => {
-      const gift = DAILY_FARM_INBOX_GIFTS[
-        (daySeed + index * 3) % DAILY_FARM_INBOX_GIFTS.length
-      ];
-      const friend = MOCK_FARM_FRIENDS[(daySeed + index) % MOCK_FARM_FRIENDS.length];
-      return {
-        id: `${today}-${index}`,
-        friendId: friend.id,
-        category: gift.category,
-        itemId: gift.itemId,
-        receivedDate: today,
-        claimed: false,
-      };
-    });
-  state.farmInbox = [...newMail, ...state.farmInbox];
-  return expiredMailRemoved || newMail.length > 0;
+  return expiredMailRemoved;
 }
 
-function earnFarmMoney(amount) {
+function earnFarmMoney(amount, reason = "음식 판매", referenceKey = null) {
   ensureWeeklyFarmRanking();
-  state.farmMoney += amount;
+  if (!applyFarmWalletChange("farm_money", amount, reason, referenceKey)) return false;
   state.weeklyFarmMoneyEarned += amount;
+  return true;
 }
 
 function formatFarmRankingWeek() {
@@ -1136,6 +2507,15 @@ function isWiltProtectionActive() {
   return state.wiltProtectionUntil > Date.now();
 }
 
+function updateFarmItemEffects() {
+  document
+    .querySelector("#todayCoinDisplay")
+    ?.classList.toggle("golden-festival-active", isProductionBoostActive());
+  document
+    .querySelector("#farmPage")
+    ?.classList.toggle("farm-festival-active", isWiltProtectionActive());
+}
+
 function getRandomSelection(values, count) {
   const shuffled = [...values];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -1157,6 +2537,23 @@ function ensureDailyMarket() {
   state.marketRotationDate = today;
   state.dailySeedOffers = getRandomSelection(Object.keys(CROPS), 7);
   state.dailyFoodOffers = getRandomSelection(Object.keys(RECIPES), 4);
+}
+
+function getRefreshedMarketSelection(values, count, currentSelection) {
+  const currentKey = [...currentSelection].sort().join("|");
+  let nextSelection = getRandomSelection(values, count);
+  for (
+    let attempt = 0;
+    attempt < 4 && [...nextSelection].sort().join("|") === currentKey;
+    attempt += 1
+  ) {
+    nextSelection = getRandomSelection(values, count);
+  }
+  if ([...nextSelection].sort().join("|") === currentKey) {
+    const replacement = values.find((value) => !currentSelection.includes(value));
+    if (replacement) nextSelection[nextSelection.length - 1] = replacement;
+  }
+  return nextSelection;
 }
 
 function getRecipeByIngredients(ingredientIds) {
@@ -1201,6 +2598,7 @@ function clearFarmPlot(plot) {
   plot.growth = 0;
   plot.plantedDate = "";
   plot.lastWateredDate = "";
+  plot.lastFreeWaterAt = 0;
   plot.wilted = false;
   plot.fertilizer = null;
 }
@@ -1220,8 +2618,9 @@ function advanceFarmPlotGrowth(plot) {
 function isHabitScheduledOn(habit, date) {
   const dateString = toLocalDateString(date);
   const weekday = date.getDay() === 0 ? 7 : date.getDay();
+  const afterStartDate = !habit.startDate || habit.startDate <= dateString;
   const beforeEndDate = !habit.endDate || habit.endDate >= dateString;
-  return beforeEndDate && habit.weekdays.includes(weekday);
+  return afterStartDate && beforeEndDate && habit.weekdays.includes(weekday);
 }
 
 function isHabitScheduledToday(habit) {
@@ -1243,7 +2642,26 @@ function isHabitCompleteToday(habit) {
   return getHabitProgressRatio(habit) >= 1;
 }
 
-function formatHabitSchedule(habit) {
+function getHabitStreak(habit) {
+  const completedDates = new Set(habit.completionDates ?? []);
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+  if (isHabitScheduledOn(habit, cursor) && !completedDates.has(toLocalDateString(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
+  for (let checkedDays = 0; checkedDays < 3660; checkedDays += 1) {
+    if (isHabitScheduledOn(habit, cursor)) {
+      if (!completedDates.has(toLocalDateString(cursor))) break;
+      streak += 1;
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function formatHabitSchedule(habit, includeEndDate = true) {
   const labels = ["월", "화", "수", "목", "금", "토", "일"];
   const weekdayKey = [...habit.weekdays].sort((a, b) => a - b).join(",");
   const weekdays =
@@ -1254,7 +2672,7 @@ function formatHabitSchedule(habit) {
         : weekdayKey === "6,7"
           ? "주말"
           : habit.weekdays.map((day) => labels[day - 1]).join("·");
-  return habit.endDate ? `${weekdays} · ${habit.endDate}까지` : weekdays;
+  return includeEndDate && habit.endDate ? `${weekdays} · ${habit.endDate}까지` : weekdays;
 }
 
 const focusDailyQuotes = [
@@ -1325,6 +2743,25 @@ document.addEventListener("click", (event) => {
   if (!customTaskGroupSelect.contains(event.target)) closeTaskGroupMenu();
 });
 
+function openTaskInlineEdit(task) {
+  editingTaskId = task.id;
+  editingTaskGroupId = task.groupId || null;
+  editingTaskTitle = task.title;
+  renderTasks();
+  window.setTimeout(() => {
+    const input = document.querySelector(`[data-task-id="${task.id}"] .task-inline-title`);
+    input?.focus();
+    input?.select();
+  }, 0);
+}
+
+function closeTaskInlineEdit() {
+  editingTaskId = null;
+  editingTaskGroupId = null;
+  editingTaskTitle = "";
+  renderTasks();
+}
+
 function renderHabits() {
   const habitList = document.querySelector("#habitList");
 
@@ -1365,18 +2802,30 @@ function renderHabits() {
         `;
       const focusAction =
         habit.measureType === "time" && !completeToday
-          ? `<button class="habit-focus-button" type="button" data-focus-habit="${habit.id}" ${scheduledToday ? "" : "disabled"}>◷ 집중 시작</button>`
+          ? `<button
+              class="habit-focus-button ${activeFocus?.type === "habit" && activeFocus.id === habit.id ? "active" : ""}"
+              type="button"
+              data-focus-habit="${habit.id}"
+              aria-disabled="${!scheduledToday}"
+            >${
+              activeFocus?.type === "habit" && activeFocus.id === habit.id
+                ? runningFocusMode === "linked"
+                  ? "◷ 집중 중"
+                  : "◷ 계속하기"
+                : "◷ 집중 시작"
+            }</button>`
           : "";
       return `
         <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
           ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
-            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit))}${habit.measureType === "time" ? ` · 집중 ${formatFocusTime(habit.focusSeconds)}` : ""}</small>
+            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${habit.measureType === "time" ? ` · 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}` : ""}</small>
             ${focusAction}
           </span>
           <span>
-            <span class="streak">${habit.streak}일</span>
+            <span class="streak">${getHabitStreak(habit)}일</span>
+            ${currentPage === "habits" ? `<button class="habit-edit" type="button" data-edit-habit="${habit.id}" aria-label="${escapeHtml(habit.title)} 수정">✎</button>` : ""}
             <button class="habit-delete" type="button" data-delete-habit="${habit.id}" aria-label="삭제">×</button>
           </span>
         </article>
@@ -1394,11 +2843,11 @@ function renderHabitHeatmap() {
   const month = habitCalendarDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   monthLabel.textContent = `${year}년 ${month + 1}월`;
-  grid.style.gridTemplateColumns = `130px repeat(${daysInMonth}, 18px)`;
+  grid.style.gridTemplateColumns = `150px repeat(${daysInMonth}, 18px)`;
 
   const dayHeaders = Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1;
-    return `<span class="heatmap-day-label">${day === 1 || day % 5 === 0 ? day : ""}</span>`;
+    return `<span class="heatmap-day-label">${day}</span>`;
   }).join("");
 
   const rows = state.habits
@@ -1409,6 +2858,7 @@ function renderHabitHeatmap() {
         const progress = getHabitProgress(habit, dateString);
         const progressRatio = getHabitProgressRatio(habit, dateString);
         const completed = progressRatio >= 1;
+        const beforeRegistration = Boolean(habit.startDate && dateString < habit.startDate);
         const scheduled = isHabitScheduledOn(habit, date);
         const progressClass =
           habit.measureType === "count" && progressRatio > 0
@@ -1418,11 +2868,14 @@ function renderHabitHeatmap() {
                 ? "progress-2"
                 : "progress-1"
             : "";
-        const className = completed
-          ? "completed"
-          : progressClass || (scheduled ? "scheduled" : "inactive");
-        const status =
-          habit.measureType === "count" && scheduled
+        const className = beforeRegistration
+          ? "inactive"
+          : completed
+            ? "completed"
+            : progressClass || (scheduled ? "scheduled" : "inactive");
+        const status = beforeRegistration
+          ? "등록 전"
+          : habit.measureType === "count" && scheduled
             ? `${progress} / ${habit.targetValue}${habit.unit}`
             : completed
               ? "완료"
@@ -1469,11 +2922,108 @@ function getCropStage(cropId, growth) {
 function getFreePassTargets() {
   const tasks = state.tasks
     .filter((task) => !task.archived && task.status !== "done")
-    .map((task) => ({ value: `task:${task.id}`, label: `할 일 · ${task.title}` }));
+    .map((task) => ({
+      value: `task:${task.id}`,
+      type: "task",
+      title: task.title,
+      label: `할 일 · ${task.title}`,
+    }));
   const habits = state.habits
     .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
-    .map((habit) => ({ value: `habit:${habit.id}`, label: `습관 · ${habit.title}` }));
+    .map((habit) => ({
+      value: `habit:${habit.id}`,
+      type: "habit",
+      title: habit.title,
+      label: `습관 · ${habit.title}`,
+    }));
   return [...tasks, ...habits];
+}
+
+function renderFreePassTargets() {
+  const targets = getFreePassTargets();
+  if (!targets.some((target) => target.value === selectedFreePassTarget)) {
+    selectedFreePassTarget = null;
+  }
+  freePassTargetList.innerHTML = targets.length
+    ? targets
+        .map(
+          (target) => `
+            <button
+              class="free-pass-target ${selectedFreePassTarget === target.value ? "selected" : ""}"
+              type="button"
+              data-free-pass-target="${target.value}"
+              aria-pressed="${selectedFreePassTarget === target.value}"
+            >
+              <span aria-hidden="true">${target.type === "task" ? "✓" : "↻"}</span>
+              <span><small>${target.type === "task" ? "할 일" : "오늘의 습관"}</small><strong>${escapeHtml(target.title)}</strong></span>
+              <b aria-hidden="true">✓</b>
+            </button>
+          `,
+        )
+        .join("")
+    : '<p class="free-pass-empty">지금 완료할 수 있는 할 일이나 오늘의 습관이 없어</p>';
+  confirmFreePassTarget.disabled = !selectedFreePassTarget;
+}
+
+function openFreePassTargetModal() {
+  if (!getFreePassTargets().length) {
+    showToast("완료할 수 있는 항목이 없어");
+    return;
+  }
+  selectedFreePassTarget = null;
+  renderFreePassTargets();
+  document.querySelector("#supplyStorageModal").classList.add("hidden");
+  freePassTargetModal.classList.remove("hidden");
+}
+
+function closeFreePassTargetModal() {
+  selectedFreePassTarget = null;
+  freePassTargetModal.classList.add("hidden");
+}
+
+function useFreePassOnTarget(targetValue) {
+  const target = getFreePassTargets().find((entry) => entry.value === targetValue);
+  if (!target || !state.farmItemInventory.freePass) {
+    showToast("완료할 항목을 다시 골라줘");
+    renderFreePassTargets();
+    return;
+  }
+  const [targetType, targetId] = target.value.split(":");
+  const reward = productionCoinReward();
+  if (
+    !applyFarmWalletChange(
+      "coin",
+      reward,
+      "농부의 프리패스 보상",
+      `free-pass:${targetType}:${targetId}:${toLocalDateString()}`,
+    )
+  ) return;
+
+  if (targetType === "task") {
+    const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
+    if (!task) return;
+    task.status = "done";
+    task.completedDate = toLocalDateString();
+    task.completionReward = reward;
+    task.completedWithFreePass = true;
+  } else {
+    const habit = state.habits.find((entry) => entry.id === targetId);
+    if (!habit || isHabitCompleteToday(habit)) return;
+    if (habit.measureType === "count") {
+      habit.progressByDate ??= {};
+      habit.progressByDate[toLocalDateString()] = habit.targetValue;
+    }
+    habit.complete = true;
+    habit.completedDate = toLocalDateString();
+    habit.completionDates.push(toLocalDateString());
+    habit.completionReward = reward;
+    habit.completedWithFreePass = true;
+  }
+  state.farmItemInventory.freePass -= 1;
+  closeFreePassTargetModal();
+  showToast(`프리패스로 완료 처리했어 ${reward} Coin 획득`);
+  render();
+  scheduleTaskDatabaseSync(0);
 }
 
 function renderFarmRanking() {
@@ -1505,9 +3055,10 @@ function renderFarmRanking() {
     .join("");
 }
 
-function getFarmMailSender(friendId) {
+function getFarmMailSender(friendId, mail = null) {
+  if (mail?.sender) return mail.sender;
   if (friendId === SYSTEM_FARM_SENDER.id) return SYSTEM_FARM_SENDER;
-  return MOCK_FARM_FRIENDS.find((friend) => friend.id === friendId) ?? null;
+  return null;
 }
 
 function getFarmGiftDetails(category, itemId, mail = null) {
@@ -1600,11 +3151,22 @@ function closeFarmRewardBoxModal() {
   document.querySelector("#farmRewardBoxModal").classList.add("hidden");
 }
 
-function revealFarmRankingBox(mail, index) {
+async function revealFarmRankingBox(mail, index) {
   const cropId = mail.boxCropIds?.[index];
   if (!CROPS[cropId]) return;
   const openedIndexes = getOpenedFarmRankingBoxIndexes(mail);
   if (openedIndexes.includes(index)) return;
+  const dbItemId = mail.dbItemIds?.[index];
+  if (dbItemId) {
+    const { error } = await supabaseClient.rpc("claim_farm_mail_item", {
+      p_mail_item_id: dbItemId,
+    });
+    if (error) {
+      console.error("Farmodoro ranking box could not be claimed", error);
+      showToast("랜덤 박스를 열지 못했어");
+      return;
+    }
+  }
   state.harvestInventory[cropId] = (state.harvestInventory[cropId] ?? 0) + 1;
   mail.openedBoxIndexes.push(index);
   mail.openedBoxIndexes.sort((first, second) => first - second);
@@ -1652,7 +3214,7 @@ function getFarmMailItems(category = selectedMailCategory) {
 
 function renderFarmMail() {
   const remaining = document.querySelector("#farmMailRemaining");
-  const friendList = document.querySelector("#farmMailFriendList");
+  const friendCodeInput = document.querySelector("#farmMailFriendCode");
   const itemList = document.querySelector("#farmMailItemList");
   const history = document.querySelector("#farmMailHistory");
   const sendButton = document.querySelector("#sendFarmMail");
@@ -1665,7 +3227,7 @@ function renderFarmMail() {
   const openMailButton = document.querySelector("#openFarmMail");
   if (
     !remaining ||
-    !friendList ||
+    !friendCodeInput ||
     !itemList ||
     !history ||
     !sendButton ||
@@ -1701,7 +3263,7 @@ function renderFarmMail() {
   inboxList.innerHTML = state.farmInbox.length
     ? state.farmInbox
         .map((mail) => {
-          const friend = getFarmMailSender(mail.friendId);
+          const friend = getFarmMailSender(mail.friendId, mail);
           const gift = getFarmGiftDetails(mail.category, mail.itemId, mail);
           if (!friend || !gift) return "";
           const daysUntilDelete = Math.max(1, 7 - daysBetweenDates(mail.receivedDate));
@@ -1732,16 +3294,9 @@ function renderFarmMail() {
   if (!items.some((item) => item.id === selectedMailItemId)) selectedMailItemId = null;
   const remainingCount = Math.max(0, 3 - state.farmMailSentCount);
   remaining.textContent = remainingCount;
-
-  friendList.innerHTML = MOCK_FARM_FRIENDS.map(
-    (friend) => `
-      <button class="farm-mail-friend ${selectedMailFriendId === friend.id ? "selected" : ""}" type="button" data-mail-friend="${friend.id}">
-        <span>${friend.avatar}</span>
-        <strong>${escapeHtml(friend.name)}</strong>
-        <small>${escapeHtml(friend.farmName)}</small>
-      </button>
-    `,
-  ).join("");
+  if (friendCodeInput.value !== selectedMailFriendCode) {
+    friendCodeInput.value = selectedMailFriendCode;
+  }
 
   categories.querySelectorAll("[data-mail-category]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mailCategory === selectedMailCategory);
@@ -1776,7 +3331,9 @@ function renderFarmMail() {
     : '<p class="farm-mail-empty">오늘 보낸 우편이 아직 없어</p>';
 
   sendButton.disabled =
-    remainingCount === 0 || !selectedMailFriendId || !selectedMailItemId;
+    remainingCount === 0 ||
+    !/^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(selectedMailFriendCode) ||
+    !selectedMailItemId;
   sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
 }
 
@@ -1906,25 +3463,9 @@ function renderFarm() {
     )
     .join("");
 
-  const freePassTargets = getFreePassTargets();
   farmItemInventory.innerHTML = Object.entries(FARM_ITEMS)
     .map(([itemId, item]) => {
       const count = state.farmItemInventory[itemId] ?? 0;
-      const targetPicker =
-        itemId === "freePass" && count
-          ? `
-            <select id="freePassTarget" aria-label="프리패스 적용 대상">
-              ${freePassTargets.length
-                ? freePassTargets
-                    .map(
-                      (target) =>
-                        `<option value="${target.value}">${escapeHtml(target.label)}</option>`,
-                    )
-                    .join("")
-                : '<option value="">완료할 항목 없음</option>'}
-            </select>
-          `
-          : "";
       const boostStatus =
         itemId === "goldenFestivalPass" && isProductionBoostActive()
           ? `<small class="boost-status">2배 효과 진행 중</small>`
@@ -1933,7 +3474,7 @@ function renderFarm() {
           : "";
       return `
         <article
-          class="farm-item-card farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""} ${itemId === "freePass" && count ? "target-item" : ""}"
+          class="farm-item-card farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""}"
         >
           <span class="supply-card-icon">${item.icon}</span>
           <div class="supply-card-copy">
@@ -1950,7 +3491,6 @@ function renderFarm() {
               ${count ? "" : "disabled"}
             >사용</button>
           </div>
-          ${targetPicker}
         </article>
       `;
     })
@@ -2130,14 +3670,14 @@ function renderFarm() {
               <small>${plot.growth} / ${maxGrowth}</small>
             </div>
             <div class="plot-growth-actions">
-              <button type="button" data-grow-plot="${plot.id}" aria-label="${crop.name}에 1 Coin 주기">● 1</button>
+              <button type="button" data-grow-plot="${plot.id}" aria-label="${crop.name}에 1 Coin 주기"><i class="plot-action-icon" aria-hidden="true">●</i><span>1</span></button>
               <button
                 class="water-plot-button"
                 type="button"
                 data-water-plot="${plot.id}"
                 aria-label="${waterRemaining ? `다음 무료 물주기까지 ${formatPlotWaterCooldown(waterRemaining)}` : `${crop.name}에 무료로 물 주기`}"
                 ${waterRemaining ? "disabled" : ""}
-              >💧 <span>${formatPlotWaterCooldown(waterRemaining)}</span></button>
+              ><i class="plot-action-icon watering-can-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 9h9v9H7z"/><path d="m7 11-3.5-2.5L2 10.5 7 14"/><path d="M16 11c1.2-2 3.1-2.7 4.3-1.5 1.5 1.5.4 5.3-4.3 5.5"/><path d="M8.5 7h6"/></svg></i><span>${formatPlotWaterCooldown(waterRemaining)}</span></button>
             </div>
           </article>
         `;
@@ -2270,6 +3810,7 @@ function render() {
   renderFarm();
   renderFocusPicker();
   renderSummary();
+  updateFarmItemEffects();
   saveState();
 }
 
@@ -2321,6 +3862,11 @@ function moveTaskTo(id, nextStatus) {
   if (!task || task.status === nextStatus) return;
 
   const previousStatus = task.status;
+  const changesCompletion = previousStatus === "done" || nextStatus === "done";
+  if (changesCompletion && !farmWalletHydrated) {
+    showToast("지갑 데이터를 불러오는 중이야");
+    return;
+  }
   task.status = nextStatus;
   let stoppedLinkedFocus = false;
 
@@ -2329,16 +3875,20 @@ function moveTaskTo(id, nextStatus) {
     task.completionReward = reward;
     task.completedWithFreePass = false;
     task.completedDate = toLocalDateString();
-    state.coins += reward;
+    applyFarmWalletChange(
+      "coin",
+      reward,
+      "할 일 완료",
+      `task:${task.id}:${task.completedDate}:complete`,
+    );
     if (activeFocus?.type === "task" && activeFocus.id === task.id) {
       activeFocus = null;
       stopFocusTimer();
       if (focusMode === "linked") {
         resetToFocus();
       } else {
-        const linkedSettings = getFocusSettings("linked");
         focusRuntimeByMode.linked = {
-          seconds: linkedSettings.focusMinutes * 60,
+          seconds: 0,
           phase: "focus",
           started: false,
         };
@@ -2352,7 +3902,14 @@ function moveTaskTo(id, nextStatus) {
         : `완료 ${reward} Coin 획득`,
     );
   } else if (previousStatus === "done" && nextStatus !== "done") {
-    state.coins -= task.completionReward ?? 1;
+    const returnedReward = task.completionReward ?? 1;
+    applyFarmWalletChange(
+      "coin",
+      -returnedReward,
+      "할 일 완료 취소",
+      `task:${task.id}:${task.completedDate}:undo`,
+      true,
+    );
     task.completionReward = 0;
     task.completedDate = "";
     if (task.completedWithFreePass) {
@@ -2370,6 +3927,10 @@ function moveTaskTo(id, nextStatus) {
 function applyHabitCompletionChange(habit, wasComplete, complete) {
   if (wasComplete === complete) return null;
   const today = toLocalDateString();
+  if (!farmWalletHydrated) {
+    showToast("지갑 데이터를 불러오는 중이야");
+    return null;
+  }
   habit.complete = complete;
   habit.completedDate = complete ? today : "";
   habit.completionDates = complete
@@ -2378,14 +3939,25 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
 
   if (complete) {
     const reward = productionCoinReward();
-    state.coins += reward;
+    applyFarmWalletChange(
+      "coin",
+      reward,
+      "습관 완료",
+      `habit:${habit.id}:${today}:complete`,
+    );
     habit.completionReward = reward;
     habit.completedWithFreePass = false;
     return { complete: true, reward };
   }
 
   const reward = habit.completionReward ?? 1;
-  state.coins -= reward;
+  applyFarmWalletChange(
+    "coin",
+    -reward,
+    "습관 완료 취소",
+    `habit:${habit.id}:${today}:undo`,
+    true,
+  );
   habit.completionReward = 0;
   if (habit.completedWithFreePass) {
     state.farmItemInventory.freePass += 1;
@@ -2404,12 +3976,14 @@ function toggleHabit(id) {
 
   const wasComplete = isHabitCompleteToday(habit);
   const result = applyHabitCompletionChange(habit, wasComplete, !wasComplete);
+  if (!result) return;
   showToast(
     result.complete
       ? `습관 완료 ${result.reward} Coin 획득`
       : `완료를 취소했어 현재 ${state.coins} Coin`,
   );
   renderHabitUpdates();
+  scheduleTaskDatabaseSync(0);
 }
 
 function adjustHabitCount(id, delta) {
@@ -2439,6 +4013,7 @@ function adjustHabitCount(id, delta) {
     showToast(`${nextProgress} / ${habit.targetValue}${habit.unit}`);
   }
   renderHabitUpdates();
+  scheduleTaskDatabaseSync(0);
 }
 
 function showToast(message) {
@@ -2452,11 +4027,17 @@ function updateFocusDisplay() {
   const minutes = String(Math.floor(focusSeconds / 60)).padStart(2, "0");
   const seconds = String(focusSeconds % 60).padStart(2, "0");
   const settings = getFocusSettings();
+  const item = focusMode === "linked" ? getFocusItem() : null;
+  const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
   const totalSeconds = Math.max(
     1,
-    (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
+    focusMode === "linked" && activeFocus?.type === "habit" && item
+      ? Number(item.targetValue) * 60
+      : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
-  const remainingRatio = Math.max(0, Math.min(1, focusSeconds / totalSeconds));
+  const remainingRatio = isTaskStopwatch
+    ? 1
+    : Math.max(0, Math.min(1, focusSeconds / totalSeconds));
   const timerCircumference = 2 * Math.PI * 46;
   const timerRing = document.querySelector(".timer-ring");
   document.querySelector("#focusTime").textContent = `${minutes}:${seconds}`;
@@ -2468,7 +4049,11 @@ function updateFocusDisplay() {
     "--timer-ring-color",
     timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
   );
-  timerRing.querySelector("span").textContent = timerPhase === "focus" ? "FOCUS" : "BREAK";
+  timerRing.querySelector("span").textContent = isTaskStopwatch
+    ? "STOPWATCH"
+    : timerPhase === "focus"
+      ? "FOCUS"
+      : "BREAK";
   updateMiniFocusTimer();
 }
 
@@ -2476,17 +4061,27 @@ function updateMiniFocusTimer() {
   const fullTimerVisible = currentPage === "today" || currentPage === "focus";
   const linkedRuntime = focusRuntimeByMode.linked;
   const showLinkedTimer = linkedRuntime.started && (runningFocusMode === "linked" || focusMode === "linked");
+  const linkedRunning = runningFocusMode === "linked";
+  document.querySelectorAll("[data-focus-habit]").forEach((button) => {
+    const isActive = activeFocus?.type === "habit" && button.dataset.focusHabit === activeFocus.id;
+    button.classList.toggle("active", isActive);
+    button.textContent = isActive
+      ? linkedRunning
+        ? "◷ 집중 중"
+        : "◷ 계속하기"
+      : "◷ 집중 시작";
+  });
   miniFocusTimer.hidden = !showLinkedTimer || fullTimerVisible;
   if (miniFocusTimer.hidden) return;
 
   const item = getFocusItem();
   const minutes = String(Math.floor(linkedRuntime.seconds / 60)).padStart(2, "0");
   const seconds = String(linkedRuntime.seconds % 60).padStart(2, "0");
-  const linkedRunning = runningFocusMode === "linked";
   miniFocusStatus.textContent = linkedRuntime.phase === "break" ? "휴식 중" : linkedRunning ? "집중 중" : "일시정지";
   miniFocusTitle.textContent = linkedRuntime.phase === "break" ? "다음 집중을 위한 휴식" : item?.title ?? "항목 집중";
   miniFocusTime.textContent = `${minutes}:${seconds}`;
   miniFocusPause.textContent = linkedRunning ? "일시정지" : "계속";
+
 }
 
 function updateFocusTarget() {
@@ -2528,6 +4123,7 @@ function updateFocusTarget() {
 
 function stopFocusTimer() {
   clearInterval(focusInterval);
+  focusLastTickAt = 0;
   runningFocusMode = null;
   focusRunning = false;
 }
@@ -2540,56 +4136,152 @@ function saveCurrentFocusRuntime() {
   };
 }
 
-function addFocusSecond() {
-  state.focusRewardSeconds += 1;
+function addFocusSecond(elapsedSeconds = 1) {
+  state.focusRewardSeconds += elapsedSeconds;
 
-  if (state.focusRewardSeconds >= 3600) {
-    state.focusRewardSeconds -= 3600;
+  while (state.focusRewardSeconds >= 3600) {
     const reward = productionCoinReward();
-    state.coins += reward;
+    if (
+      !applyFarmWalletChange(
+        "coin",
+        reward,
+        "집중 60분 보상",
+        `focus:${Date.now()}`,
+      )
+    ) return;
+    state.focusRewardSeconds -= 3600;
     showToast(`집중 누적 60분 완료 ${reward} Coin을 받았어`);
   }
 }
 
+function updateFocusActionButton() {
+  const button = document.querySelector("#focusButton");
+  if (runningFocusMode === focusMode) {
+    button.innerHTML = timerPhase === "focus"
+      ? "<span>Ⅱ</span> 집중 멈춤"
+      : "<span>Ⅱ</span> 휴식 멈춤";
+    return;
+  }
+  if (focusSessionStarted) {
+    button.innerHTML = timerPhase === "break"
+      ? `<span>▶</span> ${getFocusSettings("quick").breakMinutes}분 휴식`
+      : "<span>▶</span> 계속하기";
+    return;
+  }
+  if (focusMode === "quick") {
+    button.innerHTML = `<span>▶</span> ${getFocusSettings("quick").focusMinutes}분 시작`;
+    return;
+  }
+  button.innerHTML = activeFocus?.type === "task"
+    ? "<span>▶</span> 스톱워치 시작"
+    : "<span>▶</span> 집중 시작";
+}
+
+function advanceRunningFocusTimer(mode) {
+  const runtime = focusRuntimeByMode[mode];
+  const now = Date.now();
+  if (!focusLastTickAt) {
+    focusLastTickAt = now;
+    return { advanced: false, finished: false };
+  }
+
+  const elapsedSeconds = Math.floor((now - focusLastTickAt) / 1000);
+  if (elapsedSeconds < 1) return { advanced: false, finished: false };
+  focusLastTickAt += elapsedSeconds * 1000;
+
+  const item = mode === "linked" ? getFocusItem() : null;
+  const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
+  const appliedSeconds = isTaskStopwatch
+    ? elapsedSeconds
+    : Math.min(elapsedSeconds, runtime.seconds);
+  runtime.seconds = isTaskStopwatch
+    ? runtime.seconds + appliedSeconds
+    : Math.max(0, runtime.seconds - appliedSeconds);
+  if (runtime.phase === "focus") {
+    if (item) {
+      if (activeFocus?.type === "task") {
+        item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
+      } else if (activeFocus?.type === "habit") {
+        const today = toLocalDateString();
+        const targetSeconds = Math.max(0, Number(item.targetValue) * 60);
+        const focusedSeconds = Math.min(
+          targetSeconds,
+          getHabitDailyFocusSeconds(item, today) + appliedSeconds,
+        );
+        item.focusSecondsByDate ??= {};
+        item.focusSecondsByDate[today] = focusedSeconds;
+      }
+    }
+    addFocusSecond(appliedSeconds);
+  }
+
+  if (focusMode === mode) {
+    focusSeconds = runtime.seconds;
+    timerPhase = runtime.phase;
+    updateFocusDisplay();
+  } else {
+    updateMiniFocusTimer();
+  }
+
+  if (!isTaskStopwatch && runtime.seconds <= 0) {
+    if (runtime.phase === "focus") finishFocusRuntime(mode);
+    else finishBreakRuntime(mode);
+    return { advanced: true, finished: true };
+  }
+  return { advanced: true, finished: false };
+}
+
 function resetToFocus() {
-  const settings = getFocusSettings();
-  focusSessionStarted = false;
   timerPhase = "focus";
-  focusSeconds = settings.focusMinutes * 60;
-  saveCurrentFocusRuntime();
-  document.querySelector("#focusButton").innerHTML =
-    `<span>▶</span> ${settings.focusMinutes}분 시작`;
+  if (focusMode === "linked") {
+    prepareLinkedFocusRuntime();
+  } else {
+    focusSessionStarted = false;
+    focusSeconds = getFocusSettings("quick").focusMinutes * 60;
+    saveCurrentFocusRuntime();
+  }
+  updateFocusActionButton();
   updateFocusDisplay();
   updateFocusTarget();
 }
 
 function finishFocusRuntime(mode) {
   const runtime = focusRuntimeByMode[mode];
-  const settings = getFocusSettings(mode);
   const item = mode === "linked" ? getFocusItem() : null;
-  let completedItem = false;
-
-  if (item && activeFocus?.type === "task" && item.status !== "done") {
-    item.status = "done";
-    item.completedDate = toLocalDateString();
-    item.completedWithFreePass = false;
-    completedItem = true;
-  }
-  if (item && activeFocus?.type === "habit" && !isHabitCompleteToday(item)) {
-    item.complete = true;
-    item.completedDate = toLocalDateString();
-    item.completionDates.push(toLocalDateString());
-    item.completedWithFreePass = false;
-    completedItem = true;
-  }
-  if (completedItem) {
-    const reward = productionCoinReward();
-    state.coins += reward;
-    item.completionReward = reward;
-  }
 
   clearInterval(focusInterval);
+  focusLastTickAt = 0;
   runningFocusMode = null;
+
+  if (mode === "linked") {
+    let completionResult = null;
+    if (item && activeFocus?.type === "habit" && !isHabitCompleteToday(item)) {
+      completionResult = applyHabitCompletionChange(item, false, true);
+    }
+    activeFocus = null;
+    runtime.phase = "focus";
+    runtime.seconds = 0;
+    runtime.started = false;
+    if (focusMode === mode) {
+      focusRunning = false;
+      timerPhase = "focus";
+      focusSeconds = 0;
+      focusSessionStarted = false;
+      updateFocusActionButton();
+      updateFocusDisplay();
+      updateFocusTarget();
+    }
+    render();
+    scheduleTaskDatabaseSync(0);
+    showToast(
+      completionResult
+        ? `습관 목표를 채웠어 ${completionResult.reward} Coin 획득`
+        : "집중 측정을 완료했어",
+    );
+    return;
+  }
+
+  const settings = getFocusSettings("quick");
   if (settings.breakEnabled) {
     runtime.phase = "break";
     runtime.seconds = settings.breakMinutes * 60;
@@ -2605,20 +4297,19 @@ function finishFocusRuntime(mode) {
     timerPhase = runtime.phase;
     focusSeconds = runtime.seconds;
     focusSessionStarted = runtime.started;
-    document.querySelector("#focusButton").innerHTML = runtime.started
-      ? `<span>▶</span> ${settings.breakMinutes}분 휴식`
-      : `<span>▶</span> ${settings.focusMinutes}분 시작`;
+    updateFocusActionButton();
     updateFocusDisplay();
     updateFocusTarget();
   }
   render();
-  showToast(completedItem ? "집중 세트와 항목을 완료했어" : "집중 세트를 완료했어");
+  showToast("집중 세트를 완료했어");
 }
 
 function finishBreakRuntime(mode) {
   const runtime = focusRuntimeByMode[mode];
   const settings = getFocusSettings(mode);
   clearInterval(focusInterval);
+  focusLastTickAt = 0;
   runningFocusMode = null;
   runtime.phase = "focus";
   runtime.seconds = settings.focusMinutes * 60;
@@ -2628,7 +4319,7 @@ function finishBreakRuntime(mode) {
     timerPhase = "focus";
     focusSeconds = runtime.seconds;
     focusSessionStarted = false;
-    document.querySelector("#focusButton").innerHTML = `<span>▶</span> ${settings.focusMinutes}분 시작`;
+    updateFocusActionButton();
     updateFocusDisplay();
     updateFocusTarget();
   }
@@ -2641,15 +4332,25 @@ function toggleFocus() {
   const runtime = focusRuntimeByMode[focusMode];
 
   if (runningFocusMode === focusMode) {
+    const tickResult = advanceRunningFocusTimer(focusMode);
+    if (tickResult.finished) return;
     clearInterval(focusInterval);
+    focusLastTickAt = 0;
     runningFocusMode = null;
     focusRunning = false;
-    button.innerHTML = "<span>▶</span> 계속하기";
+    updateFocusActionButton();
     updateMiniFocusTimer();
+    renderTasks();
+    renderHabits();
+    renderFocusPicker();
+    renderSummary();
+    saveState();
+    scheduleTaskDatabaseSync(0);
     return;
   }
 
   if (runningFocusMode && runningFocusMode !== focusMode) {
+    advanceRunningFocusTimer(runningFocusMode);
     clearInterval(focusInterval);
   }
 
@@ -2659,41 +4360,27 @@ function toggleFocus() {
   runtime.started = true;
   runtime.phase = timerPhase;
   runtime.seconds = focusSeconds;
+  focusLastTickAt = Date.now();
 
   const linkedItem = focusMode === "linked" ? getFocusItem() : null;
   if (activeFocus?.type === "task" && linkedItem?.status === "waiting") {
     linkedItem.status = "doing";
     renderTasks();
     saveState();
+    scheduleTaskDatabaseSync(0);
   }
-  button.innerHTML = timerPhase === "focus"
-    ? "<span>Ⅱ</span> 집중 멈춤"
-    : "<span>Ⅱ</span> 휴식 멈춤";
+  updateFocusActionButton();
 
   const startedMode = focusMode;
   focusInterval = setInterval(() => {
+    const tickResult = advanceRunningFocusTimer(startedMode);
+    if (!tickResult.advanced || tickResult.finished) return;
     const activeRuntime = focusRuntimeByMode[startedMode];
-    activeRuntime.seconds -= 1;
-    if (activeRuntime.phase === "focus") {
-      const item = startedMode === "linked" ? getFocusItem() : null;
-      if (item) item.focusSeconds = (item.focusSeconds ?? 0) + 1;
-      addFocusSecond();
+    if (activeRuntime.seconds % 10 === 0) {
+      saveState();
+      renderSummary();
     }
-    if (focusMode === startedMode) {
-      focusSeconds = activeRuntime.seconds;
-      timerPhase = activeRuntime.phase;
-      updateFocusDisplay();
-    } else {
-      updateMiniFocusTimer();
-    }
-    if (activeRuntime.seconds <= 0) {
-      if (activeRuntime.phase === "focus") finishFocusRuntime(startedMode);
-      else finishBreakRuntime(startedMode);
-      return;
-    }
-    saveState();
-    if (activeRuntime.seconds % 10 === 0) renderSummary();
-  }, 1000);
+  }, 250);
   updateMiniFocusTimer();
 }
 
@@ -2701,15 +4388,18 @@ function endFocusSession() {
   stopFocusTimer();
   activeFocus = null;
   resetToFocus();
+  renderTasks();
+  renderHabits();
   renderFocusPicker();
+  renderSummary();
   saveState();
+  scheduleTaskDatabaseSync(0);
   showToast("집중 측정을 종료했어");
 }
 
 function setFocusMode(mode) {
   saveCurrentFocusRuntime();
   focusMode = mode;
-  const settings = getFocusSettings(mode);
   const runtime = focusRuntimeByMode[mode];
   timerPhase = runtime.phase;
   focusSeconds = runtime.seconds;
@@ -2720,13 +4410,9 @@ function setFocusMode(mode) {
     button.classList.toggle("active", button.dataset.focusMode === mode);
   });
 
-  document.querySelector("#focusButton").innerHTML = focusRunning
-    ? timerPhase === "focus"
-      ? "<span>Ⅱ</span> 집중 멈춤"
-      : "<span>Ⅱ</span> 휴식 멈춤"
-    : focusSessionStarted
-      ? "<span>▶</span> 계속하기"
-      : `<span>▶</span> ${settings.focusMinutes}분 시작`;
+  focusSettingsButton.hidden = mode === "linked";
+  if (mode === "linked") focusSettings.classList.add("hidden");
+  updateFocusActionButton();
   updateFocusDisplay();
   updateFocusTarget();
   syncFocusSettingsForm();
@@ -2753,12 +4439,12 @@ function startItemFocus(type, id) {
   stopFocusTimer();
   focusMode = "linked";
   timerPhase = "focus";
-  focusSessionStarted = false;
   activeFocus = { type, id };
+  focusSettingsButton.hidden = true;
+  focusSettings.classList.add("hidden");
 
   if (type === "task" && item.status === "waiting") item.status = "doing";
-  focusSeconds = getFocusSettings("linked").focusMinutes * 60;
-  saveCurrentFocusRuntime();
+  prepareLinkedFocusRuntime(item);
   document.querySelectorAll("[data-focus-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.focusMode === "linked");
   });
@@ -2766,6 +4452,7 @@ function startItemFocus(type, id) {
   updateFocusTarget();
   render();
   toggleFocus();
+  scheduleTaskDatabaseSync(0);
   showToast(`‘${item.title}’ 집중 측정을 시작했어`);
 }
 
@@ -2775,14 +4462,298 @@ document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("ko-
   weekday: "long",
 }).format(new Date());
 
+const THEMED_DATE_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+let themedDateCalendar = null;
+let activeThemedDateInput = null;
+let themedDateView = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12);
+
+function parseDateInputValue(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value ?? ""));
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12);
+  return date.getFullYear() === Number(match[1]) &&
+    date.getMonth() === Number(match[2]) - 1 &&
+    date.getDate() === Number(match[3])
+    ? date
+    : null;
+}
+
+function toDateInputValue(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatThemedDateValue(value) {
+  const date = parseDateInputValue(value);
+  return date ? `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일` : "연도-월-일";
+}
+
+function refreshThemedDateTrigger(input) {
+  const trigger = input?._themedDateTrigger;
+  if (!trigger) return;
+  const valueLabel = trigger.querySelector(".themed-date-value");
+  if (valueLabel) valueLabel.textContent = formatThemedDateValue(input.value);
+  trigger.classList.toggle("empty", !input.value);
+}
+
+function isThemedDateAllowed(input, value) {
+  if (!value) return true;
+  if (input.min && value < input.min) return false;
+  if (input.max && value > input.max) return false;
+  return true;
+}
+
+function ensureThemedDateCalendar() {
+  if (themedDateCalendar) return themedDateCalendar;
+  themedDateCalendar = document.createElement("section");
+  themedDateCalendar.className = "themed-date-calendar hidden";
+  themedDateCalendar.setAttribute("role", "dialog");
+  themedDateCalendar.setAttribute("aria-label", "날짜 선택");
+  document.body.append(themedDateCalendar);
+  themedDateCalendar.addEventListener("click", (event) => {
+    const navigation = event.target.closest("[data-date-calendar-nav]");
+    if (navigation) {
+      themedDateView = new Date(
+        themedDateView.getFullYear(),
+        themedDateView.getMonth() + Number(navigation.dataset.dateCalendarNav),
+        1,
+        12,
+      );
+      renderThemedDateCalendar();
+      positionThemedDateCalendar();
+      return;
+    }
+
+    const dateButton = event.target.closest("[data-calendar-date]");
+    if (dateButton && !dateButton.disabled) {
+      setThemedDateValue(dateButton.dataset.calendarDate);
+      return;
+    }
+
+    if (event.target.closest("[data-date-calendar-clear]")) {
+      setThemedDateValue("");
+      return;
+    }
+
+    if (event.target.closest("[data-date-calendar-today]")) {
+      const today = toLocalDateString();
+      if (activeThemedDateInput && isThemedDateAllowed(activeThemedDateInput, today)) {
+        setThemedDateValue(today);
+      }
+    }
+  });
+  return themedDateCalendar;
+}
+
+function renderThemedDateCalendar() {
+  if (!activeThemedDateInput) return;
+  const calendar = ensureThemedDateCalendar();
+  const selectedValue = activeThemedDateInput.value;
+  const todayValue = toLocalDateString();
+  const firstDay = new Date(themedDateView.getFullYear(), themedDateView.getMonth(), 1, 12);
+  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - mondayOffset);
+  const dayButtons = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const value = toDateInputValue(date);
+    const outsideMonth = date.getMonth() !== themedDateView.getMonth();
+    const disabled = !isThemedDateAllowed(activeThemedDateInput, value);
+    return `
+      <button
+        class="themed-date-day${outsideMonth ? " outside" : ""}${value === selectedValue ? " selected" : ""}${value === todayValue ? " today" : ""}"
+        type="button"
+        data-calendar-date="${value}"
+        aria-label="${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일"
+        ${value === todayValue ? 'aria-current="date"' : ""}
+        ${disabled ? "disabled" : ""}
+      >${date.getDate()}</button>
+    `;
+  }).join("");
+  calendar.innerHTML = `
+    <header class="themed-date-header">
+      <button type="button" data-date-calendar-nav="-1" aria-label="이전 달">‹</button>
+      <strong>${themedDateView.getFullYear()}년 ${themedDateView.getMonth() + 1}월</strong>
+      <button type="button" data-date-calendar-nav="1" aria-label="다음 달">›</button>
+    </header>
+    <div class="themed-date-weekdays">${THEMED_DATE_WEEKDAYS.map((day) => `<span>${day}</span>`).join("")}</div>
+    <div class="themed-date-days">${dayButtons}</div>
+    <footer class="themed-date-actions">
+      <button type="button" data-date-calendar-clear>삭제</button>
+      <button type="button" data-date-calendar-today ${isThemedDateAllowed(activeThemedDateInput, todayValue) ? "" : "disabled"}>오늘</button>
+    </footer>
+  `;
+}
+
+function positionThemedDateCalendar() {
+  if (!activeThemedDateInput || !themedDateCalendar || themedDateCalendar.classList.contains("hidden")) return;
+  const trigger = activeThemedDateInput._themedDateTrigger;
+  const triggerRect = trigger.getBoundingClientRect();
+  const calendarWidth = Math.min(310, window.innerWidth - 20);
+  themedDateCalendar.style.width = `${calendarWidth}px`;
+  const calendarHeight = themedDateCalendar.offsetHeight;
+  const left = Math.min(
+    Math.max(10, triggerRect.left),
+    Math.max(10, window.innerWidth - calendarWidth - 10),
+  );
+  const belowTop = triggerRect.bottom + 8;
+  const top = belowTop + calendarHeight <= window.innerHeight - 10
+    ? belowTop
+    : Math.max(10, triggerRect.top - calendarHeight - 8);
+  themedDateCalendar.style.left = `${Math.round(left)}px`;
+  themedDateCalendar.style.top = `${Math.round(top)}px`;
+}
+
+function openThemedDateCalendar(input) {
+  activeThemedDateInput = input;
+  const selectedDate = parseDateInputValue(input.value) ?? new Date();
+  themedDateView = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1, 12);
+  const calendar = ensureThemedDateCalendar();
+  renderThemedDateCalendar();
+  calendar.classList.remove("hidden");
+  input._themedDateTrigger.setAttribute("aria-expanded", "true");
+  requestAnimationFrame(positionThemedDateCalendar);
+}
+
+function closeThemedDateCalendar() {
+  if (!activeThemedDateInput) return false;
+  activeThemedDateInput._themedDateTrigger?.setAttribute("aria-expanded", "false");
+  themedDateCalendar?.classList.add("hidden");
+  activeThemedDateInput = null;
+  return true;
+}
+
+function setThemedDateValue(value) {
+  if (!activeThemedDateInput) return;
+  const input = activeThemedDateInput;
+  const trigger = input._themedDateTrigger;
+  input.value = value;
+  refreshThemedDateTrigger(input);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  closeThemedDateCalendar();
+  trigger.focus();
+}
+
+function initializeThemedDatePickers(root = document) {
+  root.querySelectorAll('input[type="date"]:not([data-themed-date-ready])').forEach((input) => {
+    input.dataset.themedDateReady = "true";
+    const wrapper = document.createElement("div");
+    wrapper.className = "themed-date-picker";
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.append(input);
+    input.classList.add("themed-date-native");
+    input.tabIndex = -1;
+
+    const trigger = document.createElement("button");
+    const fieldLabel =
+      input.getAttribute("aria-label") ||
+      input.closest("label")?.querySelector("span")?.textContent?.trim() ||
+      "날짜";
+    trigger.className = "themed-date-trigger empty";
+    trigger.type = "button";
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-label", `${fieldLabel} 선택`);
+    trigger.innerHTML = `
+      <span class="themed-date-value"></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" /></svg>
+    `;
+    wrapper.append(trigger);
+    input._themedDateTrigger = trigger;
+    refreshThemedDateTrigger(input);
+
+    trigger.addEventListener("click", () => {
+      if (activeThemedDateInput === input) closeThemedDateCalendar();
+      else openThemedDateCalendar(input);
+    });
+    input.addEventListener("change", () => refreshThemedDateTrigger(input));
+  });
+}
+
+initializeThemedDatePickers();
+
+document.addEventListener("pointerdown", (event) => {
+  if (!activeThemedDateInput) return;
+  const trigger = activeThemedDateInput._themedDateTrigger;
+  if (!themedDateCalendar?.contains(event.target) && !trigger?.contains(event.target)) {
+    closeThemedDateCalendar();
+  }
+});
+
+window.addEventListener("resize", positionThemedDateCalendar);
+window.addEventListener("scroll", positionThemedDateCalendar, true);
+
 document.querySelector("#openTaskForm").addEventListener("click", () => {
   taskForm.classList.toggle("hidden");
   if (!taskForm.classList.contains("hidden")) taskInput.focus();
 });
 
 function closeHabitModal() {
+  editingHabitId = null;
+  closeHabitMeasureMenu();
+  closeThemedDateCalendar();
   habitModal.classList.add("hidden");
   habitForm.classList.add("hidden");
+}
+
+function syncHabitMeasurePicker() {
+  const selectedOption = habitMeasureType.selectedOptions[0];
+  habitMeasureLabel.textContent = selectedOption?.textContent ?? "횟수";
+  habitMeasureMenu.querySelectorAll("[data-habit-measure-value]").forEach((option) => {
+    const selected = option.dataset.habitMeasureValue === habitMeasureType.value;
+    option.classList.toggle("selected", selected);
+    option.setAttribute("aria-selected", String(selected));
+  });
+}
+
+function closeHabitMeasureMenu() {
+  habitMeasureMenu.classList.add("hidden");
+  habitMeasureTrigger.setAttribute("aria-expanded", "false");
+}
+
+function resetHabitForm() {
+  habitInput.value = "";
+  habitMeasureType.value = "count";
+  habitTargetValue.value = 1;
+  habitUnit.value = "회";
+  document
+    .querySelectorAll('[name="habitWeekday"]')
+    .forEach((input) => (input.checked = true));
+  habitEndDate.value = "";
+  refreshThemedDateTrigger(habitEndDate);
+  syncHabitMeasureFields();
+}
+
+function openHabitModal(habit = null) {
+  editingHabitId = habit?.id ?? null;
+  if (habit) {
+    habitModalKicker.textContent = "EDIT ROUTINE";
+    habitModalTitle.textContent = "습관 수정";
+    habitModalDescription.textContent = "목표와 반복 일정을 다시 설정해";
+    habitSubmitButton.textContent = "변경사항 저장";
+    habitInput.value = habit.title;
+    habitMeasureType.value = habit.measureType;
+    habitTargetValue.value = habit.targetValue;
+    habitUnit.value = habit.unit;
+    document.querySelectorAll('[name="habitWeekday"]').forEach((input) => {
+      input.checked = habit.weekdays.includes(Number(input.value));
+    });
+    habitEndDate.value = habit.endDate || "";
+    refreshThemedDateTrigger(habitEndDate);
+    syncHabitMeasureFields();
+  } else {
+    habitModalKicker.textContent = "NEW ROUTINE";
+    habitModalTitle.textContent = "새 습관 등록";
+    habitModalDescription.textContent = "목표와 반복 일정을 설정해";
+    habitSubmitButton.textContent = "습관 추가";
+    resetHabitForm();
+  }
+
+  habitModalFormSlot.appendChild(habitForm);
+  habitModal.classList.remove("hidden");
+  habitForm.classList.remove("hidden");
+  window.setTimeout(() => habitInput.focus(), 0);
 }
 
 function openHabitDeleteModal(habit) {
@@ -2797,12 +4768,29 @@ function closeHabitDeleteModal() {
   habitDeleteModal.classList.add("hidden");
 }
 
+function deleteTask(task) {
+  state.tasks = state.tasks.filter((item) => item.id !== task.id);
+  render();
+  scheduleTaskDatabaseSync(0);
+}
+
+function openTaskDeleteModal(task) {
+  pendingTaskDeleteId = task.id;
+  const reward = task.completionReward ?? 1;
+  taskDeleteName.textContent = `‘${task.title}’`;
+  taskDeleteCoinAmount.textContent = `${reward} Coin`;
+  taskDeleteModal.classList.remove("hidden");
+  window.setTimeout(() => confirmTaskDelete.focus(), 0);
+}
+
+function closeTaskDeleteModal() {
+  pendingTaskDeleteId = null;
+  taskDeleteModal.classList.add("hidden");
+}
+
 openHabitFormButton.addEventListener("click", () => {
   if (currentPage !== "habits") return;
-  habitModalFormSlot.appendChild(habitForm);
-  habitModal.classList.remove("hidden");
-  habitForm.classList.remove("hidden");
-  window.setTimeout(() => habitInput.focus(), 0);
+  openHabitModal();
 });
 
 habitModal.addEventListener("click", (event) => {
@@ -2819,6 +4807,7 @@ confirmHabitDelete.addEventListener("click", () => {
   closeHabitDeleteModal();
   showToast("습관을 삭제했어");
   render();
+  scheduleTaskDatabaseSync(0);
 });
 
 function syncHabitMeasureFields() {
@@ -2833,9 +4822,29 @@ function syncHabitMeasureFields() {
   if (!isAmount) habitUnit.value = units[habitMeasureType.value];
   if (isAmount && ["회", "분"].includes(habitUnit.value)) habitUnit.value = "";
   habitUnit.placeholder = isAmount ? "단위" : "";
+  syncHabitMeasurePicker();
 }
 
 habitMeasureType.addEventListener("change", syncHabitMeasureFields);
+
+habitMeasureTrigger.addEventListener("click", () => {
+  const willOpen = habitMeasureMenu.classList.contains("hidden");
+  habitMeasureMenu.classList.toggle("hidden", !willOpen);
+  habitMeasureTrigger.setAttribute("aria-expanded", String(willOpen));
+});
+
+habitMeasureMenu.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-habit-measure-value]");
+  if (!option) return;
+  habitMeasureType.value = option.dataset.habitMeasureValue;
+  habitMeasureType.dispatchEvent(new Event("change", { bubbles: true }));
+  closeHabitMeasureMenu();
+  habitMeasureTrigger.focus();
+});
+
+document.addEventListener("click", (event) => {
+  if (!habitMeasureSelect.contains(event.target)) closeHabitMeasureMenu();
+});
 
 habitTargetValue.addEventListener("keydown", (event) => {
   if ([".", ",", "e", "E", "-", "+"].includes(event.key)) event.preventDefault();
@@ -2854,6 +4863,10 @@ document.querySelector("#toggleGroupManager").addEventListener("click", () => {
 });
 
 document.querySelector("#addGroupButton").addEventListener("click", () => {
+  if (!taskDataHydrated) {
+    showToast("할 일 데이터를 불러오는 중이야");
+    return;
+  }
   const name = groupInput.value.trim();
   if (!name) return;
   if (state.groups.some((group) => group.name === name)) {
@@ -2862,13 +4875,14 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
   }
 
   const group = {
-    id: `group-${Date.now()}`,
+    id: createUuid(),
     name,
     colorIndex: Math.floor(Math.random() * GROUP_COLOR_COUNT),
   };
   state.groups.push(group);
   groupInput.value = "";
   render();
+  scheduleTaskDatabaseSync(0);
   taskGroup.value = group.id;
   renderGroups();
   showToast(`‘${name}’ 그룹을 추가했어`);
@@ -2881,7 +4895,7 @@ groupInput.addEventListener("keydown", (event) => {
   }
 });
 
-document.querySelector("#groupList").addEventListener("click", (event) => {
+document.querySelector("#groupList").addEventListener("click", async (event) => {
   const deleteButton = event.target.closest("[data-delete-group]");
   if (!deleteButton) return;
 
@@ -2893,16 +4907,65 @@ document.querySelector("#groupList").addEventListener("click", (event) => {
     if (task.groupId === groupId) task.groupId = null;
   });
   render();
-  showToast(`‘${group?.name ?? "그룹"}’을 삭제하고 할 일은 그룹 없음으로 옮겼어`);
+  try {
+    await syncTaskDatabaseImmediately();
+    showToast(`‘${group?.name ?? "그룹"}’을 삭제하고 할 일은 그룹 없음으로 옮겼어`);
+  } catch (error) {
+    console.error("Farmodoro task group could not be deleted", error);
+    const reason = error.message ? `: ${error.message}` : "";
+    showToast(`그룹 삭제를 DB에 반영하지 못했어${reason}`);
+    taskDataHydrated = false;
+    await loadTaskDataFromDatabase(activeAuthUser);
+  }
+});
+
+taskDeleteModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-cancel-task-delete]")) closeTaskDeleteModal();
+});
+
+confirmTaskDelete.addEventListener("click", async () => {
+  const task = state.tasks.find((item) => item.id === pendingTaskDeleteId);
+  if (!task) {
+    closeTaskDeleteModal();
+    return;
+  }
+  const reward = task.completionReward ?? 1;
+  if (!farmWalletHydrated) {
+    showToast("지갑 데이터를 불러오는 중이야");
+    return;
+  }
+  confirmTaskDelete.disabled = true;
+  try {
+    await farmWalletMutationChain;
+    await syncTaskDatabaseImmediately();
+    const { data, error } = await supabaseClient.rpc("delete_my_completed_task", {
+      p_task_id: task.id,
+    });
+    if (error) throw error;
+    const result = Array.isArray(data) ? data[0] : data;
+    state.coins = Number(result?.coin_balance ?? state.coins - reward);
+    closeTaskDeleteModal();
+    deleteTask(task);
+    showToast(`할 일을 삭제하고 ${reward} Coin을 차감했어`);
+  } catch (error) {
+    console.error("Farmodoro completed task could not be deleted", error);
+    showToast("완료한 할 일을 삭제하지 못했어. 015 SQL을 확인해줘");
+  } finally {
+    confirmTaskDelete.disabled = false;
+  }
 });
 
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!taskDataHydrated) {
+    showToast("할 일 데이터를 불러오는 중이야");
+    return;
+  }
   const title = taskInput.value.trim();
   if (!title) return;
 
   state.tasks.unshift({
-    id: Date.now(),
+    id: createUuid(),
     title,
     status: "waiting",
     focusSeconds: 0,
@@ -2915,10 +4978,15 @@ taskForm.addEventListener("submit", (event) => {
   taskForm.classList.add("hidden");
   showToast("대기 목록에 추가했어");
   render();
+  scheduleTaskDatabaseSync(0);
 });
 
 habitForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!taskDataHydrated) {
+    showToast("습관 데이터를 불러오는 중이야");
+    return;
+  }
   const title = habitInput.value.trim();
   if (!title) return;
   const weekdays = [...document.querySelectorAll('[name="habitWeekday"]:checked')].map(
@@ -2943,74 +5011,150 @@ habitForm.addEventListener("submit", (event) => {
     showToast("목표 단위를 입력해");
     return;
   }
-  state.habits.push({
-    id: Date.now(),
-    title,
-    streak: 0,
-    complete: false,
-    completedDate: "",
-    completionDates: [],
-    progressByDate: {},
-    focusSeconds: 0,
-    measureType: habitMeasureType.value,
-    targetValue,
-    unit,
-    weekdays,
-    startDate: "",
-    endDate: habitEndDate.value,
-  });
-  habitInput.value = "";
-  habitMeasureType.value = "count";
-  habitTargetValue.value = 1;
-  habitUnit.value = "회";
-  document
-    .querySelectorAll('[name="habitWeekday"]')
-    .forEach((input) => (input.checked = true));
-  habitEndDate.value = "";
-  syncHabitMeasureFields();
+  const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
+  if (editingHabit) {
+    const previousMeasureType = editingHabit.measureType;
+    Object.assign(editingHabit, {
+      title,
+      measureType: habitMeasureType.value,
+      targetValue,
+      unit,
+      weekdays,
+      endDate: habitEndDate.value,
+    });
+    if (previousMeasureType !== "count" && editingHabit.measureType === "count") {
+      editingHabit.progressByDate ??= {};
+      editingHabit.completionDates.forEach((date) => {
+        editingHabit.progressByDate[date] = targetValue;
+      });
+    }
+  } else {
+    state.habits.push({
+      id: createUuid(),
+      title,
+      complete: false,
+      completedDate: "",
+      completionDates: [],
+      progressByDate: {},
+      focusSecondsByDate: {},
+      recordMetaByDate: {},
+      measureType: habitMeasureType.value,
+      targetValue,
+      unit,
+      weekdays,
+      startDate: toLocalDateString(),
+      endDate: habitEndDate.value,
+    });
+  }
+  const wasEditing = Boolean(editingHabit);
   closeHabitModal();
-  showToast("새 습관을 추가했어");
   render();
+  scheduleTaskDatabaseSync(0);
+  showToast(wasEditing ? "습관을 수정했어" : "새 습관을 추가했어");
 });
 
 document.querySelector("#taskBoard").addEventListener("click", (event) => {
+  const inlineGroupTrigger = event.target.closest("[data-inline-group-trigger]");
+  const inlineGroupOption = event.target.closest("[data-inline-task-group]");
+  const cancelEditButton = event.target.closest("[data-cancel-task-edit]");
   const focusButton = event.target.closest("[data-focus-task]");
+  const editButton = event.target.closest("[data-edit-task]");
   const deleteButton = event.target.closest("[data-delete-task]");
   const archiveButton = event.target.closest("[data-archive-task]");
   const restoreButton = event.target.closest("[data-restore-task]");
 
-  if (focusButton) startItemFocus("task", Number(focusButton.dataset.focusTask));
+  if (inlineGroupTrigger) {
+    const selector = inlineGroupTrigger.closest(".task-inline-group-select");
+    const menu = selector.querySelector(".custom-group-menu");
+    const willOpen = menu.classList.contains("hidden");
+    menu.classList.toggle("hidden", !willOpen);
+    inlineGroupTrigger.setAttribute("aria-expanded", String(willOpen));
+    return;
+  }
+  if (inlineGroupOption) {
+    editingTaskGroupId = inlineGroupOption.dataset.inlineTaskGroup || null;
+    renderTasks();
+    document.querySelector(`[data-task-id="${editingTaskId}"] [data-inline-group-trigger]`)?.focus();
+    return;
+  }
+  if (cancelEditButton) {
+    closeTaskInlineEdit();
+    return;
+  }
+  if (focusButton) startItemFocus("task", focusButton.dataset.focusTask);
+  if (editButton) {
+    const task = state.tasks.find((item) => item.id === editButton.dataset.editTask);
+    if (task) openTaskInlineEdit(task);
+    return;
+  }
   if (archiveButton) {
-    const task = state.tasks.find((item) => item.id === Number(archiveButton.dataset.archiveTask));
+    const task = state.tasks.find((item) => item.id === archiveButton.dataset.archiveTask);
     if (task) {
       task.archived = true;
       task.archivedAt = new Date().toISOString();
       showToast("완료한 할 일을 보관함에 넣었어");
       render();
+      scheduleTaskDatabaseSync(0);
     }
     return;
   }
   if (restoreButton) {
-    const task = state.tasks.find((item) => item.id === Number(restoreButton.dataset.restoreTask));
+    const task = state.tasks.find((item) => item.id === restoreButton.dataset.restoreTask);
     if (task) {
       task.archived = false;
       task.archivedAt = "";
       task.completedDate = toLocalDateString();
       showToast("보관함에서 다시 꺼냈어");
       render();
+      scheduleTaskDatabaseSync(0);
     }
     return;
   }
   if (deleteButton) {
-    state.tasks = state.tasks.filter((task) => task.id !== Number(deleteButton.dataset.deleteTask));
+    const task = state.tasks.find((item) => item.id === deleteButton.dataset.deleteTask);
+    if (!task) return;
+    if (task.status === "done") {
+      openTaskDeleteModal(task);
+      return;
+    }
+    deleteTask(task);
     showToast("할 일을 삭제했어");
-    render();
   }
+});
+
+document.querySelector("#taskBoard").addEventListener("input", (event) => {
+  if (event.target.matches(".task-inline-title")) editingTaskTitle = event.target.value;
+});
+
+document.querySelector("#taskBoard").addEventListener("submit", (event) => {
+  const form = event.target.closest("[data-inline-task-form]");
+  if (!form) return;
+  event.preventDefault();
+  const task = state.tasks.find((item) => item.id === form.dataset.inlineTaskForm);
+  const title = editingTaskTitle.trim();
+  if (!task || !title) return;
+  task.title = title;
+  task.groupId = editingTaskGroupId;
+  editingTaskId = null;
+  editingTaskGroupId = null;
+  editingTaskTitle = "";
+  render();
+  scheduleTaskDatabaseSync(0);
+  showToast("할 일을 수정했어");
+});
+
+document.addEventListener("click", (event) => {
+  document.querySelectorAll(".task-inline-group-select .custom-group-menu:not(.hidden)").forEach((menu) => {
+    if (!menu.parentElement.contains(event.target)) {
+      menu.classList.add("hidden");
+      menu.parentElement.querySelector("[data-inline-group-trigger]")?.setAttribute("aria-expanded", "false");
+    }
+  });
 });
 
 document.querySelector("#taskGroupFilters").addEventListener("click", (event) => {
   const button = event.target.closest("[data-task-group-filter]");
-  if (!button || taskArchiveView) return;
+  if (!button) return;
   const nextFilter = button.dataset.taskGroupFilter;
   if (nextFilter === taskGroupFilter) return;
   taskGroupFilter = nextFilter;
@@ -3071,14 +5215,14 @@ function reorderTask(taskId, status, targetId = null, placeAfter = false) {
   state.tasks.splice(insertIndex, 0, task);
 }
 
-document.querySelector("#taskBoard").addEventListener("drop", (event) => {
+document.querySelector("#taskBoard").addEventListener("drop", async (event) => {
   const column = event.target.closest("[data-status]");
   if (!column) return;
 
   event.preventDefault();
-  const taskId = Number(event.dataTransfer.getData("text/plain"));
+  const taskId = event.dataTransfer.getData("text/plain");
   const targetCard = event.target.closest(".task-card:not(.dragging)");
-  const targetId = targetCard ? Number(targetCard.dataset.taskId) : null;
+  const targetId = targetCard ? targetCard.dataset.taskId : null;
   const placeAfter = targetCard
     ? event.clientY >= targetCard.getBoundingClientRect().top + targetCard.offsetHeight / 2
     : false;
@@ -3089,6 +5233,16 @@ document.querySelector("#taskBoard").addEventListener("drop", (event) => {
   reorderTask(taskId, column.dataset.status, targetId, placeAfter);
   renderTasks();
   saveState();
+  try {
+    await syncTaskDatabaseImmediately();
+  } catch (error) {
+    console.error("Farmodoro task status could not be saved", error);
+    const scope = error.syncScope ? ` · ${error.syncScope}` : "";
+    const reason = error.message ? `: ${error.message}` : "";
+    showToast(`상태 변경을 DB에 저장하지 못했어${scope}${reason}`);
+    taskDataHydrated = false;
+    await loadTaskDataFromDatabase(activeAuthUser);
+  }
 });
 
 document.querySelector("#taskBoard").addEventListener("dragend", () => {
@@ -3118,10 +5272,10 @@ document.querySelector("#habitList").addEventListener("dragover", (event) => {
 document.querySelector("#habitList").addEventListener("drop", (event) => {
   if (!["today", "habits"].includes(currentPage)) return;
   event.preventDefault();
-  const habitId = Number(event.dataTransfer.getData("text/x-habit-id"));
+  const habitId = event.dataTransfer.getData("text/x-habit-id");
   const target = event.target.closest(".habit-item:not(.dragging)");
   if (!habitId || !target) return;
-  const targetId = Number(target.dataset.habitId);
+  const targetId = target.dataset.habitId;
   const sourceIndex = state.habits.findIndex((habit) => habit.id === habitId);
   if (sourceIndex < 0 || habitId === targetId) return;
   const placeAfter = event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2;
@@ -3130,6 +5284,7 @@ document.querySelector("#habitList").addEventListener("drop", (event) => {
   state.habits.splice(targetIndex + (placeAfter ? 1 : 0), 0, habit);
   renderHabits();
   saveState();
+  scheduleTaskDatabaseSync(0);
 });
 
 document.querySelector("#habitList").addEventListener("dragend", () => {
@@ -3140,18 +5295,23 @@ document.querySelector("#habitList").addEventListener("click", (event) => {
   const focusButton = event.target.closest("[data-focus-habit]");
   const toggleButton = event.target.closest("[data-toggle-habit]");
   const adjustButton = event.target.closest("[data-adjust-habit]");
+  const editButton = event.target.closest("[data-edit-habit]");
   const deleteButton = event.target.closest("[data-delete-habit]");
 
-  if (focusButton) startItemFocus("habit", Number(focusButton.dataset.focusHabit));
-  if (toggleButton) toggleHabit(Number(toggleButton.dataset.toggleHabit));
+  if (focusButton) startItemFocus("habit", focusButton.dataset.focusHabit);
+  if (toggleButton) toggleHabit(toggleButton.dataset.toggleHabit);
   if (adjustButton) {
     adjustHabitCount(
-      Number(adjustButton.dataset.adjustHabit),
+      adjustButton.dataset.adjustHabit,
       Number(adjustButton.dataset.delta),
     );
   }
+  if (editButton) {
+    const habit = state.habits.find((item) => item.id === editButton.dataset.editHabit);
+    if (habit) openHabitModal(habit);
+  }
   if (deleteButton) {
-    const habitId = Number(deleteButton.dataset.deleteHabit);
+    const habitId = deleteButton.dataset.deleteHabit;
     const habit = state.habits.find((item) => item.id === habitId);
     if (habit) openHabitDeleteModal(habit);
   }
@@ -3169,7 +5329,14 @@ document.querySelector("#seedShop").addEventListener("click", (event) => {
     return;
   }
 
-  state.coins -= crop.seedPrice;
+  if (
+    !applyFarmWalletChange(
+      "coin",
+      -crop.seedPrice,
+      "씨앗 구매",
+      `seed:${cropId}:${Date.now()}`,
+    )
+  ) return;
   state.seedInventory[cropId] += 1;
   if (!selectedSeed) selectedSeed = cropId;
   showToast(`${crop.name} 씨앗을 1개 샀어`);
@@ -3201,7 +5368,14 @@ document.querySelector("#farmItemShop").addEventListener("click", (event) => {
     showToast(`${item.name}을 사려면 ${item.price} Farm Money가 필요해`);
     return;
   }
-  state.farmMoney -= item.price;
+  if (
+    !applyFarmWalletChange(
+      "farm_money",
+      -item.price,
+      "농장 용품 구매",
+      `farm-item:${itemId}:${Date.now()}`,
+    )
+  ) return;
   state.farmItemInventory[itemId] += 1;
   showToast(`${item.name}을 구매했어`);
   render();
@@ -3219,6 +5393,27 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
     showToast(selectedFarmItem ? `${item.name}을 적용할 밭을 골라` : "용품 선택을 취소했어");
     document.querySelector("#supplyStorageModal").classList.add("hidden");
     renderFarm();
+    return;
+  }
+
+  if (itemId === "seedMarketRefresh" || itemId === "foodMarketRefresh") {
+    state.farmItemInventory[itemId] -= 1;
+    if (itemId === "seedMarketRefresh") {
+      state.dailySeedOffers = getRefreshedMarketSelection(
+        Object.keys(CROPS),
+        7,
+        state.dailySeedOffers,
+      );
+      showToast("모리슨의 씨앗 판매대가 새로 바뀌었어");
+    } else {
+      state.dailyFoodOffers = getRefreshedMarketSelection(
+        Object.keys(RECIPES),
+        4,
+        state.dailyFoodOffers,
+      );
+      showToast("모리슨의 음식 매입 목록이 새로 바뀌었어");
+    }
+    render();
     return;
   }
 
@@ -3241,44 +5436,29 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
   }
 
   if (itemId === "freePass") {
-    const targetValue = document.querySelector("#freePassTarget")?.value;
-    if (!targetValue) {
-      showToast("완료할 수 있는 항목이 없어");
-      return;
-    }
-    const [targetType, rawId] = targetValue.split(":");
-    const targetId = Number(rawId);
-    const reward = productionCoinReward();
-    if (targetType === "task") {
-      const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
-      if (!task) return;
-      task.status = "done";
-      task.completedDate = toLocalDateString();
-      task.completionReward = reward;
-      task.completedWithFreePass = true;
-    } else {
-      const habit = state.habits.find((entry) => entry.id === targetId);
-      if (!habit || isHabitCompleteToday(habit)) return;
-      if (habit.measureType === "count") {
-        habit.progressByDate ??= {};
-        habit.progressByDate[toLocalDateString()] = habit.targetValue;
-      }
-      habit.complete = true;
-      habit.completedDate = toLocalDateString();
-      habit.completionDates.push(toLocalDateString());
-      habit.completionReward = reward;
-      habit.completedWithFreePass = true;
-    }
-    state.coins += reward;
-    state.farmItemInventory[itemId] -= 1;
-    showToast(`프리패스로 완료 처리했어 ${reward} Coin 획득`);
-    render();
+    openFreePassTargetModal();
+    return;
   }
+});
+
+freePassTargetModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-free-pass]")) {
+    closeFreePassTargetModal();
+    return;
+  }
+  const targetButton = event.target.closest("[data-free-pass-target]");
+  if (!targetButton) return;
+  selectedFreePassTarget = targetButton.dataset.freePassTarget;
+  renderFreePassTargets();
+});
+
+confirmFreePassTarget.addEventListener("click", () => {
+  if (selectedFreePassTarget) useFreePassOnTarget(selectedFreePassTarget);
 });
 
 document.querySelector("#farmGrid").addEventListener("click", (event) => {
   const plotElement = event.target.closest("[data-plot-id]");
-  if (selectedFarmItem && plotElement) {
+  if (!selectedSeed && selectedFarmItem && plotElement) {
     const plot = state.farmPlots.find(
       (item) => item.id === Number(plotElement.dataset.plotId),
     );
@@ -3301,7 +5481,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
         showToast("성장 중인 작물에만 사용할 수 있어");
         return;
       }
-      plot.growth = Math.min(getCropGrowthCost(plot.crop), plot.growth + 2);
+      plot.growth = getCropGrowthCost(plot.crop);
       plot.lastWateredDate = toLocalDateString();
     } else {
       if (plot.wilted || plot.fertilizer) {
@@ -3339,6 +5519,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     plot.growth = 0;
     plot.plantedDate = toLocalDateString();
     plot.lastWateredDate = "";
+    plot.lastFreeWaterAt = 0;
     plot.wilted = false;
     state.seedInventory[selectedSeed] -= 1;
     const cropName = CROPS[selectedSeed].name;
@@ -3429,7 +5610,14 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
       return;
     }
 
-    state.coins -= 1;
+    if (
+      !applyFarmWalletChange(
+        "coin",
+        -1,
+        "작물 성장",
+        `plot:${plot.id}:${Date.now()}`,
+      )
+    ) return;
     advanceFarmPlotGrowth(plot);
     showToast(
       plot.growth >= maxGrowth
@@ -3451,8 +5639,14 @@ document.querySelector("#morrisonBuyList").addEventListener("click", (event) => 
     return;
   }
 
+  if (
+    !earnFarmMoney(
+      recipe.sellPrice,
+      "모리슨 음식 판매",
+      `food:${recipeId}:${Date.now()}`,
+    )
+  ) return;
   state.foodInventory[recipeId] -= 1;
-  earnFarmMoney(recipe.sellPrice);
   showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
   render();
 });
@@ -3527,7 +5721,19 @@ permanentMarketModal.addEventListener("click", (event) => {
   }
 });
 const farmRankingModal = document.querySelector("#farmRankingModal");
-document.querySelector("#openFarmRanking").addEventListener("click", () => {
+document.querySelector("#openFarmRanking").addEventListener("click", async () => {
+  if (supabaseClient && activeAuthUser) {
+    const { data, error } = await supabaseClient.rpc("get_farm_leaderboard", {});
+    if (error) {
+      console.warn("Farmodoro leaderboard could not be loaded", error);
+    } else {
+      farmLeaderboard = (data ?? []).map((farmer) => ({
+        name: farmer.display_name || farmer.farm_name || "농부",
+        score: Number(farmer.earned_farm_money ?? 0),
+        isMe: Boolean(farmer.is_me),
+      }));
+    }
+  }
   renderFarmRanking();
   farmRankingModal.classList.remove("hidden");
 });
@@ -3541,7 +5747,7 @@ document.querySelector("#openFarmMail").addEventListener("click", () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
 });
-farmMailModal.addEventListener("click", (event) => {
+farmMailModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-farm-mail]")) {
     farmMailModal.classList.add("hidden");
     return;
@@ -3564,17 +5770,20 @@ farmMailModal.addEventListener("click", (event) => {
       openFarmRewardBoxModal(mail);
       return;
     }
+    if (mail.dbItemId) {
+      const { error } = await supabaseClient.rpc("claim_farm_mail_item", {
+        p_mail_item_id: mail.dbItemId,
+      });
+      if (error) {
+        console.error("Farmodoro mail could not be claimed", error);
+        showToast("우편 선물을 받지 못했어");
+        return;
+      }
+    }
     gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
     mail.claimed = true;
     showToast(`${gift.name} 1개를 보관함에 넣었어`);
     render();
-    return;
-  }
-
-  const friendButton = event.target.closest("[data-mail-friend]");
-  if (friendButton) {
-    selectedMailFriendId = friendButton.dataset.mailFriend;
-    renderFarmMail();
     return;
   }
 
@@ -3592,18 +5801,45 @@ farmMailModal.addEventListener("click", (event) => {
     renderFarmMail();
   }
 });
-document.querySelector("#sendFarmMail").addEventListener("click", () => {
+document.querySelector("#farmMailFriendCode").addEventListener("input", (event) => {
+  selectedMailFriendCode = event.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 14);
+  event.target.value = selectedMailFriendCode;
+  renderFarmMail();
+});
+document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   ensureDailyFarmMail();
   if (state.farmMailSentCount >= 3) {
     showToast("오늘 보낼 수 있는 우편을 모두 사용했어");
     return;
   }
 
-  const friend = MOCK_FARM_FRIENDS.find((entry) => entry.id === selectedMailFriendId);
+  const friendCode = selectedMailFriendCode.trim().toUpperCase();
   const item = getFarmMailItems().find((entry) => entry.id === selectedMailItemId);
-  if (!friend || !item || item.count < 1) {
-    showToast("친구와 보낼 물건을 다시 골라줘");
+  if (!/^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(friendCode)) {
+    showToast("FARM-0000-0000 형식의 친구 코드를 입력해줘");
+    return;
+  }
+  if (!item || item.count < 1) {
+    showToast("보낼 물건을 다시 골라줘");
     renderFarmMail();
+    return;
+  }
+
+  const { error } = await supabaseClient.rpc("send_farm_mail", {
+    p_recipient_farm_code: friendCode,
+    p_category: selectedMailCategory,
+    p_item_id: item.id,
+  });
+  if (error) {
+    console.error("Farmodoro mail could not be sent", error);
+    const errorMessage = String(error.message ?? "");
+    showToast(
+      errorMessage.includes("Recipient not found")
+        ? "해당 친구 코드를 찾지 못했어"
+        : errorMessage.includes("Cannot send mail to yourself")
+          ? "내 농장에는 우편을 보낼 수 없어"
+          : "농장 우편을 보내지 못했어",
+    );
     return;
   }
 
@@ -3611,19 +5847,19 @@ document.querySelector("#sendFarmMail").addEventListener("click", () => {
   state.farmMailSentCount += 1;
   state.farmMailHistory.unshift({
     id: Date.now(),
-    friendId: friend.id,
-    friendName: friend.name,
+    friendId: friendCode,
+    friendName: friendCode,
     category: selectedMailCategory,
     itemId: item.id,
     itemName: item.name,
     sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
   });
   selectedMailItemId = null;
-  showToast(`${friend.name}에게 ${item.name} 1개를 보냈어`);
+  showToast(`${friendCode}에 ${item.name} 1개를 보냈어`);
   render();
 });
 const farmRewardBoxModal = document.querySelector("#farmRewardBoxModal");
-farmRewardBoxModal.addEventListener("click", (event) => {
+farmRewardBoxModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-reward-box]")) {
     closeFarmRewardBoxModal();
     return;
@@ -3635,7 +5871,7 @@ farmRewardBoxModal.addEventListener("click", (event) => {
     (entry) => entry.id === activeRankingRewardMailId,
   );
   if (!mail || mail.claimed) return;
-  revealFarmRankingBox(mail, Number(boxButton.dataset.openRewardBox));
+  await revealFarmRankingBox(mail, Number(boxButton.dataset.openRewardBox));
 });
 const farmKitchenModal = document.querySelector("#farmKitchenModal");
 document.querySelector("#openFarmKitchen").addEventListener("click", () => {
@@ -3724,13 +5960,23 @@ document.querySelector("#cancelFarmName").addEventListener("click", () => {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (closeThemedDateCalendar()) return;
+    if (!habitMeasureMenu.classList.contains("hidden")) {
+      closeHabitMeasureMenu();
+      habitMeasureTrigger.focus();
+      return;
+    }
+    closeUserSettings();
+    closeFreePassTargetModal();
     permanentMarketModal.classList.add("hidden");
     farmRankingModal.classList.add("hidden");
     farmMailModal.classList.add("hidden");
     farmKitchenModal.classList.add("hidden");
     Object.values(storageModals).forEach((modal) => modal.classList.add("hidden"));
+    if (editingTaskId) closeTaskInlineEdit();
     closeHabitModal();
     closeHabitDeleteModal();
+    closeTaskDeleteModal();
     closeFocusItemMenu();
     closeTaskGroupMenu();
   }
@@ -3759,8 +6005,13 @@ focusItemTrigger.addEventListener("click", () => {
 focusItemMenu.addEventListener("click", (event) => {
   const option = event.target.closest("[data-focus-value]");
   if (!option) return;
+  if (runningFocusMode === "linked") {
+    advanceRunningFocusTimer("linked");
+    stopFocusTimer();
+  }
   const [type, id] = option.dataset.focusValue.split(":");
-  activeFocus = type && id ? { type, id: Number(id) } : null;
+  activeFocus = type && id ? { type, id } : null;
+  prepareLinkedFocusRuntime();
   setFocusMode("linked");
   renderFocusPicker();
   closeFocusItemMenu();
@@ -3799,69 +6050,6 @@ let focusPlaylistQueue = [];
 let currentFocusTrack = null;
 let focusBackgroundObjectUrl = null;
 
-function openFocusBackgroundDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("farmodoro-focus-assets", 1);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains("backgrounds")) {
-        request.result.createObjectStore("backgrounds");
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function readFocusBackground() {
-  const database = await openFocusBackgroundDatabase();
-  return new Promise((resolve, reject) => {
-    const request = database
-      .transaction("backgrounds", "readonly")
-      .objectStore("backgrounds")
-      .get("custom");
-    request.onsuccess = () => {
-      database.close();
-      resolve(request.result ?? null);
-    };
-    request.onerror = () => {
-      database.close();
-      reject(request.error);
-    };
-  });
-}
-
-async function writeFocusBackground(file) {
-  const database = await openFocusBackgroundDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction("backgrounds", "readwrite");
-    transaction.objectStore("backgrounds").put(file, "custom");
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => {
-      database.close();
-      reject(transaction.error);
-    };
-  });
-}
-
-async function deleteFocusBackground() {
-  const database = await openFocusBackgroundDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction("backgrounds", "readwrite");
-    transaction.objectStore("backgrounds").delete("custom");
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => {
-      database.close();
-      reject(transaction.error);
-    };
-  });
-}
-
 function applyFocusBackground(file) {
   if (focusBackgroundObjectUrl) URL.revokeObjectURL(focusBackgroundObjectUrl);
   focusBackgroundObjectUrl = file ? URL.createObjectURL(file) : null;
@@ -3875,11 +6063,67 @@ function applyFocusBackground(file) {
   }
 }
 
+async function loadFocusBackgroundFromDatabase(user, path) {
+  if (!supabaseClient || !user || activeAuthUser?.id !== user.id) return;
+  if (!path) {
+    applyFocusBackground(null);
+    return;
+  }
+  const { data, error } = await supabaseClient.storage
+    .from("focus-backgrounds")
+    .download(path);
+  if (activeAuthUser?.id !== user.id) return;
+  if (error) {
+    console.warn("Farmodoro focus background could not be loaded", error);
+    applyFocusBackground(null);
+    return;
+  }
+  applyFocusBackground(data);
+}
+
+function getFocusBackgroundExtension(file) {
+  return {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  }[file.type] ?? "";
+}
+
+async function uploadFocusBackground(user, file) {
+  const extension = getFocusBackgroundExtension(file);
+  if (!extension) throw new Error("Unsupported focus background type");
+  const previousPath = currentProfile?.focus_background_path || "";
+  const path = `${user.id}/focus-background.${extension}`;
+  const { error: uploadError } = await supabaseClient.storage
+    .from("focus-backgrounds")
+    .upload(path, file, { cacheControl: "3600", upsert: true });
+  if (uploadError) throw uploadError;
+
+  const { error: profileError } = await supabaseClient
+    .from("profiles")
+    .update({ focus_background_path: path })
+    .eq("id", user.id);
+  if (profileError) throw profileError;
+
+  if (previousPath && previousPath !== path) {
+    const { error: removeError } = await supabaseClient.storage
+      .from("focus-backgrounds")
+      .remove([previousPath]);
+    if (removeError) console.warn("Previous focus background could not be removed", removeError);
+  }
+  currentProfile = { ...currentProfile, focus_background_path: path };
+  return path;
+}
+
 focusBackgroundInput.addEventListener("change", async () => {
   const [file] = focusBackgroundInput.files;
   if (!file) return;
   if (!file.type.startsWith("image/")) {
     showToast("이미지 파일만 배경으로 사용할 수 있어");
+    return;
+  }
+  if (!getFocusBackgroundExtension(file)) {
+    showToast("배경은 JPG, PNG, WEBP 이미지만 사용할 수 있어");
     return;
   }
   if (file.size > 15 * 1024 * 1024) {
@@ -3888,7 +6132,8 @@ focusBackgroundInput.addEventListener("change", async () => {
   }
 
   try {
-    await writeFocusBackground(file);
+    if (!activeAuthUser || !supabaseClient) throw new Error("Authentication required");
+    await uploadFocusBackground(activeAuthUser, file);
     applyFocusBackground(file);
     showToast("집중 배경을 바꿨어");
   } catch {
@@ -3900,19 +6145,26 @@ focusBackgroundInput.addEventListener("change", async () => {
 
 resetFocusBackgroundButton.addEventListener("click", async () => {
   try {
-    await deleteFocusBackground();
+    if (!activeAuthUser || !supabaseClient) throw new Error("Authentication required");
+    const path = currentProfile?.focus_background_path;
+    if (path) {
+      const { error: removeError } = await supabaseClient.storage
+        .from("focus-backgrounds")
+        .remove([path]);
+      if (removeError) throw removeError;
+    }
+    const { error: profileError } = await supabaseClient
+      .from("profiles")
+      .update({ focus_background_path: null })
+      .eq("id", activeAuthUser.id);
+    if (profileError) throw profileError;
+    currentProfile = { ...currentProfile, focus_background_path: null };
     applyFocusBackground(null);
     showToast("기본 집중 배경으로 돌렸어");
   } catch {
     showToast("기본 배경으로 변경하지 못했어");
   }
 });
-
-readFocusBackground()
-  .then((file) => {
-    if (file) applyFocusBackground(file);
-  })
-  .catch(() => {});
 
 focusFullscreenButton.addEventListener("click", async () => {
   try {
@@ -4016,7 +6268,7 @@ const breakEnabledInput = document.querySelector("#breakEnabledInput");
 const breakMinutesInput = document.querySelector("#breakMinutesInput");
 
 function syncFocusSettingsForm() {
-  const settings = getFocusSettings();
+  const settings = getFocusSettings("quick");
   focusMinutesInput.value = settings.focusMinutes;
   breakEnabledInput.checked = settings.breakEnabled;
   breakMinutesInput.value = settings.breakMinutes;
@@ -4038,20 +6290,31 @@ breakEnabledInput.addEventListener("change", () => {
   breakMinutesInput.disabled = !breakEnabledInput.checked;
 });
 
-document.querySelector("#saveFocusSettings").addEventListener("click", () => {
+document.querySelector("#saveFocusSettings").addEventListener("click", async (event) => {
+  const saveButton = event.currentTarget;
   const focusMinutes = Math.min(120, Math.max(5, Number(focusMinutesInput.value) || 25));
   const breakMinutes = Math.min(60, Math.max(1, Number(breakMinutesInput.value) || 5));
 
-  state.settings[focusMode] = {
+  state.settings.quick = {
     focusMinutes,
     breakEnabled: breakEnabledInput.checked,
     breakMinutes,
   };
-  if (runningFocusMode === focusMode) stopFocusTimer();
+  if (runningFocusMode === "quick") stopFocusTimer();
   resetToFocus();
   saveState();
-  focusSettings.classList.add("hidden");
-  showToast("집중 설정을 저장했어");
+  saveButton.disabled = true;
+  try {
+    await syncAppStateDatabaseImmediately();
+    focusSettings.classList.add("hidden");
+    showToast("집중 설정을 저장했어");
+  } catch (error) {
+    console.error("Farmodoro focus settings could not be saved", error);
+    const reason = error.message ? `: ${error.message}` : "";
+    showToast(`집중 설정을 저장하지 못했어${reason}`);
+  } finally {
+    saveButton.disabled = false;
+  }
 });
 
 const todayWorkspace = document.querySelector("#todayWorkspace");
@@ -4063,7 +6326,6 @@ const focusPageSlot = document.querySelector("#focusPageSlot");
 
 function showPage(page) {
   const validPage = APP_PAGES.includes(page) ? page : "today";
-  localStorage.setItem(LAST_PAGE_STORAGE_KEY, validPage);
 
   if (currentPage !== validPage) {
     taskForm.classList.add("hidden");
@@ -4133,6 +6395,26 @@ window.addEventListener("hashchange", () => {
   showPage(location.hash.slice(1));
 });
 
+window.addEventListener("focus", () => {
+  scheduleTaskDatabaseSync(0);
+  scheduleAppStateDatabaseSync(null, 0);
+  scheduleFarmDataDatabaseSync(0);
+  if (activeAuthUser && farmWalletHydrated) {
+    void farmWalletMutationChain.then(() => loadFarmWallet(activeAuthUser));
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden" || !activeAuthUser) return;
+  saveState();
+  void syncTaskDatabaseImmediately().catch((error) => {
+    console.error("Farmodoro productivity state could not be flushed", error);
+  });
+  void syncAppStateDatabaseImmediately().catch((error) => {
+    console.error("Farmodoro app state could not be flushed", error);
+  });
+});
+
 document.querySelector("#openMiniFocus").addEventListener("click", () => {
   location.hash = "focus";
 });
@@ -4184,6 +6466,7 @@ maintainTaskArchive();
 setInterval(() => {
   updateDailyFocusQuote();
   updateFarmWaterCooldowns();
+  updateFarmItemEffects();
   const archiveChanged = maintainTaskArchive();
   const farmChanged = updateWiltedCrops();
   const farmRankingChanged = ensureWeeklyFarmRanking();
@@ -4196,11 +6479,6 @@ render();
 syncFocusSettingsForm();
 syncHabitMeasureFields();
 resetToFocus();
-const savedPage = localStorage.getItem(LAST_PAGE_STORAGE_KEY);
 const hashPage = location.hash.slice(1);
-const initialPage = APP_PAGES.includes(hashPage)
-  ? hashPage
-  : APP_PAGES.includes(savedPage)
-    ? savedPage
-    : "today";
+const initialPage = APP_PAGES.includes(hashPage) ? hashPage : "today";
 showPage(initialPage);
