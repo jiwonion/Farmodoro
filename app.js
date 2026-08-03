@@ -10,6 +10,11 @@ const openUserSettingsButton = document.querySelector("#openUserSettings");
 const openMobileUserSettingsButton = document.querySelector("#openMobileUserSettings");
 const userSettingsModal = document.querySelector("#userSettingsModal");
 const userSettingsForm = document.querySelector("#userSettingsForm");
+const farmAdminMailSection = document.querySelector("#farmAdminMailSection");
+const farmAdminMailTitleInput = document.querySelector("#farmAdminMailTitleInput");
+const farmAdminMailMessageInput = document.querySelector("#farmAdminMailMessageInput");
+const farmAdminMailStatus = document.querySelector("#farmAdminMailStatus");
+const sendFarmAdminMailButton = document.querySelector("#sendFarmAdminMail");
 const profileSettingsAvatar = document.querySelector("#profileSettingsAvatar");
 const profileAvatarInput = document.querySelector("#profileAvatarInput");
 const chooseProfileAvatarButton = document.querySelector("#chooseProfileAvatar");
@@ -59,6 +64,7 @@ let pendingAvatarFile = null;
 let pendingAvatarReset = false;
 let profilePreviewObjectUrl = null;
 let themeBeforeSettings = "classic";
+let farmAdminPermissionUserId = null;
 let taskDataHydrated = false;
 let taskDataUserId = null;
 let taskDataLoadPromise = null;
@@ -731,6 +737,7 @@ async function applyAuthSession(session) {
       loadUserProfile(session.user),
       loadAppStateFromDatabase(session.user),
     ]);
+    await loadFarmAdminPermission(session.user);
     const hasLegacyContentEncryption = isContentEncryptionEnabled();
     if (hasLegacyContentEncryption) {
       const unlocked = await unlockContentEncryption(session.user);
@@ -764,6 +771,8 @@ async function applyAuthSession(session) {
     applyLoadedAppStateRuntime();
     applyTheme("classic");
     currentProfile = null;
+    farmAdminPermissionUserId = null;
+    farmAdminMailSection.hidden = true;
     userSettingsModal.classList.add("hidden");
     setAuthStatus("파머도로를 사용하려면 Google 로그인이 필요해");
   }
@@ -853,6 +862,19 @@ function refreshSettingsProfileFields() {
   setSettingsAvatarPreview(profile.avatar_url);
 }
 
+async function loadFarmAdminPermission(user) {
+  if (!supabaseClient || !user) return false;
+  const { data, error } = await supabaseClient.rpc("is_farm_admin");
+  if (activeAuthUser?.id !== user.id) return false;
+  const isAdmin = !error && data === true;
+  farmAdminPermissionUserId = isAdmin ? user.id : null;
+  farmAdminMailSection.hidden = !isAdmin;
+  if (error && !["42883", "PGRST202"].includes(error.code)) {
+    console.error("Farmodoro admin permission could not be checked", error);
+  }
+  return isAdmin;
+}
+
 async function openUserSettings() {
   if (!activeAuthUser) return;
   pendingAvatarFile = null;
@@ -861,6 +883,9 @@ async function openUserSettings() {
   themeBeforeSettings = getActiveTheme();
 
   if (!currentProfile?.farm_code) await loadUserProfile(activeAuthUser);
+  if (farmAdminPermissionUserId !== activeAuthUser.id) {
+    await loadFarmAdminPermission(activeAuthUser);
+  }
   refreshSettingsProfileFields();
 
   const themeRadio = userSettingsForm.querySelector(
@@ -1102,6 +1127,39 @@ async function uploadProfileAvatar(user, file) {
 
 openUserSettingsButton.addEventListener("click", () => void openUserSettings());
 openMobileUserSettingsButton.addEventListener("click", () => void openUserSettings());
+
+sendFarmAdminMailButton.addEventListener("click", async () => {
+  if (!activeAuthUser || farmAdminPermissionUserId !== activeAuthUser.id) return;
+  const title = farmAdminMailTitleInput.value.trim();
+  const message = farmAdminMailMessageInput.value.trim();
+  if (!title || !message) {
+    farmAdminMailStatus.textContent = "제목과 내용을 모두 적어.";
+    return;
+  }
+  if (!window.confirm("모든 사용자에게 이 우편과 랜덤 박스를 보낼 거야.")) return;
+
+  sendFarmAdminMailButton.disabled = true;
+  farmAdminMailStatus.textContent = "발송 중…";
+  const { data, error } = await supabaseClient.rpc("broadcast_farm_update_mail", {
+    p_title: title,
+    p_message: message,
+  });
+  sendFarmAdminMailButton.disabled = false;
+  if (error) {
+    console.error("Farmodoro admin broadcast could not be sent", error);
+    farmAdminMailStatus.textContent = error.code === "42501"
+      ? "관리자 권한이 없어."
+      : "발송하지 못했어. 023 SQL을 확인해.";
+    return;
+  }
+
+  const recipientCount = Math.max(0, Number(data?.recipientCount ?? 0));
+  farmAdminMailStatus.textContent = `${recipientCount}명에게 발송했어.`;
+  farmAdminMailTitleInput.value = "";
+  farmAdminMailMessageInput.value = "";
+  await loadFarmDataFromDatabase(activeAuthUser);
+  render();
+});
 
 userSettingsModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-user-settings]")) closeUserSettings();
@@ -1638,7 +1696,7 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 41,
+  schemaVersion: 46,
   tutorialCompleted: false,
   contentEncryption: {
     version: 0,
@@ -1905,22 +1963,25 @@ function getFarmMailItemName(category, itemId) {
 function mapFarmInboxFromDatabase(inbox = []) {
   return inbox.flatMap((mail) => {
     const items = Array.isArray(mail.items) ? mail.items : [];
+    const isWeeklyReward = mail.mailType === "weekly_ranking";
+    const isUpdateReward = mail.mailType === "system";
     const sender = {
       id: mail.senderUserId || SYSTEM_FARM_SENDER.id,
       name: mail.senderName || "시스템",
-      farmName: mail.mailType === "weekly_ranking" ? "Farmodoro 운영국" : "농장 우편",
-      avatar: mail.mailType === "weekly_ranking" ? "🤖" : "📬",
+      farmName: isWeeklyReward || isUpdateReward ? "Farmodoro 운영국" : "농장 우편",
+      avatar: isUpdateReward ? "📣" : isWeeklyReward ? "🤖" : "📬",
     };
     const receivedDate = toLocalDateString(new Date(mail.sentAt));
-    if (mail.mailType === "weekly_ranking") {
+    if (isWeeklyReward || isUpdateReward) {
       const ranking = Number(String(mail.subject ?? "").match(/(\d+)위/)?.[1] ?? 0);
       return [{
         id: mail.id,
         friendId: SYSTEM_FARM_SENDER.id,
         sender,
-        category: "rankingBox",
+        category: isUpdateReward ? "updateBox" : "rankingBox",
         itemId: items[0]?.itemId ?? "carrot",
         ranking,
+        updateNote: isUpdateReward ? String(mail.subject || "Farmodoro 업데이트") : "",
         boxCropIds: items.map((item) => item.itemId),
         dbItemIds: items.map((item) => item.id),
         openedBoxIndexes: items
@@ -2107,7 +2168,7 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 41,
+      schemaVersion: 46,
       contentEncryption: {
         version: Number(saved.contentEncryption?.version) || 0,
         salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
@@ -2370,6 +2431,7 @@ function getFocusTimerDatabasePayload() {
     runningMode: runningFocusMode,
     focusMode,
     activeFocus: activeFocus ? { ...activeFocus } : null,
+    rewardSeconds: Math.max(0, Math.floor(Number(state.focusRewardSeconds) || 0)),
     runtimes: {
       linked: { ...focusRuntimeByMode.linked },
       quick: { ...focusRuntimeByMode.quick },
@@ -2407,6 +2469,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     ? payload.runningMode
     : null;
   focusTimerOwnerId = runningFocusMode ? String(payload.ownerId || "") : "";
+  if (Number.isFinite(Number(payload.rewardSeconds))) {
+    state.focusRewardSeconds = Math.max(0, Math.floor(Number(payload.rewardSeconds))) % 3600;
+  }
 
   if (runningFocusMode) {
     const runtime = focusRuntimeByMode[runningFocusMode];
@@ -2441,6 +2506,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   updateFocusDisplay();
   updateFocusTarget();
   updateMiniFocusTimer();
+  renderSummary();
 }
 
 function handleFocusTimerDatabaseError(error) {
@@ -3949,13 +4015,15 @@ function getFarmMailSender(friendId, mail = null) {
 }
 
 function getFarmGiftDetails(category, itemId, mail = null) {
-  if (category === "rankingBox") {
+  if (category === "rankingBox" || category === "updateBox") {
     const boxCount = mail?.boxCropIds?.length ?? mail?.boxCount ?? 1;
     return {
       name: `작물 랜덤 박스 ${boxCount}개`,
       icon: "🎁",
       inventory: state.harvestInventory,
-      categoryName: `주간 랭킹 ${mail?.ranking ?? ""}위 보상`,
+      categoryName: category === "updateBox"
+        ? mail?.updateNote || "Farmodoro 업데이트"
+        : `주간 랭킹 ${mail?.ranking ?? ""}위 보상`,
     };
   }
   if (category === "supply") {
@@ -4029,8 +4097,15 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
 
 function openFarmRewardBoxModal(mail) {
   activeRankingRewardMailId = mail.id;
+  const modal = document.querySelector("#farmRewardBoxModal");
+  modal.querySelector(".section-kicker").textContent = mail.category === "updateBox"
+    ? "UPDATE REWARD"
+    : "WEEKLY REWARD";
+  modal.querySelector("header p").textContent = mail.category === "updateBox"
+    ? "업데이트 선물 상자를 열어 새 작물을 받아"
+    : "상자를 하나씩 눌러 이번 주의 행운을 확인해";
   renderFarmRewardBoxes(mail);
-  document.querySelector("#farmRewardBoxModal").classList.remove("hidden");
+  modal.classList.remove("hidden");
 }
 
 function closeFarmRewardBoxModal() {
@@ -4166,8 +4241,8 @@ function renderFarmMail() {
               </div>
               <button type="button" data-claim-farm-mail="${mail.id}" ${mail.claimed ? "disabled" : ""}>
                 ${mail.claimed
-                  ? mail.category === "rankingBox" ? "개봉 완료" : "수령 완료"
-                  : mail.category === "rankingBox"
+                  ? ["rankingBox", "updateBox"].includes(mail.category) ? "개봉 완료" : "수령 완료"
+                  : ["rankingBox", "updateBox"].includes(mail.category)
                     ? getOpenedFarmRankingBoxIndexes(mail).length ? "계속 열기" : "상자 열기"
                     : "받기"}
               </button>
@@ -6708,7 +6783,7 @@ farmMailModal.addEventListener("click", async (event) => {
     if (!mail || mail.claimed) return;
     const gift = getFarmGiftDetails(mail.category, mail.itemId, mail);
     if (!gift) return;
-    if (mail.category === "rankingBox") {
+    if (["rankingBox", "updateBox"].includes(mail.category)) {
       openFarmRewardBoxModal(mail);
       return;
     }

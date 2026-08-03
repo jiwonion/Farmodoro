@@ -9807,6 +9807,77 @@ canvas {
   pointer-events: none;
 }
 
+.farm-admin-mail-section {
+  display: grid;
+  gap: 11px;
+  border-color: #d4b95f;
+  background: color-mix(in srgb, #fff1b8 38%, var(--paper));
+}
+
+.farm-admin-mail-section[hidden] {
+  display: none;
+}
+
+.farm-admin-mail-section label {
+  display: grid;
+  gap: 6px;
+}
+
+.farm-admin-mail-section label > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.farm-admin-mail-section input,
+.farm-admin-mail-section textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #c8d4ca;
+  border-radius: 9px;
+  outline: none;
+  color: var(--ink);
+  background: var(--paper);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.farm-admin-mail-section input:focus,
+.farm-admin-mail-section textarea:focus {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green-700) 13%, transparent);
+}
+
+.farm-admin-mail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.farm-admin-mail-actions small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.farm-admin-mail-actions button {
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #294c3a;
+  border-radius: 8px;
+  color: #fffaf0;
+  background: #315f46;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.farm-admin-mail-actions button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
 .mobile-profile-settings {
   display: none;
   appearance: none;
@@ -9823,6 +9894,42 @@ canvas {
 
 #userSettingsModal {
   z-index: 8000;
+}
+
+@media (min-width: 821px) and (max-height: 720px) {
+  .sidebar {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .brand {
+    min-height: 44px;
+    margin-bottom: 6px;
+  }
+
+  .main-nav {
+    gap: 4px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    padding-block: 4px;
+  }
+
+  .sidebar-spacer {
+    min-height: 6px;
+  }
+
+  .profile-button {
+    flex: 0 0 auto;
+    padding-block: 6px;
+  }
 }
 
 .persistent-youtube-player iframe {

@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=41" />
+    <link rel="stylesheet" href="./styles.css?v=46" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -1096,6 +1096,27 @@
             <button class="reopen-tutorial-button" id="reopenTutorial" type="button">튜토리얼 다시 보기</button>
           </section>
 
+          <section class="settings-section farm-admin-mail-section" id="farmAdminMailSection" aria-labelledby="farmAdminMailTitle" hidden>
+            <div class="settings-section-heading">
+              <div>
+                <strong id="farmAdminMailTitle">전체 업데이트 우편</strong>
+                <small>모든 사용자에게 랜덤 박스 1개와 함께 보내</small>
+              </div>
+            </div>
+            <label>
+              <span>제목</span>
+              <input id="farmAdminMailTitleInput" type="text" maxlength="60" autocomplete="off" placeholder="예: 8월 업데이트" />
+            </label>
+            <label>
+              <span>내용</span>
+              <textarea id="farmAdminMailMessageInput" maxlength="1000" rows="5" placeholder="업데이트 내용을 적어"></textarea>
+            </label>
+            <div class="farm-admin-mail-actions">
+              <small id="farmAdminMailStatus" role="status" aria-live="polite"></small>
+              <button id="sendFarmAdminMail" type="button">전체 사용자에게 발송</button>
+            </div>
+          </section>
+
           <section class="settings-section account-settings-section" aria-labelledby="accountSettingsTitle">
             <div class="settings-section-heading">
               <div>
@@ -1152,7 +1173,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=41"></script>
-    <script src="./pwa-register.js?v=41"></script>
+    <script src="./app.js?v=46"></script>
+    <script src="./pwa-register.js?v=46"></script>
   </body>
 </html>
