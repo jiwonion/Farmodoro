@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=21" />
+    <link rel="stylesheet" href="./styles.css?v=37" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -530,7 +530,7 @@
                   기본 음악
                 </button>
                 <button id="toggleFocusYoutube" type="button" aria-expanded="false" aria-controls="focusYoutubePanel">
-                  <span aria-hidden="true">▶</span>
+                  <span aria-hidden="true">↗</span>
                   YouTube
                 </button>
                 <button id="toggleFocusFullscreen" type="button">
@@ -542,12 +542,20 @@
             <section class="focus-youtube-panel hidden" id="focusYoutubePanel" aria-labelledby="focusYoutubeTitle">
               <header>
                 <div>
-                  <span class="section-kicker">YOUTUBE PLAYER</span>
-                  <h2 id="focusYoutubeTitle">YouTube 집중 음악</h2>
+                  <span class="section-kicker">YOUTUBE LINKS</span>
+                  <h2 id="focusYoutubeTitle">YouTube 링크</h2>
                 </div>
-                <button id="closeFocusYoutube" type="button" aria-label="YouTube 플레이어 닫기">×</button>
+                <button id="closeFocusYoutube" type="button" aria-label="YouTube 링크 창 닫기">× 닫기</button>
               </header>
               <form class="focus-youtube-form" id="focusYoutubeForm">
+                <input
+                  id="focusYoutubeName"
+                  type="text"
+                  maxlength="30"
+                  autocomplete="off"
+                  placeholder="플레이리스트 제목"
+                  aria-label="플레이리스트 제목"
+                />
                 <input
                   id="focusYoutubeUrl"
                   type="text"
@@ -556,15 +564,15 @@
                   placeholder="YouTube 영상 또는 플레이리스트 URL"
                   aria-label="YouTube 영상 또는 플레이리스트 URL"
                 />
-                <button type="submit">불러오기</button>
+                <button type="submit">저장하고 열기</button>
               </form>
-              <div class="focus-youtube-player" id="focusYoutubePlayer"></div>
+              <div class="focus-youtube-library" id="focusYoutubeLibrary"></div>
               <div class="focus-youtube-mini-actions">
-                <span>▶ YouTube 재생 중</span>
-                <button id="restoreFocusYoutube" type="button" aria-label="YouTube 플레이어 크게 보기">↗</button>
-                <button id="stopFocusYoutube" type="button" aria-label="YouTube 재생 종료">×</button>
+                <button id="focusYoutubeNowPlaying" type="button" aria-label="YouTube 재생">▶ YouTube 재생 중</button>
+                <button id="restoreFocusYoutube" type="button" aria-label="YouTube 플레이어 크게 보기">□ 크게 보기</button>
+                <button id="stopFocusYoutube" type="button" aria-label="YouTube 재생 종료">× 재생 종료</button>
               </div>
-              <p id="focusYoutubeStatus" role="status" aria-live="polite">공개 영상이나 플레이리스트 주소를 붙여 넣어.</p>
+              <p id="focusYoutubeStatus" role="status" aria-live="polite">영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.</p>
             </section>
             <div class="focus-page-slot" id="focusPageSlot"></div>
           </section>
@@ -1109,23 +1117,35 @@
       </section>
     </div>
 
-    <aside class="mini-focus-timer" id="miniFocusTimer" aria-live="polite" hidden>
-      <button class="mini-focus-main" id="openMiniFocus" type="button" aria-label="집중 페이지 열기">
-        <span id="miniFocusStatus">집중 중</span>
-        <strong id="miniFocusTitle">집중 항목</strong>
-        <b id="miniFocusTime">25:00</b>
-      </button>
-      <div class="mini-focus-actions">
-        <button id="miniFocusPause" type="button">일시정지</button>
-        <button id="miniFocusStop" type="button">종료</button>
-      </div>
-    </aside>
+    <div class="focus-youtube-player persistent-youtube-player" id="focusYoutubePlayer"></div>
+
+    <div class="focus-floating-status">
+      <aside class="mini-focus-music" id="miniFocusMusic" aria-live="polite" hidden>
+        <button class="mini-focus-music-main" id="openMiniFocusMusic" type="button" aria-label="집중 페이지 열기">
+          <span>♪ 음악 재생 중</span>
+          <strong id="miniFocusMusicTitle">집중 음악</strong>
+        </button>
+        <button id="stopMiniFocusMusic" type="button" aria-label="음악 종료">×</button>
+      </aside>
+
+      <aside class="mini-focus-timer" id="miniFocusTimer" aria-live="polite" hidden>
+        <button class="mini-focus-main" id="openMiniFocus" type="button" aria-label="집중 페이지 열기">
+          <span id="miniFocusStatus">집중 중</span>
+          <strong id="miniFocusTitle">집중 항목</strong>
+          <b id="miniFocusTime">25:00</b>
+        </button>
+        <div class="mini-focus-actions">
+          <button id="miniFocusPause" type="button">일시정지</button>
+          <button id="miniFocusStop" type="button">종료</button>
+        </div>
+      </aside>
+    </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=21"></script>
-    <script src="./pwa-register.js?v=21"></script>
+    <script src="./app.js?v=37"></script>
+    <script src="./pwa-register.js?v=37"></script>
   </body>
 </html>

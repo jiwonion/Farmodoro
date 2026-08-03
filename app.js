@@ -707,6 +707,7 @@ async function applyAuthSession(session) {
   document.body.classList.toggle("auth-gated", !isSignedIn);
 
   if (isSignedIn) {
+    if (previousUserId && previousUserId !== session.user.id) stopFocusYoutube();
     if (previousUserId !== session.user.id) contentEncryptionKey = null;
     currentProfile = getProfileFallback(session.user);
     updateProfileFromUser(session.user, currentProfile);
@@ -749,6 +750,7 @@ async function applyAuthSession(session) {
     }
     maybeOpenTutorial(session.user);
   } else {
+    stopFocusYoutube();
     contentEncryptionKey = null;
     closeContentEncryptionPrompt(null);
     resetTaskDatabaseState();
@@ -1519,6 +1521,7 @@ const CROP_GROWTH_COSTS = Object.fromEntries(
 );
 
 const FARM_WATER_COOLDOWN_MS = 5 * 60 * 60 * 1000;
+const FARM_WILT_AFTER_MS = 24 * 60 * 60 * 1000;
 
 const FARM_ITEMS = {
   luckyFertilizer: {
@@ -1631,7 +1634,7 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 21,
+  schemaVersion: 37,
   tutorialCompleted: false,
   contentEncryption: {
     version: 0,
@@ -1662,6 +1665,7 @@ const defaultState = {
   ),
   focusRewardSeconds: 0,
   focusYoutubeUrl: "",
+  focusYoutubePlaylists: [],
   settings: {
     linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
     quick: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
@@ -1675,6 +1679,7 @@ const defaultState = {
       plantedDate: "",
       lastWateredDate: "",
       lastFreeWaterAt: 0,
+      lastCaredAt: 0,
       wilted: false,
       fertilizer: null,
   })),
@@ -1799,11 +1804,14 @@ const freePassTargetModal = document.querySelector("#freePassTargetModal");
 const freePassTargetList = document.querySelector("#freePassTargetList");
 const confirmFreePassTarget = document.querySelector("#confirmFreePassTarget");
 const toast = document.querySelector("#toast");
+const miniFocusMusic = document.querySelector("#miniFocusMusic");
+const miniFocusMusicTitle = document.querySelector("#miniFocusMusicTitle");
 const miniFocusTimer = document.querySelector("#miniFocusTimer");
 const miniFocusStatus = document.querySelector("#miniFocusStatus");
 const miniFocusTitle = document.querySelector("#miniFocusTitle");
 const miniFocusTime = document.querySelector("#miniFocusTime");
 const miniFocusPause = document.querySelector("#miniFocusPause");
+let miniFocusMode = null;
 let pendingHabitDeleteId = null;
 let pendingTaskDeleteId = null;
 let editingTaskId = null;
@@ -1847,6 +1855,7 @@ function buildFarmDatabaseState(snapshot = state) {
       plantedDate: plot.plantedDate ?? "",
       lastWateredDate: plot.lastWateredDate ?? "",
       lastFreeWaterAt: toDatabaseTimestamp(plot.lastFreeWaterAt),
+      lastCaredAt: toDatabaseTimestamp(plot.lastCaredAt),
       wilted: Boolean(plot.wilted),
       fertilizer: plot.fertilizer ?? "",
     })),
@@ -1931,7 +1940,10 @@ async function loadFarmDataFromDatabase(user) {
   const requestedUserId = user.id;
   farmDataHydrated = false;
   farmDataUserId = requestedUserId;
-  const { data, error } = await supabaseClient.rpc("get_my_farm_state");
+  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v2");
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    ({ data, error } = await supabaseClient.rpc("get_my_farm_state"));
+  }
   if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
   if (error) {
     console.error("Farmodoro farm data could not be loaded", error);
@@ -1956,6 +1968,9 @@ async function loadFarmDataFromDatabase(user) {
       plantedDate: plot.plantedDate ?? "",
       lastWateredDate: plot.lastWateredDate ?? "",
       lastFreeWaterAt: Date.parse(plot.lastFreeWaterAt || "") || 0,
+      lastCaredAt:
+        Date.parse(plot.lastCaredAt || "") ||
+        (plot.crop ? Date.now() : 0),
       wilted: Boolean(plot.wilted),
       fertilizer: FARM_ITEMS[plot.fertilizer] ? plot.fertilizer : null,
     };
@@ -2013,7 +2028,10 @@ function scheduleFarmDataDatabaseSync(delay = 800) {
     const payload = JSON.parse(latestSignature);
     farmDataSyncChain = farmDataSyncChain
       .then(async () => {
-        const { error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload });
+        let { error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
+        if (error?.code === "PGRST202" || error?.code === "42883") {
+          ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
+        }
         if (error) throw error;
       })
       .then(() => {
@@ -2058,6 +2076,7 @@ function loadState(savedState = null) {
             lastWateredDate:
               plot.lastWateredDate ?? (plot.crop ? toLocalDateString() : ""),
             lastFreeWaterAt: Number(plot.lastFreeWaterAt ?? 0),
+            lastCaredAt: Number(plot.lastCaredAt ?? (plot.crop ? Date.now() : 0)),
             wilted: plot.wilted ?? false,
             fertilizer: plot.fertilizer ?? null,
           }))
@@ -2066,7 +2085,7 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 21,
+      schemaVersion: 37,
       contentEncryption: {
         version: Number(saved.contentEncryption?.version) || 0,
         salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
@@ -2102,6 +2121,25 @@ function loadState(savedState = null) {
         ...structuredClone(defaultState.farmItemInventory),
         ...(saved.farmItemInventory ?? {}),
       },
+      focusYoutubeUrl:
+        typeof saved.focusYoutubeUrl === "string" ? saved.focusYoutubeUrl : "",
+      focusYoutubePlaylists: (
+        Array.isArray(saved.focusYoutubePlaylists)
+          ? saved.focusYoutubePlaylists
+          : saved.focusYoutubeUrl
+            ? [{ id: createUuid(), title: "내 집중 음악", url: saved.focusYoutubeUrl }]
+            : []
+      )
+        .filter((item) => item && typeof item.url === "string")
+        .slice(0, 5)
+        .map((item, index) => ({
+          id: typeof item.id === "string" && item.id ? item.id : createUuid(),
+          title:
+            typeof item.title === "string" && item.title.trim()
+              ? item.title.trim().slice(0, 30)
+              : `플레이리스트 ${index + 1}`,
+          url: item.url.trim(),
+        })),
       settings: normalizeFocusSettings(saved.settings),
       seedInventory: {
         ...structuredClone(defaultState.seedInventory),
@@ -3062,6 +3100,30 @@ function formatPlotWaterCooldown(milliseconds) {
   return hours ? `${hours}:${String(minutes).padStart(2, "0")}` : `${minutes}분`;
 }
 
+function getPlotWiltRemaining(plot, now = Date.now()) {
+  if (!plot?.crop || !plot.lastCaredAt || plot.wilted) return 0;
+  const wiltAt = Number(plot.lastCaredAt) + FARM_WILT_AFTER_MS;
+  const protectedUntil = Number(state.wiltProtectionUntil ?? 0);
+  return Math.max(0, Math.max(wiltAt, protectedUntil) - now);
+}
+
+function formatPlotWiltRemaining(milliseconds) {
+  const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}시간 ${minutes}분`;
+}
+
+function updateFarmWiltCountdowns() {
+  document.querySelectorAll("[data-wilt-countdown]").forEach((label) => {
+    const plot = state.farmPlots.find(
+      (entry) => entry.id === Number(label.dataset.wiltCountdown),
+    );
+    if (!plot?.crop || plot.wilted) return;
+    label.textContent = `시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}`;
+  });
+}
+
 function updateFarmWaterCooldowns() {
   document.querySelectorAll("[data-water-plot]").forEach((button) => {
     const plot = state.farmPlots.find((entry) => entry.id === Number(button.dataset.waterPlot));
@@ -3170,17 +3232,12 @@ function launchHarvestCelebration() {
   setTimeout(() => celebration.remove(), 1800);
 }
 
-function getWiltGraceDays(plot) {
-  return plot.growth <= 1 ? 1 : 2;
-}
-
 function updateWiltedCrops() {
   if (isWiltProtectionActive()) return false;
   let changed = false;
   state.farmPlots.forEach((plot) => {
     if (!plot.crop || plot.wilted) return;
-    const lastCareDate = plot.lastWateredDate || plot.plantedDate;
-    if (lastCareDate && daysBetweenDates(lastCareDate) > getWiltGraceDays(plot)) {
+    if (plot.lastCaredAt && Date.now() - Number(plot.lastCaredAt) >= FARM_WILT_AFTER_MS) {
       plot.wilted = true;
       changed = true;
     }
@@ -3194,6 +3251,7 @@ function clearFarmPlot(plot) {
   plot.plantedDate = "";
   plot.lastWateredDate = "";
   plot.lastFreeWaterAt = 0;
+  plot.lastCaredAt = 0;
   plot.wilted = false;
   plot.fertilizer = null;
 }
@@ -3207,6 +3265,7 @@ function advanceFarmPlotGrowth(plot) {
       : 1;
   plot.growth = Math.min(maxGrowth, plot.growth + growthAmount);
   plot.lastWateredDate = toLocalDateString();
+  plot.lastCaredAt = Date.now();
   return maxGrowth;
 }
 
@@ -4264,6 +4323,7 @@ function renderFarm() {
               <strong>${crop.name}</strong>
               <small>${plot.growth} / ${maxGrowth}</small>
             </div>
+            <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
             <div class="plot-growth-actions">
               <button type="button" data-grow-plot="${plot.id}" aria-label="${crop.name}에 1 Coin 주기"><i class="plot-action-icon" aria-hidden="true">●</i><span>1</span></button>
               <button
@@ -4288,6 +4348,7 @@ function renderFarm() {
             <strong>${crop.name}</strong>
             <small>${plot.growth} / ${maxGrowth}</small>
           </div>
+          <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
           <button class="harvest-button" type="button" data-harvest-plot="${plot.id}">수확하기</button>
         </article>
       `;
@@ -4657,7 +4718,6 @@ function updateFocusDisplay() {
 function updateMiniFocusTimer() {
   const fullTimerVisible = currentPage === "today" || currentPage === "focus";
   const linkedRuntime = focusRuntimeByMode.linked;
-  const showLinkedTimer = linkedRuntime.started && (runningFocusMode === "linked" || focusMode === "linked");
   const linkedRunning = runningFocusMode === "linked";
   document.querySelectorAll("[data-focus-habit]").forEach((button) => {
     const isActive = activeFocus?.type === "habit" && button.dataset.focusHabit === activeFocus.id;
@@ -4668,16 +4728,32 @@ function updateMiniFocusTimer() {
         : "◷ 계속하기"
       : "◷ 집중 시작";
   });
-  miniFocusTimer.hidden = !showLinkedTimer || fullTimerVisible;
+  const visibleMode =
+    runningFocusMode ||
+    (focusRuntimeByMode[focusMode]?.started
+      ? focusMode
+      : ["linked", "quick"].find((mode) => focusRuntimeByMode[mode].started)) ||
+    null;
+  const runtime = visibleMode ? focusRuntimeByMode[visibleMode] : null;
+  const timerRunning = Boolean(visibleMode && runningFocusMode === visibleMode);
+  miniFocusMode = visibleMode;
+  miniFocusTimer.hidden = !runtime?.started || fullTimerVisible;
   if (miniFocusTimer.hidden) return;
 
-  const item = getFocusItem();
-  const minutes = String(Math.floor(linkedRuntime.seconds / 60)).padStart(2, "0");
-  const seconds = String(linkedRuntime.seconds % 60).padStart(2, "0");
-  miniFocusStatus.textContent = linkedRuntime.phase === "break" ? "휴식 중" : linkedRunning ? "집중 중" : "일시정지";
-  miniFocusTitle.textContent = linkedRuntime.phase === "break" ? "다음 집중을 위한 휴식" : item?.title ?? "항목 집중";
+  const item = visibleMode === "linked" ? getFocusItem() : null;
+  const minutes = String(Math.floor(runtime.seconds / 60)).padStart(2, "0");
+  const seconds = String(runtime.seconds % 60).padStart(2, "0");
+  miniFocusStatus.textContent = runtime.phase === "break" ? "휴식 중" : timerRunning ? "집중 중" : "일시정지";
+  miniFocusTitle.textContent =
+    runtime.phase === "break"
+      ? visibleMode === "quick"
+        ? "빠른 집중 휴식"
+        : "다음 집중을 위한 휴식"
+      : visibleMode === "quick"
+        ? "빠른 집중"
+        : item?.title ?? "항목 집중";
   miniFocusTime.textContent = `${minutes}:${seconds}`;
-  miniFocusPause.textContent = linkedRunning ? "일시정지" : "계속";
+  miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
 }
 
@@ -4981,9 +5057,10 @@ function toggleFocus() {
   updateMiniFocusTimer();
 }
 
-function endFocusSession() {
+function endFocusSession(mode = focusMode) {
+  if (focusMode !== mode) setFocusMode(mode);
   stopFocusTimer();
-  activeFocus = null;
+  if (mode === "linked") activeFocus = null;
   resetToFocus();
   renderTasks();
   renderHabits();
@@ -4991,7 +5068,7 @@ function endFocusSession() {
   renderSummary();
   saveState();
   scheduleTaskDatabaseSync(0);
-  showToast("집중 측정을 종료했어");
+  showToast(mode === "quick" ? "빠른 집중을 종료했어" : "집중 측정을 종료했어");
 }
 
 function setFocusMode(mode) {
@@ -6089,6 +6166,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
       }
       plot.wilted = false;
       plot.lastWateredDate = toLocalDateString();
+      plot.lastCaredAt = Date.now();
     } else if (itemId === "growthTonic") {
       if (plot.wilted || plot.growth >= getCropGrowthCost(plot.crop)) {
         showToast("성장 중인 작물에만 사용할 수 있어");
@@ -6096,6 +6174,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
       }
       plot.growth = getCropGrowthCost(plot.crop);
       plot.lastWateredDate = toLocalDateString();
+      plot.lastCaredAt = Date.now();
     } else {
       if (plot.wilted || plot.fertilizer) {
         showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야" : "시든 작물에는 비료를 쓸 수 없어");
@@ -6133,6 +6212,7 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     plot.plantedDate = toLocalDateString();
     plot.lastWateredDate = "";
     plot.lastFreeWaterAt = 0;
+    plot.lastCaredAt = Date.now();
     plot.wilted = false;
     state.seedInventory[selectedSeed] -= 1;
     const cropName = CROPS[selectedSeed].name;
@@ -6644,12 +6724,21 @@ const focusAudioButton = document.querySelector("#toggleFocusAudio");
 const focusYoutubeButton = document.querySelector("#toggleFocusYoutube");
 const focusYoutubePanel = document.querySelector("#focusYoutubePanel");
 const focusYoutubeForm = document.querySelector("#focusYoutubeForm");
+const focusYoutubeNameInput = document.querySelector("#focusYoutubeName");
 const focusYoutubeUrlInput = document.querySelector("#focusYoutubeUrl");
+const focusYoutubeLibrary = document.querySelector("#focusYoutubeLibrary");
 const focusYoutubePlayer = document.querySelector("#focusYoutubePlayer");
 const focusYoutubeStatus = document.querySelector("#focusYoutubeStatus");
+const focusYoutubeNowPlaying = document.querySelector("#focusYoutubeNowPlaying");
 const closeFocusYoutubeButton = document.querySelector("#closeFocusYoutube");
 const restoreFocusYoutubeButton = document.querySelector("#restoreFocusYoutube");
 const stopFocusYoutubeButton = document.querySelector("#stopFocusYoutube");
+let editingFocusYoutubeId = null;
+let playingFocusYoutubeId = null;
+let playingFocusYoutubeTitle = "";
+let focusYoutubeApiPromise = null;
+let focusYoutubeApiPlayer = null;
+let focusYoutubePlaybackRequest = 0;
 const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
 const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
 const FOCUS_PLAYLIST = [
@@ -6670,6 +6759,19 @@ let focusAudioPlayer = null;
 let focusPlaylistQueue = [];
 let currentFocusTrack = null;
 let focusBackgroundObjectUrl = null;
+
+function updateFocusMusicIndicator() {
+  const youtubePlaying = Boolean(focusYoutubePlayer.firstElementChild);
+  const defaultMusicPlaying = Boolean(
+    focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
+  );
+  const showIndicator = currentPage !== "focus" && (youtubePlaying || defaultMusicPlaying);
+  miniFocusMusic.hidden = !showIndicator;
+  if (!showIndicator) return;
+  miniFocusMusicTitle.textContent = youtubePlaying
+    ? playingFocusYoutubeTitle || "YouTube 집중 음악"
+    : currentFocusTrack?.title || "기본 집중 음악";
+}
 
 function applyFocusBackground(file) {
   if (focusBackgroundObjectUrl) URL.revokeObjectURL(focusBackgroundObjectUrl);
@@ -6805,6 +6907,7 @@ document.addEventListener("fullscreenchange", () => {
     ? '<span aria-hidden="true">×</span> 전체 화면 종료'
     : '<span aria-hidden="true">⛶</span> 전체 화면';
   scheduleFocusStageCenterUpdate();
+  requestAnimationFrame(updateFocusYoutubePanelPosition);
 });
 
 function stopFocusAudio() {
@@ -6814,6 +6917,7 @@ function stopFocusAudio() {
   focusAudioButton.innerHTML = focusAudioPlayer && !focusAudioPlayer.ended
     ? '<span aria-hidden="true">♪</span> 음악 계속 듣기'
     : '<span aria-hidden="true">♪</span> 기본 음악';
+  updateFocusMusicIndicator();
 }
 
 function shuffleFocusPlaylist() {
@@ -6861,6 +6965,7 @@ async function playNextFocusTrack() {
   focusAudioButton.classList.add("active");
   focusAudioButton.setAttribute("aria-pressed", "true");
   focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+  updateFocusMusicIndicator();
 }
 
 async function startFocusAudio() {
@@ -6871,6 +6976,7 @@ async function startFocusAudio() {
       focusAudioButton.classList.add("active");
       focusAudioButton.setAttribute("aria-pressed", "true");
       focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+      updateFocusMusicIndicator();
     } catch (error) {
       console.warn("Farmodoro focus music could not be resumed", error);
       stopFocusAudio();
@@ -6901,9 +7007,8 @@ function parseFocusYoutubeUrl(value) {
   if (!["youtube.com", "music.youtube.com", "youtu.be"].includes(hostname)) return null;
 
   const playlistId = url.searchParams.get("list");
-  if (playlistId && /^[A-Za-z0-9_-]{10,}$/.test(playlistId)) {
-    return { type: "playlist", id: playlistId, url: rawValue };
-  }
+  const validPlaylistId =
+    playlistId && /^[A-Za-z0-9_-]{10,}$/.test(playlistId) ? playlistId : "";
 
   let videoId = url.searchParams.get("v") || "";
   if (hostname === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] || "";
@@ -6911,17 +7016,130 @@ function parseFocusYoutubeUrl(value) {
     const [kind, pathId] = url.pathname.split("/").filter(Boolean);
     if (["embed", "shorts", "live"].includes(kind)) videoId = pathId || "";
   }
-  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
-  return { type: "video", id: videoId, url: rawValue };
+  if (/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    return { type: "video", id: videoId, playlistId: validPlaylistId, url: url.href };
+  }
+  if (validPlaylistId) return { type: "playlist", id: validPlaylistId, url: url.href };
+  return null;
+}
+
+function loadFocusYoutubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (focusYoutubeApiPromise) return focusYoutubeApiPromise;
+
+  focusYoutubeApiPromise = new Promise((resolve, reject) => {
+    const previousReadyHandler = window.onYouTubeIframeAPIReady;
+    const timeoutId = window.setTimeout(() => {
+      focusYoutubeApiPromise = null;
+      reject(new Error("YouTube 플레이어를 불러오는 시간이 너무 오래 걸려"));
+    }, 15000);
+
+    window.onYouTubeIframeAPIReady = () => {
+      previousReadyHandler?.();
+      window.clearTimeout(timeoutId);
+      resolve(window.YT);
+    };
+
+    let script = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://www.youtube.com/iframe_api";
+      script.async = true;
+      document.head.appendChild(script);
+    }
+    script.addEventListener(
+      "error",
+      () => {
+        window.clearTimeout(timeoutId);
+        focusYoutubeApiPromise = null;
+        reject(new Error("YouTube 플레이어 API를 불러오지 못했어"));
+      },
+      { once: true },
+    );
+  });
+
+  return focusYoutubeApiPromise;
+}
+
+function getFocusYoutubePlaylists() {
+  if (!Array.isArray(state.focusYoutubePlaylists)) state.focusYoutubePlaylists = [];
+  return state.focusYoutubePlaylists;
+}
+
+function renderFocusYoutubeLibrary() {
+  const playlists = getFocusYoutubePlaylists();
+  focusYoutubeLibrary.replaceChildren();
+  if (!playlists.length) {
+    const empty = document.createElement("p");
+    empty.className = "focus-youtube-library-empty";
+    empty.textContent = "저장한 음악이 없어. 최대 5개까지 저장돼.";
+    focusYoutubeLibrary.appendChild(empty);
+    return;
+  }
+
+  playlists.forEach((playlist) => {
+    const row = document.createElement("div");
+    row.className = "focus-youtube-library-item";
+    if (playlist.id === playingFocusYoutubeId) row.classList.add("playing");
+
+    const title = document.createElement("strong");
+    title.textContent = playlist.title;
+    title.title = playlist.url;
+    row.appendChild(title);
+
+    [
+      ["play", "열기"],
+      ["edit", "수정"],
+      ["delete", "삭제"],
+    ].forEach(([action, label]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.action = action;
+      button.dataset.id = playlist.id;
+      button.textContent = label;
+      row.appendChild(button);
+    });
+    focusYoutubeLibrary.appendChild(row);
+  });
+}
+
+function openFocusYoutubeLink(source, title) {
+  window.open(source.url, "_blank", "noopener,noreferrer");
+  focusYoutubeStatus.textContent = `${title} 링크를 새 탭으로 열었어.`;
+  focusYoutubePanel.classList.remove("minimized");
+  focusYoutubeButton.classList.add("active");
+  focusYoutubeButton.setAttribute("aria-expanded", "true");
+  renderFocusYoutubeLibrary();
 }
 
 function stopFocusYoutube() {
+  focusYoutubePlaybackRequest += 1;
+  focusYoutubeApiPlayer?.destroy?.();
+  focusYoutubeApiPlayer = null;
   focusYoutubePlayer.replaceChildren();
+  playingFocusYoutubeId = null;
+  playingFocusYoutubeTitle = "";
   focusYoutubePanel.classList.remove("minimized");
   focusYoutubePanel.classList.add("hidden");
   focusYoutubeButton.classList.remove("active");
   focusYoutubeButton.setAttribute("aria-expanded", "false");
-  focusYoutubeStatus.textContent = "공개 영상이나 플레이리스트 주소를 붙여 넣어.";
+  focusYoutubeStatus.textContent = "영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.";
+  updateFocusMusicIndicator();
+}
+
+function updateFocusYoutubePanelPosition() {
+  if (
+    focusYoutubePanel.classList.contains("hidden") ||
+    focusYoutubePanel.classList.contains("minimized")
+  ) {
+    return;
+  }
+  const stageRect = focusPageStage.getBoundingClientRect();
+  const toolbarRect = focusPageStage
+    .querySelector(".focus-stage-toolbar")
+    .getBoundingClientRect();
+  const panelTop = Math.max(2, Math.ceil(toolbarRect.bottom - stageRect.top + 2));
+  focusYoutubePanel.style.setProperty("--focus-youtube-panel-top", `${panelTop}px`);
 }
 
 function openFocusYoutube() {
@@ -6929,13 +7147,22 @@ function openFocusYoutube() {
   focusYoutubePanel.classList.remove("hidden");
   focusYoutubeButton.classList.add("active");
   focusYoutubeButton.setAttribute("aria-expanded", "true");
-  focusYoutubeUrlInput.value = state.focusYoutubeUrl || "";
-  requestAnimationFrame(() => focusYoutubeUrlInput.focus());
+  editingFocusYoutubeId = null;
+  focusYoutubeNameInput.value = "";
+  focusYoutubeUrlInput.value = "";
+  focusYoutubeStatus.textContent = "제목과 YouTube 주소를 넣어. 최대 5개까지 저장돼.";
+  renderFocusYoutubeLibrary();
+  requestAnimationFrame(() => {
+    updateFocusYoutubePanelPosition();
+    focusYoutubeNameInput.focus();
+  });
 }
 
 function minimizeFocusYoutube() {
   if (!focusYoutubePlayer.firstElementChild) {
-    stopFocusYoutube();
+    focusYoutubePanel.classList.add("hidden");
+    focusYoutubeButton.classList.remove("active");
+    focusYoutubeButton.setAttribute("aria-expanded", "false");
     return;
   }
   focusYoutubePanel.classList.add("minimized");
@@ -6943,8 +7170,7 @@ function minimizeFocusYoutube() {
 }
 
 function restoreFocusYoutube() {
-  focusYoutubePanel.classList.remove("minimized");
-  focusYoutubeButton.setAttribute("aria-expanded", "true");
+  openFocusYoutube();
 }
 
 focusYoutubeButton.addEventListener("click", () => {
@@ -6956,6 +7182,59 @@ focusYoutubeButton.addEventListener("click", () => {
 closeFocusYoutubeButton.addEventListener("click", minimizeFocusYoutube);
 restoreFocusYoutubeButton.addEventListener("click", restoreFocusYoutube);
 stopFocusYoutubeButton.addEventListener("click", stopFocusYoutube);
+focusYoutubeNowPlaying.addEventListener("click", () => {
+  if (!focusYoutubeApiPlayer) return;
+  focusYoutubeApiPlayer.unMute?.();
+  focusYoutubeApiPlayer.setVolume?.(100);
+  focusYoutubeApiPlayer.playVideo?.();
+  focusYoutubeNowPlaying.textContent = `▶ ${playingFocusYoutubeTitle || "YouTube 재생 중"}`;
+});
+
+focusYoutubeLibrary.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-action][data-id]");
+  if (!button) return;
+  const playlists = getFocusYoutubePlaylists();
+  const playlist = playlists.find((item) => item.id === button.dataset.id);
+  if (!playlist) return;
+
+  if (button.dataset.action === "play") {
+    const source = parseFocusYoutubeUrl(playlist.url);
+    if (!source) {
+      focusYoutubeStatus.textContent = "저장된 주소가 올바르지 않아. 수정해.";
+      return;
+    }
+    state.focusYoutubeUrl = playlist.url;
+    openFocusYoutubeLink(source, playlist.title);
+    scheduleAppStateDatabaseSync(null, 0);
+    return;
+  }
+
+  if (button.dataset.action === "edit") {
+    editingFocusYoutubeId = playlist.id;
+    focusYoutubeNameInput.value = playlist.title;
+    focusYoutubeUrlInput.value = playlist.url;
+    focusYoutubeStatus.textContent = "수정한 뒤 저장하고 열기를 눌러.";
+    focusYoutubeNameInput.focus();
+    return;
+  }
+
+  const index = playlists.findIndex((item) => item.id === playlist.id);
+  playlists.splice(index, 1);
+  if (playingFocusYoutubeId === playlist.id) {
+    focusYoutubePlayer.replaceChildren();
+    playingFocusYoutubeId = null;
+    playingFocusYoutubeTitle = "";
+    focusYoutubeNowPlaying.textContent = "▶ YouTube 재생 중";
+    updateFocusMusicIndicator();
+  }
+  if (editingFocusYoutubeId === playlist.id) {
+    editingFocusYoutubeId = null;
+    focusYoutubeForm.reset();
+  }
+  renderFocusYoutubeLibrary();
+  focusYoutubeStatus.textContent = "삭제했어.";
+  scheduleAppStateDatabaseSync(null, 0);
+});
 
 focusYoutubeForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -6966,29 +7245,27 @@ focusYoutubeForm.addEventListener("submit", (event) => {
     return;
   }
 
-  stopFocusAudio();
-  const embedUrl = new URL(
-    source.type === "playlist"
-      ? "https://www.youtube.com/embed/videoseries"
-      : `https://www.youtube.com/embed/${source.id}`,
-  );
-  if (source.type === "playlist") embedUrl.searchParams.set("list", source.id);
-  embedUrl.searchParams.set("autoplay", "1");
-  embedUrl.searchParams.set("playsinline", "1");
-  if (/^https?:$/.test(window.location.protocol)) {
-    embedUrl.searchParams.set("origin", window.location.origin);
+  const playlists = getFocusYoutubePlaylists();
+  const title =
+    focusYoutubeNameInput.value.trim().slice(0, 30) || `플레이리스트 ${playlists.length + 1}`;
+  let playlist = editingFocusYoutubeId
+    ? playlists.find((item) => item.id === editingFocusYoutubeId)
+    : playlists.find((item) => item.url === source.url);
+  if (!playlist && playlists.length >= 5) {
+    focusYoutubeStatus.textContent = "5개까지 저장할 수 있어. 하나 지우고 추가해.";
+    return;
+  }
+  if (playlist) {
+    playlist.title = title;
+    playlist.url = source.url;
+  } else {
+    playlist = { id: createUuid(), title, url: source.url };
+    playlists.push(playlist);
   }
 
-  const iframe = document.createElement("iframe");
-  iframe.src = embedUrl.href;
-  iframe.title = "YouTube 집중 음악 플레이어";
-  iframe.allow = "autoplay; encrypted-media; picture-in-picture";
-  iframe.referrerPolicy = "strict-origin-when-cross-origin";
-  iframe.allowFullscreen = true;
-  focusYoutubePlayer.replaceChildren(iframe);
-  focusYoutubeStatus.textContent =
-    source.type === "playlist" ? "YouTube 플레이리스트 재생 중" : "YouTube 영상 재생 중";
+  editingFocusYoutubeId = null;
   state.focusYoutubeUrl = source.url;
+  openFocusYoutubeLink(source, title);
   scheduleAppStateDatabaseSync(null, 0);
 });
 
@@ -7064,21 +7341,12 @@ function updateFocusStageCenter() {
   const visual = focusCard.querySelector(".focus-visual");
   if (!cardRect.height || !visual) return;
 
-  const viewport = window.visualViewport;
-  const viewportTop = viewport?.offsetTop ?? 0;
-  const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
-  const visibleTop = Math.max(stageRect.top, viewportTop);
-  const visibleBottom = Math.min(stageRect.bottom, viewportBottom);
-  if (visibleBottom <= visibleTop) return;
-
   const visualRadius = visual.offsetHeight / 2;
-  let desiredCenter = (visibleTop + visibleBottom) / 2;
-  const toolbarRect = focusPageStage.querySelector(".focus-stage-toolbar").getBoundingClientRect();
-  if (toolbarRect.bottom > visibleTop && toolbarRect.top < visibleBottom) {
-    desiredCenter = Math.max(desiredCenter, toolbarRect.bottom + visualRadius + 12);
-  }
-  desiredCenter = Math.min(visibleBottom - visualRadius, desiredCenter);
-  const centerY = Math.max(visualRadius, desiredCenter - cardRect.top);
+  const backgroundCenter = stageRect.top + stageRect.height * 0.44;
+  const centerY = Math.max(
+    visualRadius,
+    Math.min(cardRect.height - visualRadius, backgroundCenter - cardRect.top),
+  );
   focusCard.style.setProperty("--focus-stage-center-y", `${Math.round(centerY)}px`);
 }
 
@@ -7088,11 +7356,13 @@ function scheduleFocusStageCenterUpdate() {
 }
 
 window.addEventListener("resize", scheduleFocusStageCenterUpdate);
-window.addEventListener("scroll", scheduleFocusStageCenterUpdate, { passive: true });
+window.addEventListener("resize", () => requestAnimationFrame(updateFocusYoutubePanelPosition));
 window.visualViewport?.addEventListener("resize", scheduleFocusStageCenterUpdate);
-window.visualViewport?.addEventListener("scroll", scheduleFocusStageCenterUpdate);
 if ("ResizeObserver" in window) {
-  const focusStageResizeObserver = new ResizeObserver(scheduleFocusStageCenterUpdate);
+  const focusStageResizeObserver = new ResizeObserver(() => {
+    scheduleFocusStageCenterUpdate();
+    requestAnimationFrame(updateFocusYoutubePanelPosition);
+  });
   focusStageResizeObserver.observe(focusPageStage);
   focusStageResizeObserver.observe(focusPageStage.querySelector(".focus-stage-toolbar"));
 }
@@ -7124,16 +7394,6 @@ function showPage(page) {
   if (validPage !== "habits" && !habitModal.classList.contains("hidden")) {
     closeHabitModal();
   }
-
-  if (
-    currentPage === "focus" &&
-    validPage !== "focus" &&
-    focusAudioPlayer &&
-    !focusAudioPlayer.paused
-  ) {
-    stopFocusAudio();
-  }
-  if (currentPage === "focus" && validPage !== "focus") stopFocusYoutube();
 
   currentPage = validPage;
 
@@ -7181,6 +7441,7 @@ function showPage(page) {
   renderHabitHeatmap();
   updateFocusTarget();
   updateMiniFocusTimer();
+  updateFocusMusicIndicator();
   document.documentElement.classList.remove("app-initializing");
 }
 
@@ -7212,15 +7473,24 @@ document.querySelector("#openMiniFocus").addEventListener("click", () => {
   location.hash = "focus";
 });
 
+document.querySelector("#openMiniFocusMusic").addEventListener("click", () => {
+  location.hash = "focus";
+});
+
+document.querySelector("#stopMiniFocusMusic").addEventListener("click", () => {
+  if (focusYoutubePlayer.firstElementChild) stopFocusYoutube();
+  else stopFocusAudio();
+});
+
 miniFocusPause.addEventListener("click", () => {
-  if (!focusRuntimeByMode.linked.started) return;
-  if (focusMode !== "linked") setFocusMode("linked");
+  if (!miniFocusMode || !focusRuntimeByMode[miniFocusMode].started) return;
+  if (focusMode !== miniFocusMode) setFocusMode(miniFocusMode);
   toggleFocus();
 });
 
 document.querySelector("#miniFocusStop").addEventListener("click", () => {
-  if (focusMode !== "linked") setFocusMode("linked");
-  endFocusSession();
+  if (!miniFocusMode) return;
+  endFocusSession(miniFocusMode);
 });
 
 document.querySelector("#previousHabitMonth").addEventListener("click", () => {
@@ -7261,12 +7531,16 @@ setInterval(() => {
   updateFarmWaterCooldowns();
   updateFarmItemEffects();
   const archiveChanged = maintainTaskArchive();
-  const farmChanged = updateWiltedCrops();
   const farmRankingChanged = ensureWeeklyFarmRanking();
   const farmMailChanged = ensureDailyFarmMail();
   const farmInboxChanged = ensureDailyFarmInbox();
-  if (archiveChanged || farmChanged || farmRankingChanged || farmMailChanged || farmInboxChanged) render();
+  if (archiveChanged || farmRankingChanged || farmMailChanged || farmInboxChanged) render();
 }, 60000);
+
+setInterval(() => {
+  if (updateWiltedCrops()) render();
+  else updateFarmWiltCountdowns();
+}, 1000);
 
 render();
 syncFocusSettingsForm();
