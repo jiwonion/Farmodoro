@@ -1634,7 +1634,7 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 38,
+  schemaVersion: 39,
   tutorialCompleted: false,
   contentEncryption: {
     version: 0,
@@ -2085,7 +2085,7 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 38,
+      schemaVersion: 39,
       contentEncryption: {
         version: Number(saved.contentEncryption?.version) || 0,
         salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
@@ -3418,8 +3418,11 @@ function closeTaskInlineEdit() {
 
 function renderHabits() {
   const habitList = document.querySelector("#habitList");
+  const visibleHabits = currentPage === "today"
+    ? state.habits.filter(isHabitScheduledToday)
+    : state.habits;
 
-  habitList.innerHTML = state.habits
+  habitList.innerHTML = visibleHabits
     .map((habit) => {
       const scheduledToday = isHabitScheduledToday(habit);
       const completeToday = isHabitCompleteToday(habit);
