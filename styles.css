@@ -6466,7 +6466,7 @@ input.themed-date-native {
 
 .themed-date-calendar {
   position: fixed;
-  z-index: 1400;
+  z-index: 14000;
   display: grid;
   gap: 9px;
   padding: 11px;

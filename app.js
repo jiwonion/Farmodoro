@@ -1634,7 +1634,7 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 37,
+  schemaVersion: 38,
   tutorialCompleted: false,
   contentEncryption: {
     version: 0,
@@ -2085,7 +2085,7 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 37,
+      schemaVersion: 38,
       contentEncryption: {
         version: Number(saved.contentEncryption?.version) || 0,
         salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
