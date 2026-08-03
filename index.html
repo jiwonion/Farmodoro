@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=11" />
+    <link rel="stylesheet" href="./styles.css?v=21" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -527,7 +527,11 @@
                 </button>
                 <button id="toggleFocusAudio" type="button" aria-pressed="false">
                   <span aria-hidden="true">♪</span>
-                  음악 켜기
+                  기본 음악
+                </button>
+                <button id="toggleFocusYoutube" type="button" aria-expanded="false" aria-controls="focusYoutubePanel">
+                  <span aria-hidden="true">▶</span>
+                  YouTube
                 </button>
                 <button id="toggleFocusFullscreen" type="button">
                   <span aria-hidden="true">⛶</span>
@@ -535,6 +539,33 @@
                 </button>
               </div>
             </div>
+            <section class="focus-youtube-panel hidden" id="focusYoutubePanel" aria-labelledby="focusYoutubeTitle">
+              <header>
+                <div>
+                  <span class="section-kicker">YOUTUBE PLAYER</span>
+                  <h2 id="focusYoutubeTitle">YouTube 집중 음악</h2>
+                </div>
+                <button id="closeFocusYoutube" type="button" aria-label="YouTube 플레이어 닫기">×</button>
+              </header>
+              <form class="focus-youtube-form" id="focusYoutubeForm">
+                <input
+                  id="focusYoutubeUrl"
+                  type="text"
+                  inputmode="url"
+                  autocomplete="off"
+                  placeholder="YouTube 영상 또는 플레이리스트 URL"
+                  aria-label="YouTube 영상 또는 플레이리스트 URL"
+                />
+                <button type="submit">불러오기</button>
+              </form>
+              <div class="focus-youtube-player" id="focusYoutubePlayer"></div>
+              <div class="focus-youtube-mini-actions">
+                <span>▶ YouTube 재생 중</span>
+                <button id="restoreFocusYoutube" type="button" aria-label="YouTube 플레이어 크게 보기">↗</button>
+                <button id="stopFocusYoutube" type="button" aria-label="YouTube 재생 종료">×</button>
+              </div>
+              <p id="focusYoutubeStatus" role="status" aria-live="polite">공개 영상이나 플레이리스트 주소를 붙여 넣어.</p>
+            </section>
             <div class="focus-page-slot" id="focusPageSlot"></div>
           </section>
         </section>
@@ -913,6 +944,34 @@
       </section>
     </div>
 
+    <div class="content-encryption-modal hidden" id="contentEncryptionModal" role="dialog" aria-modal="true" aria-labelledby="contentEncryptionTitle" aria-describedby="contentEncryptionDescription">
+      <div class="content-encryption-backdrop"></div>
+      <section class="content-encryption-panel">
+        <span class="section-kicker">PRIVATE DATA</span>
+        <h2 id="contentEncryptionTitle">데이터 암호 설정</h2>
+        <p id="contentEncryptionDescription">
+          할 일, 습관, 그룹 이름을 암호화해서 저장해. Google 비밀번호 말고 별도 암호를 입력해.
+        </p>
+        <form id="contentEncryptionForm">
+          <input type="email" autocomplete="username" value="" hidden />
+          <label class="content-encryption-field">
+            <span>보안 암호</span>
+            <input id="contentEncryptionPassword" type="password" minlength="10" autocomplete="new-password" required />
+          </label>
+          <label class="content-encryption-field" id="contentEncryptionConfirmField">
+            <span>보안 암호 확인</span>
+            <input id="contentEncryptionPasswordConfirm" type="password" minlength="10" autocomplete="new-password" required />
+          </label>
+          <p class="content-encryption-warning" id="contentEncryptionWarning">
+            이 암호는 서버에 저장하지 않아. 잊으면 기존 이름을 복구할 수 없어.
+          </p>
+          <p class="content-encryption-status" id="contentEncryptionStatus" role="alert"></p>
+          <button class="primary-button" id="contentEncryptionSubmit" type="submit">암호화 시작</button>
+          <button class="content-encryption-signout" id="contentEncryptionSignOut" type="button">Google 계정에서 로그아웃</button>
+        </form>
+      </section>
+    </div>
+
     <div class="tutorial-modal hidden" id="tutorialModal" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" aria-describedby="tutorialDescription">
       <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
       <section class="tutorial-panel" id="tutorialPanel" tabindex="-1" aria-live="polite">
@@ -1066,7 +1125,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=11"></script>
-    <script src="./pwa-register.js?v=11"></script>
+    <script src="./app.js?v=21"></script>
+    <script src="./pwa-register.js?v=21"></script>
   </body>
 </html>

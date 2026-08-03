@@ -19,6 +19,17 @@ const settingsAccountEmail = document.querySelector("#settingsAccountEmail");
 const settingsFarmCode = document.querySelector("#settingsFarmCode");
 const copyFarmCodeButton = document.querySelector("#copyFarmCode");
 const saveUserSettingsButton = document.querySelector("#saveUserSettings");
+const contentEncryptionModal = document.querySelector("#contentEncryptionModal");
+const contentEncryptionForm = document.querySelector("#contentEncryptionForm");
+const contentEncryptionTitle = document.querySelector("#contentEncryptionTitle");
+const contentEncryptionDescription = document.querySelector("#contentEncryptionDescription");
+const contentEncryptionPassword = document.querySelector("#contentEncryptionPassword");
+const contentEncryptionPasswordConfirm = document.querySelector("#contentEncryptionPasswordConfirm");
+const contentEncryptionConfirmField = document.querySelector("#contentEncryptionConfirmField");
+const contentEncryptionWarning = document.querySelector("#contentEncryptionWarning");
+const contentEncryptionStatus = document.querySelector("#contentEncryptionStatus");
+const contentEncryptionSubmit = document.querySelector("#contentEncryptionSubmit");
+const contentEncryptionSignOut = document.querySelector("#contentEncryptionSignOut");
 const tutorialModal = document.querySelector("#tutorialModal");
 const tutorialPanel = tutorialModal.querySelector(".tutorial-panel");
 const tutorialSpotlight = document.querySelector("#tutorialSpotlight");
@@ -53,6 +64,9 @@ let taskDataLoadPromise = null;
 let taskSyncTimer = null;
 let taskSyncChain = Promise.resolve();
 let lastTaskSyncSignature = "";
+const pendingTaskDatabaseDeletes = new Set();
+const pendingHabitDatabaseDeletes = new Set();
+const pendingGroupDatabaseDeletes = new Set();
 let appStateHydrated = false;
 let appStateUserId = null;
 let appStateSyncTimer = null;
@@ -75,6 +89,12 @@ let tutorialPositionFrame = null;
 let tutorialResizeObserver = null;
 let tutorialReturnPage = "today";
 let tutorialReturnScrollY = 0;
+let contentEncryptionKey = null;
+let contentEncryptionPrompt = null;
+const CONTENT_ENCRYPTION_VERSION = 1;
+const CONTENT_ENCRYPTION_ITERATIONS = 310000;
+const CONTENT_ENCRYPTION_PREFIX = "fmd1";
+const CONTENT_ENCRYPTION_VERIFIER = "farmodoro-content-key-v1";
 const TUTORIAL_STEPS = [
   {
     page: "today",
@@ -466,6 +486,219 @@ function applyFarmWalletChange(
   return true;
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function isEncryptedContentValue(value) {
+  return typeof value === "string" && value.startsWith(`${CONTENT_ENCRYPTION_PREFIX}.`);
+}
+
+function getContentEncryptionSettings() {
+  return state?.contentEncryption ?? null;
+}
+
+function isContentEncryptionEnabled() {
+  const settings = getContentEncryptionSettings();
+  return Boolean(
+    settings?.version === CONTENT_ENCRYPTION_VERSION &&
+      settings.salt &&
+      settings.verifier,
+  );
+}
+
+async function deriveContentEncryptionKey(password, salt, iterations) {
+  if (!window.crypto?.subtle) {
+    throw new Error("이 브라우저에서는 데이터 암호화를 사용할 수 없어");
+  }
+  const passwordKey = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: base64ToBytes(salt),
+      iterations,
+      hash: "SHA-256",
+    },
+    passwordKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function encryptContentValue(value, key = contentEncryptionKey) {
+  if (!key) throw new Error("데이터 보안 암호가 잠겨 있어");
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(String(value)),
+  );
+  return `${CONTENT_ENCRYPTION_PREFIX}.${bytesToBase64(iv)}.${bytesToBase64(new Uint8Array(encrypted))}`;
+}
+
+async function decryptContentValue(value, key = contentEncryptionKey) {
+  if (!isEncryptedContentValue(value)) return value;
+  if (!key) throw new Error("데이터 보안 암호가 잠겨 있어");
+  const parts = value.split(".");
+  if (parts.length !== 3) throw new Error("암호화 데이터 형식이 올바르지 않아");
+  const decrypted = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: base64ToBytes(parts[1]) },
+    key,
+    base64ToBytes(parts[2]),
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+function closeContentEncryptionPrompt(result = null) {
+  const prompt = contentEncryptionPrompt;
+  contentEncryptionPrompt = null;
+  contentEncryptionPassword.value = "";
+  contentEncryptionPasswordConfirm.value = "";
+  contentEncryptionStatus.textContent = "";
+  contentEncryptionModal.classList.add("hidden");
+  document.body.classList.remove("content-encryption-open");
+  prompt?.resolve(result);
+}
+
+function requestContentEncryptionKey(mode) {
+  if (contentEncryptionPrompt) return contentEncryptionPrompt.promise;
+  const isSetup = mode === "setup";
+  contentEncryptionTitle.textContent = isSetup ? "데이터 암호 설정" : "암호화 데이터 열기";
+  contentEncryptionDescription.textContent = isSetup
+    ? "할 일, 습관, 그룹 이름을 암호화해서 저장해. Google 비밀번호 말고 별도 암호를 입력해."
+    : "할 일, 습관, 그룹 이름을 보려면 설정했던 별도 보안 암호를 입력해.";
+  contentEncryptionWarning.textContent = isSetup
+    ? "이 암호는 서버에 저장하지 않아. 잊으면 기존 이름을 복구할 수 없어."
+    : "새 기기에서도 처음 한 번은 같은 보안 암호를 입력해야 해.";
+  contentEncryptionConfirmField.hidden = !isSetup;
+  contentEncryptionPasswordConfirm.required = isSetup;
+  contentEncryptionPassword.autocomplete = isSetup ? "new-password" : "current-password";
+  contentEncryptionSubmit.textContent = isSetup ? "암호화 시작" : "잠금 해제";
+  contentEncryptionStatus.textContent = "";
+  contentEncryptionModal.classList.remove("hidden");
+  document.body.classList.add("content-encryption-open");
+
+  let resolvePrompt;
+  const promise = new Promise((resolve) => {
+    resolvePrompt = resolve;
+  });
+  contentEncryptionPrompt = { mode, promise, resolve: resolvePrompt };
+  requestAnimationFrame(() => contentEncryptionPassword.focus());
+  return promise;
+}
+
+contentEncryptionForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!contentEncryptionPrompt) return;
+  const password = contentEncryptionPassword.value;
+  const isSetup = contentEncryptionPrompt.mode === "setup";
+  if (password.length < 10) {
+    contentEncryptionStatus.textContent = "보안 암호는 10자 이상으로 입력해";
+    return;
+  }
+  if (isSetup && password !== contentEncryptionPasswordConfirm.value) {
+    contentEncryptionStatus.textContent = "보안 암호가 서로 달라";
+    return;
+  }
+
+  contentEncryptionSubmit.disabled = true;
+  contentEncryptionStatus.textContent = isSetup ? "암호 키 만드는 중…" : "확인 중…";
+  try {
+    if (isSetup) {
+      const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
+      const key = await deriveContentEncryptionKey(password, salt, CONTENT_ENCRYPTION_ITERATIONS);
+      const verifier = await encryptContentValue(CONTENT_ENCRYPTION_VERIFIER, key);
+      closeContentEncryptionPrompt({
+        key,
+        settings: {
+          version: CONTENT_ENCRYPTION_VERSION,
+          salt,
+          iterations: CONTENT_ENCRYPTION_ITERATIONS,
+          verifier,
+        },
+      });
+    } else {
+      const settings = getContentEncryptionSettings();
+      const key = await deriveContentEncryptionKey(
+        password,
+        settings.salt,
+        Number(settings.iterations) || CONTENT_ENCRYPTION_ITERATIONS,
+      );
+      const verifier = await decryptContentValue(settings.verifier, key);
+      if (verifier !== CONTENT_ENCRYPTION_VERIFIER) throw new Error("보안 암호가 맞지 않아");
+      closeContentEncryptionPrompt({ key, settings });
+    }
+  } catch (error) {
+    contentEncryptionStatus.textContent = isSetup
+      ? error?.message || "암호 키를 만들지 못했어"
+      : "보안 암호가 맞지 않아";
+    contentEncryptionPassword.select();
+  } finally {
+    contentEncryptionSubmit.disabled = false;
+  }
+});
+
+contentEncryptionSignOut.addEventListener("click", async () => {
+  if (!supabaseClient) return;
+  contentEncryptionSignOut.disabled = true;
+  closeContentEncryptionPrompt(null);
+  contentEncryptionKey = null;
+  const { error } = await supabaseClient.auth.signOut();
+  contentEncryptionSignOut.disabled = false;
+  if (error) {
+    showToast("로그아웃하지 못했어. 다시 시도해줘");
+    return;
+  }
+  await applyAuthSession(null);
+  finishAuthResolution();
+  try {
+    await prepareGoogleSignIn();
+  } catch (googleError) {
+    setAuthStatus(googleError.message, true);
+  }
+});
+
+async function unlockContentEncryption(user) {
+  if (!isContentEncryptionEnabled() || contentEncryptionKey) return true;
+  const result = await requestContentEncryptionKey("unlock");
+  if (!result || activeAuthUser?.id !== user.id) return false;
+  contentEncryptionKey = result.key;
+  return true;
+}
+
+async function migrateLegacyContentEncryptionToServer(user) {
+  if (!isContentEncryptionEnabled() || !contentEncryptionKey) return true;
+  if (activeAuthUser?.id !== user.id || !taskDataHydrated) return false;
+  lastTaskSyncSignature = "";
+  await syncTaskDatabaseImmediately();
+  state.contentEncryption = {
+    version: 0,
+    salt: "",
+    iterations: CONTENT_ENCRYPTION_ITERATIONS,
+    verifier: "",
+  };
+  await syncAppStateDatabaseImmediately();
+  contentEncryptionKey = null;
+  showToast("기존 암호화 데이터를 자동 암호화 방식으로 전환했어");
+  return true;
+}
+
 async function applyAuthSession(session) {
   const isSignedIn = Boolean(session?.user);
   const previousUserId = activeAuthUser?.id ?? null;
@@ -474,6 +707,7 @@ async function applyAuthSession(session) {
   document.body.classList.toggle("auth-gated", !isSignedIn);
 
   if (isSignedIn) {
+    if (previousUserId !== session.user.id) contentEncryptionKey = null;
     currentProfile = getProfileFallback(session.user);
     updateProfileFromUser(session.user, currentProfile);
     if (
@@ -485,7 +719,8 @@ async function applyAuthSession(session) {
       appStateUserId === session.user.id &&
       taskDataUserId === session.user.id &&
       farmWalletUserId === session.user.id &&
-      farmDataUserId === session.user.id
+      farmDataUserId === session.user.id &&
+      (!isContentEncryptionEnabled() || contentEncryptionKey)
     ) {
       maybeOpenTutorial(session.user);
       return;
@@ -494,13 +729,28 @@ async function applyAuthSession(session) {
       loadUserProfile(session.user),
       loadAppStateFromDatabase(session.user),
     ]);
+    const hasLegacyContentEncryption = isContentEncryptionEnabled();
+    if (hasLegacyContentEncryption) {
+      const unlocked = await unlockContentEncryption(session.user);
+      if (!unlocked) return;
+    }
     await Promise.all([
       loadTaskDataFromDatabase(session.user),
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    if (hasLegacyContentEncryption && taskDataHydrated) {
+      try {
+        await migrateLegacyContentEncryptionToServer(session.user);
+      } catch (error) {
+        console.error("Farmodoro legacy content encryption migration failed", error);
+        showToast(`기존 암호화 방식 전환 실패 · 019 SQL을 적용해줘: ${error?.message || "알 수 없는 오류"}`);
+      }
+    }
     maybeOpenTutorial(session.user);
   } else {
+    contentEncryptionKey = null;
+    closeContentEncryptionPrompt(null);
     resetTaskDatabaseState();
     resetAppStateDatabaseState();
     resetFarmWalletDatabaseState();
@@ -1381,8 +1631,14 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 18,
+  schemaVersion: 21,
   tutorialCompleted: false,
+  contentEncryption: {
+    version: 0,
+    salt: "",
+    iterations: CONTENT_ENCRYPTION_ITERATIONS,
+    verifier: "",
+  },
   coins: 0,
   farmMoney: 0,
   farmRankingWeekStart: "",
@@ -1405,6 +1661,7 @@ const defaultState = {
     Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
   ),
   focusRewardSeconds: 0,
+  focusYoutubeUrl: "",
   settings: {
     linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
     quick: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
@@ -1809,7 +2066,17 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 18,
+      schemaVersion: 21,
+      contentEncryption: {
+        version: Number(saved.contentEncryption?.version) || 0,
+        salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
+        iterations:
+          Number(saved.contentEncryption?.iterations) || CONTENT_ENCRYPTION_ITERATIONS,
+        verifier:
+          typeof saved.contentEncryption?.verifier === "string"
+            ? saved.contentEncryption.verifier
+            : "",
+      },
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
       farmRankingWeekStart: saved.farmRankingWeekStart ?? "",
@@ -2031,6 +2298,9 @@ function resetTaskDatabaseState() {
   lastTaskSyncSignature = "";
   if (taskSyncTimer) clearTimeout(taskSyncTimer);
   taskSyncTimer = null;
+  pendingTaskDatabaseDeletes.clear();
+  pendingHabitDatabaseDeletes.clear();
+  pendingGroupDatabaseDeletes.clear();
 }
 
 function serializeTaskDatabaseState() {
@@ -2188,6 +2458,30 @@ function mapDatabaseHabit(habit, records) {
   };
 }
 
+async function decryptTaskDatabaseRows(groupRows, taskRows, habitRows) {
+  const [groups, tasks, habits] = await Promise.all([
+    Promise.all(
+      groupRows.map(async (group) => ({
+        ...group,
+        name: await decryptContentValue(group.name),
+      })),
+    ),
+    Promise.all(
+      taskRows.map(async (task) => ({
+        ...task,
+        title: await decryptContentValue(task.title),
+      })),
+    ),
+    Promise.all(
+      habitRows.map(async (habit) => ({
+        ...habit,
+        title: await decryptContentValue(habit.title),
+      })),
+    ),
+  ]);
+  return { groups, tasks, habits };
+}
+
 async function loadTaskDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   if (taskDataUserId === user.id && taskDataHydrated) return;
@@ -2198,48 +2492,20 @@ async function loadTaskDataFromDatabase(user) {
   const requestedUserId = user.id;
 
   taskDataLoadPromise = (async () => {
-    let { data: groupRows, error: groupError } = await supabaseClient
-      .from("task_groups")
-      .select("id, name, color_index, sort_order")
-      .eq("user_id", requestedUserId)
-      .order("sort_order")
-      .order("created_at");
-
-    if (groupError) throw groupError;
-
-    const { data: taskRows, error: taskError } = await supabaseClient
-      .from("tasks")
-      .select(
-        "id, group_id, title, status, sort_order, focus_seconds, completion_reward, completed_with_free_pass, completed_on, archived_at",
-      )
-      .eq("user_id", requestedUserId)
-      .order("sort_order")
-      .order("created_at");
-
-    if (taskError) throw taskError;
-
-    const { data: habitRows, error: habitError } = await supabaseClient
-      .from("habits")
-      .select(
-        "id, title, measure_type, target_value, unit, weekdays, start_date, end_date, sort_order, created_at",
-      )
-      .eq("user_id", requestedUserId)
-      .order("sort_order")
-      .order("created_at");
-    if (habitError) throw habitError;
-
-    const { data: habitRecordRows, error: habitRecordError } = await supabaseClient
-      .from("habit_daily_records")
-      .select(
-        "habit_id, record_date, progress_value, focus_seconds, completed_at, completion_reward, completed_with_free_pass",
-      )
-      .order("record_date");
-    if (habitRecordError) throw habitRecordError;
+    const { data, error } = await supabaseClient.rpc("get_my_productivity_state");
+    if (error) throw error;
+    let groupRows = Array.isArray(data?.groups) ? data.groups : [];
+    const taskRows = Array.isArray(data?.tasks) ? data.tasks : [];
+    const habitRows = Array.isArray(data?.habits) ? data.habits : [];
+    const habitRecordRows = Array.isArray(data?.habitRecords) ? data.habitRecords : [];
     if (activeAuthUser?.id !== requestedUserId || taskDataUserId !== requestedUserId) return;
 
+    const decryptedRows = await decryptTaskDatabaseRows(groupRows, taskRows, habitRows);
+    groupRows = decryptedRows.groups;
+
     state.groups = groupRows.map(mapDatabaseTaskGroup);
-    state.tasks = taskRows.map(mapDatabaseTask);
-    state.habits = habitRows.map((habit) =>
+    state.tasks = decryptedRows.tasks.map(mapDatabaseTask);
+    state.habits = decryptedRows.habits.map((habit) =>
       mapDatabaseHabit(
         habit,
         habitRecordRows.filter((record) => record.habit_id === habit.id),
@@ -2254,7 +2520,7 @@ async function loadTaskDataFromDatabase(user) {
     .catch((error) => {
       console.error("Farmodoro task data could not be loaded", error);
       if (activeAuthUser?.id === requestedUserId) {
-        showToast("할 일과 습관 데이터를 불러오지 못했어. 005 SQL 적용 여부를 확인해줘");
+        showToast("할 일과 습관 데이터를 불러오지 못했어. Supabase 019 SQL을 확인해줘");
       }
     })
     .finally(() => {
@@ -2365,26 +2631,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
     throwTaskSyncError("습관 기록", error);
   }
 
-  const [
-    { data: existingTasks, error: existingTaskError },
-    { data: existingGroups, error: existingGroupError },
-    { data: existingHabits, error: existingHabitError },
-    { data: existingHabitRecords, error: existingHabitRecordError },
-  ] = await Promise.all([
-      supabaseClient.from("tasks").select("id").eq("user_id", userId),
-      supabaseClient.from("task_groups").select("id").eq("user_id", userId),
-      supabaseClient.from("habits").select("id").eq("user_id", userId),
-      supabaseClient.from("habit_daily_records").select("habit_id, record_date"),
-    ]);
-  throwTaskSyncError("할 일 조회", existingTaskError);
-  throwTaskSyncError("그룹 조회", existingGroupError);
-  throwTaskSyncError("습관 조회", existingHabitError);
-  throwTaskSyncError("습관 기록 조회", existingHabitRecordError);
-
-  const taskIds = new Set(taskRows.map((task) => task.id));
-  const deletedTaskIds = existingTasks
-    .map((task) => task.id)
-    .filter((taskId) => !taskIds.has(taskId));
+  const deletedTaskIds = [...pendingTaskDatabaseDeletes];
   if (deletedTaskIds.length) {
     const { error } = await supabaseClient
       .from("tasks")
@@ -2392,27 +2639,10 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       .eq("user_id", userId)
       .in("id", deletedTaskIds);
     throwTaskSyncError("할 일 삭제", error);
+    deletedTaskIds.forEach((taskId) => pendingTaskDatabaseDeletes.delete(taskId));
   }
 
-  const habitRecordKeys = new Set(
-    habitRecordRows.map((record) => `${record.habit_id}:${record.record_date}`),
-  );
-  const deletedHabitRecords = existingHabitRecords.filter(
-    (record) => !habitRecordKeys.has(`${record.habit_id}:${record.record_date}`),
-  );
-  for (const record of deletedHabitRecords) {
-    const { error } = await supabaseClient
-      .from("habit_daily_records")
-      .delete()
-      .eq("habit_id", record.habit_id)
-      .eq("record_date", record.record_date);
-    throwTaskSyncError("습관 기록 삭제", error);
-  }
-
-  const habitIds = new Set(habitRows.map((habit) => habit.id));
-  const deletedHabitIds = existingHabits
-    .map((habit) => habit.id)
-    .filter((habitId) => !habitIds.has(habitId));
+  const deletedHabitIds = [...pendingHabitDatabaseDeletes];
   if (deletedHabitIds.length) {
     const { error } = await supabaseClient
       .from("habits")
@@ -2420,12 +2650,10 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       .eq("user_id", userId)
       .in("id", deletedHabitIds);
     throwTaskSyncError("습관 삭제", error);
+    deletedHabitIds.forEach((habitId) => pendingHabitDatabaseDeletes.delete(habitId));
   }
 
-  const groupIds = new Set(groupRows.map((group) => group.id));
-  const deletedGroupIds = existingGroups
-    .map((group) => group.id)
-    .filter((groupId) => !groupIds.has(groupId));
+  const deletedGroupIds = [...pendingGroupDatabaseDeletes];
   if (deletedGroupIds.length) {
     const { error } = await supabaseClient
       .from("task_groups")
@@ -2433,6 +2661,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       .eq("user_id", userId)
       .in("id", deletedGroupIds);
     throwTaskSyncError("그룹 삭제", error);
+    deletedGroupIds.forEach((groupId) => pendingGroupDatabaseDeletes.delete(groupId));
   }
 }
 
@@ -3412,7 +3641,7 @@ function renderFarmRanking() {
           <span class="farm-ranking-rank">${rankLabel}</span>
           <span class="farm-ranking-name">
             <strong>${escapeHtml(farmer.name)}</strong>
-            ${farmer.isMe ? "<small>나</small>" : "<small>임시 농부</small>"}
+            ${farmer.isMe ? "<small>나</small>" : ""}
           </span>
           <strong class="farm-ranking-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
         </li>
@@ -4212,7 +4441,9 @@ function maintainTaskArchive() {
   const retainedTasks = state.tasks.filter((task) => {
     if (!task.archived || !task.archivedAt) return true;
     const archivedTime = Date.parse(task.archivedAt);
-    return !Number.isFinite(archivedTime) || now - archivedTime < archiveRetentionMs;
+    const retained = !Number.isFinite(archivedTime) || now - archivedTime < archiveRetentionMs;
+    if (!retained) pendingTaskDatabaseDeletes.add(task.id);
+    return retained;
   });
 
   if (retainedTasks.length !== state.tasks.length) {
@@ -5135,6 +5366,7 @@ function closeHabitDeleteModal() {
 }
 
 function deleteTask(task) {
+  pendingTaskDatabaseDeletes.add(task.id);
   state.tasks = state.tasks.filter((item) => item.id !== task.id);
   render();
   scheduleTaskDatabaseSync(0);
@@ -5169,6 +5401,7 @@ habitDeleteModal.addEventListener("click", (event) => {
 
 confirmHabitDelete.addEventListener("click", () => {
   if (pendingHabitDeleteId === null) return;
+  pendingHabitDatabaseDeletes.add(pendingHabitDeleteId);
   state.habits = state.habits.filter((habit) => habit.id !== pendingHabitDeleteId);
   closeHabitDeleteModal();
   showToast("습관을 삭제했어");
@@ -5267,6 +5500,7 @@ document.querySelector("#groupList").addEventListener("click", async (event) => 
 
   const groupId = deleteButton.dataset.deleteGroup;
   const group = getGroup(groupId);
+  pendingGroupDatabaseDeletes.add(groupId);
   state.groups = state.groups.filter((item) => item.id !== groupId);
   if (taskGroupFilter === groupId) taskGroupFilter = "all";
   state.tasks.forEach((task) => {
@@ -6407,6 +6641,15 @@ document.addEventListener("click", (event) => {
 const focusPageStage = document.querySelector("#focusPageStage");
 const focusFullscreenButton = document.querySelector("#toggleFocusFullscreen");
 const focusAudioButton = document.querySelector("#toggleFocusAudio");
+const focusYoutubeButton = document.querySelector("#toggleFocusYoutube");
+const focusYoutubePanel = document.querySelector("#focusYoutubePanel");
+const focusYoutubeForm = document.querySelector("#focusYoutubeForm");
+const focusYoutubeUrlInput = document.querySelector("#focusYoutubeUrl");
+const focusYoutubePlayer = document.querySelector("#focusYoutubePlayer");
+const focusYoutubeStatus = document.querySelector("#focusYoutubeStatus");
+const closeFocusYoutubeButton = document.querySelector("#closeFocusYoutube");
+const restoreFocusYoutubeButton = document.querySelector("#restoreFocusYoutube");
+const stopFocusYoutubeButton = document.querySelector("#stopFocusYoutube");
 const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
 const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
 const FOCUS_PLAYLIST = [
@@ -6424,7 +6667,6 @@ const FOCUS_PLAYLIST = [
   { title: "Dust on the Porch 2", src: "./assets/audio/dust-on-the-porch-2.mp3" },
 ];
 let focusAudioPlayer = null;
-let focusNextAudio = null;
 let focusPlaylistQueue = [];
 let currentFocusTrack = null;
 let focusBackgroundObjectUrl = null;
@@ -6562,13 +6804,16 @@ document.addEventListener("fullscreenchange", () => {
   focusFullscreenButton.innerHTML = active
     ? '<span aria-hidden="true">×</span> 전체 화면 종료'
     : '<span aria-hidden="true">⛶</span> 전체 화면';
+  scheduleFocusStageCenterUpdate();
 });
 
 function stopFocusAudio() {
   focusAudioPlayer?.pause();
   focusAudioButton.classList.remove("active");
   focusAudioButton.setAttribute("aria-pressed", "false");
-  focusAudioButton.innerHTML = '<span aria-hidden="true">♪</span> 음악 계속 듣기';
+  focusAudioButton.innerHTML = focusAudioPlayer && !focusAudioPlayer.ended
+    ? '<span aria-hidden="true">♪</span> 음악 계속 듣기'
+    : '<span aria-hidden="true">♪</span> 기본 음악';
 }
 
 function shuffleFocusPlaylist() {
@@ -6590,54 +6835,161 @@ function takeNextFocusTrack() {
 }
 
 function createFocusAudio(track) {
-  const audio = new Audio(track.src);
-  audio.preload = "auto";
-  audio.volume = 0.4;
+  const audio = new Audio(new URL(track.src, document.baseURI).href);
+  audio.preload = "metadata";
+  audio.volume = 0.5;
   audio.dataset.title = track.title;
   audio.addEventListener("ended", playNextFocusTrack, { once: true });
   return audio;
 }
 
-function prepareNextFocusTrack() {
-  if (focusNextAudio) return;
-  focusNextAudio = createFocusAudio(takeNextFocusTrack());
-  focusNextAudio.load();
-}
-
 async function playNextFocusTrack() {
-  focusAudioPlayer = focusNextAudio ?? createFocusAudio(takeNextFocusTrack());
-  focusNextAudio = null;
-  currentFocusTrack = FOCUS_PLAYLIST.find(
-    (track) => track.title === focusAudioPlayer.dataset.title,
-  );
-  prepareNextFocusTrack();
+  currentFocusTrack = takeNextFocusTrack();
+  focusAudioPlayer = createFocusAudio(currentFocusTrack);
+  focusAudioButton.disabled = true;
+  focusAudioButton.innerHTML = '<span aria-hidden="true">♪</span> 음악 불러오는 중';
   try {
     await focusAudioPlayer.play();
-  } catch {
+  } catch (error) {
+    console.warn("Farmodoro focus music could not be played", error);
     stopFocusAudio();
     showToast("음악을 재생하지 못했어");
     return;
+  } finally {
+    focusAudioButton.disabled = false;
   }
   focusAudioButton.classList.add("active");
   focusAudioButton.setAttribute("aria-pressed", "true");
   focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
 }
 
-function startFocusAudio() {
+async function startFocusAudio() {
+  stopFocusYoutube();
   if (focusAudioPlayer && focusAudioPlayer.paused && !focusAudioPlayer.ended) {
-    focusAudioPlayer.play().catch(() => showToast("음악을 재생하지 못했어"));
-    focusAudioButton.classList.add("active");
-    focusAudioButton.setAttribute("aria-pressed", "true");
-    focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+    try {
+      await focusAudioPlayer.play();
+      focusAudioButton.classList.add("active");
+      focusAudioButton.setAttribute("aria-pressed", "true");
+      focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
+    } catch (error) {
+      console.warn("Farmodoro focus music could not be resumed", error);
+      stopFocusAudio();
+      showToast("음악을 재생하지 못했어");
+    }
     return;
   }
-  prepareNextFocusTrack();
-  playNextFocusTrack();
+  await playNextFocusTrack();
 }
 
-focusAudioButton.addEventListener("click", () => {
+focusAudioButton.addEventListener("click", async () => {
   if (focusAudioPlayer && !focusAudioPlayer.paused) stopFocusAudio();
-  else startFocusAudio();
+  else await startFocusAudio();
+});
+
+function parseFocusYoutubeUrl(value) {
+  const rawValue = value.trim();
+  if (!rawValue) return null;
+
+  let url;
+  try {
+    url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
+  } catch {
+    return null;
+  }
+
+  const hostname = url.hostname.toLowerCase().replace(/^(www\.|m\.)/, "");
+  if (!["youtube.com", "music.youtube.com", "youtu.be"].includes(hostname)) return null;
+
+  const playlistId = url.searchParams.get("list");
+  if (playlistId && /^[A-Za-z0-9_-]{10,}$/.test(playlistId)) {
+    return { type: "playlist", id: playlistId, url: rawValue };
+  }
+
+  let videoId = url.searchParams.get("v") || "";
+  if (hostname === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] || "";
+  if (!videoId) {
+    const [kind, pathId] = url.pathname.split("/").filter(Boolean);
+    if (["embed", "shorts", "live"].includes(kind)) videoId = pathId || "";
+  }
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+  return { type: "video", id: videoId, url: rawValue };
+}
+
+function stopFocusYoutube() {
+  focusYoutubePlayer.replaceChildren();
+  focusYoutubePanel.classList.remove("minimized");
+  focusYoutubePanel.classList.add("hidden");
+  focusYoutubeButton.classList.remove("active");
+  focusYoutubeButton.setAttribute("aria-expanded", "false");
+  focusYoutubeStatus.textContent = "공개 영상이나 플레이리스트 주소를 붙여 넣어.";
+}
+
+function openFocusYoutube() {
+  focusYoutubePanel.classList.remove("minimized");
+  focusYoutubePanel.classList.remove("hidden");
+  focusYoutubeButton.classList.add("active");
+  focusYoutubeButton.setAttribute("aria-expanded", "true");
+  focusYoutubeUrlInput.value = state.focusYoutubeUrl || "";
+  requestAnimationFrame(() => focusYoutubeUrlInput.focus());
+}
+
+function minimizeFocusYoutube() {
+  if (!focusYoutubePlayer.firstElementChild) {
+    stopFocusYoutube();
+    return;
+  }
+  focusYoutubePanel.classList.add("minimized");
+  focusYoutubeButton.setAttribute("aria-expanded", "false");
+}
+
+function restoreFocusYoutube() {
+  focusYoutubePanel.classList.remove("minimized");
+  focusYoutubeButton.setAttribute("aria-expanded", "true");
+}
+
+focusYoutubeButton.addEventListener("click", () => {
+  if (focusYoutubePanel.classList.contains("hidden")) openFocusYoutube();
+  else if (focusYoutubePanel.classList.contains("minimized")) restoreFocusYoutube();
+  else minimizeFocusYoutube();
+});
+
+closeFocusYoutubeButton.addEventListener("click", minimizeFocusYoutube);
+restoreFocusYoutubeButton.addEventListener("click", restoreFocusYoutube);
+stopFocusYoutubeButton.addEventListener("click", stopFocusYoutube);
+
+focusYoutubeForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const source = parseFocusYoutubeUrl(focusYoutubeUrlInput.value);
+  if (!source) {
+    focusYoutubeStatus.textContent = "올바른 YouTube 영상 또는 플레이리스트 URL을 넣어.";
+    focusYoutubeUrlInput.focus();
+    return;
+  }
+
+  stopFocusAudio();
+  const embedUrl = new URL(
+    source.type === "playlist"
+      ? "https://www.youtube.com/embed/videoseries"
+      : `https://www.youtube.com/embed/${source.id}`,
+  );
+  if (source.type === "playlist") embedUrl.searchParams.set("list", source.id);
+  embedUrl.searchParams.set("autoplay", "1");
+  embedUrl.searchParams.set("playsinline", "1");
+  if (/^https?:$/.test(window.location.protocol)) {
+    embedUrl.searchParams.set("origin", window.location.origin);
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.src = embedUrl.href;
+  iframe.title = "YouTube 집중 음악 플레이어";
+  iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
+  iframe.allowFullscreen = true;
+  focusYoutubePlayer.replaceChildren(iframe);
+  focusYoutubeStatus.textContent =
+    source.type === "playlist" ? "YouTube 플레이리스트 재생 중" : "YouTube 영상 재생 중";
+  state.focusYoutubeUrl = source.url;
+  scheduleAppStateDatabaseSync(null, 0);
 });
 
 const focusSettings = document.querySelector("#focusSettings");
@@ -6702,11 +7054,69 @@ const habitSection = document.querySelector("#habitSection");
 const summaryGrid = document.querySelector("#summaryGrid");
 const focusCard = document.querySelector("#focusCard");
 const focusPageSlot = document.querySelector("#focusPageSlot");
+let focusStageCenterFrame = null;
+
+function updateFocusStageCenter() {
+  focusStageCenterFrame = null;
+  if (currentPage !== "focus" || !focusCard.classList.contains("standalone")) return;
+  const cardRect = focusCard.getBoundingClientRect();
+  const stageRect = focusPageStage.getBoundingClientRect();
+  const visual = focusCard.querySelector(".focus-visual");
+  if (!cardRect.height || !visual) return;
+
+  const viewport = window.visualViewport;
+  const viewportTop = viewport?.offsetTop ?? 0;
+  const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+  const visibleTop = Math.max(stageRect.top, viewportTop);
+  const visibleBottom = Math.min(stageRect.bottom, viewportBottom);
+  if (visibleBottom <= visibleTop) return;
+
+  const visualRadius = visual.offsetHeight / 2;
+  let desiredCenter = (visibleTop + visibleBottom) / 2;
+  const toolbarRect = focusPageStage.querySelector(".focus-stage-toolbar").getBoundingClientRect();
+  if (toolbarRect.bottom > visibleTop && toolbarRect.top < visibleBottom) {
+    desiredCenter = Math.max(desiredCenter, toolbarRect.bottom + visualRadius + 12);
+  }
+  desiredCenter = Math.min(visibleBottom - visualRadius, desiredCenter);
+  const centerY = Math.max(visualRadius, desiredCenter - cardRect.top);
+  focusCard.style.setProperty("--focus-stage-center-y", `${Math.round(centerY)}px`);
+}
+
+function scheduleFocusStageCenterUpdate() {
+  if (focusStageCenterFrame) cancelAnimationFrame(focusStageCenterFrame);
+  focusStageCenterFrame = requestAnimationFrame(updateFocusStageCenter);
+}
+
+window.addEventListener("resize", scheduleFocusStageCenterUpdate);
+window.addEventListener("scroll", scheduleFocusStageCenterUpdate, { passive: true });
+window.visualViewport?.addEventListener("resize", scheduleFocusStageCenterUpdate);
+window.visualViewport?.addEventListener("scroll", scheduleFocusStageCenterUpdate);
+if ("ResizeObserver" in window) {
+  const focusStageResizeObserver = new ResizeObserver(scheduleFocusStageCenterUpdate);
+  focusStageResizeObserver.observe(focusPageStage);
+  focusStageResizeObserver.observe(focusPageStage.querySelector(".focus-stage-toolbar"));
+}
+document.fonts?.ready.then(scheduleFocusStageCenterUpdate);
+
+function closePageModals() {
+  closeUserSettings();
+  closeFreePassTargetModal();
+  closeHabitModal();
+  closeHabitDeleteModal();
+  closeTaskDeleteModal();
+  closeFocusItemMenu();
+  closeTaskGroupMenu();
+  closeRecipeIngredientMenus();
+  document
+    .querySelectorAll(".market-modal, .habit-modal")
+    .forEach((modal) => modal.classList.add("hidden"));
+}
 
 function showPage(page) {
   const validPage = APP_PAGES.includes(page) ? page : "today";
 
   if (currentPage !== validPage) {
+    closePageModals();
     taskForm.classList.add("hidden");
     groupManager.classList.add("hidden");
   }
@@ -6723,6 +7133,7 @@ function showPage(page) {
   ) {
     stopFocusAudio();
   }
+  if (currentPage === "focus" && validPage !== "focus") stopFocusYoutube();
 
   currentPage = validPage;
 
@@ -6750,6 +7161,9 @@ function showPage(page) {
   if (validPage === "focus") {
     focusPageSlot.appendChild(focusCard);
     focusCard.classList.add("standalone");
+    scheduleFocusStageCenterUpdate();
+  } else {
+    focusCard.style.removeProperty("--focus-stage-center-y");
   }
 
   document.querySelectorAll(".page-view").forEach((view) => {

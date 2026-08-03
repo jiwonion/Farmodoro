@@ -1,12 +1,12 @@
-const CACHE_VERSION = "farmodoro-v11";
+const CACHE_VERSION = "farmodoro-v21";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=11",
-  "./app.js?v=11",
-  "./pwa-register.js?v=11",
+  "./styles.css?v=21",
+  "./app.js?v=21",
+  "./pwa-register.js?v=21",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
@@ -41,7 +41,7 @@ self.addEventListener("activate", (event) => {
 });
 
 const cacheResponse = async (request, response) => {
-  if (response && (response.ok || response.type === "opaque")) {
+  if (response && (response.status === 200 || response.type === "opaque")) {
     const cache = await caches.open(RUNTIME_CACHE);
     await cache.put(request, response.clone());
   }
@@ -67,6 +67,7 @@ const staleWhileRevalidate = async (request) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
+  if (request.destination === "audio" || request.headers.has("range")) return;
 
   const url = new URL(request.url);
   if (url.origin === self.location.origin && request.mode === "navigate") {
