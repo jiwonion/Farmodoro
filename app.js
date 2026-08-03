@@ -261,7 +261,7 @@ function renderGoogleSignInButton() {
     return;
   }
 
-  const width = Math.floor(googleSignInButton.getBoundingClientRect().width);
+  const width = Math.min(400, Math.floor(googleSignInButton.clientWidth));
   if (width < 1 || width === googleSignInButtonWidth) return;
 
   googleSignInButtonWidth = width;
