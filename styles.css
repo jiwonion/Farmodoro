@@ -10932,7 +10932,7 @@ canvas {
   }
 }
 
-@media (min-width: 601px) and (max-width: 1200px) {
+@media (min-width: 601px) and (max-width: 1600px) {
   :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top {
     display: block;
     width: 100%;
