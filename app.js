@@ -89,6 +89,8 @@ let farmDataSyncTimer = null;
 let farmDataSyncChain = Promise.resolve();
 let lastFarmDataSyncSignature = "";
 let lastFarmDataSyncError = "";
+let productivityRealtimeChannel = null;
+let productivityRealtimeRefreshTimer = null;
 let tutorialStep = 0;
 let tutorialShownForUserId = null;
 let tutorialPreviousFocus = null;
@@ -751,7 +753,9 @@ async function applyAuthSession(session) {
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    startProductivityRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
+    startFarmMailRealtime(session.user);
     await loadDailyFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
@@ -1855,6 +1859,8 @@ let farmMailView = "send";
 let farmMailContacts = [];
 let farmMailServerUnreadCount = null;
 let farmMailUnreadPollInterval = null;
+let farmMailRealtimeChannel = null;
+let farmMailRealtimeRefreshTimer = null;
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
 let farmLeaderboard = [];
@@ -1914,6 +1920,7 @@ let editingTaskTitle = "";
 let editingHabitId = null;
 
 function resetFarmDataDatabaseState() {
+  stopFarmMailRealtime();
   farmDataHydrated = false;
   farmDataUserId = null;
   lastFarmDataSyncSignature = "";
@@ -1925,6 +1932,53 @@ function resetFarmDataDatabaseState() {
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
   farmMailUnreadPollInterval = null;
+}
+
+function stopFarmMailRealtime() {
+  if (farmMailRealtimeRefreshTimer) clearTimeout(farmMailRealtimeRefreshTimer);
+  farmMailRealtimeRefreshTimer = null;
+  if (farmMailRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(farmMailRealtimeChannel);
+  }
+  farmMailRealtimeChannel = null;
+}
+
+function scheduleFarmMailRealtimeRefresh(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  if (farmMailRealtimeRefreshTimer) clearTimeout(farmMailRealtimeRefreshTimer);
+  farmMailRealtimeRefreshTimer = window.setTimeout(async () => {
+    farmMailRealtimeRefreshTimer = null;
+    if (activeAuthUser?.id !== userId) return;
+    await pollFarmMailUnreadCount(activeAuthUser);
+    const mailModalOpen = !document.querySelector("#farmMailModal")?.classList.contains("hidden");
+    if (currentPage === "farm" || mailModalOpen) {
+      await loadFarmDataFromDatabase(activeAuthUser);
+    }
+  }, 350);
+}
+
+function startFarmMailRealtime(user) {
+  stopFarmMailRealtime();
+  if (!supabaseClient || !user) return;
+  const handleChange = () => scheduleFarmMailRealtimeRefresh(user.id);
+  farmMailRealtimeChannel = supabaseClient
+    .channel(`farm-mail:${user.id}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "farm_mail",
+        filter: `recipient_user_id=eq.${user.id}`,
+      },
+      handleChange,
+    )
+    .on("postgres_changes", { event: "*", schema: "public", table: "farm_mail_items" }, handleChange)
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`Farmodoro farm mail realtime subscription: ${status}`);
+      }
+    });
 }
 
 async function pollFarmMailUnreadCount(user = activeAuthUser) {
@@ -2745,6 +2799,7 @@ function createUuid() {
 }
 
 function resetTaskDatabaseState() {
+  stopProductivityRealtime();
   taskDataHydrated = false;
   taskDataUserId = null;
   taskDataLoadPromise = null;
@@ -2935,9 +2990,9 @@ async function decryptTaskDatabaseRows(groupRows, taskRows, habitRows) {
   return { groups, tasks, habits };
 }
 
-async function loadTaskDataFromDatabase(user) {
+async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (!supabaseClient || !user) return;
-  if (taskDataUserId === user.id && taskDataHydrated) return;
+  if (taskDataUserId === user.id && taskDataHydrated && !force) return;
   if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
 
   taskDataUserId = user.id;
@@ -3044,6 +3099,14 @@ async function syncTaskDatabaseImmediately() {
   const userId = activeAuthUser.id;
   const snapshot = JSON.parse(serializeTaskDatabaseState());
   const snapshotSignature = JSON.stringify(snapshot);
+  const hasPendingDeletes =
+    pendingTaskDatabaseDeletes.size > 0 ||
+    pendingHabitDatabaseDeletes.size > 0 ||
+    pendingGroupDatabaseDeletes.size > 0;
+  if (snapshotSignature === lastTaskSyncSignature && !hasPendingDeletes) {
+    await taskSyncChain;
+    return;
+  }
   const operation = taskSyncChain.then(() => syncTaskDatabaseSnapshot(userId, snapshot));
   taskSyncChain = operation.catch(() => {});
   await operation;
@@ -5293,6 +5356,49 @@ function saveCurrentFocusRuntime() {
   };
 }
 
+function stopProductivityRealtime() {
+  if (productivityRealtimeRefreshTimer) clearTimeout(productivityRealtimeRefreshTimer);
+  productivityRealtimeRefreshTimer = null;
+  if (productivityRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(productivityRealtimeChannel);
+  }
+  productivityRealtimeChannel = null;
+}
+
+function scheduleProductivityRealtimeRefresh(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  if (productivityRealtimeRefreshTimer) clearTimeout(productivityRealtimeRefreshTimer);
+  productivityRealtimeRefreshTimer = window.setTimeout(async () => {
+    productivityRealtimeRefreshTimer = null;
+    if (activeAuthUser?.id !== userId) return;
+    try {
+      await taskSyncChain;
+      await loadTaskDataFromDatabase(activeAuthUser, { force: true });
+    } catch (error) {
+      console.warn("Farmodoro realtime productivity refresh failed", error);
+    }
+  }, 500);
+}
+
+function startProductivityRealtime(user) {
+  stopProductivityRealtime();
+  if (!supabaseClient || !user) return;
+
+  const handleChange = () => scheduleProductivityRealtimeRefresh(user.id);
+  const userFilter = `user_id=eq.${user.id}`;
+  productivityRealtimeChannel = supabaseClient
+    .channel(`productivity:${user.id}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "task_groups", filter: userFilter }, handleChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: userFilter }, handleChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "habits", filter: userFilter }, handleChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "habit_daily_records" }, handleChange)
+    .subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`Farmodoro productivity realtime subscription: ${status}`);
+      }
+    });
+}
+
 function getPendingFocusDailySeconds() {
   return pendingFocusDailySeconds.linked +
     pendingFocusDailySeconds.quick +
@@ -7083,10 +7189,20 @@ document.querySelector("#openFarmMail").addEventListener("click", async () => {
     showToast("농장 저장에 실패해서 우편함 새로고침을 멈췄어. 잠시 후 다시 열어줘.");
   }
 });
-document.querySelector("#todayMailAlert").addEventListener("click", () => {
+document.querySelector("#todayMailAlert").addEventListener("click", async () => {
   farmMailView = "inbox";
-  location.hash = "farm";
-  requestAnimationFrame(() => document.querySelector("#openFarmMail").click());
+  if (currentPage !== "farm") {
+    location.hash = "farm";
+    showPage("farm");
+  }
+
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  const openMailButton = document.querySelector("#openFarmMail");
+  if (window.matchMedia("(max-width: 600px)").matches) {
+    openMailButton.scrollIntoView({ behavior: "smooth", block: "center" });
+    await new Promise((resolve) => window.setTimeout(resolve, 350));
+  }
+  openMailButton.click();
 });
 
 deleteAccountButton.addEventListener("click", async () => {
@@ -8098,6 +8214,58 @@ function closePageModals() {
     .forEach((modal) => modal.classList.add("hidden"));
 }
 
+let pageDataRefreshPromise = null;
+let queuedPageDataRefresh = null;
+
+async function refreshPageData(page = currentPage) {
+  if (!activeAuthUser || !supabaseClient) return;
+  const requestedPage = APP_PAGES.includes(page) ? page : "today";
+
+  if (pageDataRefreshPromise) {
+    queuedPageDataRefresh = requestedPage;
+    return pageDataRefreshPromise;
+  }
+
+  const user = activeAuthUser;
+  pageDataRefreshPromise = (async () => {
+    if (["today", "tasks", "habits"].includes(requestedPage)) {
+      await syncTaskDatabaseImmediately();
+      await loadTaskDataFromDatabase(user, { force: true });
+    }
+
+    if (requestedPage === "farm") {
+      await syncFarmDataDatabaseImmediately();
+      await farmWalletMutationChain;
+      await Promise.all([
+        loadFarmDataFromDatabase(user),
+        loadFarmWallet(user),
+        pollFarmMailUnreadCount(user),
+      ]);
+    }
+
+    if (["today", "focus"].includes(requestedPage)) {
+      await flushDailyFocusTime();
+      await Promise.all([
+        loadDailyFocusProgress(user),
+        pollFocusTimerFromDatabase(),
+      ]);
+    }
+  })()
+    .catch((error) => {
+      console.warn("Farmodoro page data could not be refreshed", error);
+    })
+    .finally(() => {
+      pageDataRefreshPromise = null;
+      if (queuedPageDataRefresh) {
+        const nextPage = queuedPageDataRefresh;
+        queuedPageDataRefresh = null;
+        if (activeAuthUser) void refreshPageData(nextPage);
+      }
+    });
+
+  return pageDataRefreshPromise;
+}
+
 function showPage(page) {
   const validPage = APP_PAGES.includes(page) ? page : "today";
 
@@ -8159,6 +8327,7 @@ function showPage(page) {
   updateMiniFocusTimer();
   updateFocusMusicIndicator();
   document.documentElement.classList.remove("app-initializing");
+  void refreshPageData(validPage);
 }
 
 window.addEventListener("hashchange", () => {
@@ -8166,14 +8335,7 @@ window.addEventListener("hashchange", () => {
 });
 
 window.addEventListener("focus", () => {
-  scheduleTaskDatabaseSync(0);
-  scheduleAppStateDatabaseSync(null, 0);
-  scheduleFarmDataDatabaseSync(0);
-  if (activeAuthUser && farmWalletHydrated) {
-    void farmWalletMutationChain.then(() => loadFarmWallet(activeAuthUser));
-  }
-  void pollFocusTimerFromDatabase();
-  void pollFarmMailUnreadCount();
+  void refreshPageData(currentPage);
 });
 
 document.addEventListener("visibilitychange", () => {
