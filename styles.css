@@ -443,13 +443,19 @@ button {
 .google-login-button {
   position: relative;
   display: grid;
-  width: 101%;
+  width: 100%;
   min-width: 0;
   min-height: 58px;
   place-items: center;
   margin-top: 31px;
-  overflow: visible;
+  overflow: hidden;
   border-radius: 11px;
+}
+
+.google-login-button > div,
+.google-login-button iframe {
+  width: 100% !important;
+  max-width: 400px;
 }
 
 .google-login-button.loading::before {
@@ -1305,6 +1311,8 @@ button {
   border-radius: 12px;
   background: #fffaf0;
 }
+
+.farm-page-wallet { display: none; }
 
 .farm-wallet > span {
   color: var(--yellow);
@@ -3533,6 +3541,32 @@ button {
   color: var(--muted);
   font-size: 11px;
 }
+
+.account-delete-zone {
+  display: grid;
+  gap: 5px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px dashed #d7aaa1;
+}
+
+.account-delete-zone > strong { color: #9b4336; font-size: 12px; }
+.account-delete-zone > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.account-delete-zone > button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #c77d70;
+  border-radius: 7px;
+  color: #9b4336;
+  background: #fff7f4;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-delete-zone > button:disabled { cursor: wait; opacity: 0.55; }
 
 .farm-mail-recent-friends {
   display: flex;
@@ -9240,6 +9274,17 @@ canvas {
   .focus-item-picker {
     width: min(280px, 36vw);
   }
+
+  #todayPage .task-card:not(.editing) .task-top {
+    min-width: 0;
+    padding-right: 44px;
+  }
+
+  #todayPage .task-card:not(.editing) h4 {
+    min-width: 0;
+    padding-right: 0;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 900px) {
@@ -10203,7 +10248,6 @@ canvas {
 
   #farmPage .farm-panel-header {
     display: flex;
-    position: relative;
     align-items: stretch;
     flex-direction: column;
     gap: 9px;
@@ -10212,13 +10256,13 @@ canvas {
   #farmPage .farm-name-editor {
     width: 100%;
     min-height: 32px;
-    padding-right: 92px;
   }
 
   #farmPage .farm-name-display { gap: 5px; }
   #farmPage .farm-name-display h2 { font-size: 16px; }
   #farmPage .farm-name-display > button { width: 24px; height: 24px; border-radius: 6px; }
   #farmPage .farm-name-display svg { width: 12px; height: 12px; }
+  #farmPage .farm-name-form input { font-size: 13px; }
 
   #farmPage .farm-header-actions {
     display: grid;
@@ -10228,13 +10272,6 @@ canvas {
     gap: 5px;
   }
 
-  #farmPage .farm-wallet {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: auto;
-    min-width: 82px;
-  }
   #farmPage .open-farm-kitchen { order: 1; }
   #farmPage .open-farm-mail { order: 2; }
 
@@ -10250,8 +10287,21 @@ canvas {
     white-space: nowrap;
   }
 
-  #farmPage .farm-wallet { width: auto; min-width: 82px; padding: 0 8px; }
-  #farmPage .farm-name-editor:has(.farm-name-form:not([hidden])) { padding-right: 0; }
+  #farmPage .farm-header-actions > .farm-wallet { display: none; }
+  #farmPage .page-header { align-items: flex-start; justify-content: space-between; }
+  #farmPage .farm-page-wallet {
+    display: flex;
+    position: static;
+    width: auto;
+    min-width: 82px;
+    min-height: 36px;
+    margin-top: 2px;
+    padding: 0 8px;
+    justify-content: center;
+    gap: 4px;
+  }
+  #farmPage .page-header .farm-page-wallet strong { font-size: 13px; }
+  #farmPage .page-header .farm-page-wallet small { font-size: 10px; }
   .farm-mail-recent-friends button { padding: 5px 7px; }
   .farm-mail-recent-friends button strong { font-size: 10px; }
   .farm-mail-recent-friends button small { font-size: 8px; }

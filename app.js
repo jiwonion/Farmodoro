@@ -6,6 +6,7 @@ const authGate = document.querySelector("#authGate");
 const authStatus = document.querySelector("#authStatus");
 const googleSignInButton = document.querySelector("#googleSignInButton");
 const signOutButton = document.querySelector("#signOutButton");
+const deleteAccountButton = document.querySelector("#deleteAccountButton");
 const openUserSettingsButton = document.querySelector("#openUserSettings");
 const openMobileUserSettingsButton = document.querySelector("#openMobileUserSettings");
 const userSettingsModal = document.querySelector("#userSettingsModal");
@@ -289,7 +290,9 @@ function renderGoogleSignInButton() {
   }
 
   const width = Math.min(400, Math.floor(googleSignInButton.clientWidth));
-  if (width < 1 || width === googleSignInButtonWidth) return;
+  if (width < 1 || (googleSignInButtonWidth && Math.abs(width - googleSignInButtonWidth) < 24)) {
+    return;
+  }
 
   googleSignInButtonWidth = width;
   googleSignInButton.replaceChildren();
@@ -894,11 +897,7 @@ async function openUserSettings() {
   );
   if (themeRadio) themeRadio.checked = true;
   userSettingsModal.classList.remove("hidden");
-  if (window.matchMedia("(max-width: 600px)").matches) {
-    userSettingsModal.querySelector("[data-close-user-settings]")?.focus({ preventScroll: true });
-  } else {
-    profileDisplayNameInput.focus();
-  }
+  userSettingsModal.querySelector("[data-close-user-settings]")?.focus({ preventScroll: true });
 }
 
 function closeUserSettings({ keepTheme = false } = {}) {
@@ -1815,7 +1814,7 @@ let runningFocusMode = null;
 let timerPhase = "focus";
 const focusRuntimeByMode = {
   linked: { seconds: 0, phase: "focus", started: false },
-  quick: { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
+  quick: { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false, sessionMinutes: state.settings.quick.focusMinutes },
 };
 const FOCUS_TIMER_CLIENT_ID = (() => {
   try {
@@ -2362,6 +2361,7 @@ function applyLoadedAppStateRuntime() {
       seconds: state.settings.quick.focusMinutes * 60,
       phase: "focus",
       started: false,
+      sessionMinutes: state.settings.quick.focusMinutes,
     };
     focusSeconds = 0;
     focusRunning = false;
@@ -2504,10 +2504,19 @@ function getFocusTimerDatabasePayload() {
 }
 
 function normalizeFocusTimerRuntime(value, fallback) {
+  const seconds = Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds)));
   return {
-    seconds: Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds))),
+    seconds,
     phase: value?.phase === "break" ? "break" : "focus",
     started: Boolean(value?.started),
+    sessionMinutes: Math.max(
+      1,
+      Math.floor(
+        Number(value?.sessionMinutes) ||
+          (value?.seconds != null ? Math.ceil(seconds / 60) : Number(fallback.sessionMinutes)) ||
+          1,
+      ),
+    ),
   };
 }
 
@@ -2522,7 +2531,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   );
   focusRuntimeByMode.quick = normalizeFocusTimerRuntime(
     payload.runtimes?.quick,
-    { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
+    { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false, sessionMinutes: state.settings.quick.focusMinutes },
   );
   activeFocus = payload.activeFocus?.type && payload.activeFocus?.id
     ? { type: payload.activeFocus.type, id: payload.activeFocus.id }
@@ -4469,6 +4478,7 @@ function renderFarm() {
   const shop = document.querySelector("#seedShop");
   const grid = document.querySelector("#farmGrid");
   const farmBalance = document.querySelector("#farmCoinBalance");
+  const farmHeaderBalance = document.querySelector("#farmHeaderCoinBalance");
   const harvestInventory = document.querySelector("#harvestInventory");
   const morrisonBuyList = document.querySelector("#morrisonBuyList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
@@ -4489,6 +4499,7 @@ function renderFarm() {
     !shop ||
     !grid ||
     !farmBalance ||
+    !farmHeaderBalance ||
     !harvestInventory ||
     !morrisonBuyList ||
     !marketFarmMoney ||
@@ -4512,10 +4523,12 @@ function renderFarm() {
   ensureWeeklyFarmRanking();
   updateWiltedCrops();
   farmBalance.textContent = state.coins;
+  farmHeaderBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
   modalFarmMoney.textContent = state.farmMoney;
   topFarmMoney.textContent = state.farmMoney;
   farmBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
+  farmHeaderBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
   harvestStorageCount.textContent = Object.values(state.harvestInventory).reduce(
     (total, count) => total + count,
     0,
@@ -5205,7 +5218,8 @@ function updateFocusTarget() {
 
   if (focusMode === "quick") {
     focusButton.disabled = false;
-    target.textContent = `그냥 ${settings.focusMinutes}분 집중해`;
+    const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
+    target.textContent = `그냥 ${sessionMinutes}분 집중해`;
     description.textContent = "";
     description.hidden = true;
     return;
@@ -5237,6 +5251,7 @@ function saveCurrentFocusRuntime() {
     seconds: focusSeconds,
     phase: timerPhase,
     started: focusSessionStarted,
+    ...(focusMode === "quick" ? { sessionMinutes: focusRuntimeByMode.quick.sessionMinutes ?? getFocusSettings("quick").focusMinutes } : {}),
   };
 }
 
@@ -5368,7 +5383,8 @@ function updateFocusActionButton() {
     return;
   }
   if (focusMode === "quick") {
-    button.innerHTML = `<span>▶</span> ${getFocusSettings("quick").focusMinutes}분 시작`;
+    const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? getFocusSettings("quick").focusMinutes;
+    button.innerHTML = `<span>▶</span> ${sessionMinutes}분 시작`;
     return;
   }
   button.innerHTML = activeFocus?.type === "task"
@@ -5436,7 +5452,9 @@ function resetToFocus() {
     prepareLinkedFocusRuntime();
   } else {
     focusSessionStarted = false;
-    focusSeconds = getFocusSettings("quick").focusMinutes * 60;
+    const quickSettings = getFocusSettings("quick");
+    focusSeconds = quickSettings.focusMinutes * 60;
+    focusRuntimeByMode.quick.sessionMinutes = quickSettings.focusMinutes;
     saveCurrentFocusRuntime();
   }
   updateFocusActionButton();
@@ -6994,6 +7012,48 @@ document.querySelector("#openFarmMail").addEventListener("click", async () => {
   } catch (error) {
     console.error("Farmodoro farm data could not be flushed before opening mail", error);
     showToast("농장 저장에 실패해서 우편함 새로고침을 멈췄어. 잠시 후 다시 열어줘.");
+  }
+});
+
+deleteAccountButton.addEventListener("click", async () => {
+  if (!supabaseClient || !activeAuthUser) return;
+  const confirmation = window.prompt(
+    "탈퇴하면 모든 기록과 농장 데이터가 영구 삭제돼. 계속하려면 '탈퇴'라고 입력해줘.",
+  );
+  if (confirmation?.trim() !== "탈퇴") {
+    if (confirmation !== null) showToast("'탈퇴'를 정확히 입력해야 삭제할 수 있어");
+    return;
+  }
+
+  deleteAccountButton.disabled = true;
+  deleteAccountButton.textContent = "계정 삭제 중…";
+  try {
+    const userId = activeAuthUser.id;
+    const avatarPath = `${userId}/profile`;
+    const focusBackgroundPath = currentProfile?.focus_background_path;
+    await Promise.allSettled([
+      supabaseClient.storage.from("avatars").remove([avatarPath]),
+      focusBackgroundPath
+        ? supabaseClient.storage.from("focus-backgrounds").remove([focusBackgroundPath])
+        : Promise.resolve(),
+    ]);
+    const { error } = await supabaseClient.rpc("delete_my_account");
+    if (error) throw error;
+    closeUserSettings({ keepTheme: true });
+    await supabaseClient.auth.signOut({ scope: "local" });
+    await applyAuthSession(null);
+    await prepareGoogleSignIn();
+    showToast("Farmodoro 계정과 데이터를 삭제했어");
+  } catch (error) {
+    console.error("Farmodoro account could not be deleted", error);
+    showToast(
+      ["42883", "PGRST202"].includes(error?.code)
+        ? "계정 삭제 기능을 쓰려면 Supabase 028 SQL을 적용해줘"
+        : "계정을 삭제하지 못했어. 잠시 후 다시 시도해줘",
+    );
+  } finally {
+    deleteAccountButton.disabled = false;
+    deleteAccountButton.textContent = "Farmodoro 계정과 데이터 삭제";
   }
 });
 farmMailModal.addEventListener("click", async (event) => {
