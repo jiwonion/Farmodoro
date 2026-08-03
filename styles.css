@@ -10141,3 +10141,25 @@ canvas {
     min-height: 140px;
   }
 }
+
+/* Mobile density overrides. Keep form fields at 16px to prevent iOS auto-zoom. */
+@media (max-width: 600px) {
+  body { font-size: 14px; }
+  .main-content { padding: 14px 10px 20px; }
+  .page-header, .topbar { gap: 6px; margin-bottom: 12px; }
+  .page-header h1, .topbar h1 { font-size: 23px; }
+  .page-header p, .topbar p, .card-heading p, .farm-panel-header p { font-size: 12px; }
+  .summary-grid, .workspace-grid, .farm-layout, .habit-list, #habitsPage .habit-list { gap: 10px; }
+  .progress-card, .summary-card, .board-column, #tasksPage .board-column,
+  .task-card, #tasksPage .task-card, .habit-card, .farm-panel, .seed-shop { padding: 10px; }
+  .board-column, #tasksPage .board-column, .task-list, .habit-card, .farm-panel, .seed-shop { gap: 7px; }
+  .card-heading h2, .farm-panel-header h2, .market-modal-panel h2, .habit-modal-panel h2 { font-size: 18px; }
+  .task-card h4, .habit-card h3, .farm-mail-inbox-copy > strong { font-size: 13px; }
+  .market-modal, .habit-modal { padding: 8px 8px calc(78px + env(safe-area-inset-bottom)); }
+  .market-modal-panel, .habit-modal-panel { padding: 6px; }
+  .market-modal-panel > .modal-scroll-area, .habit-modal-panel > .modal-scroll-area { padding: 8px; }
+  .farm-mail-compose, .farm-mail-inbox-row, .farm-mail-history-row, .farm-mail-status { gap: 7px; padding: 9px; }
+  .sidebar { padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
+  .nav-item, .nav-item:not(.active), .nav-item.active { min-height: 48px; gap: 2px; padding: 3px 1px; font-size: 9px; }
+  .nav-label { font-size: 9px; }
+}

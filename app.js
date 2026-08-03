@@ -6760,9 +6760,10 @@ farmRankingModal.addEventListener("click", (event) => {
   }
 });
 const farmMailModal = document.querySelector("#farmMailModal");
-document.querySelector("#openFarmMail").addEventListener("click", () => {
+document.querySelector("#openFarmMail").addEventListener("click", async () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
+  if (activeAuthUser) await loadFarmDataFromDatabase(activeAuthUser);
 });
 farmMailModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-farm-mail]")) {
