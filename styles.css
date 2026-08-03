@@ -10364,7 +10364,7 @@ canvas {
   #farmPage .farm-name-display h2 { font-size: 16px; }
   #farmPage .farm-name-display > button { width: 24px; height: 24px; border-radius: 6px; }
   #farmPage .farm-name-display svg { width: 12px; height: 12px; }
-  #farmPage .farm-name-form input { font-size: 9px; }
+  #farmPage #farmNameInput { font-size: 9px !important; }
 
   #farmPage .farm-header-actions {
     display: grid;
@@ -10932,15 +10932,18 @@ canvas {
   }
 }
 
-@media (min-width: 601px) and (max-width: 1200px) and (orientation: landscape) {
+@media (min-width: 601px) and (max-width: 1200px) {
   :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top {
+    display: block;
+    width: 100%;
     min-width: 0;
-    padding-right: 0;
+    padding-right: 56px;
+    box-sizing: border-box;
   }
 
   :is(#todayPage, #tasksPage) .task-card:not(.editing) h4 {
-    width: calc(100% - 56px);
-    max-width: calc(100% - 56px);
+    width: auto;
+    max-width: none;
     min-width: 0;
     padding-right: 0;
     overflow-wrap: anywhere;
