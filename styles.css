@@ -452,13 +452,6 @@ button {
   border-radius: 11px;
 }
 
-.google-login-button iframe {
-  width: 100% !important;
-  max-width: none;
-  margin-right: 0 !important;
-  margin-left: 0 !important;
-}
-
 .google-login-button.loading::before {
   position: absolute;
   z-index: 1;
