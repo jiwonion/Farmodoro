@@ -4197,6 +4197,16 @@ async function revealFarmRankingBox(mail, index) {
       return;
     }
   }
+  if (dbItemId) {
+    await loadFarmDataFromDatabase(activeAuthUser);
+    const refreshedMail = state.farmInbox.find((entry) => entry.id === mail.id);
+    if (refreshedMail) {
+      renderFarmRewardBoxes(refreshedMail, index);
+      showToast(`${CROPS[cropId].name} 1개를 수확물 보관함에 넣었어.`);
+      if (refreshedMail.claimed) launchHarvestCelebration();
+    }
+    return;
+  }
   state.harvestInventory[cropId] = (state.harvestInventory[cropId] ?? 0) + 1;
   mail.openedBoxIndexes.push(index);
   mail.openedBoxIndexes.sort((first, second) => first - second);
@@ -6873,6 +6883,11 @@ farmMailModal.addEventListener("click", async (event) => {
         showToast("우편 선물을 받지 못했어");
         return;
       }
+    }
+    if (mail.dbItemId) {
+      await loadFarmDataFromDatabase(activeAuthUser);
+      showToast(`${gift.name} 1개를 보관함에 넣었어.`);
+      return;
     }
     gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
     mail.claimed = true;

@@ -10605,4 +10605,87 @@ canvas {
   #userSettingsModal :is(.settings-field > small, .settings-section-heading small, .account-info-list code, [role="status"]) {
     font-size: 9px;
   }
+
+  /* Final mobile alignment refinements for Today and Tasks. */
+  #todayPage .focus-controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #todayPage .progress-stats > div {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-content: center;
+    column-gap: 3px;
+    padding-left: 0;
+  }
+
+  #todayPage .progress-stats > div + div { padding-left: 0; }
+  #todayPage .progress-stats .stat-dot {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  #todayPage .progress-stats p {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+  }
+  #todayPage .progress-stats strong {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 4px;
+  }
+
+  #tasksPage #openTaskForm {
+    min-height: 31px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  /* Habit measure row mirrors the desktop composition at mobile scale. */
+  .habit-modal #habitForm .habit-measure-row {
+    grid-template-columns: minmax(0, 1fr) 56px 66px;
+    align-items: center;
+    gap: 6px;
+  }
+  .habit-modal #habitForm .habit-measure-trigger,
+  .habit-modal #habitForm .habit-measure-row input {
+    min-height: 36px;
+    height: 36px;
+    padding-right: 8px;
+    padding-left: 8px;
+    font-size: 11px !important;
+  }
+  .habit-modal #habitForm .habit-measure-trigger {
+    width: 100%;
+    min-width: 0;
+  }
+  .habit-modal #habitForm .habit-measure-menu { font-size: 11px; }
+  .habit-modal #habitForm .habit-measure-option {
+    min-height: 31px;
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+
+  /* User settings field and admin placeholders/status copy. */
+  #userSettingsModal #profileDisplayName {
+    font-size: 12px !important;
+  }
+  #userSettingsModal #profileNameLength,
+  #userSettingsModal #settingsFarmCode,
+  #userSettingsModal #farmAdminMailStatus {
+    font-size: 9px;
+  }
+  #userSettingsModal #farmAdminMailSection label > span { font-size: 10px; }
+  #userSettingsModal #farmAdminMailTitleInput,
+  #userSettingsModal #farmAdminMailMessageInput {
+    font-size: 11px !important;
+  }
+  #userSettingsModal #farmAdminMailTitleInput::placeholder,
+  #userSettingsModal #farmAdminMailMessageInput::placeholder,
+  #userSettingsModal #profileDisplayName::placeholder {
+    font-size: 10px;
+  }
 }
