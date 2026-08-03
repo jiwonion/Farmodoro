@@ -269,10 +269,11 @@ function renderGoogleSignInButton() {
   window.google.accounts.id.renderButton(googleSignInButton, {
     type: "standard",
     theme: "outline",
-    size: "large",
+    size: "medium",
     text: "continue_with",
     shape: "rectangular",
     logo_alignment: "left",
+    locale: "ko",
     width,
   });
   googleSignInButton.classList.remove("loading");
