@@ -443,18 +443,20 @@ button {
 .google-login-button {
   position: relative;
   display: grid;
-  width: 100%;
+  width: 101%;
   min-width: 0;
   min-height: 58px;
   place-items: center;
   margin-top: 31px;
-  overflow: hidden;
+  overflow: visible;
   border-radius: 11px;
 }
 
-.google-login-button > div,
 .google-login-button iframe {
-  max-width: 100%;
+  width: 100% !important;
+  max-width: none;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
 }
 
 .google-login-button.loading::before {
