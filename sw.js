@@ -1,12 +1,11 @@
-const CACHE_VERSION = "farmodoro-v76";
+const CACHE_VERSION = "farmodoro-v82";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
-  "./",
   "./index.html",
-  "./styles.css?v=76",
-  "./app.js?v=76",
-  "./pwa-register.js?v=76",
+  "./styles.css?v=82",
+  "./app.js?v=82",
+  "./pwa-register.js?v=82",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
@@ -20,6 +19,9 @@ const APP_SHELL = [
   "./assets/icons/icon-maskable-512.png",
   "./assets/icons/apple-touch-icon.png"
 ];
+const APP_SHELL_URLS = new Set(
+  APP_SHELL.map((path) => new URL(path, self.location.href).href),
+);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -40,9 +42,9 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-const cacheResponse = async (request, response) => {
+const cacheResponse = async (cacheName, request, response) => {
   if (response && (response.status === 200 || response.type === "opaque")) {
-    const cache = await caches.open(RUNTIME_CACHE);
+    const cache = await caches.open(cacheName);
     await cache.put(request, response.clone());
   }
   return response;
@@ -50,16 +52,22 @@ const cacheResponse = async (request, response) => {
 
 const networkFirst = async (request) => {
   try {
-    return await cacheResponse(request, await fetch(request));
+    return await fetch(request);
   } catch {
     return (await caches.match(request)) || (await caches.match("./index.html"));
   }
 };
 
+const cacheFirstAppShell = async (request) => {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  return cacheResponse(APP_CACHE, request, await fetch(request));
+};
+
 const staleWhileRevalidate = async (request) => {
   const cached = await caches.match(request);
   const network = fetch(request)
-    .then((response) => cacheResponse(request, response))
+    .then((response) => cacheResponse(RUNTIME_CACHE, request, response))
     .catch(() => null);
   return cached || network;
 };
@@ -72,6 +80,11 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin === self.location.origin && request.mode === "navigate") {
     event.respondWith(networkFirst(request));
+    return;
+  }
+
+  if (APP_SHELL_URLS.has(url.href)) {
+    event.respondWith(cacheFirstAppShell(request));
     return;
   }
 

@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=76" />
+    <link rel="stylesheet" href="./styles.css?v=82" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -579,11 +579,6 @@
                 <button type="submit">저장하고 열기</button>
               </form>
               <div class="focus-youtube-library" id="focusYoutubeLibrary"></div>
-              <div class="focus-youtube-mini-actions">
-                <button id="focusYoutubeNowPlaying" type="button" aria-label="YouTube 재생">▶ YouTube 재생 중</button>
-                <button id="restoreFocusYoutube" type="button" aria-label="YouTube 플레이어 크게 보기">□ 크게 보기</button>
-                <button id="stopFocusYoutube" type="button" aria-label="YouTube 재생 종료">× 재생 종료</button>
-              </div>
               <p id="focusYoutubeStatus" role="status" aria-live="polite">영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.</p>
             </section>
             <div class="focus-page-slot" id="focusPageSlot"></div>
@@ -1161,8 +1156,6 @@
       </section>
     </div>
 
-    <div class="focus-youtube-player persistent-youtube-player" id="focusYoutubePlayer"></div>
-
     <div class="focus-floating-status">
       <aside class="mini-focus-music" id="miniFocusMusic" aria-live="polite" hidden>
         <button class="mini-focus-music-main" id="openMiniFocusMusic" type="button" aria-label="집중 페이지 열기">
@@ -1189,7 +1182,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=76"></script>
-    <script src="./pwa-register.js?v=76"></script>
+    <script src="./app.js?v=82"></script>
+    <script src="./pwa-register.js?v=82"></script>
   </body>
 </html>

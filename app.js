@@ -204,6 +204,17 @@ const supabaseClient = window.supabase?.createClient(
   },
 );
 
+function subscribeToUserTables(channel, tables, userId, callback) {
+  return tables.reduce(
+    (currentChannel, table) => currentChannel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table, filter: `user_id=eq.${userId}` },
+      callback,
+    ),
+    channel,
+  );
+}
+
 function normalizeTheme(theme) {
   return APP_THEMES.has(theme) ? theme : "classic";
 }
@@ -423,6 +434,8 @@ function resetFarmWalletDatabaseState() {
 
 async function loadFarmWallet(user) {
   if (!supabaseClient || !user) return;
+  const previousCoins = Number(state.coins ?? 0);
+  const previousFarmMoney = Number(state.farmMoney ?? 0);
   farmWalletHydrated = false;
   farmWalletUserId = user.id;
 
@@ -441,8 +454,10 @@ async function loadFarmWallet(user) {
   state.coins = databaseCoins;
   state.farmMoney = databaseFarmMoney;
   farmWalletHydrated = true;
-  renderSummary();
-  renderFarm();
+  if (databaseCoins !== previousCoins || databaseFarmMoney !== previousFarmMoney) {
+    renderSummary();
+    renderFarm();
+  }
 }
 
 function applyFarmWalletChange(
@@ -758,6 +773,7 @@ async function applyAuthSession(session) {
     startFarmMailRealtime(session.user);
     await loadDailyFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
+    startFocusRealtime(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
       try {
         await migrateLegacyContentEncryptionToServer(session.user);
@@ -1843,6 +1859,8 @@ let focusDailyServerSeconds = 0;
 let focusDailyDate = "";
 let focusDailyApiUnavailable = false;
 let focusDailySyncPromise = null;
+let focusRealtimeChannel = null;
+let focusRealtimeRefreshTimer = null;
 const pendingFocusDailySeconds = { linked: 0, quick: 0 };
 const focusDailyEventQueue = [];
 let activeFocus = null;
@@ -1861,6 +1879,7 @@ let farmMailServerUnreadCount = null;
 let farmMailUnreadPollInterval = null;
 let farmMailRealtimeChannel = null;
 let farmMailRealtimeRefreshTimer = null;
+let farmContentRealtimeRefreshTimer = null;
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
 let farmLeaderboard = [];
@@ -1936,11 +1955,28 @@ function resetFarmDataDatabaseState() {
 
 function stopFarmMailRealtime() {
   if (farmMailRealtimeRefreshTimer) clearTimeout(farmMailRealtimeRefreshTimer);
+  if (farmContentRealtimeRefreshTimer) clearTimeout(farmContentRealtimeRefreshTimer);
   farmMailRealtimeRefreshTimer = null;
+  farmContentRealtimeRefreshTimer = null;
   if (farmMailRealtimeChannel && supabaseClient) {
     void supabaseClient.removeChannel(farmMailRealtimeChannel);
   }
   farmMailRealtimeChannel = null;
+}
+
+function scheduleFarmContentRealtimeRefresh(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  if (farmContentRealtimeRefreshTimer) clearTimeout(farmContentRealtimeRefreshTimer);
+  farmContentRealtimeRefreshTimer = window.setTimeout(async () => {
+    farmContentRealtimeRefreshTimer = null;
+    if (activeAuthUser?.id !== userId) return;
+    await farmDataSyncChain;
+    const farmUiVisible =
+      currentPage === "farm" ||
+      !document.querySelector("#farmMailModal")?.classList.contains("hidden") ||
+      !document.querySelector("#farmKitchenModal")?.classList.contains("hidden");
+    if (farmUiVisible) await loadFarmDataFromDatabase(activeAuthUser);
+  }, 500);
 }
 
 function scheduleFarmMailRealtimeRefresh(userId) {
@@ -1952,6 +1988,7 @@ function scheduleFarmMailRealtimeRefresh(userId) {
     await pollFarmMailUnreadCount(activeAuthUser);
     const mailModalOpen = !document.querySelector("#farmMailModal")?.classList.contains("hidden");
     if (currentPage === "farm" || mailModalOpen) {
+      await farmDataSyncChain;
       await loadFarmDataFromDatabase(activeAuthUser);
     }
   }, 350);
@@ -1961,6 +1998,10 @@ function startFarmMailRealtime(user) {
   stopFarmMailRealtime();
   if (!supabaseClient || !user) return;
   const handleChange = () => scheduleFarmMailRealtimeRefresh(user.id);
+  const handleFarmContentChange = () => scheduleFarmContentRealtimeRefresh(user.id);
+  const handleWalletChange = () => {
+    void farmWalletMutationChain.then(() => loadFarmWallet(user));
+  };
   farmMailRealtimeChannel = supabaseClient
     .channel(`farm-mail:${user.id}`)
     .on(
@@ -1973,8 +2014,41 @@ function startFarmMailRealtime(user) {
       },
       handleChange,
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "farm_mail",
+        filter: `sender_user_id=eq.${user.id}`,
+      },
+      handleChange,
+    )
     .on("postgres_changes", { event: "*", schema: "public", table: "farm_mail_items" }, handleChange)
-    .subscribe((status) => {
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "farm_wallets",
+        filter: `user_id=eq.${user.id}`,
+      },
+      handleWalletChange,
+    )
+  farmMailRealtimeChannel = subscribeToUserTables(
+    farmMailRealtimeChannel,
+    [
+      "farms",
+      "farm_plots",
+      "farm_inventory",
+      "farm_recipe_discoveries",
+      "farm_market_rotations",
+      "farm_weekly_earnings",
+    ],
+    user.id,
+    handleFarmContentChange,
+  );
+  farmMailRealtimeChannel.subscribe((status) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         console.warn(`Farmodoro farm mail realtime subscription: ${status}`);
       }
@@ -2001,7 +2075,7 @@ function startFarmMailUnreadPolling(user) {
   void pollFarmMailUnreadCount(user);
   farmMailUnreadPollInterval = window.setInterval(() => {
     void pollFarmMailUnreadCount(user);
-  }, 60000);
+  }, 300000);
 }
 
 function toDatabaseTimestamp(milliseconds) {
@@ -2135,6 +2209,15 @@ async function loadFarmMailContacts(user) {
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
+  const previousRenderSignature = farmDataUserId === requestedUserId && farmDataHydrated
+    ? JSON.stringify({
+        farm: serializeFarmData(),
+        inbox: state.farmInbox,
+        history: state.farmMailHistory,
+        sentCount: state.farmMailSentCount,
+        weeklyEarned: state.weeklyFarmMoneyEarned,
+      })
+    : "";
   farmDataHydrated = false;
   farmDataUserId = requestedUserId;
   let { data, error } = await supabaseClient.rpc("get_my_farm_state_v2");
@@ -2208,9 +2291,17 @@ async function loadFarmDataFromDatabase(user) {
   if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
 
   farmDataHydrated = true;
-  lastFarmDataSyncSignature = serializeFarmData();
+  const nextSignature = serializeFarmData();
+  const nextRenderSignature = JSON.stringify({
+    farm: nextSignature,
+    inbox: state.farmInbox,
+    history: state.farmMailHistory,
+    sentCount: state.farmMailSentCount,
+    weeklyEarned: state.weeklyFarmMoneyEarned,
+  });
+  lastFarmDataSyncSignature = nextSignature;
   ensureDailyMarket();
-  render();
+  if (nextRenderSignature !== previousRenderSignature) render();
 }
 
 function scheduleFarmDataDatabaseSync(delay = 250) {
@@ -2390,6 +2481,7 @@ function loadState(savedState = null) {
         focusSeconds: task.focusSeconds ?? 0,
         archived: task.archived ?? false,
         archivedAt: task.archivedAt ?? "",
+        completionCycleId: task.completionCycleId ?? "",
         completedDate:
           task.completedDate ??
           (task.status === "done" && !task.archived ? toLocalDateString() : ""),
@@ -2559,6 +2651,7 @@ function isFocusTimerOwner() {
 }
 
 function resetFocusTimerDatabaseState() {
+  stopFocusRealtime();
   focusTimerDatabaseHydrated = false;
   focusTimerDatabaseUnavailable = false;
   focusTimerLastUpdatedAt = "";
@@ -2569,6 +2662,49 @@ function resetFocusTimerDatabaseState() {
   focusTimerSyncTimer = null;
   focusTimerPollInterval = null;
   resetDailyFocusProgressState();
+}
+
+function stopFocusRealtime() {
+  if (focusRealtimeRefreshTimer) clearTimeout(focusRealtimeRefreshTimer);
+  focusRealtimeRefreshTimer = null;
+  if (focusRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(focusRealtimeChannel);
+  }
+  focusRealtimeChannel = null;
+}
+
+function startFocusRealtime(user) {
+  stopFocusRealtime();
+  if (!supabaseClient || !user) return;
+  const refreshTimer = () => {
+    if (focusRealtimeRefreshTimer) clearTimeout(focusRealtimeRefreshTimer);
+    focusRealtimeRefreshTimer = window.setTimeout(() => {
+      focusRealtimeRefreshTimer = null;
+      if (activeAuthUser?.id === user.id) void pollFocusTimerFromDatabase();
+    }, 150);
+  };
+  const refreshDailyProgress = () => {
+    if (activeAuthUser?.id !== user.id) return;
+    void Promise.resolve(focusDailySyncPromise)
+      .then(() => loadDailyFocusProgress(user));
+  };
+  focusRealtimeChannel = subscribeToUserTables(
+    supabaseClient.channel(`focus:${user.id}`),
+    ["user_focus_timer"],
+    user.id,
+    refreshTimer,
+  );
+  focusRealtimeChannel = subscribeToUserTables(
+    focusRealtimeChannel,
+    ["user_focus_daily"],
+    user.id,
+    refreshDailyProgress,
+  );
+  focusRealtimeChannel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`Farmodoro focus realtime subscription: ${status}`);
+      }
+    });
 }
 
 function getFocusTimerDatabasePayload() {
@@ -2713,7 +2849,7 @@ async function loadFocusTimerFromDatabase(user) {
   if (focusTimerPollInterval) clearInterval(focusTimerPollInterval);
   focusTimerPollInterval = window.setInterval(() => {
     void pollFocusTimerFromDatabase();
-  }, 3000);
+  }, 30000);
 }
 
 async function pollFocusTimerFromDatabase() {
@@ -2817,6 +2953,7 @@ function serializeTaskDatabaseState() {
       ...(habit.completionDates ?? []),
       ...Object.keys(habit.progressByDate ?? {}),
       ...Object.keys(habit.focusSecondsByDate ?? {}),
+      ...Object.keys(habit.recordMetaByDate ?? {}),
     ]);
     return [...recordDates].map((recordDate) => {
       const progressValue = habit.measureType === "count"
@@ -2874,6 +3011,7 @@ function serializeTaskDatabaseState() {
       completion_reward: Math.max(0, Math.floor(task.completionReward ?? 0)),
       completed_with_free_pass: Boolean(task.completedWithFreePass),
       completed_on: task.completedDate || null,
+      completion_cycle_id: task.completionCycleId || null,
       archived_at: task.archivedAt || null,
     })),
     habits: state.habits.map((habit, sortOrder) => ({
@@ -2909,6 +3047,7 @@ function mapDatabaseTask(task) {
     completionReward: task.completion_reward,
     completedWithFreePass: task.completed_with_free_pass,
     completedDate: task.completed_on || "",
+    completionCycleId: task.completion_cycle_id || "",
     archived: Boolean(task.archived_at),
     archivedAt: task.archived_at || "",
   };
@@ -2995,6 +3134,8 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (taskDataUserId === user.id && taskDataHydrated && !force) return;
   if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
 
+  const hadCurrentData = taskDataUserId === user.id && taskDataHydrated;
+  const previousSignature = hadCurrentData ? serializeTaskDatabaseState() : "";
   taskDataUserId = user.id;
   taskDataHydrated = false;
   const requestedUserId = user.id;
@@ -3019,11 +3160,19 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         habitRecordRows.filter((record) => record.habit_id === habit.id),
       ),
     );
-    taskGroupFilter = "all";
-    activeFocus = activeFocus?.type === "task" ? null : activeFocus;
+    if (!hadCurrentData) {
+      taskGroupFilter = "all";
+    }
+    if (
+      activeFocus?.type === "task" &&
+      !state.tasks.some((task) => String(task.id) === String(activeFocus.id))
+    ) {
+      activeFocus = null;
+    }
     taskDataHydrated = true;
-    lastTaskSyncSignature = serializeTaskDatabaseState();
-    render();
+    const nextSignature = serializeTaskDatabaseState();
+    lastTaskSyncSignature = nextSignature;
+    if (nextSignature !== previousSignature) render();
   })()
     .catch((error) => {
       console.error("Farmodoro task data could not be loaded", error);
@@ -4125,12 +4274,13 @@ function useFreePassOnTarget(targetValue) {
   }
   const [targetType, targetId] = target.value.split(":");
   const reward = productionCoinReward();
+  const completionCycleId = createUuid();
   if (
     !applyFarmWalletChange(
       "coin",
       reward,
       "농부의 프리패스 보상",
-      `free-pass:${targetType}:${targetId}:${toLocalDateString()}`,
+      `free-pass:${targetType}:${targetId}:${toLocalDateString()}:${completionCycleId}`,
     )
   ) return;
 
@@ -4139,6 +4289,7 @@ function useFreePassOnTarget(targetValue) {
     if (!task) return;
     task.status = "done";
     task.completedDate = toLocalDateString();
+    task.completionCycleId = completionCycleId;
     task.completionReward = reward;
     task.completedWithFreePass = true;
   } else {
@@ -4153,6 +4304,12 @@ function useFreePassOnTarget(targetValue) {
     habit.completionDates.push(toLocalDateString());
     habit.completionReward = reward;
     habit.completedWithFreePass = true;
+    habit.recordMetaByDate ??= {};
+    habit.recordMetaByDate[toLocalDateString()] = {
+      completedAt: new Date().toISOString(),
+      completionReward: reward,
+      completedWithFreePass: true,
+    };
   }
   state.farmItemInventory.freePass -= 1;
   closeFreePassTargetModal();
@@ -5075,6 +5232,7 @@ function moveTaskTo(id, nextStatus) {
 
   if (previousStatus !== "done" && nextStatus === "done") {
     const reward = productionCoinReward();
+    task.completionCycleId = createUuid();
     task.completionReward = reward;
     task.completedWithFreePass = false;
     task.completedDate = toLocalDateString();
@@ -5082,7 +5240,7 @@ function moveTaskTo(id, nextStatus) {
       "coin",
       reward,
       "할 일 완료",
-      `task:${task.id}:${task.completedDate}:complete`,
+      `task:${task.id}:${task.completedDate}:complete:${task.completionCycleId}`,
     );
     if (activeFocus?.type === "task" && activeFocus.id === task.id) {
       activeFocus = null;
@@ -5106,11 +5264,12 @@ function moveTaskTo(id, nextStatus) {
     );
   } else if (previousStatus === "done" && nextStatus !== "done") {
     const returnedReward = task.completionReward ?? 1;
+    const completionToken = task.completionCycleId || "legacy";
     applyFarmWalletChange(
       "coin",
       -returnedReward,
       "할 일 완료 취소",
-      `task:${task.id}:${task.completedDate}:undo`,
+      `task:${task.id}:${task.completedDate}:undo:${completionToken}`,
       true,
     );
     task.completionReward = 0;
@@ -5139,26 +5298,34 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
   habit.completionDates = complete
     ? [...new Set([...habit.completionDates, today])]
     : habit.completionDates.filter((date) => date !== today);
+  habit.recordMetaByDate ??= {};
 
   if (complete) {
     const reward = productionCoinReward();
+    const completedAt = new Date().toISOString();
     applyFarmWalletChange(
       "coin",
       reward,
       "습관 완료",
-      `habit:${habit.id}:${today}:complete`,
+      `habit:${habit.id}:${today}:complete:${completedAt}`,
     );
     habit.completionReward = reward;
     habit.completedWithFreePass = false;
+    habit.recordMetaByDate[today] = {
+      completedAt,
+      completionReward: reward,
+      completedWithFreePass: false,
+    };
     return { complete: true, reward };
   }
 
   const reward = habit.completionReward ?? 1;
+  const completionToken = habit.recordMetaByDate[today]?.completedAt || "legacy";
   applyFarmWalletChange(
     "coin",
     -reward,
     "습관 완료 취소",
-    `habit:${habit.id}:${today}:undo`,
+    `habit:${habit.id}:${today}:undo:${completionToken}`,
     true,
   );
   habit.completionReward = 0;
@@ -5166,6 +5333,11 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
     state.farmItemInventory.freePass += 1;
     habit.completedWithFreePass = false;
   }
+  habit.recordMetaByDate[today] = {
+    completedAt: null,
+    completionReward: 0,
+    completedWithFreePass: false,
+  };
   return { complete: false, reward };
 }
 
@@ -5385,12 +5557,12 @@ function startProductivityRealtime(user) {
   if (!supabaseClient || !user) return;
 
   const handleChange = () => scheduleProductivityRealtimeRefresh(user.id);
-  const userFilter = `user_id=eq.${user.id}`;
-  productivityRealtimeChannel = supabaseClient
-    .channel(`productivity:${user.id}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "task_groups", filter: userFilter }, handleChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: userFilter }, handleChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "habits", filter: userFilter }, handleChange)
+  productivityRealtimeChannel = subscribeToUserTables(
+    supabaseClient.channel(`productivity:${user.id}`),
+    ["task_groups", "tasks", "habits"],
+    user.id,
+    handleChange,
+  )
     .on("postgres_changes", { event: "*", schema: "public", table: "habit_daily_records" }, handleChange)
     .subscribe((status) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -7559,18 +7731,9 @@ const focusYoutubeForm = document.querySelector("#focusYoutubeForm");
 const focusYoutubeNameInput = document.querySelector("#focusYoutubeName");
 const focusYoutubeUrlInput = document.querySelector("#focusYoutubeUrl");
 const focusYoutubeLibrary = document.querySelector("#focusYoutubeLibrary");
-const focusYoutubePlayer = document.querySelector("#focusYoutubePlayer");
 const focusYoutubeStatus = document.querySelector("#focusYoutubeStatus");
-const focusYoutubeNowPlaying = document.querySelector("#focusYoutubeNowPlaying");
 const closeFocusYoutubeButton = document.querySelector("#closeFocusYoutube");
-const restoreFocusYoutubeButton = document.querySelector("#restoreFocusYoutube");
-const stopFocusYoutubeButton = document.querySelector("#stopFocusYoutube");
 let editingFocusYoutubeId = null;
-let playingFocusYoutubeId = null;
-let playingFocusYoutubeTitle = "";
-let focusYoutubeApiPromise = null;
-let focusYoutubeApiPlayer = null;
-let focusYoutubePlaybackRequest = 0;
 const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
 const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
 const FOCUS_PLAYLIST = [
@@ -7593,16 +7756,13 @@ let currentFocusTrack = null;
 let focusBackgroundObjectUrl = null;
 
 function updateFocusMusicIndicator() {
-  const youtubePlaying = Boolean(focusYoutubePlayer.firstElementChild);
   const defaultMusicPlaying = Boolean(
     focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
   );
-  const showIndicator = currentPage !== "focus" && (youtubePlaying || defaultMusicPlaying);
+  const showIndicator = currentPage !== "focus" && defaultMusicPlaying;
   miniFocusMusic.hidden = !showIndicator;
   if (!showIndicator) return;
-  miniFocusMusicTitle.textContent = youtubePlaying
-    ? playingFocusYoutubeTitle || "YouTube 집중 음악"
-    : currentFocusTrack?.title || "기본 집중 음악";
+  miniFocusMusicTitle.textContent = currentFocusTrack?.title || "기본 집중 음악";
 }
 
 function applyFocusBackground(file) {
@@ -7855,44 +8015,6 @@ function parseFocusYoutubeUrl(value) {
   return null;
 }
 
-function loadFocusYoutubeApi() {
-  if (window.YT?.Player) return Promise.resolve(window.YT);
-  if (focusYoutubeApiPromise) return focusYoutubeApiPromise;
-
-  focusYoutubeApiPromise = new Promise((resolve, reject) => {
-    const previousReadyHandler = window.onYouTubeIframeAPIReady;
-    const timeoutId = window.setTimeout(() => {
-      focusYoutubeApiPromise = null;
-      reject(new Error("YouTube 플레이어를 불러오는 시간이 너무 오래 걸려"));
-    }, 15000);
-
-    window.onYouTubeIframeAPIReady = () => {
-      previousReadyHandler?.();
-      window.clearTimeout(timeoutId);
-      resolve(window.YT);
-    };
-
-    let script = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
-    if (!script) {
-      script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.async = true;
-      document.head.appendChild(script);
-    }
-    script.addEventListener(
-      "error",
-      () => {
-        window.clearTimeout(timeoutId);
-        focusYoutubeApiPromise = null;
-        reject(new Error("YouTube 플레이어 API를 불러오지 못했어"));
-      },
-      { once: true },
-    );
-  });
-
-  return focusYoutubeApiPromise;
-}
-
 function getFocusYoutubePlaylists() {
   if (!Array.isArray(state.focusYoutubePlaylists)) state.focusYoutubePlaylists = [];
   return state.focusYoutubePlaylists;
@@ -7912,7 +8034,6 @@ function renderFocusYoutubeLibrary() {
   playlists.forEach((playlist) => {
     const row = document.createElement("div");
     row.className = "focus-youtube-library-item";
-    if (playlist.id === playingFocusYoutubeId) row.classList.add("playing");
 
     const title = document.createElement("strong");
     title.textContent = playlist.title;
@@ -7945,13 +8066,6 @@ function openFocusYoutubeLink(source, title) {
 }
 
 function stopFocusYoutube() {
-  focusYoutubePlaybackRequest += 1;
-  focusYoutubeApiPlayer?.destroy?.();
-  focusYoutubeApiPlayer = null;
-  focusYoutubePlayer.replaceChildren();
-  playingFocusYoutubeId = null;
-  playingFocusYoutubeTitle = "";
-  focusYoutubePanel.classList.remove("minimized");
   focusYoutubePanel.classList.add("hidden");
   focusYoutubeButton.classList.remove("active");
   focusYoutubeButton.setAttribute("aria-expanded", "false");
@@ -7961,8 +8075,7 @@ function stopFocusYoutube() {
 
 function updateFocusYoutubePanelPosition() {
   if (
-    focusYoutubePanel.classList.contains("hidden") ||
-    focusYoutubePanel.classList.contains("minimized")
+    focusYoutubePanel.classList.contains("hidden")
   ) {
     return;
   }
@@ -7975,7 +8088,6 @@ function updateFocusYoutubePanelPosition() {
 }
 
 function openFocusYoutube() {
-  focusYoutubePanel.classList.remove("minimized");
   focusYoutubePanel.classList.remove("hidden");
   focusYoutubeButton.classList.add("active");
   focusYoutubeButton.setAttribute("aria-expanded", "true");
@@ -7991,36 +8103,17 @@ function openFocusYoutube() {
 }
 
 function minimizeFocusYoutube() {
-  if (!focusYoutubePlayer.firstElementChild) {
-    focusYoutubePanel.classList.add("hidden");
-    focusYoutubeButton.classList.remove("active");
-    focusYoutubeButton.setAttribute("aria-expanded", "false");
-    return;
-  }
-  focusYoutubePanel.classList.add("minimized");
+  focusYoutubePanel.classList.add("hidden");
+  focusYoutubeButton.classList.remove("active");
   focusYoutubeButton.setAttribute("aria-expanded", "false");
-}
-
-function restoreFocusYoutube() {
-  openFocusYoutube();
 }
 
 focusYoutubeButton.addEventListener("click", () => {
   if (focusYoutubePanel.classList.contains("hidden")) openFocusYoutube();
-  else if (focusYoutubePanel.classList.contains("minimized")) restoreFocusYoutube();
   else minimizeFocusYoutube();
 });
 
 closeFocusYoutubeButton.addEventListener("click", minimizeFocusYoutube);
-restoreFocusYoutubeButton.addEventListener("click", restoreFocusYoutube);
-stopFocusYoutubeButton.addEventListener("click", stopFocusYoutube);
-focusYoutubeNowPlaying.addEventListener("click", () => {
-  if (!focusYoutubeApiPlayer) return;
-  focusYoutubeApiPlayer.unMute?.();
-  focusYoutubeApiPlayer.setVolume?.(100);
-  focusYoutubeApiPlayer.playVideo?.();
-  focusYoutubeNowPlaying.textContent = `▶ ${playingFocusYoutubeTitle || "YouTube 재생 중"}`;
-});
 
 focusYoutubeLibrary.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-action][data-id]");
@@ -8052,13 +8145,6 @@ focusYoutubeLibrary.addEventListener("click", (event) => {
 
   const index = playlists.findIndex((item) => item.id === playlist.id);
   playlists.splice(index, 1);
-  if (playingFocusYoutubeId === playlist.id) {
-    focusYoutubePlayer.replaceChildren();
-    playingFocusYoutubeId = null;
-    playingFocusYoutubeTitle = "";
-    focusYoutubeNowPlaying.textContent = "▶ YouTube 재생 중";
-    updateFocusMusicIndicator();
-  }
   if (editingFocusYoutubeId === playlist.id) {
     editingFocusYoutubeId = null;
     focusYoutubeForm.reset();
@@ -8268,8 +8354,9 @@ async function refreshPageData(page = currentPage) {
 
 function showPage(page) {
   const validPage = APP_PAGES.includes(page) ? page : "today";
+  const pageChanged = currentPage !== validPage;
 
-  if (currentPage !== validPage) {
+  if (pageChanged) {
     closePageModals();
     taskForm.classList.add("hidden");
     groupManager.classList.add("hidden");
@@ -8327,7 +8414,7 @@ function showPage(page) {
   updateMiniFocusTimer();
   updateFocusMusicIndicator();
   document.documentElement.classList.remove("app-initializing");
-  void refreshPageData(validPage);
+  if (pageChanged) void refreshPageData(validPage);
 }
 
 window.addEventListener("hashchange", () => {
@@ -8373,8 +8460,7 @@ document.querySelector("#openMiniFocusMusic").addEventListener("click", () => {
 });
 
 document.querySelector("#stopMiniFocusMusic").addEventListener("click", () => {
-  if (focusYoutubePlayer.firstElementChild) stopFocusYoutube();
-  else stopFocusAudio();
+  stopFocusAudio();
 });
 
 miniFocusPause.addEventListener("click", () => {
