@@ -751,6 +751,7 @@ async function applyAuthSession(session) {
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    startFarmMailUnreadPolling(session.user);
     await loadDailyFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
@@ -1852,6 +1853,8 @@ let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
 let farmMailView = "send";
 let farmMailContacts = [];
+let farmMailServerUnreadCount = null;
+let farmMailUnreadPollInterval = null;
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
 let farmLeaderboard = [];
@@ -1919,6 +1922,32 @@ function resetFarmDataDatabaseState() {
   if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
   farmDataSyncTimer = null;
   farmMailContacts = [];
+  farmMailServerUnreadCount = null;
+  if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
+  farmMailUnreadPollInterval = null;
+}
+
+async function pollFarmMailUnreadCount(user = activeAuthUser) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  const { data, error } = await supabaseClient.rpc("get_my_unclaimed_farm_mail_count");
+  if (activeAuthUser?.id !== requestedUserId) return;
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) {
+      console.warn("Farmodoro unread mail count could not be loaded", error);
+    }
+    return;
+  }
+  farmMailServerUnreadCount = Math.max(0, Number(data) || 0);
+  renderFarmMail();
+}
+
+function startFarmMailUnreadPolling(user) {
+  if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
+  void pollFarmMailUnreadCount(user);
+  farmMailUnreadPollInterval = window.setInterval(() => {
+    void pollFarmMailUnreadCount(user);
+  }, 60000);
 }
 
 function toDatabaseTimestamp(milliseconds) {
@@ -2115,6 +2144,7 @@ async function loadFarmDataFromDatabase(user) {
   state.farmRankingWeekStart = getFarmWeekStart();
   state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
   state.farmInbox = mapFarmInboxFromDatabase(data?.inbox ?? []);
+  farmMailServerUnreadCount = state.farmInbox.filter((mail) => !mail.claimed).length;
   state.farmInboxDate = toLocalDateString();
   state.farmMailHistory = mapFarmSentHistoryFromDatabase(data?.sentToday ?? []);
   state.farmMailDate = toLocalDateString();
@@ -4311,6 +4341,8 @@ function renderFarmMail() {
   const unreadCount = document.querySelector("#farmMailUnreadCount");
   const headerUnreadCount = document.querySelector("#farmMailHeaderUnread");
   const openMailButton = document.querySelector("#openFarmMail");
+  const todayMailAlert = document.querySelector("#todayMailAlert");
+  const todayMailAlertCount = document.querySelector("#todayMailAlertCount");
   if (
     !remaining ||
     !friendCodeInput ||
@@ -4336,7 +4368,8 @@ function renderFarmMail() {
   });
   sendPanel.classList.toggle("hidden", farmMailView !== "send");
   inboxPanel.classList.toggle("hidden", farmMailView !== "inbox");
-  const unclaimedCount = state.farmInbox.filter((mail) => !mail.claimed).length;
+  const localUnclaimedCount = state.farmInbox.filter((mail) => !mail.claimed).length;
+  const unclaimedCount = farmMailServerUnreadCount ?? localUnclaimedCount;
   unreadCount.textContent = unclaimedCount;
   unreadCount.hidden = unclaimedCount === 0;
   headerUnreadCount.textContent = unclaimedCount > 99 ? "99+" : unclaimedCount;
@@ -4346,6 +4379,11 @@ function renderFarmMail() {
     "aria-label",
     unclaimedCount ? `농장 우편소 · 받지 않은 우편 ${unclaimedCount}통` : "농장 우편소",
   );
+  if (todayMailAlert && todayMailAlertCount) {
+    todayMailAlert.hidden = unclaimedCount === 0;
+    todayMailAlertCount.textContent = unclaimedCount > 99 ? "99+" : unclaimedCount;
+    todayMailAlert.setAttribute("aria-label", `새 농장 우편 ${unclaimedCount}통 열기`);
+  }
 
   inboxList.innerHTML = state.farmInbox.length
     ? state.farmInbox
@@ -4888,12 +4926,7 @@ function renderSummary() {
   const percent = total ? Math.round((progressScore / total) * 100) : 0;
 
   document.querySelector("#coinBalance").textContent = state.coins;
-  const taskPageCoinBalance = document.querySelector("#taskPageCoinBalance");
-  const taskPageFarmMoneyBalance = document.querySelector("#taskPageFarmMoneyBalance");
-  if (taskPageCoinBalance) taskPageCoinBalance.textContent = state.coins;
-  if (taskPageFarmMoneyBalance) taskPageFarmMoneyBalance.textContent = state.farmMoney;
   document.querySelector(".currency.coin").classList.toggle("negative", state.coins < 0);
-  taskPageCoinBalance?.closest(".currency")?.classList.toggle("negative", state.coins < 0);
   document.querySelector("#completedCount").textContent = completed;
   document.querySelector("#progressPercent").textContent = `${percent}%`;
   document.querySelector("#progressBar").style.width = `${percent}%`;
@@ -7050,6 +7083,11 @@ document.querySelector("#openFarmMail").addEventListener("click", async () => {
     showToast("농장 저장에 실패해서 우편함 새로고침을 멈췄어. 잠시 후 다시 열어줘.");
   }
 });
+document.querySelector("#todayMailAlert").addEventListener("click", () => {
+  farmMailView = "inbox";
+  location.hash = "farm";
+  requestAnimationFrame(() => document.querySelector("#openFarmMail").click());
+});
 
 deleteAccountButton.addEventListener("click", async () => {
   if (!supabaseClient || !activeAuthUser) return;
@@ -8135,6 +8173,7 @@ window.addEventListener("focus", () => {
     void farmWalletMutationChain.then(() => loadFarmWallet(activeAuthUser));
   }
   void pollFocusTimerFromDatabase();
+  void pollFarmMailUnreadCount();
 });
 
 document.addEventListener("visibilitychange", () => {
