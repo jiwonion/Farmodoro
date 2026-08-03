@@ -2095,7 +2095,7 @@ async function loadFarmDataFromDatabase(user) {
   render();
 }
 
-function scheduleFarmDataDatabaseSync(delay = 800) {
+function scheduleFarmDataDatabaseSync(delay = 250) {
   if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
   const signature = serializeFarmData();
   if (signature === lastFarmDataSyncSignature) return;
@@ -2134,6 +2134,33 @@ function scheduleFarmDataDatabaseSync(delay = 800) {
         }
       });
   }, delay);
+}
+
+async function syncFarmDataDatabaseImmediately() {
+  if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
+  if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
+  farmDataSyncTimer = null;
+
+  const userId = activeAuthUser.id;
+  const signature = serializeFarmData();
+  if (signature === lastFarmDataSyncSignature) {
+    await farmDataSyncChain;
+    return;
+  }
+  const payload = JSON.parse(signature);
+  const operation = farmDataSyncChain.then(async () => {
+    let { error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
+    if (error?.code === "PGRST202" || error?.code === "42883") {
+      ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
+    }
+    if (error) throw error;
+  });
+  farmDataSyncChain = operation.catch(() => {});
+  await operation;
+  if (activeAuthUser?.id === userId) {
+    lastFarmDataSyncSignature = signature;
+    lastFarmDataSyncError = "";
+  }
 }
 
 function loadState(savedState = null) {
@@ -2353,7 +2380,7 @@ async function loadAppStateFromDatabase(user) {
   render();
 }
 
-function scheduleAppStateDatabaseSync(snapshot = null, delay = 800) {
+function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
   if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) return;
   const signature = snapshot ? JSON.stringify(snapshot) : serializeAppState();
   if (signature === lastAppStateSyncSignature) return;
@@ -2484,10 +2511,27 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     runtime.seconds = isTaskStopwatch
       ? runtime.seconds + elapsedSeconds
       : Math.max(0, runtime.seconds - elapsedSeconds);
+    if (isTaskStopwatch && item) {
+      const savedTaskSeconds = Math.max(0, Math.floor(Number(item.focusSeconds) || 0));
+      if (runtime.seconds > savedTaskSeconds) {
+        item.focusSeconds = runtime.seconds;
+        scheduleTaskDatabaseSync(0);
+      }
+    }
     focusLastTickAt = Date.now();
     startFocusTickInterval(runningFocusMode);
   } else {
     focusLastTickAt = 0;
+  }
+
+  if (activeFocus?.type === "task") {
+    const task = getFocusItem();
+    const recoveredSeconds = focusRuntimeByMode.linked.seconds;
+    const savedTaskSeconds = Math.max(0, Math.floor(Number(task?.focusSeconds) || 0));
+    if (task && recoveredSeconds > savedTaskSeconds) {
+      task.focusSeconds = recoveredSeconds;
+      scheduleTaskDatabaseSync(0);
+    }
   }
 
   const visibleRuntime = focusRuntimeByMode[focusMode];
@@ -2864,7 +2908,7 @@ async function loadTaskDataFromDatabase(user) {
   return taskDataLoadPromise;
 }
 
-function scheduleTaskDatabaseSync(delay = 1500) {
+function scheduleTaskDatabaseSync(delay = 300) {
   if (!taskDataHydrated || !activeAuthUser || activeAuthUser.id !== taskDataUserId) return;
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const hasInvalidId =
@@ -4115,7 +4159,13 @@ function closeFarmRewardBoxModal() {
 
 async function revealFarmRankingBox(mail, index) {
   const cropId = mail.boxCropIds?.[index];
-  if (!CROPS[cropId]) return;
+  const guide = document.querySelector("#farmRewardBoxGuide");
+  if (!CROPS[cropId]) {
+    const message = "상자 정보를 찾지 못했어. 우편함을 닫았다가 다시 열어줘.";
+    if (guide) guide.textContent = message;
+    showToast(message);
+    return;
+  }
   const openedIndexes = getOpenedFarmRankingBoxIndexes(mail);
   if (openedIndexes.includes(index)) return;
   const dbItemId = mail.dbItemIds?.[index];
@@ -4125,7 +4175,25 @@ async function revealFarmRankingBox(mail, index) {
     });
     if (error) {
       console.error("Farmodoro ranking box could not be claimed", error);
-      showToast("랜덤 박스를 열지 못했어");
+      const reason = String(error.message ?? "");
+      if (reason.includes("already claimed")) {
+        await loadFarmDataFromDatabase(activeAuthUser);
+        const refreshedMail = state.farmInbox.find((entry) => entry.id === mail.id);
+        if (refreshedMail) renderFarmRewardBoxes(refreshedMail);
+        const message = "이미 받은 상자야. 우편함 상태를 새로 불러왔어.";
+        if (guide) guide.textContent = message;
+        showToast(message);
+        return;
+      }
+      const message = reason.includes("expired")
+        ? "수령 기간이 지나 상자를 열 수 없어."
+        : reason.includes("does not belong")
+          ? "현재 로그인한 계정의 우편이 아니야."
+          : reason.includes("not found")
+            ? "상자 정보를 찾지 못했어. 우편함을 다시 열어줘."
+            : `랜덤 박스를 열지 못했어${reason ? ` · ${reason}` : ". 잠시 후 다시 시도해줘."}`;
+      if (guide) guide.textContent = message;
+      showToast(message);
       return;
     }
   }
@@ -5320,6 +5388,7 @@ function startFocusTickInterval(mode) {
       focusTimerLastHeartbeatAt = Date.now();
       saveState();
       renderSummary();
+      scheduleTaskDatabaseSync(0);
       scheduleFocusTimerDatabaseSync(0);
     }
   }, 250);
@@ -6763,7 +6832,14 @@ const farmMailModal = document.querySelector("#farmMailModal");
 document.querySelector("#openFarmMail").addEventListener("click", async () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
-  if (activeAuthUser) await loadFarmDataFromDatabase(activeAuthUser);
+  if (!activeAuthUser) return;
+  try {
+    await syncFarmDataDatabaseImmediately();
+    await loadFarmDataFromDatabase(activeAuthUser);
+  } catch (error) {
+    console.error("Farmodoro farm data could not be flushed before opening mail", error);
+    showToast("농장 저장에 실패해서 우편함 새로고침을 멈췄어. 잠시 후 다시 열어줘.");
+  }
 });
 farmMailModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-farm-mail]")) {
@@ -6889,7 +6965,16 @@ farmRewardBoxModal.addEventListener("click", async (event) => {
     (entry) => entry.id === activeRankingRewardMailId,
   );
   if (!mail || mail.claimed) return;
-  await revealFarmRankingBox(mail, Number(boxButton.dataset.openRewardBox));
+  boxButton.disabled = true;
+  boxButton.setAttribute("aria-busy", "true");
+  try {
+    await revealFarmRankingBox(mail, Number(boxButton.dataset.openRewardBox));
+  } finally {
+    if (boxButton.isConnected && !boxButton.classList.contains("opened")) {
+      boxButton.disabled = false;
+      boxButton.removeAttribute("aria-busy");
+    }
+  }
 });
 const farmKitchenModal = document.querySelector("#farmKitchenModal");
 document.querySelector("#openFarmKitchen").addEventListener("click", () => {
@@ -7795,9 +7880,19 @@ document.addEventListener("visibilitychange", () => {
   void syncAppStateDatabaseImmediately().catch((error) => {
     console.error("Farmodoro app state could not be flushed", error);
   });
+  void syncFarmDataDatabaseImmediately().catch((error) => {
+    console.error("Farmodoro farm data could not be flushed", error);
+  });
   if (isFocusTimerOwner()) {
     void syncFocusTimerDatabaseImmediately();
   }
+});
+
+window.addEventListener("pagehide", () => {
+  void syncTaskDatabaseImmediately().catch(() => {});
+  void syncAppStateDatabaseImmediately().catch(() => {});
+  void syncFarmDataDatabaseImmediately().catch(() => {});
+  if (isFocusTimerOwner()) void syncFocusTimerDatabaseImmediately();
 });
 
 document.querySelector("#openMiniFocus").addEventListener("click", () => {

@@ -541,7 +541,7 @@ begin
     selected_item.item_id,
     selected_item.quantity
   )
-  on conflict (user_id, category, item_id) do update
+  on conflict on constraint farm_inventory_pkey do update
   set quantity = public.farm_inventory.quantity + excluded.quantity;
 
   update public.farm_mail_items

@@ -7992,7 +7992,7 @@ input.themed-date-native {
   position: fixed;
   top: 22px;
   left: 50%;
-  z-index: 1200;
+  z-index: 15000;
   max-width: calc(100vw - 32px);
   padding: 12px 17px;
   border-radius: 11px;
@@ -10155,6 +10155,12 @@ canvas {
   .board-column, #tasksPage .board-column, .task-list, .habit-card, .farm-panel, .seed-shop { gap: 7px; }
   .card-heading h2, .farm-panel-header h2, .market-modal-panel h2, .habit-modal-panel h2 { font-size: 18px; }
   .task-card h4, .habit-card h3, .farm-mail-inbox-copy > strong { font-size: 13px; }
+  .task-card:not(.editing) .task-top { padding-right: 48px; }
+  .task-card:not(.editing) h4 {
+    min-width: 0;
+    padding-right: 0;
+    overflow-wrap: anywhere;
+  }
   .market-modal, .habit-modal { padding: 8px 8px calc(78px + env(safe-area-inset-bottom)); }
   .market-modal-panel, .habit-modal-panel { padding: 6px; }
   .market-modal-panel > .modal-scroll-area, .habit-modal-panel > .modal-scroll-area { padding: 8px; }
@@ -10162,4 +10168,69 @@ canvas {
   .sidebar { padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); }
   .nav-item, .nav-item:not(.active), .nav-item.active { min-height: 48px; gap: 2px; padding: 3px 1px; font-size: 9px; }
   .nav-label { font-size: 9px; }
+
+  #farmPage .farm-panel-header {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  #farmPage .farm-name-editor {
+    width: 100%;
+  }
+
+  #farmPage .farm-header-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 5px;
+  }
+
+  #farmPage .farm-wallet { order: 1; }
+  #farmPage .open-farm-kitchen { order: 2; }
+  #farmPage .open-farm-mail { order: 3; }
+
+  #farmPage .farm-wallet,
+  #farmPage .open-farm-kitchen,
+  #farmPage .open-farm-mail {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 4px;
+    justify-content: center;
+    gap: 3px;
+    white-space: nowrap;
+  }
+
+  #farmPage .farm-wallet strong,
+  #farmPage .farm-wallet small,
+  #farmPage .open-farm-kitchen span,
+  #farmPage .open-farm-mail span {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  #farmPage .farm-storage-toolbar {
+    gap: 5px;
+    margin-bottom: 12px;
+  }
+
+  #farmPage .farm-storage-toolbar button {
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 3px;
+    gap: 3px;
+    font-size: 10px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  #farmPage .farm-storage-toolbar small {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 3px;
+    font-size: 9px;
+  }
 }
