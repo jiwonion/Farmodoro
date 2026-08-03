@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=55" />
+    <link rel="stylesheet" href="./styles.css?v=59" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -145,16 +145,16 @@
 
         <div class="sidebar-spacer"></div>
 
-        <div class="profile-button">
+        <button class="profile-button" id="openUserSettings" type="button" aria-label="내 정보 및 사용자 설정 열기" title="사용자 설정">
           <span class="avatar" id="profileAvatar">F</span>
           <span class="profile-copy">
             <strong id="profileName">Farmodoro</strong>
             <small id="profileAccountLabel">Google 계정</small>
           </span>
-          <button class="profile-settings-button" id="openUserSettings" type="button" aria-label="사용자 설정 열기" title="사용자 설정">
+          <span class="profile-settings-button" aria-hidden="true">
             <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.7"/><path d="M10 2.7v1.5m0 11.6v1.5M2.7 10h1.5m11.6 0h1.5M4.8 4.8l1.1 1.1m8.2 8.2 1.1 1.1m0-10.4-1.1 1.1m-8.2 8.2-1.1 1.1"/></svg>
-          </button>
-        </div>
+          </span>
+        </button>
       </aside>
 
       <main class="main-content">
@@ -762,6 +762,7 @@
                   autocapitalize="characters"
                   spellcheck="false"
                 />
+                <div class="farm-mail-recent-friends" id="farmMailRecentFriends" aria-label="최근 우편 친구"></div>
                 <small>친구의 사용자 설정에 표시된 농장 코드를 입력해</small>
               </div>
             </div>
@@ -1173,7 +1174,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=55"></script>
-    <script src="./pwa-register.js?v=55"></script>
+    <script src="./app.js?v=59"></script>
+    <script src="./pwa-register.js?v=59"></script>
   </body>
 </html>

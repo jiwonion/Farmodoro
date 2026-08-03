@@ -801,7 +801,18 @@ button {
   padding: 10px 7px;
   border: 1px dashed rgba(41, 76, 58, 0.34);
   border-radius: 12px;
+  color: var(--ink);
   background: color-mix(in srgb, var(--paper) 68%, transparent);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.profile-button:hover,
+.profile-button:focus-visible {
+  border-color: #294c3a;
+  background: var(--paper);
+  box-shadow: 2px 2px 0 rgba(41, 76, 58, 0.35);
+  outline: none;
 }
 
 .avatar {
@@ -859,22 +870,9 @@ button {
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: 0;
   background: transparent;
-  color: #768078;
-  cursor: pointer;
-}
-
-.profile-settings-button:hover {
-  border-color: rgba(41, 76, 58, 0.28);
-  background: var(--paper);
   color: var(--green-800);
-}
-
-.profile-settings-button:disabled {
-  cursor: wait;
-  opacity: 0.5;
 }
 
 .profile-settings-button svg {
@@ -3536,6 +3534,38 @@ button {
   font-size: 11px;
 }
 
+.farm-mail-recent-friends {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 1px;
+  scrollbar-width: thin;
+}
+
+.farm-mail-recent-friends button {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 1px;
+  padding: 6px 9px;
+  border: 1px solid #9ba99a;
+  border-radius: 8px;
+  color: #294c3a;
+  background: #fffaf0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.farm-mail-recent-friends button.selected {
+  border-color: #294c3a;
+  background: #f7e6aa;
+  box-shadow: 2px 2px 0 #294c3a;
+}
+
+.farm-mail-recent-friends button strong { font-size: 11px; }
+.farm-mail-recent-friends button small { font-size: 9px; }
+.farm-mail-no-friends { padding: 4px 1px; }
+
 .farm-mail-item.selected {
   border: 2px solid #294c3a;
   background: #fff3bf;
@@ -4719,9 +4749,9 @@ button {
 
 .morrison-buy-card {
   display: grid;
-  grid-template-columns: 29px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 8px 9px;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -4729,6 +4759,8 @@ button {
 }
 
 .morrison-buy-card > span {
+  display: grid;
+  place-items: center;
   font-size: 18px;
 }
 
@@ -10171,6 +10203,7 @@ canvas {
 
   #farmPage .farm-panel-header {
     display: flex;
+    position: relative;
     align-items: stretch;
     flex-direction: column;
     gap: 9px;
@@ -10178,19 +10211,32 @@ canvas {
 
   #farmPage .farm-name-editor {
     width: 100%;
+    min-height: 32px;
+    padding-right: 92px;
   }
+
+  #farmPage .farm-name-display { gap: 5px; }
+  #farmPage .farm-name-display h2 { font-size: 16px; }
+  #farmPage .farm-name-display > button { width: 24px; height: 24px; border-radius: 6px; }
+  #farmPage .farm-name-display svg { width: 12px; height: 12px; }
 
   #farmPage .farm-header-actions {
     display: grid;
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
     gap: 5px;
   }
 
-  #farmPage .farm-wallet { order: 1; }
-  #farmPage .open-farm-kitchen { order: 2; }
-  #farmPage .open-farm-mail { order: 3; }
+  #farmPage .farm-wallet {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: auto;
+    min-width: 82px;
+  }
+  #farmPage .open-farm-kitchen { order: 1; }
+  #farmPage .open-farm-mail { order: 2; }
 
   #farmPage .farm-wallet,
   #farmPage .open-farm-kitchen,
@@ -10203,6 +10249,12 @@ canvas {
     gap: 3px;
     white-space: nowrap;
   }
+
+  #farmPage .farm-wallet { width: auto; min-width: 82px; padding: 0 8px; }
+  #farmPage .farm-name-editor:has(.farm-name-form:not([hidden])) { padding-right: 0; }
+  .farm-mail-recent-friends button { padding: 5px 7px; }
+  .farm-mail-recent-friends button strong { font-size: 10px; }
+  .farm-mail-recent-friends button small { font-size: 8px; }
 
   #farmPage .farm-wallet strong,
   #farmPage .farm-wallet small,

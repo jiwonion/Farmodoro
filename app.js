@@ -748,6 +748,7 @@ async function applyAuthSession(session) {
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    await loadDailyFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
       try {
@@ -893,7 +894,11 @@ async function openUserSettings() {
   );
   if (themeRadio) themeRadio.checked = true;
   userSettingsModal.classList.remove("hidden");
-  profileDisplayNameInput.focus();
+  if (window.matchMedia("(max-width: 600px)").matches) {
+    userSettingsModal.querySelector("[data-close-user-settings]")?.focus({ preventScroll: true });
+  } else {
+    profileDisplayNameInput.focus();
+  }
 }
 
 function closeUserSettings({ keepTheme = false } = {}) {
@@ -1830,6 +1835,12 @@ let focusTimerSyncTimer = null;
 let focusTimerPollInterval = null;
 let focusTimerLastUpdatedAt = "";
 let focusTimerLastHeartbeatAt = 0;
+let focusDailyServerSeconds = 0;
+let focusDailyDate = "";
+let focusDailyApiUnavailable = false;
+let focusDailySyncPromise = null;
+const pendingFocusDailySeconds = { linked: 0, quick: 0 };
+const focusDailyEventQueue = [];
 let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
@@ -1841,6 +1852,7 @@ let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
 let farmMailView = "send";
+let farmMailContacts = [];
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
 let farmLeaderboard = [];
@@ -1907,6 +1919,7 @@ function resetFarmDataDatabaseState() {
   farmDataSyncChain = Promise.resolve();
   if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
   farmDataSyncTimer = null;
+  farmMailContacts = [];
 }
 
 function toDatabaseTimestamp(milliseconds) {
@@ -2018,6 +2031,25 @@ function mapFarmSentHistoryFromDatabase(sentToday = []) {
   );
 }
 
+async function loadFarmMailContacts(user) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  const { data, error } = await supabaseClient.rpc("get_my_farm_mail_contacts");
+  if (activeAuthUser?.id !== requestedUserId) return;
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) {
+      console.warn("Farmodoro mail contacts could not be loaded", error);
+    }
+    return;
+  }
+  farmMailContacts = (data ?? [])
+    .map((contact) => ({
+      code: String(contact.farm_code || "").toUpperCase(),
+      name: String(contact.display_name || "농부"),
+    }))
+    .filter((contact) => /^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(contact.code));
+}
+
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
@@ -2088,6 +2120,9 @@ async function loadFarmDataFromDatabase(user) {
   state.farmMailHistory = mapFarmSentHistoryFromDatabase(data?.sentToday ?? []);
   state.farmMailDate = toLocalDateString();
   state.farmMailSentCount = (data?.sentToday ?? []).length;
+
+  await loadFarmMailContacts(user);
+  if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
 
   farmDataHydrated = true;
   lastFarmDataSyncSignature = serializeFarmData();
@@ -2449,6 +2484,7 @@ function resetFocusTimerDatabaseState() {
   if (focusTimerPollInterval) clearInterval(focusTimerPollInterval);
   focusTimerSyncTimer = null;
   focusTimerPollInterval = null;
+  resetDailyFocusProgressState();
 }
 
 function getFocusTimerDatabasePayload() {
@@ -2496,7 +2532,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     ? payload.runningMode
     : null;
   focusTimerOwnerId = runningFocusMode ? String(payload.ownerId || "") : "";
-  if (Number.isFinite(Number(payload.rewardSeconds))) {
+  if (focusDailyApiUnavailable && Number.isFinite(Number(payload.rewardSeconds))) {
     state.focusRewardSeconds = Math.max(0, Math.floor(Number(payload.rewardSeconds))) % 3600;
   }
 
@@ -4255,6 +4291,7 @@ function getFarmMailItems(category = selectedMailCategory) {
 function renderFarmMail() {
   const remaining = document.querySelector("#farmMailRemaining");
   const friendCodeInput = document.querySelector("#farmMailFriendCode");
+  const recentFriends = document.querySelector("#farmMailRecentFriends");
   const itemList = document.querySelector("#farmMailItemList");
   const history = document.querySelector("#farmMailHistory");
   const sendButton = document.querySelector("#sendFarmMail");
@@ -4268,6 +4305,7 @@ function renderFarmMail() {
   if (
     !remaining ||
     !friendCodeInput ||
+    !recentFriends ||
     !itemList ||
     !history ||
     !sendButton ||
@@ -4337,6 +4375,13 @@ function renderFarmMail() {
   if (friendCodeInput.value !== selectedMailFriendCode) {
     friendCodeInput.value = selectedMailFriendCode;
   }
+  recentFriends.innerHTML = farmMailContacts.length
+    ? farmMailContacts.map((contact) => `
+        <button class="${selectedMailFriendCode === contact.code ? "selected" : ""}" type="button" data-mail-friend-code="${contact.code}">
+          <strong>${escapeHtml(contact.name)}</strong><small>${contact.code}</small>
+        </button>
+      `).join("")
+    : '<small class="farm-mail-no-friends">우편을 보내면 친구가 여기에 저장돼</small>';
 
   categories.querySelectorAll("[data-mail-category]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mailCategory === selectedMailCategory);
@@ -5195,22 +5240,117 @@ function saveCurrentFocusRuntime() {
   };
 }
 
-function addFocusSecond(elapsedSeconds = 1) {
-  state.focusRewardSeconds += elapsedSeconds;
+function getPendingFocusDailySeconds() {
+  return pendingFocusDailySeconds.linked +
+    pendingFocusDailySeconds.quick +
+    focusDailyEventQueue.reduce((sum, event) => sum + event.seconds, 0);
+}
 
+function refreshDailyFocusProgress() {
+  state.focusRewardSeconds = Math.max(0, (focusDailyServerSeconds + getPendingFocusDailySeconds()) % 3600);
+  renderSummary();
+}
+
+function resetDailyFocusProgressState() {
+  focusDailyServerSeconds = 0;
+  focusDailyDate = "";
+  focusDailyApiUnavailable = false;
+  focusDailySyncPromise = null;
+  pendingFocusDailySeconds.linked = 0;
+  pendingFocusDailySeconds.quick = 0;
+  focusDailyEventQueue.length = 0;
+}
+
+async function loadDailyFocusProgress(user) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  const { data, error } = await supabaseClient.rpc("get_my_daily_focus_progress");
+  if (activeAuthUser?.id !== requestedUserId) return;
+  if (error) {
+    if (["42883", "PGRST202"].includes(error.code)) {
+      focusDailyApiUnavailable = true;
+      console.warn("Farmodoro daily focus API is unavailable; apply migration 025", error);
+      return;
+    }
+    console.error("Farmodoro daily focus progress could not be loaded", error);
+    return;
+  }
+  focusDailyApiUnavailable = false;
+  focusDailyDate = String(data?.focusDate || "");
+  focusDailyServerSeconds = Math.max(0, Math.floor(Number(data?.totalSeconds) || 0));
+  state.focusRewardSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0));
+  renderSummary();
+}
+
+function stagePendingFocusDailyEvents() {
+  ["linked", "quick"].forEach((mode) => {
+    let remaining = pendingFocusDailySeconds[mode];
+    pendingFocusDailySeconds[mode] = 0;
+    while (remaining > 0) {
+      const seconds = Math.min(600, remaining);
+      focusDailyEventQueue.push({ id: crypto.randomUUID(), mode, seconds });
+      remaining -= seconds;
+    }
+  });
+}
+
+async function flushDailyFocusTime() {
+  if (focusDailyApiUnavailable || !activeAuthUser) return;
+  stagePendingFocusDailyEvents();
+  if (!focusDailyEventQueue.length) return;
+  if (focusDailySyncPromise) return focusDailySyncPromise;
+
+  const userId = activeAuthUser.id;
+  focusDailySyncPromise = (async () => {
+    while (focusDailyEventQueue.length && activeAuthUser?.id === userId) {
+      const event = focusDailyEventQueue[0];
+      const { data, error } = await supabaseClient.rpc("record_my_daily_focus_time", {
+        p_event_id: event.id,
+        p_focus_mode: event.mode,
+        p_elapsed_seconds: event.seconds,
+      });
+      if (error) throw error;
+      focusDailyEventQueue.shift();
+      focusDailyDate = String(data?.focusDate || focusDailyDate);
+      focusDailyServerSeconds = Math.max(0, Math.floor(Number(data?.totalSeconds) || 0));
+      if (Number.isFinite(Number(data?.coinBalance))) state.coins = Number(data.coinBalance);
+      const awardedCoins = Math.max(0, Number(data?.awardedCoins) || 0);
+      if (awardedCoins > 0) showToast(`오늘 집중 60분 완료 ${awardedCoins} Coin을 받았어`);
+      refreshDailyFocusProgress();
+      renderFarm();
+    }
+  })()
+    .catch((error) => {
+      console.error("Farmodoro daily focus time could not be saved", error);
+      if (["42883", "PGRST202"].includes(error?.code)) {
+        focusDailyApiUnavailable = true;
+        showToast("집중 시간 통합 저장을 쓰려면 Supabase 025 SQL을 적용해줘");
+      }
+    })
+    .finally(() => {
+      focusDailySyncPromise = null;
+    });
+  return focusDailySyncPromise;
+}
+
+function addLegacyFocusRewardSeconds(elapsedSeconds) {
+  state.focusRewardSeconds += elapsedSeconds;
   while (state.focusRewardSeconds >= 3600) {
     const reward = productionCoinReward();
-    if (
-      !applyFarmWalletChange(
-        "coin",
-        reward,
-        "집중 60분 보상",
-        `focus:${Date.now()}`,
-      )
-    ) return;
+    if (!applyFarmWalletChange("coin", reward, "집중 60분 보상", `focus:${Date.now()}`)) return;
     state.focusRewardSeconds -= 3600;
     showToast(`집중 누적 60분 완료 ${reward} Coin을 받았어`);
   }
+}
+
+function addFocusSecond(elapsedSeconds = 1, mode = focusMode) {
+  if (focusDailyApiUnavailable) {
+    addLegacyFocusRewardSeconds(elapsedSeconds);
+    return;
+  }
+  const dailyMode = mode === "quick" ? "quick" : "linked";
+  pendingFocusDailySeconds[dailyMode] += elapsedSeconds;
+  state.focusRewardSeconds = Math.max(0, (focusDailyServerSeconds + getPendingFocusDailySeconds()) % 3600);
 }
 
 function updateFocusActionButton() {
@@ -5271,7 +5411,7 @@ function advanceRunningFocusTimer(mode) {
         item.focusSecondsByDate[today] = focusedSeconds;
       }
     }
-    addFocusSecond(appliedSeconds);
+    addFocusSecond(appliedSeconds, mode);
   }
 
   if (focusMode === mode) {
@@ -5338,6 +5478,7 @@ function finishFocusRuntime(mode) {
         : "집중 측정을 완료했어",
     );
     scheduleFocusTimerDatabaseSync(0);
+    void flushDailyFocusTime();
     return;
   }
 
@@ -5364,6 +5505,7 @@ function finishFocusRuntime(mode) {
   render();
   showToast("집중 세트를 완료했어");
   scheduleFocusTimerDatabaseSync(0);
+  void flushDailyFocusTime();
 }
 
 function finishBreakRuntime(mode) {
@@ -5400,6 +5542,7 @@ function startFocusTickInterval(mode) {
       renderSummary();
       scheduleTaskDatabaseSync(0);
       scheduleFocusTimerDatabaseSync(0);
+      void flushDailyFocusTime();
     }
   }, 250);
 }
@@ -5425,6 +5568,7 @@ function toggleFocus() {
     saveState();
     scheduleTaskDatabaseSync(0);
     scheduleFocusTimerDatabaseSync(0);
+    void flushDailyFocusTime();
     return;
   }
 
@@ -5471,6 +5615,7 @@ function endFocusSession(mode = focusMode) {
   saveState();
   scheduleTaskDatabaseSync(0);
   scheduleFocusTimerDatabaseSync(0);
+  void flushDailyFocusTime();
   showToast(mode === "quick" ? "빠른 집중을 종료했어" : "집중 측정을 종료했어");
 }
 
@@ -6864,6 +7009,13 @@ farmMailModal.addEventListener("click", async (event) => {
     return;
   }
 
+  const friendButton = event.target.closest("[data-mail-friend-code]");
+  if (friendButton) {
+    selectedMailFriendCode = friendButton.dataset.mailFriendCode;
+    renderFarmMail();
+    return;
+  }
+
   const claimButton = event.target.closest("[data-claim-farm-mail]");
   if (claimButton) {
     const mail = state.farmInbox.find((entry) => entry.id === claimButton.dataset.claimFarmMail);
@@ -6963,6 +7115,9 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     itemName: item.name,
     sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
   });
+  if (!farmMailContacts.some((contact) => contact.code === friendCode)) {
+    farmMailContacts.unshift({ code: friendCode, name: friendCode });
+  }
   selectedMailItemId = null;
   showToast(`${friendCode}에 ${item.name} 1개를 보냈어`);
   render();
@@ -7901,6 +8056,7 @@ document.addEventListener("visibilitychange", () => {
   if (isFocusTimerOwner()) {
     void syncFocusTimerDatabaseImmediately();
   }
+  void flushDailyFocusTime();
 });
 
 window.addEventListener("pagehide", () => {
@@ -7908,6 +8064,7 @@ window.addEventListener("pagehide", () => {
   void syncAppStateDatabaseImmediately().catch(() => {});
   void syncFarmDataDatabaseImmediately().catch(() => {});
   if (isFocusTimerOwner()) void syncFocusTimerDatabaseImmediately();
+  void flushDailyFocusTime();
 });
 
 document.querySelector("#openMiniFocus").addEventListener("click", () => {
