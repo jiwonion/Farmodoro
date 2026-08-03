@@ -10233,4 +10233,171 @@ canvas {
     padding: 0 3px;
     font-size: 9px;
   }
+
+  /* Today: compact focus target and progress summary. */
+  #todayPage .focus-copy h2,
+  #todayPage #focusTarget {
+    margin: 7px 0 5px;
+    font-size: 18px;
+    line-height: 1.25;
+  }
+
+  #todayPage .progress-card {
+    min-height: 170px;
+    padding: 14px 16px;
+    justify-content: center;
+  }
+
+  #todayPage .card-heading {
+    align-items: center;
+  }
+
+  #todayPage .card-heading .section-kicker { font-size: 10px; }
+  #todayPage .card-heading h2 { margin-top: 4px; font-size: 18px; }
+  #todayPage .progress-percent {
+    min-width: 52px;
+    padding: 5px 7px 4px;
+    font-size: 15px;
+  }
+  #todayPage .large-progress { height: 8px; margin: 16px 0; }
+  #todayPage .progress-stats { align-items: center; }
+  #todayPage .progress-stats > div { padding-left: 10px; text-align: center; }
+  #todayPage .progress-stats > div + div { padding-left: 14px; }
+  #todayPage .progress-stats p { margin-bottom: 4px; font-size: 9px; }
+  #todayPage .progress-stats strong { font-size: 13px; }
+  #todayPage .stat-dot { left: 0; width: 5px; height: 5px; }
+  #todayPage .progress-stats > div + div .stat-dot { left: 5px; }
+
+  /* Keep group management inside the mobile viewport. */
+  #todayPage .group-manager,
+  #tasksPage .group-manager {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 7px;
+    margin-bottom: 10px;
+    padding: 7px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  #todayPage .group-list,
+  #tasksPage .group-list {
+    width: 100%;
+    min-width: 0;
+    gap: 4px;
+  }
+
+  #todayPage .group-add,
+  #tasksPage .group-add {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+
+  #todayPage .group-add input,
+  #tasksPage .group-add input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  #todayPage .group-add .primary-button,
+  #tasksPage .group-add .primary-button {
+    min-width: 50px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  /* Tasks page: compact groups, filters, and archive controls. */
+  #tasksPage .task-page-tools { gap: 7px; padding: 8px; }
+  #tasksPage .task-filter-list { gap: 4px; }
+  #tasksPage .task-filter-list button,
+  #tasksPage .archive-toggle {
+    min-height: 31px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+  #tasksPage .task-archive-policy { font-size: 9px; line-height: 1.35; }
+  #tasksPage .group-chip,
+  #tasksPage .task-archived-label,
+  #tasksPage .task-archive-button { font-size: 9px; }
+  #tasksPage .group-chip { gap: 4px; padding: 4px 5px 4px 7px; }
+  #tasksPage .task-archive-button { min-height: 25px; margin-top: 7px; }
+
+  /* Habits page: reduce typography and control density. */
+  #habitsPage .page-header h1 { font-size: 21px; }
+  #habitsPage .page-header p { font-size: 11px; }
+  #habitsPage .habit-heatmap,
+  #habitsPage .habit-section { padding: 10px; }
+  #habitsPage .habit-heatmap h2,
+  #habitsPage .section-header h2 { font-size: 16px; }
+  #habitsPage .section-kicker,
+  #habitsPage .heatmap-legend,
+  #habitsPage .heatmap-habit-name { font-size: 9px; }
+  #habitsPage .habit-item {
+    min-height: 54px;
+    gap: 6px;
+    padding: 7px;
+  }
+  #habitsPage .habit-copy { gap: 2px; }
+  #habitsPage .habit-copy strong { font-size: 12px; }
+  #habitsPage .habit-copy small,
+  #habitsPage .habit-focus-button,
+  #habitsPage .streak { font-size: 9px; }
+  #habitsPage .habit-check { width: 29px; height: 29px; font-size: 13px; }
+  #habitsPage .habit-count-control { grid-template-columns: 20px 21px 20px; }
+  #habitsPage .habit-count-control button { height: 28px; font-size: 13px; }
+  #habitsPage .habit-count-control strong { font-size: 10px; }
+  #habitsPage .text-button { padding: 5px 7px; font-size: 10px; }
+
+  /* User settings: compact mobile modal without shrinking form inputs below 16px. */
+  #userSettingsModal .user-settings-modal-panel > .modal-scroll-area { padding: 7px; }
+  #userSettingsModal .user-settings-modal-panel h2 { margin-bottom: 4px; font-size: 20px; }
+  #userSettingsModal .user-settings-modal-panel header p { font-size: 11px; }
+  #userSettingsModal .user-settings-modal-panel .section-kicker { margin-bottom: 4px; font-size: 9px; }
+  #userSettingsModal .user-settings-form { gap: 7px; }
+  #userSettingsModal .settings-section { padding: 10px; border-radius: 10px; }
+  #userSettingsModal .settings-section-heading { margin-bottom: 8px; }
+  #userSettingsModal .settings-section-heading > div { gap: 3px; }
+  #userSettingsModal .settings-section-heading strong { font-size: 13px; }
+  #userSettingsModal .settings-section-heading small,
+  #userSettingsModal .profile-avatar-editor small { font-size: 10px; }
+  #userSettingsModal .profile-avatar-editor { gap: 9px; margin-bottom: 9px; }
+  #userSettingsModal .profile-avatar-editor > div > strong { font-size: 12px; }
+  #userSettingsModal .settings-avatar { width: 54px; height: 54px; flex-basis: 54px; font-size: 15px; }
+  #userSettingsModal .profile-avatar-actions { flex-wrap: wrap; }
+  #userSettingsModal .profile-avatar-actions .secondary-button,
+  #userSettingsModal .profile-avatar-actions .text-button {
+    min-height: 29px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+  #userSettingsModal .settings-field { gap: 4px; }
+  #userSettingsModal .settings-field > span { font-size: 11px; }
+  #userSettingsModal .settings-field input { min-height: 38px; }
+  #userSettingsModal .theme-options { gap: 6px; }
+  #userSettingsModal .theme-option {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+  #userSettingsModal .theme-option > strong { font-size: 10px; }
+  #userSettingsModal .theme-preview { height: 27px; }
+  #userSettingsModal .account-info-list { gap: 5px; }
+  #userSettingsModal .account-info-list > div { min-height: 27px; gap: 2px; }
+  #userSettingsModal .account-info-list dt,
+  #userSettingsModal .account-info-list dd,
+  #userSettingsModal .account-info-list code { font-size: 10px; }
+  #userSettingsModal .account-info-list button { min-height: 26px; padding: 0 7px; font-size: 9px; }
+  #userSettingsModal .settings-signout-button { margin-top: 7px; font-size: 10px; }
+  #userSettingsModal .user-settings-actions { gap: 5px; }
+  #userSettingsModal .user-settings-actions .secondary-button,
+  #userSettingsModal .user-settings-actions .primary-button {
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
 }
