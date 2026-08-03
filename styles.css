@@ -4305,6 +4305,7 @@ button {
 
 .focus-item-picker {
   position: relative;
+  z-index: 5;
   display: grid;
   width: min(300px, 38vw);
   min-width: 0;
@@ -4446,6 +4447,8 @@ button {
 }
 
 .focus-stage-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -9804,6 +9807,24 @@ canvas {
   pointer-events: none;
 }
 
+.mobile-profile-settings {
+  display: none;
+  appearance: none;
+  color: #294c3a;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+:root[data-theme="dark"] .mobile-profile-settings:not(.active) {
+  color: #9bc9ab;
+  background: transparent;
+}
+
+#userSettingsModal {
+  z-index: 8000;
+}
+
 .persistent-youtube-player iframe {
   width: 100%;
   height: 100%;
@@ -9938,9 +9959,13 @@ canvas {
 
   .main-nav {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 4px;
     width: 100%;
+  }
+
+  .mobile-profile-settings {
+    display: flex;
   }
 
   .nav-item,

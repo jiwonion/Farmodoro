@@ -7,6 +7,7 @@ const authStatus = document.querySelector("#authStatus");
 const googleSignInButton = document.querySelector("#googleSignInButton");
 const signOutButton = document.querySelector("#signOutButton");
 const openUserSettingsButton = document.querySelector("#openUserSettings");
+const openMobileUserSettingsButton = document.querySelector("#openMobileUserSettings");
 const userSettingsModal = document.querySelector("#userSettingsModal");
 const userSettingsForm = document.querySelector("#userSettingsForm");
 const profileSettingsAvatar = document.querySelector("#profileSettingsAvatar");
@@ -740,6 +741,7 @@ async function applyAuthSession(session) {
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    await loadFocusTimerFromDatabase(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
       try {
         await migrateLegacyContentEncryptionToServer(session.user);
@@ -755,6 +757,7 @@ async function applyAuthSession(session) {
     closeContentEncryptionPrompt(null);
     resetTaskDatabaseState();
     resetAppStateDatabaseState();
+    resetFocusTimerDatabaseState();
     resetFarmWalletDatabaseState();
     resetFarmDataDatabaseState();
     state = loadState();
@@ -1098,6 +1101,7 @@ async function uploadProfileAvatar(user, file) {
 }
 
 openUserSettingsButton.addEventListener("click", () => void openUserSettings());
+openMobileUserSettingsButton.addEventListener("click", () => void openUserSettings());
 
 userSettingsModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-user-settings]")) closeUserSettings();
@@ -1634,7 +1638,7 @@ const RECIPES = {
 };
 
 const defaultState = {
-  schemaVersion: 39,
+  schemaVersion: 41,
   tutorialCompleted: false,
   contentEncryption: {
     version: 0,
@@ -1750,6 +1754,24 @@ const focusRuntimeByMode = {
   linked: { seconds: 0, phase: "focus", started: false },
   quick: { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
 };
+const FOCUS_TIMER_CLIENT_ID = (() => {
+  try {
+    const storedId = sessionStorage.getItem("farmodoro-focus-timer-client");
+    if (storedId) return storedId;
+    const clientId = crypto.randomUUID();
+    sessionStorage.setItem("farmodoro-focus-timer-client", clientId);
+    return clientId;
+  } catch {
+    return crypto.randomUUID();
+  }
+})();
+let focusTimerOwnerId = "";
+let focusTimerDatabaseHydrated = false;
+let focusTimerDatabaseUnavailable = false;
+let focusTimerSyncTimer = null;
+let focusTimerPollInterval = null;
+let focusTimerLastUpdatedAt = "";
+let focusTimerLastHeartbeatAt = 0;
 let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
@@ -2085,7 +2107,7 @@ function loadState(savedState = null) {
     return {
       ...structuredClone(defaultState),
       ...saved,
-      schemaVersion: 39,
+      schemaVersion: 41,
       contentEncryption: {
         version: Number(saved.contentEncryption?.version) || 0,
         salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
@@ -2323,6 +2345,214 @@ async function syncAppStateDatabaseImmediately() {
   appStateSyncChain = operation.catch(() => {});
   await operation;
   if (activeAuthUser?.id === userId) lastAppStateSyncSignature = signature;
+}
+
+function isFocusTimerOwner() {
+  return focusTimerOwnerId === FOCUS_TIMER_CLIENT_ID;
+}
+
+function resetFocusTimerDatabaseState() {
+  focusTimerDatabaseHydrated = false;
+  focusTimerDatabaseUnavailable = false;
+  focusTimerLastUpdatedAt = "";
+  focusTimerOwnerId = "";
+  focusTimerLastHeartbeatAt = 0;
+  if (focusTimerSyncTimer) clearTimeout(focusTimerSyncTimer);
+  if (focusTimerPollInterval) clearInterval(focusTimerPollInterval);
+  focusTimerSyncTimer = null;
+  focusTimerPollInterval = null;
+}
+
+function getFocusTimerDatabasePayload() {
+  return {
+    version: 1,
+    ownerId: runningFocusMode ? focusTimerOwnerId : "",
+    runningMode: runningFocusMode,
+    focusMode,
+    activeFocus: activeFocus ? { ...activeFocus } : null,
+    runtimes: {
+      linked: { ...focusRuntimeByMode.linked },
+      quick: { ...focusRuntimeByMode.quick },
+    },
+    syncedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeFocusTimerRuntime(value, fallback) {
+  return {
+    seconds: Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds))),
+    phase: value?.phase === "break" ? "break" : "focus",
+    started: Boolean(value?.started),
+  };
+}
+
+function applyFocusTimerDatabaseState(payload, updatedAt = "") {
+  if (!payload || Number(payload.version) !== 1) return;
+  clearInterval(focusInterval);
+  focusInterval = null;
+
+  focusRuntimeByMode.linked = normalizeFocusTimerRuntime(
+    payload.runtimes?.linked,
+    { seconds: 0, phase: "focus", started: false },
+  );
+  focusRuntimeByMode.quick = normalizeFocusTimerRuntime(
+    payload.runtimes?.quick,
+    { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false },
+  );
+  activeFocus = payload.activeFocus?.type && payload.activeFocus?.id
+    ? { type: payload.activeFocus.type, id: payload.activeFocus.id }
+    : null;
+  focusMode = ["linked", "quick"].includes(payload.focusMode) ? payload.focusMode : "linked";
+  runningFocusMode = ["linked", "quick"].includes(payload.runningMode)
+    ? payload.runningMode
+    : null;
+  focusTimerOwnerId = runningFocusMode ? String(payload.ownerId || "") : "";
+
+  if (runningFocusMode) {
+    const runtime = focusRuntimeByMode[runningFocusMode];
+    const syncedAt = Date.parse(payload.syncedAt || updatedAt || "");
+    const elapsedSeconds = Number.isFinite(syncedAt)
+      ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000))
+      : 0;
+    const item = runningFocusMode === "linked" ? getFocusItem() : null;
+    const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
+    runtime.seconds = isTaskStopwatch
+      ? runtime.seconds + elapsedSeconds
+      : Math.max(0, runtime.seconds - elapsedSeconds);
+    focusLastTickAt = Date.now();
+    startFocusTickInterval(runningFocusMode);
+  } else {
+    focusLastTickAt = 0;
+  }
+
+  const visibleRuntime = focusRuntimeByMode[focusMode];
+  timerPhase = visibleRuntime.phase;
+  focusSeconds = visibleRuntime.seconds;
+  focusSessionStarted = visibleRuntime.started;
+  focusRunning = runningFocusMode === focusMode;
+  focusTimerLastUpdatedAt = updatedAt || focusTimerLastUpdatedAt;
+  document.querySelectorAll("[data-focus-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.focusMode === focusMode);
+  });
+  focusSettingsButton.hidden = focusMode === "linked";
+  if (focusMode === "linked") focusSettings.classList.add("hidden");
+  renderFocusPicker();
+  updateFocusActionButton();
+  updateFocusDisplay();
+  updateFocusTarget();
+  updateMiniFocusTimer();
+}
+
+function handleFocusTimerDatabaseError(error) {
+  if (["42P01", "PGRST205"].includes(error?.code)) {
+    if (!focusTimerDatabaseUnavailable) {
+      showToast("기기 간 타이머 공유를 쓰려면 Supabase에서 021 SQL을 실행해줘");
+    }
+    focusTimerDatabaseUnavailable = true;
+    return;
+  }
+  console.error("Farmodoro focus timer could not be synchronized", error);
+}
+
+async function loadFocusTimerFromDatabase(user) {
+  if (!supabaseClient || !user) return;
+  const requestedUserId = user.id;
+  const { data, error } = await supabaseClient
+    .from("user_focus_timer")
+    .select("state, updated_at")
+    .eq("user_id", requestedUserId)
+    .maybeSingle();
+  if (activeAuthUser?.id !== requestedUserId) return;
+  if (error) {
+    handleFocusTimerDatabaseError(error);
+    focusTimerDatabaseHydrated = true;
+    return;
+  }
+  focusTimerDatabaseHydrated = true;
+  focusTimerDatabaseUnavailable = false;
+  if (data?.state) applyFocusTimerDatabaseState(data.state, data.updated_at);
+  if (focusTimerPollInterval) clearInterval(focusTimerPollInterval);
+  focusTimerPollInterval = window.setInterval(() => {
+    void pollFocusTimerFromDatabase();
+  }, 3000);
+}
+
+async function pollFocusTimerFromDatabase() {
+  if (
+    !supabaseClient ||
+    !activeAuthUser ||
+    !focusTimerDatabaseHydrated ||
+    focusTimerDatabaseUnavailable
+  ) return;
+  const userId = activeAuthUser.id;
+  const { data, error } = await supabaseClient
+    .from("user_focus_timer")
+    .select("state, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (activeAuthUser?.id !== userId) return;
+  if (error) {
+    handleFocusTimerDatabaseError(error);
+    return;
+  }
+  if (!data?.state || !data.updated_at || data.updated_at <= focusTimerLastUpdatedAt) return;
+  applyFocusTimerDatabaseState(data.state, data.updated_at);
+}
+
+async function syncFocusTimerDatabaseImmediately() {
+  if (
+    !supabaseClient ||
+    !activeAuthUser ||
+    !focusTimerDatabaseHydrated ||
+    focusTimerDatabaseUnavailable
+  ) return;
+  if (focusTimerSyncTimer) clearTimeout(focusTimerSyncTimer);
+  focusTimerSyncTimer = null;
+  const userId = activeAuthUser.id;
+  if (runningFocusMode && isFocusTimerOwner() && focusTimerLastUpdatedAt) {
+    const { data: latest, error: latestError } = await supabaseClient
+      .from("user_focus_timer")
+      .select("state, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (activeAuthUser?.id !== userId) return;
+    if (latestError) {
+      handleFocusTimerDatabaseError(latestError);
+      return;
+    }
+    if (latest?.updated_at && latest.updated_at > focusTimerLastUpdatedAt) {
+      applyFocusTimerDatabaseState(latest.state, latest.updated_at);
+      return;
+    }
+  }
+  const payload = getFocusTimerDatabasePayload();
+  const { data, error } = await supabaseClient
+    .from("user_focus_timer")
+    .upsert({ user_id: userId, state: payload }, { onConflict: "user_id" })
+    .select("updated_at")
+    .single();
+  if (activeAuthUser?.id !== userId) return;
+  if (error) {
+    handleFocusTimerDatabaseError(error);
+    return;
+  }
+  focusTimerLastUpdatedAt = data?.updated_at || focusTimerLastUpdatedAt;
+}
+
+function scheduleFocusTimerDatabaseSync(delay = 300) {
+  if (
+    !focusTimerDatabaseHydrated ||
+    focusTimerDatabaseUnavailable ||
+    !activeAuthUser
+  ) return;
+  if (focusTimerSyncTimer) {
+    if (delay > 0) return;
+    clearTimeout(focusTimerSyncTimer);
+  }
+  focusTimerSyncTimer = window.setTimeout(() => {
+    focusTimerSyncTimer = null;
+    void syncFocusTimerDatabaseImmediately();
+  }, delay);
 }
 
 function createUuid() {
@@ -4873,7 +5103,7 @@ function advanceRunningFocusTimer(mode) {
   runtime.seconds = isTaskStopwatch
     ? runtime.seconds + appliedSeconds
     : Math.max(0, runtime.seconds - appliedSeconds);
-  if (runtime.phase === "focus") {
+  if (runtime.phase === "focus" && isFocusTimerOwner()) {
     if (item) {
       if (activeFocus?.type === "task") {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
@@ -4899,7 +5129,7 @@ function advanceRunningFocusTimer(mode) {
     updateMiniFocusTimer();
   }
 
-  if (!isTaskStopwatch && runtime.seconds <= 0) {
+  if (!isTaskStopwatch && runtime.seconds <= 0 && isFocusTimerOwner()) {
     if (runtime.phase === "focus") finishFocusRuntime(mode);
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
@@ -4954,6 +5184,7 @@ function finishFocusRuntime(mode) {
         ? `습관 목표를 채웠어 ${completionResult.reward} Coin 획득`
         : "집중 측정을 완료했어",
     );
+    scheduleFocusTimerDatabaseSync(0);
     return;
   }
 
@@ -4979,6 +5210,7 @@ function finishFocusRuntime(mode) {
   }
   render();
   showToast("집중 세트를 완료했어");
+  scheduleFocusTimerDatabaseSync(0);
 }
 
 function finishBreakRuntime(mode) {
@@ -5001,6 +5233,21 @@ function finishBreakRuntime(mode) {
   }
   updateMiniFocusTimer();
   showToast("휴식 끝 다음 세트를 시작하면 돼");
+  scheduleFocusTimerDatabaseSync(0);
+}
+
+function startFocusTickInterval(mode) {
+  clearInterval(focusInterval);
+  focusInterval = setInterval(() => {
+    const tickResult = advanceRunningFocusTimer(mode);
+    if (!tickResult.advanced || tickResult.finished || !isFocusTimerOwner()) return;
+    if (Date.now() - focusTimerLastHeartbeatAt >= 5000) {
+      focusTimerLastHeartbeatAt = Date.now();
+      saveState();
+      renderSummary();
+      scheduleFocusTimerDatabaseSync(0);
+    }
+  }, 250);
 }
 
 function toggleFocus() {
@@ -5008,6 +5255,7 @@ function toggleFocus() {
   const runtime = focusRuntimeByMode[focusMode];
 
   if (runningFocusMode === focusMode) {
+    focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
     const tickResult = advanceRunningFocusTimer(focusMode);
     if (tickResult.finished) return;
     clearInterval(focusInterval);
@@ -5022,6 +5270,7 @@ function toggleFocus() {
     renderSummary();
     saveState();
     scheduleTaskDatabaseSync(0);
+    scheduleFocusTimerDatabaseSync(0);
     return;
   }
 
@@ -5031,6 +5280,8 @@ function toggleFocus() {
   }
 
   runningFocusMode = focusMode;
+  focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
+  focusTimerLastHeartbeatAt = Date.now();
   focusRunning = true;
   focusSessionStarted = true;
   runtime.started = true;
@@ -5048,19 +5299,13 @@ function toggleFocus() {
   updateFocusActionButton();
 
   const startedMode = focusMode;
-  focusInterval = setInterval(() => {
-    const tickResult = advanceRunningFocusTimer(startedMode);
-    if (!tickResult.advanced || tickResult.finished) return;
-    const activeRuntime = focusRuntimeByMode[startedMode];
-    if (activeRuntime.seconds % 10 === 0) {
-      saveState();
-      renderSummary();
-    }
-  }, 250);
+  startFocusTickInterval(startedMode);
   updateMiniFocusTimer();
+  scheduleFocusTimerDatabaseSync(0);
 }
 
 function endFocusSession(mode = focusMode) {
+  focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   if (focusMode !== mode) setFocusMode(mode);
   stopFocusTimer();
   if (mode === "linked") activeFocus = null;
@@ -5071,6 +5316,7 @@ function endFocusSession(mode = focusMode) {
   renderSummary();
   saveState();
   scheduleTaskDatabaseSync(0);
+  scheduleFocusTimerDatabaseSync(0);
   showToast(mode === "quick" ? "빠른 집중을 종료했어" : "집중 측정을 종료했어");
 }
 
@@ -6701,6 +6947,7 @@ focusItemTrigger.addEventListener("click", () => {
 focusItemMenu.addEventListener("click", (event) => {
   const option = event.target.closest("[data-focus-value]");
   if (!option) return;
+  focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   if (runningFocusMode === "linked") {
     advanceRunningFocusTimer("linked");
     stopFocusTimer();
@@ -6715,6 +6962,7 @@ focusItemMenu.addEventListener("click", (event) => {
     const item = getFocusItem();
     showToast(`‘${item.title}’을 집중 항목으로 골랐어`);
   }
+  scheduleFocusTimerDatabaseSync(0);
 });
 
 document.addEventListener("click", (event) => {
@@ -7459,6 +7707,7 @@ window.addEventListener("focus", () => {
   if (activeAuthUser && farmWalletHydrated) {
     void farmWalletMutationChain.then(() => loadFarmWallet(activeAuthUser));
   }
+  void pollFocusTimerFromDatabase();
 });
 
 document.addEventListener("visibilitychange", () => {
@@ -7470,6 +7719,9 @@ document.addEventListener("visibilitychange", () => {
   void syncAppStateDatabaseImmediately().catch((error) => {
     console.error("Farmodoro app state could not be flushed", error);
   });
+  if (isFocusTimerOwner()) {
+    void syncFocusTimerDatabaseImmediately();
+  }
 });
 
 document.querySelector("#openMiniFocus").addEventListener("click", () => {

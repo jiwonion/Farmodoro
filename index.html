@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=39" />
+    <link rel="stylesheet" href="./styles.css?v=41" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -134,6 +134,13 @@
             <span class="nav-label">내 농장</span>
             <span class="nav-index">05</span>
           </a>
+          <button class="nav-item mobile-profile-settings" id="openMobileUserSettings" type="button" aria-label="내 프로필 수정">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+            </span>
+            <span class="nav-label">내 정보</span>
+            <span class="nav-index">06</span>
+          </button>
         </nav>
 
         <div class="sidebar-spacer"></div>
@@ -1145,7 +1152,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=39"></script>
-    <script src="./pwa-register.js?v=39"></script>
+    <script src="./app.js?v=41"></script>
+    <script src="./pwa-register.js?v=41"></script>
   </body>
 </html>
