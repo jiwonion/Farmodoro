@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#2f5d45" />
+    <meta name="application-name" content="Farmodoro" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Farmodoro" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
     <title>Farmodoro</title>
     <script>
       window.setTimeout(() => {
@@ -906,6 +913,28 @@
       </section>
     </div>
 
+    <div class="tutorial-modal hidden" id="tutorialModal" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" aria-describedby="tutorialDescription">
+      <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
+      <section class="tutorial-panel" id="tutorialPanel" tabindex="-1" aria-live="polite">
+        <header class="tutorial-header">
+          <div>
+            <span class="section-kicker" id="tutorialKicker">WELCOME TO FARMODORO</span>
+            <span class="tutorial-step-label" id="tutorialStepLabel">1 / 9</span>
+          </div>
+          <button class="tutorial-skip" id="skipTutorial" type="button">건너뛰기</button>
+        </header>
+        <div class="tutorial-icon" id="tutorialIcon" aria-hidden="true">🌱</div>
+        <h2 id="tutorialTitle">오늘을 키우는 순서</h2>
+        <p id="tutorialDescription"></p>
+        <ul class="tutorial-tips" id="tutorialTips"></ul>
+        <div class="tutorial-progress" id="tutorialProgress" aria-label="튜토리얼 진행 상태"></div>
+        <footer class="tutorial-actions">
+          <button class="tutorial-previous" id="previousTutorial" type="button">이전</button>
+          <button class="tutorial-next" id="nextTutorial" type="button">다음</button>
+        </footer>
+      </section>
+    </div>
+
     <div class="market-modal hidden" id="userSettingsModal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle">
       <div class="market-modal-backdrop" data-close-user-settings></div>
       <section class="market-modal-panel user-settings-modal-panel">
@@ -983,6 +1012,16 @@
             </div>
           </section>
 
+          <section class="settings-section tutorial-settings-section" aria-labelledby="tutorialSettingsTitle">
+            <div class="settings-section-heading">
+              <div>
+                <strong id="tutorialSettingsTitle">사용법 안내</strong>
+                <small>할 일, 집중, 농장 이용 순서를 다시 확인해</small>
+              </div>
+            </div>
+            <button class="reopen-tutorial-button" id="reopenTutorial" type="button">튜토리얼 다시 보기</button>
+          </section>
+
           <section class="settings-section account-settings-section" aria-labelledby="accountSettingsTitle">
             <div class="settings-section-heading">
               <div>
@@ -1028,5 +1067,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
     <script src="./app.js"></script>
+    <script src="./pwa-register.js"></script>
   </body>
 </html>

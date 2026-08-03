@@ -19,12 +19,28 @@ const settingsAccountEmail = document.querySelector("#settingsAccountEmail");
 const settingsFarmCode = document.querySelector("#settingsFarmCode");
 const copyFarmCodeButton = document.querySelector("#copyFarmCode");
 const saveUserSettingsButton = document.querySelector("#saveUserSettings");
+const tutorialModal = document.querySelector("#tutorialModal");
+const tutorialPanel = tutorialModal.querySelector(".tutorial-panel");
+const tutorialSpotlight = document.querySelector("#tutorialSpotlight");
+const tutorialKicker = document.querySelector("#tutorialKicker");
+const tutorialStepLabel = document.querySelector("#tutorialStepLabel");
+const tutorialIcon = document.querySelector("#tutorialIcon");
+const tutorialTitle = document.querySelector("#tutorialTitle");
+const tutorialDescription = document.querySelector("#tutorialDescription");
+const tutorialTips = document.querySelector("#tutorialTips");
+const tutorialProgress = document.querySelector("#tutorialProgress");
+const previousTutorialButton = document.querySelector("#previousTutorial");
+const nextTutorialButton = document.querySelector("#nextTutorial");
+const skipTutorialButton = document.querySelector("#skipTutorial");
+const reopenTutorialButton = document.querySelector("#reopenTutorial");
 const profileAvatar = document.querySelector("#profileAvatar");
 const profileName = document.querySelector("#profileName");
 const profileAccountLabel = document.querySelector("#profileAccountLabel");
 const supabaseConfig = window.FARMODORO_CONFIG;
 let googleSignInNonce = null;
 let googleIdentityScriptPromise = null;
+let googleSignInButtonWidth = 0;
+let googleSignInResizeFrame = null;
 let activeAuthUser = null;
 let currentProfile = null;
 let pendingAvatarFile = null;
@@ -51,6 +67,101 @@ let farmDataSyncTimer = null;
 let farmDataSyncChain = Promise.resolve();
 let lastFarmDataSyncSignature = "";
 let lastFarmDataSyncError = "";
+let tutorialStep = 0;
+let tutorialShownForUserId = null;
+let tutorialPreviousFocus = null;
+let tutorialTarget = null;
+let tutorialPositionFrame = null;
+let tutorialResizeObserver = null;
+let tutorialReturnPage = "today";
+let tutorialReturnScrollY = 0;
+const TUTORIAL_STEPS = [
+  {
+    page: "today",
+    target: "#openTaskForm",
+    kicker: "STEP 01 · ADD TASK",
+    icon: "+",
+    title: "여기서 할 일을 추가해",
+    description: "버튼을 누르면 바로 아래에 할 일 입력칸이 열려.",
+    tips: ["처음에는 작은 할 일 하나만 등록해봐"],
+  },
+  {
+    page: "today",
+    target: "#taskForm",
+    reveal: "task-form",
+    kicker: "STEP 02 · TASK DETAILS",
+    icon: "✎",
+    title: "이름과 그룹을 정해",
+    description: "할 일 이름을 적고 필요한 경우 그룹을 고른 뒤 추가를 누르면 돼.",
+    tips: ["그룹 관리는 공부, 업무처럼 자주 쓰는 분류를 만들 때 써", "추가한 할 일은 대기 칸으로 들어가"],
+  },
+  {
+    page: "today",
+    target: '.board-column[data-status="waiting"] > header',
+    kicker: "STEP 03 · STATUS",
+    icon: "✓",
+    title: "상태별로 할 일을 정리해",
+    description: "카드 아래 버튼으로 대기, 진행 중, 완료 상태를 바로 바꿀 수 있어.",
+    tips: ["완료하면 Coin 보상이 들어와"],
+  },
+  {
+    page: "habits",
+    target: "#openHabitForm",
+    kicker: "STEP 04 · HABITS",
+    icon: "↻",
+    title: "반복할 일은 습관으로 등록해",
+    description: "추가 버튼을 누르면 습관의 목표와 일정을 정하는 창이 열려.",
+    tips: ["매일 반복하는 일은 할 일보다 습관으로 만드는 게 편해"],
+  },
+  {
+    page: "habits",
+    target: "#habitInput",
+    reveal: "habit-form",
+    kicker: "STEP 05 · HABIT NAME",
+    icon: "✎",
+    title: "먼저 습관 이름을 적어",
+    description: "무엇을 반복할지 한눈에 알아볼 수 있게 짧게 적으면 돼.",
+    tips: ["운동, 독서, 물 마시기처럼 행동 중심으로 적어"],
+  },
+  {
+    page: "habits",
+    target: ".habit-measure-row",
+    reveal: "habit-form",
+    kicker: "STEP 06 · HABIT GOAL",
+    icon: "◎",
+    title: "목표량을 정해",
+    description: "횟수, 시간, 양 중 측정 방식을 고른 다음 목표값과 단위를 입력해.",
+    tips: ["운동 3회, 독서 30분, 물 2L처럼 기록할 수 있어"],
+  },
+  {
+    page: "habits",
+    target: ".weekday-field",
+    reveal: "habit-form",
+    kicker: "STEP 07 · HABIT SCHEDULE",
+    icon: "▦",
+    title: "반복 요일을 골라",
+    description: "실천할 요일과 종료일을 정하고 습관 추가를 누르면 등록돼.",
+    tips: ["선택한 요일에만 오늘의 습관 목록에 나타나"],
+  },
+  {
+    page: "today",
+    target: "#focusButton",
+    kicker: "STEP 08 · FOCUS",
+    icon: "◷",
+    title: "이 버튼으로 집중을 시작해",
+    description: "항목 집중을 선택하면 해당 할 일이나 습관에 시간이 기록돼.",
+    tips: ["집중 누적 60분마다 Coin을 받아"],
+  },
+  {
+    page: "today",
+    target: '[data-page="farm"]',
+    kicker: "STEP 09 · FARM",
+    icon: "🌾",
+    title: "마지막은 내 농장이야",
+    description: "모은 보상으로 씨앗을 심고 물을 주면서 농장을 키워.",
+    tips: ["설정에서 이 안내를 언제든 다시 볼 수 있어"],
+  },
+];
 const supabaseClient = window.supabase?.createClient(
   supabaseConfig?.supabaseUrl,
   supabaseConfig?.supabasePublishableKey,
@@ -145,6 +256,28 @@ async function handleGoogleCredential(response) {
   }
 }
 
+function renderGoogleSignInButton() {
+  if (!window.google?.accounts?.id || googleSignInButton.classList.contains("authenticating")) {
+    return;
+  }
+
+  const width = Math.floor(googleSignInButton.getBoundingClientRect().width);
+  if (width < 1 || width === googleSignInButtonWidth) return;
+
+  googleSignInButtonWidth = width;
+  googleSignInButton.replaceChildren();
+  window.google.accounts.id.renderButton(googleSignInButton, {
+    type: "standard",
+    theme: "outline",
+    size: "large",
+    text: "continue_with",
+    shape: "rectangular",
+    logo_alignment: "left",
+    width,
+  });
+  googleSignInButton.classList.remove("loading");
+}
+
 async function prepareGoogleSignIn() {
   if (!supabaseConfig?.googleClientId) {
     throw new Error("Google Client ID가 설정되지 않았어");
@@ -155,7 +288,7 @@ async function prepareGoogleSignIn() {
   googleSignInNonce = nonce;
   googleSignInButton.classList.remove("authenticating");
   googleSignInButton.setAttribute("aria-busy", "false");
-  googleSignInButton.replaceChildren();
+  googleSignInButtonWidth = 0;
 
   window.google.accounts.id.initialize({
     client_id: supabaseConfig.googleClientId,
@@ -165,16 +298,16 @@ async function prepareGoogleSignIn() {
     cancel_on_tap_outside: true,
   });
 
-  window.google.accounts.id.renderButton(googleSignInButton, {
-    type: "standard",
-    theme: "outline",
-    size: "large",
-    text: "continue_with",
-    shape: "rectangular",
-    logo_alignment: "left",
-    width: Math.floor(googleSignInButton.getBoundingClientRect().width),
-  });
-  googleSignInButton.classList.remove("loading");
+  renderGoogleSignInButton();
+}
+
+if ("ResizeObserver" in window) {
+  new ResizeObserver(() => {
+    cancelAnimationFrame(googleSignInResizeFrame);
+    googleSignInResizeFrame = requestAnimationFrame(renderGoogleSignInButton);
+  }).observe(googleSignInButton);
+} else {
+  window.addEventListener("resize", renderGoogleSignInButton);
 }
 
 function getGoogleAvatarUrl(user) {
@@ -353,6 +486,7 @@ async function applyAuthSession(session) {
       farmWalletUserId === session.user.id &&
       farmDataUserId === session.user.id
     ) {
+      maybeOpenTutorial(session.user);
       return;
     }
     await Promise.all([
@@ -364,6 +498,7 @@ async function applyAuthSession(session) {
       loadFarmWallet(session.user),
       loadFarmDataFromDatabase(session.user),
     ]);
+    maybeOpenTutorial(session.user);
   } else {
     resetTaskDatabaseState();
     resetAppStateDatabaseState();
@@ -489,6 +624,212 @@ function closeUserSettings({ keepTheme = false } = {}) {
   profileAvatarInput.value = "";
   if (!keepTheme) applyTheme(themeBeforeSettings);
 }
+
+function renderTutorialStep() {
+  const step = TUTORIAL_STEPS[tutorialStep];
+  tutorialKicker.textContent = step.kicker;
+  tutorialStepLabel.textContent = `${tutorialStep + 1} / ${TUTORIAL_STEPS.length}`;
+  tutorialIcon.textContent = step.icon;
+  tutorialTitle.textContent = step.title;
+  tutorialDescription.textContent = step.description;
+  tutorialTips.replaceChildren(
+    ...step.tips.map((tip) => {
+      const item = document.createElement("li");
+      item.textContent = tip;
+      return item;
+    }),
+  );
+  tutorialProgress.replaceChildren(
+    ...TUTORIAL_STEPS.map((_, index) => {
+      const dot = document.createElement("i");
+      dot.classList.toggle("active", index === tutorialStep);
+      return dot;
+    }),
+  );
+  previousTutorialButton.disabled = tutorialStep === 0;
+  nextTutorialButton.textContent =
+    tutorialStep === TUTORIAL_STEPS.length - 1 ? "시작하기" : "다음";
+  prepareTutorialTarget();
+}
+
+function openTutorial() {
+  tutorialStep = 0;
+  tutorialReturnPage = currentPage;
+  tutorialReturnScrollY = window.scrollY;
+  tutorialPreviousFocus = document.activeElement;
+  tutorialModal.classList.remove("hidden");
+  document.body.classList.add("tutorial-open");
+  renderTutorialStep();
+  requestAnimationFrame(() => tutorialPanel.focus());
+}
+
+function closeTutorial() {
+  tutorialModal.classList.add("hidden");
+  document.body.classList.remove("tutorial-open");
+  tutorialResizeObserver?.disconnect();
+  tutorialTarget = null;
+  cancelAnimationFrame(tutorialPositionFrame);
+  taskForm.classList.add("hidden");
+  if (!habitModal.classList.contains("hidden")) closeHabitModal();
+  showPage(tutorialReturnPage);
+  window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" });
+  if (!state.tutorialCompleted) {
+    state.tutorialCompleted = true;
+    scheduleAppStateDatabaseSync(null, 0);
+  }
+  if (
+    tutorialPreviousFocus instanceof HTMLElement &&
+    tutorialPreviousFocus.isConnected &&
+    tutorialPreviousFocus.offsetParent !== null
+  ) {
+    tutorialPreviousFocus.focus();
+  }
+  tutorialPreviousFocus = null;
+}
+
+function scheduleTutorialPosition() {
+  if (tutorialModal.classList.contains("hidden")) return;
+  cancelAnimationFrame(tutorialPositionFrame);
+  tutorialPositionFrame = requestAnimationFrame(positionTutorial);
+}
+
+function prepareTutorialTarget() {
+  const step = TUTORIAL_STEPS[tutorialStep];
+  tutorialModal.classList.add("positioning");
+  if (step.reveal !== "habit-form" && !habitModal.classList.contains("hidden")) {
+    closeHabitModal();
+  }
+  if (currentPage !== step.page) showPage(step.page);
+  taskForm.classList.toggle("hidden", step.reveal !== "task-form");
+  if (step.reveal === "habit-form" && habitModal.classList.contains("hidden")) {
+    openHabitModal();
+  }
+
+  requestAnimationFrame(() => {
+    tutorialTarget = document.querySelector(step.target);
+    if (!tutorialTarget || tutorialTarget.getClientRects().length === 0) {
+      tutorialTarget = document.querySelector(".main-content");
+    }
+    tutorialTarget.scrollIntoView({ block: "center", inline: "center", behavior: "auto" });
+    tutorialResizeObserver ??= new ResizeObserver(scheduleTutorialPosition);
+    tutorialResizeObserver.disconnect();
+    tutorialResizeObserver.observe(tutorialTarget);
+    tutorialResizeObserver.observe(tutorialPanel);
+    requestAnimationFrame(positionTutorial);
+  });
+}
+
+function positionTutorial() {
+  if (!tutorialTarget || tutorialModal.classList.contains("hidden")) return;
+  const targetRect = tutorialTarget.getBoundingClientRect();
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const spotlightPadding = 7;
+  const edge = 12;
+  const gap = 17;
+  const spotlightTop = Math.max(edge, targetRect.top - spotlightPadding);
+  const spotlightLeft = Math.max(edge, targetRect.left - spotlightPadding);
+  const spotlightRight = Math.min(viewportWidth - edge, targetRect.right + spotlightPadding);
+  const spotlightBottom = Math.min(viewportHeight - edge, targetRect.bottom + spotlightPadding);
+
+  Object.assign(tutorialSpotlight.style, {
+    top: `${spotlightTop}px`,
+    left: `${spotlightLeft}px`,
+    width: `${Math.max(1, spotlightRight - spotlightLeft)}px`,
+    height: `${Math.max(1, spotlightBottom - spotlightTop)}px`,
+  });
+
+  const panelWidth = tutorialPanel.offsetWidth;
+  const panelHeight = tutorialPanel.offsetHeight;
+  const roomBelow = viewportHeight - spotlightBottom;
+  const roomAbove = spotlightTop;
+  const placeBelow = roomBelow >= panelHeight + gap || roomBelow >= roomAbove;
+  const desiredTop = placeBelow
+    ? spotlightBottom + gap
+    : spotlightTop - panelHeight - gap;
+  const panelTop = Math.max(edge, Math.min(desiredTop, viewportHeight - panelHeight - edge));
+  const targetCenter = Math.min(
+    viewportWidth - edge,
+    Math.max(edge, targetRect.left + targetRect.width / 2),
+  );
+  const panelLeft = Math.max(
+    edge,
+    Math.min(targetCenter - panelWidth / 2, viewportWidth - panelWidth - edge),
+  );
+
+  tutorialPanel.dataset.placement = placeBelow ? "below" : "above";
+  tutorialPanel.style.top = `${panelTop}px`;
+  tutorialPanel.style.left = `${panelLeft}px`;
+  tutorialPanel.style.setProperty(
+    "--tutorial-arrow-x",
+    `${Math.max(24, Math.min(targetCenter - panelLeft, panelWidth - 24))}px`,
+  );
+  tutorialModal.classList.remove("positioning");
+}
+
+window.addEventListener("resize", scheduleTutorialPosition);
+window.addEventListener("scroll", scheduleTutorialPosition, true);
+window.visualViewport?.addEventListener("resize", scheduleTutorialPosition);
+window.visualViewport?.addEventListener("scroll", scheduleTutorialPosition);
+
+function maybeOpenTutorial(user) {
+  if (!user || state.tutorialCompleted || tutorialShownForUserId === user.id) return;
+  tutorialShownForUserId = user.id;
+  openTutorial();
+}
+
+previousTutorialButton.addEventListener("click", () => {
+  if (tutorialStep === 0) return;
+  tutorialStep -= 1;
+  renderTutorialStep();
+});
+
+nextTutorialButton.addEventListener("click", () => {
+  if (tutorialStep === TUTORIAL_STEPS.length - 1) {
+    closeTutorial();
+    return;
+  }
+  tutorialStep += 1;
+  renderTutorialStep();
+});
+
+skipTutorialButton.addEventListener("click", closeTutorial);
+reopenTutorialButton.addEventListener("click", () => {
+  closeUserSettings();
+  openTutorial();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (tutorialModal.classList.contains("hidden")) return;
+  if (event.key === "Escape") {
+    closeTutorial();
+    return;
+  }
+  if (event.key === "ArrowLeft" && tutorialStep > 0) {
+    tutorialStep -= 1;
+    renderTutorialStep();
+    return;
+  }
+  if (event.key === "ArrowRight" && tutorialStep < TUTORIAL_STEPS.length - 1) {
+    tutorialStep += 1;
+    renderTutorialStep();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const focusable = [...tutorialPanel.querySelectorAll("button:not(:disabled)")].filter(
+    (element) => element.offsetParent !== null,
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === tutorialPanel)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 
 async function uploadProfileAvatar(user, file) {
   const avatarPath = `${user.id}/profile`;
@@ -1040,6 +1381,7 @@ const RECIPES = {
 
 const defaultState = {
   schemaVersion: 18,
+  tutorialCompleted: false,
   coins: 0,
   farmMoney: 0,
   farmRankingWeekStart: "",
@@ -2352,6 +2694,29 @@ function renderTasks() {
                         `
                     }
                   </div>
+                  ${
+                    task.archived
+                      ? ""
+                      : `<div class="task-status-actions" aria-label="${escapeHtml(task.title)} 상태 변경">
+                          ${[
+                            ["waiting", "대기"],
+                            ["doing", "진행 중"],
+                            ["done", "완료"],
+                          ]
+                            .filter(([nextStatus]) => nextStatus !== task.status)
+                            .map(
+                              ([nextStatus, label]) => `
+                                <button
+                                  class="task-status-button ${nextStatus}"
+                                  type="button"
+                                  data-task-status="${nextStatus}"
+                                  aria-label="${escapeHtml(task.title)} 상태를 ${label}(으)로 변경"
+                                >${label}</button>
+                              `,
+                            )
+                            .join("")}
+                        </div>`
+                  }
                 `
             }
             ${
@@ -5062,6 +5427,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-task]");
   const archiveButton = event.target.closest("[data-archive-task]");
   const restoreButton = event.target.closest("[data-restore-task]");
+  const statusButton = event.target.closest("[data-task-status]");
 
   if (inlineGroupTrigger) {
     const selector = inlineGroupTrigger.closest(".task-inline-group-select");
@@ -5079,6 +5445,14 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
   }
   if (cancelEditButton) {
     closeTaskInlineEdit();
+    return;
+  }
+  if (statusButton) {
+    const taskCard = statusButton.closest("[data-task-id]");
+    const task = state.tasks.find((item) => item.id === taskCard?.dataset.taskId);
+    if (!task) return;
+    moveTaskTo(task.id, statusButton.dataset.taskStatus);
+    if (task.status === statusButton.dataset.taskStatus) scheduleTaskDatabaseSync(0);
     return;
   }
   if (focusButton) startItemFocus("task", focusButton.dataset.focusTask);
@@ -5167,6 +5541,10 @@ document.querySelector("#toggleArchiveView").addEventListener("click", () => {
 });
 
 document.querySelector("#taskBoard").addEventListener("dragstart", (event) => {
+  if (event.target.closest("button, input, select")) {
+    event.preventDefault();
+    return;
+  }
   const card = event.target.closest("[data-task-id]");
   if (!card) return;
 
