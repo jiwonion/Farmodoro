@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=63" />
+    <link rel="stylesheet" href="./styles.css?v=66" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -458,6 +458,10 @@
               <span class="section-kicker">TASKS</span>
               <h1>할 일</h1>
               <p>할 일을 드래그해서 현재 상태를 정리해</p>
+            </div>
+            <div class="task-page-balances" aria-label="보유 재화">
+              <div class="currency coin"><span>●</span><strong id="taskPageCoinBalance">0</strong><small>Coin</small></div>
+              <div class="currency farm-money"><span>✦</span><strong id="taskPageFarmMoneyBalance">0</strong><small>Farm</small></div>
             </div>
           </header>
           <div class="task-page-tools">
@@ -1184,7 +1188,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=63"></script>
-    <script src="./pwa-register.js?v=63"></script>
+    <script src="./app.js?v=66"></script>
+    <script src="./pwa-register.js?v=66"></script>
   </body>
 </html>

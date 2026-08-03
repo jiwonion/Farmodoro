@@ -5002,6 +5002,8 @@ button {
   gap: 8px;
 }
 
+.task-page-balances { display: none; }
+
 .currency {
   display: flex;
   align-items: center;
@@ -10246,6 +10248,43 @@ canvas {
   .nav-item, .nav-item:not(.active), .nav-item.active { min-height: 48px; gap: 2px; padding: 3px 1px; font-size: 9px; }
   .nav-label { font-size: 9px; }
 
+  #taskInput::placeholder { font-size: 10px; }
+  #groupInput::placeholder { font-size: 9px; }
+
+  #tasksPage .page-header { align-items: flex-start; justify-content: space-between; }
+  #tasksPage .task-page-balances { display: flex; flex: 0 0 auto; gap: 4px; }
+  #tasksPage .task-page-balances .currency {
+    width: auto;
+    height: 30px;
+    gap: 3px;
+    padding: 0 6px;
+    border-radius: 8px;
+  }
+  #tasksPage .task-page-balances .currency > span { font-size: 9px; }
+  #tasksPage .task-page-balances .currency strong { font-size: 10px; }
+  #tasksPage .task-page-balances .currency small { display: inline; font-size: 8px; }
+
+  :is(#todayPage, #tasksPage) #taskForm {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr) 82px;
+    gap: 5px;
+    margin-bottom: 9px;
+    padding: 7px;
+    border-radius: 8px;
+  }
+  :is(#todayPage, #tasksPage) #taskForm input,
+  :is(#todayPage, #tasksPage) #taskForm .custom-group-trigger,
+  :is(#todayPage, #tasksPage) #taskForm > button {
+    min-height: 32px;
+    height: 32px;
+    padding-inline: 7px;
+    font-size: 10px;
+  }
+  :is(#todayPage, #tasksPage) #taskForm .primary-button { grid-column: 2; grid-row: 1; }
+  :is(#todayPage, #tasksPage) #taskForm .custom-group-select { grid-column: 1; grid-row: 2; }
+  :is(#todayPage, #tasksPage) #taskForm .secondary-button { grid-column: 2; grid-row: 2; }
+
   #farmPage .farm-panel-header {
     display: flex;
     align-items: stretch;
@@ -10262,7 +10301,7 @@ canvas {
   #farmPage .farm-name-display h2 { font-size: 16px; }
   #farmPage .farm-name-display > button { width: 24px; height: 24px; border-radius: 6px; }
   #farmPage .farm-name-display svg { width: 12px; height: 12px; }
-  #farmPage .farm-name-form input { font-size: 13px; }
+  #farmPage .farm-name-form input { font-size: 11px; }
 
   #farmPage .farm-header-actions {
     display: grid;
@@ -10376,9 +10415,9 @@ canvas {
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    gap: 7px;
-    margin-bottom: 10px;
-    padding: 7px;
+    gap: 5px;
+    margin-bottom: 8px;
+    padding: 6px;
     box-sizing: border-box;
     overflow: hidden;
   }
@@ -10388,6 +10427,12 @@ canvas {
     width: 100%;
     min-width: 0;
     gap: 4px;
+  }
+
+  :is(#todayPage, #tasksPage) .group-chip {
+    gap: 3px;
+    padding: 3px 4px 3px 6px;
+    font-size: 9px;
   }
 
   #todayPage .group-add,
@@ -10404,11 +10449,15 @@ canvas {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    height: 30px;
+    padding: 0 7px;
+    font-size: 10px;
   }
 
   #todayPage .group-add .primary-button,
   #tasksPage .group-add .primary-button {
-    min-width: 50px;
+    min-width: 42px;
+    min-height: 30px;
     padding: 0 7px;
     font-size: 10px;
   }
@@ -10428,6 +10477,32 @@ canvas {
   #tasksPage .task-archive-button { font-size: 9px; }
   #tasksPage .group-chip { gap: 4px; padding: 4px 5px 4px 7px; }
   #tasksPage .task-archive-button { min-height: 25px; margin-top: 7px; }
+
+  #habitsPage .heatmap-nav { gap: 3px; }
+  #habitsPage .heatmap-nav button {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
+  #habitsPage .habit-modal #habitForm {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+  }
+  #habitsPage .habit-modal #habitForm > * { width: 100%; min-width: 0; }
+  #habitsPage .habit-modal #habitForm .habit-measure-row {
+    grid-template-columns: minmax(0, 1fr) 52px 58px;
+    gap: 5px;
+  }
+  #habitsPage .habit-modal #habitForm .habit-submit {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
 
   /* Habits page: reduce typography and control density. */
   #habitsPage .page-header h1 { font-size: 21px; }
@@ -10789,5 +10864,18 @@ canvas {
   #userSettingsModal #farmAdminMailMessageInput::placeholder,
   #userSettingsModal #profileDisplayName::placeholder {
     font-size: 10px;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 1200px) and (orientation: landscape) {
+  :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top {
+    min-width: 0;
+    padding-right: 48px;
+  }
+
+  :is(#todayPage, #tasksPage) .task-card:not(.editing) h4 {
+    min-width: 0;
+    padding-right: 0;
+    overflow-wrap: anywhere;
   }
 }

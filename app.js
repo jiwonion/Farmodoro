@@ -4888,7 +4888,12 @@ function renderSummary() {
   const percent = total ? Math.round((progressScore / total) * 100) : 0;
 
   document.querySelector("#coinBalance").textContent = state.coins;
+  const taskPageCoinBalance = document.querySelector("#taskPageCoinBalance");
+  const taskPageFarmMoneyBalance = document.querySelector("#taskPageFarmMoneyBalance");
+  if (taskPageCoinBalance) taskPageCoinBalance.textContent = state.coins;
+  if (taskPageFarmMoneyBalance) taskPageFarmMoneyBalance.textContent = state.farmMoney;
   document.querySelector(".currency.coin").classList.toggle("negative", state.coins < 0);
+  taskPageCoinBalance?.closest(".currency")?.classList.toggle("negative", state.coins < 0);
   document.querySelector("#completedCount").textContent = completed;
   document.querySelector("#progressPercent").textContent = `${percent}%`;
   document.querySelector("#progressBar").style.width = `${percent}%`;
@@ -6008,7 +6013,37 @@ function closeHabitDeleteModal() {
   habitDeleteModal.classList.add("hidden");
 }
 
+function resetDeletedFocusTarget(type, id) {
+  if (activeFocus?.type !== type || activeFocus.id !== id) return false;
+
+  if (runningFocusMode === "linked") {
+    if (isFocusTimerOwner()) advanceRunningFocusTimer("linked");
+    clearInterval(focusInterval);
+    focusLastTickAt = 0;
+    runningFocusMode = null;
+  }
+  activeFocus = null;
+  focusRuntimeByMode.linked = { seconds: 0, phase: "focus", started: false };
+
+  if (focusMode === "linked") {
+    focusRunning = false;
+    timerPhase = "focus";
+    focusSeconds = 0;
+    focusSessionStarted = false;
+    updateFocusActionButton();
+    updateFocusDisplay();
+    updateFocusTarget();
+  }
+
+  updateMiniFocusTimer();
+  saveState();
+  scheduleFocusTimerDatabaseSync(0);
+  void flushDailyFocusTime();
+  return true;
+}
+
 function deleteTask(task) {
+  resetDeletedFocusTarget("task", task.id);
   pendingTaskDatabaseDeletes.add(task.id);
   state.tasks = state.tasks.filter((item) => item.id !== task.id);
   render();
@@ -6044,6 +6079,7 @@ habitDeleteModal.addEventListener("click", (event) => {
 
 confirmHabitDelete.addEventListener("click", () => {
   if (pendingHabitDeleteId === null) return;
+  resetDeletedFocusTarget("habit", pendingHabitDeleteId);
   pendingHabitDatabaseDeletes.add(pendingHabitDeleteId);
   state.habits = state.habits.filter((habit) => habit.id !== pendingHabitDeleteId);
   closeHabitDeleteModal();
