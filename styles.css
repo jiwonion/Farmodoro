@@ -10400,4 +10400,209 @@ canvas {
     padding: 0 10px;
     font-size: 11px;
   }
+
+  /* Today focus: stack the timer and copy on one centered axis. */
+  #todayPage .focus-card:not(.standalone) {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 10px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+
+  #todayPage .focus-card:not(.standalone) .focus-visual {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    order: -1;
+    width: 140px;
+    height: 140px;
+    justify-self: center;
+  }
+
+  #todayPage .focus-card:not(.standalone) .focus-copy {
+    width: 100%;
+    max-width: none;
+  }
+
+  #todayPage .focus-mode-row,
+  #todayPage .focus-mode-switch,
+  #todayPage .focus-controls,
+  #todayPage .focus-reward {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  /* Today habits and add-task action match the compact habits page. */
+  #todayPage .habit-section { padding: 10px; }
+  #todayPage .habit-item { min-height: 54px; gap: 6px; padding: 7px; }
+  #todayPage .habit-copy { gap: 2px; }
+  #todayPage .habit-copy strong { font-size: 12px; }
+  #todayPage .habit-copy small,
+  #todayPage .habit-focus-button,
+  #todayPage .streak { font-size: 9px; }
+  #todayPage .habit-check { width: 29px; height: 29px; font-size: 13px; }
+  #todayPage .habit-count-control { grid-template-columns: 20px 21px 20px; }
+  #todayPage .habit-count-control button { height: 28px; font-size: 13px; }
+  #todayPage .habit-count-control strong { font-size: 10px; }
+  #todayPage #openTaskForm {
+    min-height: 31px;
+    padding: 0 8px;
+    font-size: 10px;
+  }
+
+  /* Habit modal: retain desktop-like field shapes on a narrow screen. */
+  .habit-modal .habit-modal-panel {
+    width: min(430px, 100%);
+    padding: 7px;
+    border-radius: 14px;
+  }
+  .habit-modal .habit-modal-panel > .modal-scroll-area { padding: 11px; }
+  .habit-modal .habit-modal-panel h2 { font-size: 19px; }
+  .habit-modal .habit-modal-panel header p { font-size: 10px; line-height: 1.4; }
+  .habit-modal .habit-modal-panel .section-kicker { font-size: 9px; }
+  .habit-modal #habitForm {
+    gap: 10px;
+    padding: 11px;
+    border-radius: 11px;
+  }
+  .habit-modal #habitForm > input,
+  .habit-modal #habitForm .habit-measure-trigger,
+  .habit-modal #habitForm .themed-date-trigger {
+    min-height: 40px;
+    height: 40px;
+    border-radius: 9px;
+    font-size: 12px !important;
+  }
+  .habit-modal #habitForm .habit-measure-row {
+    grid-template-columns: minmax(96px, 1fr) 54px 64px;
+    gap: 6px;
+  }
+  .habit-modal #habitForm .habit-measure-row input {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    border-radius: 9px;
+    font-size: 12px !important;
+  }
+  .habit-modal #habitForm .weekday-field legend,
+  .habit-modal #habitForm .habit-date-row label { font-size: 9px; }
+  .habit-modal #habitForm .weekday-field > div { gap: 5px; }
+  .habit-modal #habitForm .weekday-field span {
+    height: 32px;
+    border-radius: 8px;
+    font-size: 10px;
+  }
+  .habit-modal #habitForm .habit-submit { min-height: 36px; font-size: 11px; }
+
+  /* Unified Farmodoro mobile modal typography. */
+  :is(
+    #farmRankingModal,
+    #permanentMarketModal,
+    #farmKitchenModal,
+    #farmMailModal,
+    #harvestStorageModal,
+    #seedStorageModal,
+    #supplyStorageModal
+  ) .market-modal-panel {
+    font-size: 11px;
+  }
+
+  :is(
+    #farmRankingModal,
+    #permanentMarketModal,
+    #farmKitchenModal,
+    #farmMailModal,
+    #harvestStorageModal,
+    #seedStorageModal,
+    #supplyStorageModal
+  ) .market-modal-panel h2 {
+    margin-bottom: 5px;
+    font-size: 19px;
+  }
+
+  :is(
+    #farmRankingModal,
+    #permanentMarketModal,
+    #farmKitchenModal,
+    #farmMailModal,
+    #harvestStorageModal,
+    #seedStorageModal,
+    #supplyStorageModal
+  ) .market-modal-panel header p {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  :is(
+    #farmRankingModal,
+    #permanentMarketModal,
+    #farmKitchenModal,
+    #farmMailModal,
+    #harvestStorageModal,
+    #seedStorageModal,
+    #supplyStorageModal
+  ) .market-modal-panel .section-kicker { margin-bottom: 4px; font-size: 9px; }
+
+  :is(
+    #farmRankingModal,
+    #permanentMarketModal,
+    #farmKitchenModal,
+    #farmMailModal,
+    #harvestStorageModal,
+    #seedStorageModal,
+    #supplyStorageModal
+  ) .market-modal-panel :is(button, input, select, textarea) {
+    font-size: 10px !important;
+  }
+
+  #farmRankingModal :is(.farm-ranking-period, .farm-ranking-my-score, .farm-ranking-rewards) {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  #farmRankingModal .farm-ranking-my-score strong { font-size: 14px; }
+  #farmRankingModal .farm-ranking-rewards > :is(strong, span) { font-size: 10px; }
+  #farmRankingModal .farm-ranking-rewards > small,
+  #farmRankingModal .farm-ranking-period small { font-size: 8px; }
+  #farmRankingModal .farm-ranking-row { min-height: 45px; padding: 6px 8px; }
+  #farmRankingModal .farm-ranking-name strong,
+  #farmRankingModal .farm-ranking-score { font-size: 10px; }
+  #farmRankingModal .farm-ranking-name small { font-size: 8px; }
+
+  #permanentMarketModal .modal-market-balance { margin-bottom: 9px; padding: 8px 10px; font-size: 10px; }
+  #permanentMarketModal .farm-item-card,
+  #supplyStorageModal .farm-supply-item { min-height: 76px; padding: 8px; }
+  #permanentMarketModal .farm-item-card strong,
+  #supplyStorageModal .farm-supply-item strong { font-size: 10px; }
+  #permanentMarketModal .farm-item-card small,
+  #supplyStorageModal .farm-supply-item small { font-size: 8px; }
+
+  #farmKitchenModal :is(.recipe-entry, .food-item) strong { font-size: 10px; }
+  #farmKitchenModal :is(.recipe-entry, .food-item) small,
+  #farmKitchenModal .empty-food-message { font-size: 8px; }
+  #farmKitchenModal .recipe-book-heading h3 { font-size: 12px; }
+
+  #farmMailModal .farm-mail-tabs button { min-height: 32px; font-size: 10px; }
+  #farmMailModal .farm-mail-inbox-note,
+  #farmMailModal .farm-mail-status,
+  #farmMailModal .farm-mail-history-row p { font-size: 9px; }
+  #farmMailModal .farm-mail-status strong { font-size: 13px; }
+  #farmMailModal :is(.farm-mail-step h3, .farm-mail-history-section > h3) { font-size: 11px; }
+  #farmMailModal .farm-mail-item strong,
+  #farmMailModal .farm-mail-sender > strong,
+  #farmMailModal .farm-mail-inbox-copy > strong { font-size: 10px; }
+  #farmMailModal :is(.farm-mail-item small, .farm-mail-sender > small, .farm-mail-history-row small) { font-size: 8px; }
+
+  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) strong {
+    font-size: 9px;
+  }
+  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) small {
+    font-size: 8px;
+  }
+
+  /* Dynamic fallback/status text in settings stays subordinate on mobile. */
+  #userSettingsModal :is(.settings-field > small, .settings-section-heading small, .account-info-list code, [role="status"]) {
+    font-size: 9px;
+  }
 }
