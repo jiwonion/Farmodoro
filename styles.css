@@ -9310,7 +9310,7 @@ canvas {
 
   #todayPage .task-card:not(.editing) .task-top {
     min-width: 0;
-    padding-right: 44px;
+    padding-right: 28px;
   }
 
   #todayPage .task-card:not(.editing) h4 {
@@ -10937,7 +10937,7 @@ canvas {
     display: block;
     width: 100%;
     min-width: 0;
-    padding-right: 56px;
+    padding-right: 28px;
     box-sizing: border-box;
   }
 
