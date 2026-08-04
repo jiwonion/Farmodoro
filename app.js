@@ -2242,18 +2242,20 @@ async function loadFarmDataFromDatabase(user) {
   state.farmName = farm.farmName || defaultState.farmName;
   state.productionBoostUntil = Date.parse(farm.productionBoostUntil || "") || 0;
   state.wiltProtectionUntil = Date.parse(farm.wiltProtectionUntil || "") || 0;
-  state.equippedFarmTheme = FARM_THEMES.some((theme) => theme.id === farm.equippedFarmTheme)
-    ? farm.equippedFarmTheme
-    : null;
-  state.equippedPlotSkin = PLOT_SKINS.some((skin) => skin.id === farm.equippedPlotSkin)
-    ? farm.equippedPlotSkin
-    : null;
-  state.equippedLabelEffect = LABEL_EFFECTS.some((effect) => effect.id === farm.equippedLabelEffect)
-    ? farm.equippedLabelEffect
-    : null;
   state.ownedCosmetics = (data?.ownedCosmetics ?? []).filter(
     (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
   );
+  // An equipped id only counts while it is still owned. farms.equipped_* keeps
+  // whatever was last equipped even if the farm_cosmetics row goes away, so
+  // without this a removed cosmetic stays visible on the farm forever while
+  // the owned list shows nothing to unequip.
+  const ownedCosmeticKeys = new Set(
+    state.ownedCosmetics.map((entry) => `${entry.type}:${entry.id}`),
+  );
+  const equippedIfOwned = (type, id) => (id && ownedCosmeticKeys.has(`${type}:${id}`) ? id : null);
+  state.equippedFarmTheme = equippedIfOwned("farm_theme", farm.equippedFarmTheme);
+  state.equippedPlotSkin = equippedIfOwned("plot_skin", farm.equippedPlotSkin);
+  state.equippedLabelEffect = equippedIfOwned("label_effect", farm.equippedLabelEffect);
 
   const plotRows = new Map((data?.plots ?? []).map((plot) => [Number(plot.id), plot]));
   state.farmPlots = defaultState.farmPlots.map((fallback) => {
@@ -2462,6 +2464,12 @@ function loadState(savedState = null) {
           }))
         : structuredClone(defaultState.farmPlots);
 
+    const savedOwnedCosmetics = Array.isArray(saved.ownedCosmetics) ? saved.ownedCosmetics : [];
+    const savedOwnedKeys = new Set(
+      savedOwnedCosmetics.map((entry) => `${entry?.type}:${entry?.id}`),
+    );
+    const savedEquipped = (type, id) => (id && savedOwnedKeys.has(`${type}:${id}`) ? id : null);
+
     return {
       ...structuredClone(defaultState),
       ...saved,
@@ -2483,10 +2491,13 @@ function loadState(savedState = null) {
       dailyFoodOffers: saved.dailyFoodOffers ?? [],
       dailyCropSellOffers: saved.dailyCropSellOffers ?? [],
       dailyCosmeticOffers: saved.dailyCosmeticOffers ?? [],
-      ownedCosmetics: Array.isArray(saved.ownedCosmetics) ? saved.ownedCosmetics : [],
-      equippedFarmTheme: saved.equippedFarmTheme ?? null,
-      equippedPlotSkin: saved.equippedPlotSkin ?? null,
-      equippedLabelEffect: saved.equippedLabelEffect ?? null,
+      ownedCosmetics: savedOwnedCosmetics,
+      // Same ownership gate as the database load: a cached equipped id must
+      // not resurrect a cosmetic that is no longer owned, even for the moment
+      // before the server state arrives.
+      equippedFarmTheme: savedEquipped("farm_theme", saved.equippedFarmTheme),
+      equippedPlotSkin: savedEquipped("plot_skin", saved.equippedPlotSkin),
+      equippedLabelEffect: savedEquipped("label_effect", saved.equippedLabelEffect),
       foodInventory: {
         ...structuredClone(defaultState.foodInventory),
         ...(saved.foodInventory ?? {}),
