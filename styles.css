@@ -1526,6 +1526,11 @@ button {
  * so a plot reads as a dug bed rather than a flat brown tile. */
 .farm-plot {
   position: relative;
+  /* The crop art is sized as a share of the bed it sits in (see the cqw value
+   * on #farmPage .crop-visual span), which needs the plot to be a query
+   * container. Inline-size only, so the plot's height still grows with its
+   * contents the way the phone layout depends on. */
+  container-type: inline-size;
   overflow: hidden;
   min-width: 0;
   aspect-ratio: 1 / 0.92;
@@ -5180,17 +5185,19 @@ button {
   font-size: 11px;
 }
 
-/* A 3x3 plot is wider than the old 4x4 one, so the ceiling here is raised to
- * keep the crop filling about the same share of its bed. The 5vw slope is
- * unchanged, which leaves phones and tablets exactly where they were -- only
- * viewports past ~1280px, where the art used to sit capped at 64px in a much
- * roomier plot, get the extra size. */
+/* Measured against the plot, not the window. The field is capped at 700px, so
+ * past that width every plot is the same 212px no matter how wide the screen
+ * gets -- a vw-based size kept growing while the bed it sits in did not, and
+ * on a 1440px laptop it landed at 64px, under a third of the bed. 42cqw is the
+ * share the art used to fill in the old 4x4 field, and it holds at any width:
+ * ~89px in a full-size plot, shrinking with the plot when the field is
+ * narrower than its cap. */
 #farmPage .crop-visual span {
-  font-size: clamp(40px, 5vw, 88px);
+  font-size: 42cqw;
 }
 
 #farmPage .crop-visual.stage-0 span {
-  font-size: clamp(32px, 2.5vw, 44px);
+  font-size: 21cqw;
 }
 
 #farmPage .crop-info strong {
