@@ -2801,24 +2801,48 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
 
   if (runningFocusMode) {
     const runtime = focusRuntimeByMode[runningFocusMode];
+    const ownsTimer = isFocusTimerOwner();
     const syncedAt = Date.parse(payload.syncedAt || updatedAt || "");
-    const elapsedSeconds = Number.isFinite(syncedAt)
+    const elapsedSeconds = ownsTimer && Number.isFinite(syncedAt)
       ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000))
       : 0;
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
     const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
+    const appliedSeconds = isTaskStopwatch
+      ? elapsedSeconds
+      : Math.min(elapsedSeconds, runtime.seconds);
     runtime.seconds = isTaskStopwatch
-      ? runtime.seconds + elapsedSeconds
-      : Math.max(0, runtime.seconds - elapsedSeconds);
-    if (isTaskStopwatch && item) {
-      const savedTaskSeconds = Math.max(0, Math.floor(Number(item.focusSeconds) || 0));
-      if (runtime.seconds > savedTaskSeconds) {
-        item.focusSeconds = runtime.seconds;
+      ? runtime.seconds + appliedSeconds
+      : Math.max(0, runtime.seconds - appliedSeconds);
+
+    let recoveredFocusSeconds = 0;
+    if (ownsTimer && runtime.phase === "focus" && appliedSeconds > 0) {
+      if (item && activeFocus?.type === "task") {
+        const savedTaskSeconds = Math.max(0, Math.floor(Number(item.focusSeconds) || 0));
+        item.focusSeconds = Math.max(savedTaskSeconds, runtime.seconds);
+        recoveredFocusSeconds = item.focusSeconds - savedTaskSeconds;
+      } else if (item && activeFocus?.type === "habit") {
+        const today = toLocalDateString();
+        const previousFocusSeconds = getHabitDailyFocusSeconds(item, today);
+        const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
+        item.focusSecondsByDate ??= {};
+        item.focusSecondsByDate[today] = Math.min(
+          targetSeconds,
+          previousFocusSeconds + appliedSeconds,
+        );
+        recoveredFocusSeconds = item.focusSecondsByDate[today] - previousFocusSeconds;
+      } else {
+        recoveredFocusSeconds = appliedSeconds;
+      }
+
+      if (recoveredFocusSeconds > 0) {
+        addFocusSecond(recoveredFocusSeconds, runningFocusMode);
         scheduleTaskDatabaseSync(0);
+        void flushDailyFocusTime();
       }
     }
-    focusLastTickAt = Date.now();
-    startFocusTickInterval(runningFocusMode);
+    focusLastTickAt = ownsTimer ? Date.now() : 0;
+    if (ownsTimer) startFocusTickInterval(runningFocusMode);
   } else {
     focusLastTickAt = 0;
   }
@@ -5281,9 +5305,10 @@ function renderSummary() {
   document.querySelector("#todoTotal").textContent = activeTasks.length;
   document.querySelector("#habitDone").textContent = habitDone;
   document.querySelector("#habitTotal").textContent = scheduledHabits.length;
-  const rewardMinutes = Math.floor(state.focusRewardSeconds / 60);
-  document.querySelector("#rewardFocusMinutes").textContent = rewardMinutes;
-  document.querySelector("#summaryFocusMinutes").textContent = rewardMinutes;
+  const rewardProgressMinutes = Math.floor(state.focusRewardSeconds / 60);
+  const rewardRemainingMinutes = Math.ceil((3600 - state.focusRewardSeconds) / 60);
+  document.querySelector("#rewardFocusMinutes").textContent = rewardRemainingMinutes;
+  document.querySelector("#summaryFocusMinutes").textContent = rewardProgressMinutes;
   document.querySelector("#focusRewardBar").style.width = `${(state.focusRewardSeconds / 3600) * 100}%`;
 }
 
@@ -5873,6 +5898,10 @@ function updateFocusActionButton() {
 }
 
 function advanceRunningFocusTimer(mode) {
+  if (!isFocusTimerOwner()) {
+    focusLastTickAt = 0;
+    return { advanced: false, finished: false };
+  }
   const runtime = focusRuntimeByMode[mode];
   const now = Date.now();
   if (!focusLastTickAt) {
@@ -5892,7 +5921,7 @@ function advanceRunningFocusTimer(mode) {
   runtime.seconds = isTaskStopwatch
     ? runtime.seconds + appliedSeconds
     : Math.max(0, runtime.seconds - appliedSeconds);
-  if (runtime.phase === "focus" && isFocusTimerOwner()) {
+  if (runtime.phase === "focus") {
     if (item) {
       if (activeFocus?.type === "task") {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
@@ -5919,7 +5948,7 @@ function advanceRunningFocusTimer(mode) {
     updateMiniFocusTimer();
   }
 
-  if (!isTaskStopwatch && runtime.seconds <= 0 && isFocusTimerOwner()) {
+  if (!isTaskStopwatch && runtime.seconds <= 0) {
     if (runtime.phase === "focus") finishFocusRuntime(mode);
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
