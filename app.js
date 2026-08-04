@@ -8182,6 +8182,7 @@ const FOCUS_PLAYLIST = [
 let focusAudioPlayer = null;
 let focusPlaylistQueue = [];
 let currentFocusTrack = null;
+let currentFocusYoutubeTitle = null;
 let focusBackgroundObjectUrl = null;
 
 function shouldHoldFocusWakeLock() {
@@ -8228,14 +8229,26 @@ async function syncFocusWakeLock() {
   await releaseFocusWakeLock();
 }
 
+function isFocusYoutubePlaying() {
+  return Boolean(
+    currentFocusYoutubeTitle &&
+      focusYoutubePlayer &&
+      typeof focusYoutubePlayer.getPlayerState === "function" &&
+      focusYoutubePlayer.getPlayerState() === 1,
+  );
+}
+
 function updateFocusMusicIndicator() {
   const defaultMusicPlaying = Boolean(
     focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
   );
-  const showIndicator = currentPage !== "focus" && defaultMusicPlaying;
+  const youtubePlaying = isFocusYoutubePlaying();
+  const showIndicator = currentPage !== "focus" && (defaultMusicPlaying || youtubePlaying);
   miniFocusMusic.hidden = !showIndicator;
   if (!showIndicator) return;
-  miniFocusMusicTitle.textContent = currentFocusTrack?.title || "기본 집중 음악";
+  miniFocusMusicTitle.textContent = youtubePlaying
+    ? currentFocusYoutubeTitle
+    : currentFocusTrack?.title || "기본 집중 음악";
 }
 
 function applyFocusBackground(file) {
@@ -8578,6 +8591,7 @@ function ensureFocusYoutubePlayer() {
           events: {
             onReady: () => resolve(focusYoutubePlayer),
             onError: (event) => handleFocusYoutubePlayerError(event.data),
+            onStateChange: () => updateFocusMusicIndicator(),
           },
         });
       }),
@@ -8590,6 +8604,8 @@ function handleFocusYoutubePlayerError(code) {
   pendingFocusYoutubeFallback = null;
   if (!FOCUS_YOUTUBE_UNEMBEDDABLE_ERROR_CODES.includes(code)) return;
   focusYoutubePlayerWrap.classList.add("hidden");
+  currentFocusYoutubeTitle = null;
+  updateFocusMusicIndicator();
   if (!fallback) return;
   window.open(fallback.source.url, "_blank", "noopener,noreferrer");
   focusYoutubeStatus.textContent =
@@ -8615,10 +8631,14 @@ async function openFocusYoutubeLink(source, title) {
       player.loadVideoById(source.id);
     }
     focusYoutubeStatus.textContent = `${title} 재생 중.`;
+    currentFocusYoutubeTitle = title;
+    updateFocusMusicIndicator();
   } catch (error) {
     console.error("Farmodoro YouTube player could not load", error);
     pendingFocusYoutubeFallback = null;
     focusYoutubePlayerWrap.classList.add("hidden");
+    currentFocusYoutubeTitle = null;
+    updateFocusMusicIndicator();
     window.open(source.url, "_blank", "noopener,noreferrer");
     focusYoutubeStatus.textContent = `${title} 링크를 새 탭으로 열었어.`;
   }
@@ -8630,6 +8650,7 @@ function stopFocusYoutube() {
   focusYoutubePanel.classList.add("hidden");
   focusYoutubeButton.classList.remove("active");
   focusYoutubeButton.setAttribute("aria-expanded", "false");
+  currentFocusYoutubeTitle = null;
   focusYoutubeStatus.textContent = "영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.";
   updateFocusMusicIndicator();
 }
@@ -9059,7 +9080,12 @@ document.querySelector("#openMiniFocusMusic").addEventListener("click", () => {
 });
 
 document.querySelector("#stopMiniFocusMusic").addEventListener("click", () => {
-  stopFocusAudio();
+  if (isFocusYoutubePlaying()) {
+    focusYoutubePlayer?.pauseVideo?.();
+    updateFocusMusicIndicator();
+  } else {
+    stopFocusAudio();
+  }
 });
 
 miniFocusPause.addEventListener("click", () => {
