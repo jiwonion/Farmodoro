@@ -1,3 +1,9 @@
+// Signals to the inline bootstrap script in index.html that app.js actually
+// started running, so a genuine load failure (blocked CDN script, a thrown
+// error before this point) shows a retry message instead of silently
+// revealing the static HTML placeholder values as if they were real data.
+window.__farmodoroAppJsLoaded = true;
+
 const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
 const APP_THEMES = new Set(["white", "classic", "sunset", "sky", "dark"]);
@@ -26,17 +32,6 @@ const settingsAccountEmail = document.querySelector("#settingsAccountEmail");
 const settingsFarmCode = document.querySelector("#settingsFarmCode");
 const copyFarmCodeButton = document.querySelector("#copyFarmCode");
 const saveUserSettingsButton = document.querySelector("#saveUserSettings");
-const contentEncryptionModal = document.querySelector("#contentEncryptionModal");
-const contentEncryptionForm = document.querySelector("#contentEncryptionForm");
-const contentEncryptionTitle = document.querySelector("#contentEncryptionTitle");
-const contentEncryptionDescription = document.querySelector("#contentEncryptionDescription");
-const contentEncryptionPassword = document.querySelector("#contentEncryptionPassword");
-const contentEncryptionPasswordConfirm = document.querySelector("#contentEncryptionPasswordConfirm");
-const contentEncryptionConfirmField = document.querySelector("#contentEncryptionConfirmField");
-const contentEncryptionWarning = document.querySelector("#contentEncryptionWarning");
-const contentEncryptionStatus = document.querySelector("#contentEncryptionStatus");
-const contentEncryptionSubmit = document.querySelector("#contentEncryptionSubmit");
-const contentEncryptionSignOut = document.querySelector("#contentEncryptionSignOut");
 const tutorialModal = document.querySelector("#tutorialModal");
 const tutorialPanel = tutorialModal.querySelector(".tutorial-panel");
 const tutorialSpotlight = document.querySelector("#tutorialSpotlight");
@@ -72,6 +67,10 @@ let taskDataLoadPromise = null;
 let taskSyncTimer = null;
 let taskSyncChain = Promise.resolve();
 let lastTaskSyncSignature = "";
+// Tracks the last-uploaded content per (habit_id, record_date) so a sync only
+// upserts habit-day rows that actually changed, instead of re-uploading a
+// user's entire multi-year habit history on every unrelated task/habit edit.
+let habitRecordSyncSignatures = new Map();
 const pendingTaskDatabaseDeletes = new Set();
 const pendingHabitDatabaseDeletes = new Set();
 const pendingGroupDatabaseDeletes = new Set();
@@ -103,12 +102,6 @@ let tutorialPositionFrame = null;
 let tutorialResizeObserver = null;
 let tutorialReturnPage = "today";
 let tutorialReturnScrollY = 0;
-let contentEncryptionKey = null;
-let contentEncryptionPrompt = null;
-const CONTENT_ENCRYPTION_VERSION = 1;
-const CONTENT_ENCRYPTION_ITERATIONS = 310000;
-const CONTENT_ENCRYPTION_PREFIX = "fmd1";
-const CONTENT_ENCRYPTION_VERIFIER = "farmodoro-content-key-v1";
 const TUTORIAL_STEPS = [
   {
     page: "today",
@@ -196,6 +189,14 @@ const TUTORIAL_STEPS = [
     tips: ["설정에서 이 안내를 언제든 다시 볼 수 있어"],
   },
 ];
+// Set true only while flushing data on tab-hide/unload, so the last edit's
+// requests survive page teardown (mobile browsers can otherwise cancel
+// in-flight fetches the instant pagehide/visibilitychange returns).
+// Scoped to that narrow window only: `keepalive` fetches share a small
+// (~64KB) combined body-size budget, so it must not be left on during
+// normal operation where sync payloads can be much larger.
+let exitFlushKeepAlive = false;
+
 const supabaseClient = window.supabase?.createClient(
   supabaseConfig?.supabaseUrl,
   supabaseConfig?.supabasePublishableKey,
@@ -204,6 +205,10 @@ const supabaseClient = window.supabase?.createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+    },
+    global: {
+      fetch: (input, init) =>
+        fetch(input, exitFlushKeepAlive ? { ...init, keepalive: true } : init),
     },
   },
 );
@@ -464,7 +469,7 @@ async function loadFarmWallet(
   if (error) {
     console.error("Farmodoro wallet could not be loaded", error);
     if (!background) {
-      showToast("지갑 데이터를 불러오지 못했어. Supabase에서 006, 012 SQL을 확인해줘");
+      showToast("지갑 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
     }
     return;
   }
@@ -539,219 +544,6 @@ function applyFarmWalletChange(
   return true;
 }
 
-function bytesToBase64(bytes) {
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary);
-}
-
-function base64ToBytes(value) {
-  const binary = atob(value);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function isEncryptedContentValue(value) {
-  return typeof value === "string" && value.startsWith(`${CONTENT_ENCRYPTION_PREFIX}.`);
-}
-
-function getContentEncryptionSettings() {
-  return state?.contentEncryption ?? null;
-}
-
-function isContentEncryptionEnabled() {
-  const settings = getContentEncryptionSettings();
-  return Boolean(
-    settings?.version === CONTENT_ENCRYPTION_VERSION &&
-      settings.salt &&
-      settings.verifier,
-  );
-}
-
-async function deriveContentEncryptionKey(password, salt, iterations) {
-  if (!window.crypto?.subtle) {
-    throw new Error("이 브라우저에서는 데이터 암호화를 사용할 수 없어");
-  }
-  const passwordKey = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveKey"],
-  );
-  return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt: base64ToBytes(salt),
-      iterations,
-      hash: "SHA-256",
-    },
-    passwordKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
-async function encryptContentValue(value, key = contentEncryptionKey) {
-  if (!key) throw new Error("데이터 보안 암호가 잠겨 있어");
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
-    key,
-    new TextEncoder().encode(String(value)),
-  );
-  return `${CONTENT_ENCRYPTION_PREFIX}.${bytesToBase64(iv)}.${bytesToBase64(new Uint8Array(encrypted))}`;
-}
-
-async function decryptContentValue(value, key = contentEncryptionKey) {
-  if (!isEncryptedContentValue(value)) return value;
-  if (!key) throw new Error("데이터 보안 암호가 잠겨 있어");
-  const parts = value.split(".");
-  if (parts.length !== 3) throw new Error("암호화 데이터 형식이 올바르지 않아");
-  const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: base64ToBytes(parts[1]) },
-    key,
-    base64ToBytes(parts[2]),
-  );
-  return new TextDecoder().decode(decrypted);
-}
-
-function closeContentEncryptionPrompt(result = null) {
-  const prompt = contentEncryptionPrompt;
-  contentEncryptionPrompt = null;
-  contentEncryptionPassword.value = "";
-  contentEncryptionPasswordConfirm.value = "";
-  contentEncryptionStatus.textContent = "";
-  contentEncryptionModal.classList.add("hidden");
-  document.body.classList.remove("content-encryption-open");
-  prompt?.resolve(result);
-}
-
-function requestContentEncryptionKey(mode) {
-  if (contentEncryptionPrompt) return contentEncryptionPrompt.promise;
-  const isSetup = mode === "setup";
-  contentEncryptionTitle.textContent = isSetup ? "데이터 암호 설정" : "암호화 데이터 열기";
-  contentEncryptionDescription.textContent = isSetup
-    ? "할 일, 습관, 그룹 이름을 암호화해서 저장해. Google 비밀번호 말고 별도 암호를 입력해."
-    : "할 일, 습관, 그룹 이름을 보려면 설정했던 별도 보안 암호를 입력해.";
-  contentEncryptionWarning.textContent = isSetup
-    ? "이 암호는 서버에 저장하지 않아. 잊으면 기존 이름을 복구할 수 없어."
-    : "새 기기에서도 처음 한 번은 같은 보안 암호를 입력해야 해.";
-  contentEncryptionConfirmField.hidden = !isSetup;
-  contentEncryptionPasswordConfirm.required = isSetup;
-  contentEncryptionPassword.autocomplete = isSetup ? "new-password" : "current-password";
-  contentEncryptionSubmit.textContent = isSetup ? "암호화 시작" : "잠금 해제";
-  contentEncryptionStatus.textContent = "";
-  contentEncryptionModal.classList.remove("hidden");
-  document.body.classList.add("content-encryption-open");
-
-  let resolvePrompt;
-  const promise = new Promise((resolve) => {
-    resolvePrompt = resolve;
-  });
-  contentEncryptionPrompt = { mode, promise, resolve: resolvePrompt };
-  requestAnimationFrame(() => contentEncryptionPassword.focus());
-  return promise;
-}
-
-contentEncryptionForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!contentEncryptionPrompt) return;
-  const password = contentEncryptionPassword.value;
-  const isSetup = contentEncryptionPrompt.mode === "setup";
-  if (password.length < 10) {
-    contentEncryptionStatus.textContent = "보안 암호는 10자 이상으로 입력해";
-    return;
-  }
-  if (isSetup && password !== contentEncryptionPasswordConfirm.value) {
-    contentEncryptionStatus.textContent = "보안 암호가 서로 달라";
-    return;
-  }
-
-  contentEncryptionSubmit.disabled = true;
-  contentEncryptionStatus.textContent = isSetup ? "암호 키 만드는 중…" : "확인 중…";
-  try {
-    if (isSetup) {
-      const salt = bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
-      const key = await deriveContentEncryptionKey(password, salt, CONTENT_ENCRYPTION_ITERATIONS);
-      const verifier = await encryptContentValue(CONTENT_ENCRYPTION_VERIFIER, key);
-      closeContentEncryptionPrompt({
-        key,
-        settings: {
-          version: CONTENT_ENCRYPTION_VERSION,
-          salt,
-          iterations: CONTENT_ENCRYPTION_ITERATIONS,
-          verifier,
-        },
-      });
-    } else {
-      const settings = getContentEncryptionSettings();
-      const key = await deriveContentEncryptionKey(
-        password,
-        settings.salt,
-        Number(settings.iterations) || CONTENT_ENCRYPTION_ITERATIONS,
-      );
-      const verifier = await decryptContentValue(settings.verifier, key);
-      if (verifier !== CONTENT_ENCRYPTION_VERIFIER) throw new Error("보안 암호가 맞지 않아");
-      closeContentEncryptionPrompt({ key, settings });
-    }
-  } catch (error) {
-    contentEncryptionStatus.textContent = isSetup
-      ? error?.message || "암호 키를 만들지 못했어"
-      : "보안 암호가 맞지 않아";
-    contentEncryptionPassword.select();
-  } finally {
-    contentEncryptionSubmit.disabled = false;
-  }
-});
-
-contentEncryptionSignOut.addEventListener("click", async () => {
-  if (!supabaseClient) return;
-  contentEncryptionSignOut.disabled = true;
-  closeContentEncryptionPrompt(null);
-  contentEncryptionKey = null;
-  const { error } = await supabaseClient.auth.signOut();
-  contentEncryptionSignOut.disabled = false;
-  if (error) {
-    showToast("로그아웃하지 못했어. 다시 시도해줘");
-    return;
-  }
-  await applyAuthSession(null);
-  finishAuthResolution();
-  try {
-    await prepareGoogleSignIn();
-  } catch (googleError) {
-    setAuthStatus(googleError.message, true);
-  }
-});
-
-async function unlockContentEncryption(user) {
-  if (!isContentEncryptionEnabled() || contentEncryptionKey) return true;
-  const result = await requestContentEncryptionKey("unlock");
-  if (!result || activeAuthUser?.id !== user.id) return false;
-  contentEncryptionKey = result.key;
-  return true;
-}
-
-async function migrateLegacyContentEncryptionToServer(user) {
-  if (!isContentEncryptionEnabled() || !contentEncryptionKey) return true;
-  if (activeAuthUser?.id !== user.id || !taskDataHydrated) return false;
-  lastTaskSyncSignature = "";
-  await syncTaskDatabaseImmediately();
-  state.contentEncryption = {
-    version: 0,
-    salt: "",
-    iterations: CONTENT_ENCRYPTION_ITERATIONS,
-    verifier: "",
-  };
-  await syncAppStateDatabaseImmediately();
-  contentEncryptionKey = null;
-  showToast("기존 암호화 데이터를 자동 암호화 방식으로 전환했어");
-  return true;
-}
-
 async function applyAuthSession(session) {
   const isSignedIn = Boolean(session?.user);
   const previousUserId = activeAuthUser?.id ?? null;
@@ -761,7 +553,6 @@ async function applyAuthSession(session) {
 
   if (isSignedIn) {
     if (previousUserId && previousUserId !== session.user.id) stopFocusYoutube();
-    if (previousUserId !== session.user.id) contentEncryptionKey = null;
     currentProfile = getProfileFallback(session.user);
     updateProfileFromUser(session.user, currentProfile);
     if (
@@ -773,8 +564,7 @@ async function applyAuthSession(session) {
       appStateUserId === session.user.id &&
       taskDataUserId === session.user.id &&
       farmWalletUserId === session.user.id &&
-      farmDataUserId === session.user.id &&
-      (!isContentEncryptionEnabled() || contentEncryptionKey)
+      farmDataUserId === session.user.id
     ) {
       maybeOpenTutorial(session.user);
       return;
@@ -785,11 +575,6 @@ async function applyAuthSession(session) {
       needsAppStateLoad ? loadAppStateFromDatabase(session.user) : Promise.resolve(),
     ]);
     await loadFarmAdminPermission(session.user);
-    const hasLegacyContentEncryption = isContentEncryptionEnabled();
-    if (hasLegacyContentEncryption) {
-      const unlocked = await unlockContentEncryption(session.user);
-      if (!unlocked) return;
-    }
     await Promise.all([
       !taskDataHydrated || taskDataUserId !== session.user.id
         ? loadTaskDataFromDatabase(session.user)
@@ -807,19 +592,9 @@ async function applyAuthSession(session) {
     await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     startFocusRealtime(session.user);
-    if (hasLegacyContentEncryption && taskDataHydrated) {
-      try {
-        await migrateLegacyContentEncryptionToServer(session.user);
-      } catch (error) {
-        console.error("Farmodoro legacy content encryption migration failed", error);
-        showToast(`기존 암호화 방식 전환 실패 · 019 SQL을 적용해줘: ${error?.message || "알 수 없는 오류"}`);
-      }
-    }
     maybeOpenTutorial(session.user);
   } else {
     stopFocusYoutube();
-    contentEncryptionKey = null;
-    closeContentEncryptionPrompt(null);
     resetTaskDatabaseState();
     resetAppStateDatabaseState();
     resetFocusTimerDatabaseState();
@@ -900,10 +675,12 @@ function setSettingsAvatarPreview(avatarUrl) {
 function getProfileSettingsErrorMessage(error) {
   const message = String(error?.message ?? "");
   if (message.includes("profiles_theme_value")) {
-    return "새 테마 저장 설정이 아직 적용되지 않았어. Supabase에서 004 SQL을 실행해줘";
+    console.warn("Farmodoro: 004 migration not applied (profiles_theme_value)");
+    return "테마 설정을 저장하지 못했어. 잠시 후 다시 시도해줘";
   }
   if (message.includes("Bucket not found") || message.includes("avatars")) {
-    return "프로필 사진 저장소가 아직 준비되지 않았어. Supabase에서 002 SQL을 실행해줘";
+    console.warn("Farmodoro: 002 migration not applied (avatars bucket missing)");
+    return "프로필 사진을 저장하지 못했어. 잠시 후 다시 시도해줘";
   }
   if (message.startsWith("프로필 사진을")) return message;
   return "사용자 설정을 저장하지 못했어. 잠시 후 다시 시도해줘";
@@ -1207,7 +984,7 @@ sendFarmAdminMailButton.addEventListener("click", async () => {
     console.error("Farmodoro admin broadcast could not be sent", error);
     farmAdminMailStatus.textContent = error.code === "42501"
       ? "관리자 권한이 없어."
-      : "발송하지 못했어. 023 SQL을 확인해.";
+      : "발송하지 못했어. 잠시 후 다시 시도해줘.";
     return;
   }
 
@@ -1756,12 +1533,6 @@ const RECIPES = {
 const defaultState = {
   schemaVersion: 46,
   tutorialCompleted: false,
-  contentEncryption: {
-    version: 0,
-    salt: "",
-    iterations: CONTENT_ENCRYPTION_ITERATIONS,
-    verifier: "",
-  },
   coins: 0,
   farmMoney: 0,
   farmRankingWeekStart: "",
@@ -2484,16 +2255,6 @@ function loadState(savedState = null) {
       ...structuredClone(defaultState),
       ...saved,
       schemaVersion: 46,
-      contentEncryption: {
-        version: Number(saved.contentEncryption?.version) || 0,
-        salt: typeof saved.contentEncryption?.salt === "string" ? saved.contentEncryption.salt : "",
-        iterations:
-          Number(saved.contentEncryption?.iterations) || CONTENT_ENCRYPTION_ITERATIONS,
-        verifier:
-          typeof saved.contentEncryption?.verifier === "string"
-            ? saved.contentEncryption.verifier
-            : "",
-      },
       coins: migratedCoins,
       farmMoney: migratedFarmMoney,
       farmRankingWeekStart: saved.farmRankingWeekStart ?? "",
@@ -2650,7 +2411,7 @@ async function loadAppStateFromDatabase(user) {
   const farmState = captureFarmState();
   if (error) {
     console.error("Farmodoro app state could not be loaded", error);
-    showToast("앱 데이터를 불러오지 못했어. Supabase에서 008 SQL을 실행해줘");
+    showToast("앱 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
     return;
   }
   state = loadState(data?.state ?? null);
@@ -2697,7 +2458,7 @@ function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
       .catch((error) => {
         console.error("Farmodoro app state could not be saved", error);
         if (activeAuthUser?.id === userId) {
-          showToast("앱 데이터를 DB에 저장하지 못했어. 008 SQL을 확인해줘");
+          showToast("앱 데이터를 저장하지 못했어. 연결을 확인해줘");
         }
       });
   }, delay);
@@ -2939,7 +2700,8 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
 function handleFocusTimerDatabaseError(error) {
   if (["42P01", "PGRST205"].includes(error?.code)) {
     if (!focusTimerDatabaseUnavailable) {
-      showToast("기기 간 타이머 공유를 쓰려면 Supabase에서 021 SQL을 실행해줘");
+      console.warn("Farmodoro: 021 migration not applied (user_focus_timer missing)", error);
+      showToast("기기 간 타이머 동기화를 쓸 수 없어. 이 기기에서는 계속 사용할 수 있어");
     }
     focusTimerDatabaseUnavailable = true;
     return;
@@ -3044,7 +2806,9 @@ function scheduleFocusTimerDatabaseSync(delay = 300) {
   }
   focusTimerSyncTimer = window.setTimeout(() => {
     focusTimerSyncTimer = null;
-    void syncFocusTimerDatabaseImmediately();
+    void syncFocusTimerDatabaseImmediately().catch((error) => {
+      console.error("Farmodoro focus timer could not be synchronized", error);
+    });
   }, delay);
 }
 
@@ -3059,6 +2823,7 @@ function resetTaskDatabaseState() {
   taskDataUserId = null;
   taskDataLoadPromise = null;
   lastTaskSyncSignature = "";
+  habitRecordSyncSignatures = new Map();
   if (taskSyncTimer) clearTimeout(taskSyncTimer);
   taskSyncTimer = null;
   pendingTaskDatabaseDeletes.clear();
@@ -3110,6 +2875,7 @@ function serializeTaskDatabaseState() {
                 : recordMeta.completedWithFreePass,
             )
           : false,
+        completion_cycle_id: completed ? recordMeta.completionCycleId || null : null,
       };
     });
   });
@@ -3209,6 +2975,7 @@ function mapDatabaseHabit(habit, records) {
         completedAt: record.completed_at,
         completionReward: record.completion_reward,
         completedWithFreePass: record.completed_with_free_pass,
+        completionCycleId: record.completion_cycle_id || null,
       },
     ]),
   );
@@ -3252,30 +3019,6 @@ function mapDatabaseHabit(habit, records) {
   };
 }
 
-async function decryptTaskDatabaseRows(groupRows, taskRows, habitRows) {
-  const [groups, tasks, habits] = await Promise.all([
-    Promise.all(
-      groupRows.map(async (group) => ({
-        ...group,
-        name: await decryptContentValue(group.name),
-      })),
-    ),
-    Promise.all(
-      taskRows.map(async (task) => ({
-        ...task,
-        title: await decryptContentValue(task.title),
-      })),
-    ),
-    Promise.all(
-      habitRows.map(async (habit) => ({
-        ...habit,
-        title: await decryptContentValue(habit.title),
-      })),
-    ),
-  ]);
-  return { groups, tasks, habits };
-}
-
 async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (!supabaseClient || !user) return;
   if (taskDataUserId === user.id && taskDataHydrated && !force) return;
@@ -3301,18 +3044,15 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   taskDataLoadPromise = (async () => {
     const { data, error } = await supabaseClient.rpc("get_my_productivity_state");
     if (error) throw error;
-    let groupRows = Array.isArray(data?.groups) ? data.groups : [];
+    const groupRows = Array.isArray(data?.groups) ? data.groups : [];
     const taskRows = Array.isArray(data?.tasks) ? data.tasks : [];
     const habitRows = Array.isArray(data?.habits) ? data.habits : [];
     const habitRecordRows = Array.isArray(data?.habitRecords) ? data.habitRecords : [];
     if (activeAuthUser?.id !== requestedUserId || taskDataUserId !== requestedUserId) return;
 
-    const decryptedRows = await decryptTaskDatabaseRows(groupRows, taskRows, habitRows);
-    groupRows = decryptedRows.groups;
-
     state.groups = groupRows.map(mapDatabaseTaskGroup);
-    state.tasks = decryptedRows.tasks.map(mapDatabaseTask);
-    state.habits = decryptedRows.habits.map((habit) =>
+    state.tasks = taskRows.map(mapDatabaseTask);
+    state.habits = habitRows.map((habit) =>
       mapDatabaseHabit(
         habit,
         habitRecordRows.filter((record) => record.habit_id === habit.id),
@@ -3344,13 +3084,19 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
     const nextSignature = serializeTaskDatabaseState();
     const nextRenderSignature = serializeTaskRenderSignature();
     lastTaskSyncSignature = nextSignature;
+    habitRecordSyncSignatures = new Map(
+      JSON.parse(nextSignature).habitRecords.map((record) => [
+        `${record.habit_id}:${record.record_date}`,
+        JSON.stringify(record),
+      ]),
+    );
     if (nextRenderSignature !== previousRenderSignature) render();
     else updateProductivityFocusLabels();
   })()
     .catch((error) => {
       console.error("Farmodoro task data could not be loaded", error);
       if (activeAuthUser?.id === requestedUserId) {
-        showToast("할 일과 습관 데이터를 불러오지 못했어. Supabase 035 SQL을 확인해줘");
+        showToast("할 일과 습관 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
       }
     })
     .finally(() => {
@@ -3443,7 +3189,14 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
   const taskRows = snapshot.tasks.map((task) => ({ ...task, user_id: userId }));
   const habitRows = snapshot.habits.map((habit) => ({ ...habit, user_id: userId }));
-  const habitRecordRows = snapshot.habitRecords;
+  // Only upload habit-day rows whose content actually changed since the last
+  // successful sync — habit history otherwise grows every day forever, and
+  // re-uploading every row on every unrelated edit gets more wasteful the
+  // longer the account has been used.
+  const habitRecordRows = snapshot.habitRecords.filter((record) => {
+    const key = `${record.habit_id}:${record.record_date}`;
+    return habitRecordSyncSignatures.get(key) !== JSON.stringify(record);
+  });
 
   if (groupRows.length) {
     const { error } = await supabaseClient
@@ -3469,6 +3222,12 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       .from("habit_daily_records")
       .upsert(habitRecordRows, { onConflict: "habit_id,record_date" });
     throwTaskSyncError("습관 기록", error);
+    habitRecordRows.forEach((record) => {
+      habitRecordSyncSignatures.set(
+        `${record.habit_id}:${record.record_date}`,
+        JSON.stringify(record),
+      );
+    });
   }
 
   const deletedTaskIds = [...pendingTaskDatabaseDeletes];
@@ -4484,14 +4243,6 @@ function useFreePassOnTarget(targetValue) {
   const [targetType, targetId] = target.value.split(":");
   const reward = productionCoinReward();
   const completionCycleId = createUuid();
-  if (
-    !applyFarmWalletChange(
-      "coin",
-      reward,
-      "농부의 프리패스 보상",
-      `free-pass:${targetType}:${targetId}:${toLocalDateString()}:${completionCycleId}`,
-    )
-  ) return;
 
   if (targetType === "task") {
     const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
@@ -4501,24 +4252,33 @@ function useFreePassOnTarget(targetValue) {
     task.completionCycleId = completionCycleId;
     task.completionReward = reward;
     task.completedWithFreePass = true;
+    state.coins += reward;
+    confirmTaskCompletionWithServer(task, completionCycleId, reward, true);
   } else {
     const habit = state.habits.find((entry) => entry.id === targetId);
     if (!habit || isHabitCompleteToday(habit)) return;
+    const today = toLocalDateString();
     if (habit.measureType === "count") {
       habit.progressByDate ??= {};
-      habit.progressByDate[toLocalDateString()] = getHabitTargetForDate(habit);
+      habit.progressByDate[today] = getHabitTargetForDate(habit);
     }
+    const progressValue = habit.measureType === "count"
+      ? Math.max(0, Number(habit.progressByDate?.[today] ?? 0))
+      : getHabitTargetForDate(habit);
     habit.complete = true;
-    habit.completedDate = toLocalDateString();
-    habit.completionDates.push(toLocalDateString());
+    habit.completedDate = today;
+    habit.completionDates.push(today);
     habit.completionReward = reward;
     habit.completedWithFreePass = true;
     habit.recordMetaByDate ??= {};
-    habit.recordMetaByDate[toLocalDateString()] = {
+    habit.recordMetaByDate[today] = {
       completedAt: new Date().toISOString(),
       completionReward: reward,
       completedWithFreePass: true,
+      completionCycleId,
     };
+    state.coins += reward;
+    confirmHabitCompletionWithServer(habit, today, progressValue, completionCycleId, reward, true);
   }
   state.farmItemInventory.freePass -= 1;
   closeFreePassTargetModal();
@@ -5429,6 +5189,67 @@ function maintainTaskArchive() {
   return changed;
 }
 
+// Completion is granted optimistically here (for instant UI feedback) and
+// then confirmed against complete_my_task/uncomplete_my_task, which decide
+// "is this already done" with a single row lock in Postgres. That closes
+// the cross-device race where two devices each saw the task as "not done
+// yet" and both granted a reward before either learned about the other's
+// change -- confirmTaskCompletionWithServer corrects the local optimistic
+// coin count back down if the server reports this device lost that race.
+function confirmTaskCompletionWithServer(task, optimisticCycleId, optimisticReward, usedFreePass = false) {
+  const userId = activeAuthUser?.id;
+  farmWalletMutationChain = farmWalletMutationChain
+    .then(async () => {
+      const { data, error } = await supabaseClient.rpc("complete_my_task", {
+        p_task_id: task.id,
+        p_used_free_pass: usedFreePass,
+      });
+      if (error) throw error;
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Number(data.coinBalance);
+      const currentTask = state.tasks.find((entry) => entry.id === task.id);
+      if (currentTask && currentTask.completionCycleId === optimisticCycleId) {
+        currentTask.completionReward = Number(data.completionReward) || currentTask.completionReward;
+        currentTask.completionCycleId = data.completionCycleId || currentTask.completionCycleId;
+        currentTask.completedDate = data.completedOn || currentTask.completedDate;
+      }
+      renderSummary();
+      renderFarm();
+    })
+    .catch((error) => {
+      console.error("Farmodoro task completion could not be confirmed", error);
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Math.max(0, state.coins - optimisticReward);
+      renderSummary();
+      renderFarm();
+      showToast(`할 일 완료를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+    });
+}
+
+function confirmTaskUncompletionWithServer(task, nextStatus, optimisticRefund) {
+  const userId = activeAuthUser?.id;
+  farmWalletMutationChain = farmWalletMutationChain
+    .then(async () => {
+      const { data, error } = await supabaseClient.rpc("uncomplete_my_task", {
+        p_task_id: task.id,
+        p_next_status: nextStatus,
+      });
+      if (error) throw error;
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Number(data.coinBalance);
+      renderSummary();
+      renderFarm();
+    })
+    .catch((error) => {
+      console.error("Farmodoro task undo could not be confirmed", error);
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins += optimisticRefund;
+      renderSummary();
+      renderFarm();
+      showToast(`완료 취소를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+    });
+}
+
 function moveTaskTo(id, nextStatus) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task || task.status === nextStatus) return;
@@ -5444,16 +5265,13 @@ function moveTaskTo(id, nextStatus) {
 
   if (previousStatus !== "done" && nextStatus === "done") {
     const reward = productionCoinReward();
-    task.completionCycleId = createUuid();
+    const optimisticCycleId = createUuid();
+    task.completionCycleId = optimisticCycleId;
     task.completionReward = reward;
     task.completedWithFreePass = false;
     task.completedDate = toLocalDateString();
-    applyFarmWalletChange(
-      "coin",
-      reward,
-      "할 일 완료",
-      `task:${task.id}:${task.completedDate}:complete:${task.completionCycleId}`,
-    );
+    state.coins += reward;
+    confirmTaskCompletionWithServer(task, optimisticCycleId, reward);
     if (activeFocus?.type === "task" && activeFocus.id === task.id) {
       activeFocus = null;
       stopFocusTimer();
@@ -5468,6 +5286,7 @@ function moveTaskTo(id, nextStatus) {
         updateMiniFocusTimer();
       }
       stoppedLinkedFocus = true;
+      scheduleFocusTimerDatabaseSync(0);
     }
     showToast(
       stoppedLinkedFocus
@@ -5476,26 +5295,84 @@ function moveTaskTo(id, nextStatus) {
     );
   } else if (previousStatus === "done" && nextStatus !== "done") {
     const returnedReward = task.completionReward ?? 1;
-    const completionToken = task.completionCycleId || "legacy";
-    applyFarmWalletChange(
-      "coin",
-      -returnedReward,
-      "할 일 완료 취소",
-      `task:${task.id}:${task.completedDate}:undo:${completionToken}`,
-      true,
-    );
     task.completionReward = 0;
     task.completedDate = "";
     if (task.completedWithFreePass) {
       state.farmItemInventory.freePass += 1;
       task.completedWithFreePass = false;
     }
+    state.coins = Math.max(0, state.coins - returnedReward);
+    confirmTaskUncompletionWithServer(task, nextStatus, returnedReward);
     showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
   } else {
     showToast(nextStatus === "doing" ? "진행 중으로 옮겼어" : "대기로 옮겼어");
   }
 
   render();
+}
+
+// Same cross-device race as tasks (see confirmTaskCompletionWithServer):
+// the local reward is granted optimistically for instant feedback, then
+// complete_my_habit/uncomplete_my_habit confirm it against a single row
+// lock in Postgres so a near-simultaneous completion from another device
+// can't grant the reward twice.
+function confirmHabitCompletionWithServer(habit, recordDate, progressValue, optimisticCycleId, optimisticReward, usedFreePass = false) {
+  const userId = activeAuthUser?.id;
+  farmWalletMutationChain = farmWalletMutationChain
+    .then(async () => {
+      const { data, error } = await supabaseClient.rpc("complete_my_habit", {
+        p_habit_id: habit.id,
+        p_record_date: recordDate,
+        p_progress_value: progressValue,
+        p_used_free_pass: usedFreePass,
+      });
+      if (error) throw error;
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Number(data.coinBalance);
+      const currentHabit = state.habits.find((entry) => entry.id === habit.id);
+      const meta = currentHabit?.recordMetaByDate?.[recordDate];
+      if (meta && meta.completionCycleId === optimisticCycleId) {
+        meta.completionReward = Number(data.completionReward) || meta.completionReward;
+        meta.completionCycleId = data.completionCycleId || meta.completionCycleId;
+        if (recordDate === toLocalDateString()) {
+          currentHabit.completionReward = meta.completionReward;
+        }
+      }
+      renderSummary();
+      renderFarm();
+    })
+    .catch((error) => {
+      console.error("Farmodoro habit completion could not be confirmed", error);
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Math.max(0, state.coins - optimisticReward);
+      renderSummary();
+      renderFarm();
+      showToast(`습관 완료를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+    });
+}
+
+function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund) {
+  const userId = activeAuthUser?.id;
+  farmWalletMutationChain = farmWalletMutationChain
+    .then(async () => {
+      const { data, error } = await supabaseClient.rpc("uncomplete_my_habit", {
+        p_habit_id: habit.id,
+        p_record_date: recordDate,
+      });
+      if (error) throw error;
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins = Number(data.coinBalance);
+      renderSummary();
+      renderFarm();
+    })
+    .catch((error) => {
+      console.error("Farmodoro habit undo could not be confirmed", error);
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      state.coins += optimisticRefund;
+      renderSummary();
+      renderFarm();
+      showToast(`완료 취소를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+    });
 }
 
 function applyHabitCompletionChange(habit, wasComplete, complete) {
@@ -5512,33 +5389,28 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
     : habit.completionDates.filter((date) => date !== today);
   habit.recordMetaByDate ??= {};
 
+  const progressValue = habit.measureType === "count"
+    ? Math.max(0, Number(habit.progressByDate?.[today] ?? 0))
+    : (complete ? getHabitTargetForDate(habit) : 0);
+
   if (complete) {
     const reward = productionCoinReward();
     const completedAt = new Date().toISOString();
-    applyFarmWalletChange(
-      "coin",
-      reward,
-      "습관 완료",
-      `habit:${habit.id}:${today}:complete:${createUuid()}`,
-    );
+    const optimisticCycleId = createUuid();
     habit.completionReward = reward;
     habit.completedWithFreePass = false;
     habit.recordMetaByDate[today] = {
       completedAt,
       completionReward: reward,
       completedWithFreePass: false,
+      completionCycleId: optimisticCycleId,
     };
+    state.coins += reward;
+    confirmHabitCompletionWithServer(habit, today, progressValue, optimisticCycleId, reward);
     return { complete: true, reward };
   }
 
   const reward = habit.completionReward ?? 1;
-  applyFarmWalletChange(
-    "coin",
-    -reward,
-    "습관 완료 취소",
-    `habit:${habit.id}:${today}:undo:${createUuid()}`,
-    true,
-  );
   habit.completionReward = 0;
   if (habit.completedWithFreePass) {
     state.farmItemInventory.freePass += 1;
@@ -5548,7 +5420,10 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
     completedAt: null,
     completionReward: 0,
     completedWithFreePass: false,
+    completionCycleId: null,
   };
+  state.coins = Math.max(0, state.coins - reward);
+  confirmHabitUncompletionWithServer(habit, today, reward);
   return { complete: false, reward };
 }
 
@@ -5866,8 +5741,9 @@ async function flushFocusTime() {
     .catch((error) => {
       console.error("Farmodoro focus time could not be saved", error);
       if (["42883", "PGRST202"].includes(error?.code)) {
+        console.warn("Farmodoro: 036 migration not applied (record_my_focus_time missing)");
         focusProgressApiUnavailable = true;
-        showToast("집중 시간 누적 저장을 쓰려면 Supabase 036 SQL을 적용해줘");
+        showToast("집중 시간 보상 저장을 쓸 수 없어. 이 기기에서는 계속 사용할 수 있어");
       }
     })
     .finally(() => {
@@ -6824,7 +6700,7 @@ confirmTaskDelete.addEventListener("click", async () => {
     showToast(`할 일을 삭제하고 ${reward} Coin을 차감했어`);
   } catch (error) {
     console.error("Farmodoro completed task could not be deleted", error);
-    showToast("완료한 할 일을 삭제하지 못했어. 015 SQL을 확인해줘");
+    showToast("완료한 할 일을 삭제하지 못했어. 잠시 후 다시 시도해줘");
   } finally {
     confirmTaskDelete.disabled = false;
   }
@@ -7925,11 +7801,10 @@ deleteAccountButton.addEventListener("click", async () => {
     showToast("Farmodoro 계정과 데이터를 삭제했어");
   } catch (error) {
     console.error("Farmodoro account could not be deleted", error);
-    showToast(
-      ["42883", "PGRST202"].includes(error?.code)
-        ? "계정 삭제 기능을 쓰려면 Supabase 028 SQL을 적용해줘"
-        : "계정을 삭제하지 못했어. 잠시 후 다시 시도해줘",
-    );
+    if (["42883", "PGRST202"].includes(error?.code)) {
+      console.warn("Farmodoro: 028 migration not applied (delete_my_account missing)");
+    }
+    showToast("계정을 삭제하지 못했어. 잠시 후 다시 시도해줘");
   } finally {
     deleteAccountButton.disabled = false;
     deleteAccountButton.textContent = "Farmodoro 계정과 데이터 삭제";
@@ -7957,6 +7832,7 @@ farmMailModal.addEventListener("click", async (event) => {
 
   const claimButton = event.target.closest("[data-claim-farm-mail]");
   if (claimButton) {
+    if (claimButton.disabled) return;
     const mail = state.farmInbox.find((entry) => entry.id === claimButton.dataset.claimFarmMail);
     if (!mail || mail.claimed) return;
     const gift = getFarmGiftDetails(mail.category, mail.itemId, mail);
@@ -7965,25 +7841,28 @@ farmMailModal.addEventListener("click", async (event) => {
       openFarmRewardBoxModal(mail);
       return;
     }
-    if (mail.dbItemId) {
-      const { error } = await supabaseClient.rpc("claim_farm_mail_item", {
-        p_mail_item_id: mail.dbItemId,
-      });
-      if (error) {
-        console.error("Farmodoro mail could not be claimed", error);
-        showToast("우편 선물을 받지 못했어");
+    claimButton.disabled = true;
+    try {
+      if (mail.dbItemId) {
+        const { error } = await supabaseClient.rpc("claim_farm_mail_item", {
+          p_mail_item_id: mail.dbItemId,
+        });
+        if (error) {
+          console.error("Farmodoro mail could not be claimed", error);
+          showToast("우편 선물을 받지 못했어");
+          return;
+        }
+        await loadFarmDataFromDatabase(activeAuthUser);
+        showToast(`${gift.name} 1개를 보관함에 넣었어.`);
         return;
       }
+      gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
+      mail.claimed = true;
+      showToast(`${gift.name} 1개를 보관함에 넣었어`);
+      render();
+    } finally {
+      claimButton.disabled = false;
     }
-    if (mail.dbItemId) {
-      await loadFarmDataFromDatabase(activeAuthUser);
-      showToast(`${gift.name} 1개를 보관함에 넣었어.`);
-      return;
-    }
-    gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
-    mail.claimed = true;
-    showToast(`${gift.name} 1개를 보관함에 넣었어`);
-    render();
     return;
   }
 
@@ -8192,6 +8071,35 @@ document.addEventListener("keydown", (event) => {
     closeTaskDeleteModal();
     closeFocusItemMenu();
     closeTaskGroupMenu();
+  }
+});
+
+const MODAL_DIALOG_SELECTOR =
+  '[role="dialog"][aria-modal="true"]:not(.hidden), [role="alertdialog"][aria-modal="true"]:not(.hidden)';
+const FOCUSABLE_SELECTOR =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
+// The tutorial modal already implements its own Tab trap (with extra
+// Left/Right step navigation), so this generic trap skips it and covers
+// every other role="dialog"/"alertdialog" modal in the app.
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Tab") return;
+  if (!tutorialModal.classList.contains("hidden")) return;
+  const openDialog = document.querySelector(MODAL_DIALOG_SELECTOR);
+  if (!openDialog) return;
+  const focusable = [...openDialog.querySelectorAll(FOCUSABLE_SELECTOR)].filter(
+    (element) => element.offsetParent !== null,
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  const focusIsInside = openDialog.contains(document.activeElement);
+  if (event.shiftKey && (!focusIsInside || document.activeElement === first)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (!focusIsInside || document.activeElement === last)) {
+    event.preventDefault();
+    first.focus();
   }
 });
 
@@ -8999,44 +8907,64 @@ window.addEventListener("focus", () => {
   void refreshPageData(currentPage);
 });
 
+async function flushFarmodoroDataOnExit() {
+  if (!activeAuthUser) return;
+  exitFlushKeepAlive = true;
+  try {
+    saveState();
+    const operations = [
+      flushFocusTime().catch((error) => {
+        console.error("Farmodoro focus time could not be flushed", error);
+      }),
+      syncTaskDatabaseImmediately().catch((error) => {
+        console.error("Farmodoro productivity state could not be flushed", error);
+      }),
+      syncAppStateDatabaseImmediately().catch((error) => {
+        console.error("Farmodoro app state could not be flushed", error);
+      }),
+      syncFarmDataDatabaseImmediately().catch((error) => {
+        console.error("Farmodoro farm data could not be flushed", error);
+      }),
+    ];
+    if (isFocusTimerOwner()) {
+      operations.push(
+        syncFocusTimerDatabaseImmediately().catch((error) => {
+          console.error("Farmodoro focus timer could not be flushed", error);
+        }),
+      );
+    }
+    await Promise.allSettled(operations);
+  } finally {
+    exitFlushKeepAlive = false;
+  }
+}
+
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "hidden" || !activeAuthUser) return;
-  saveState();
-  void syncTaskDatabaseImmediately().catch((error) => {
-    console.error("Farmodoro productivity state could not be flushed", error);
-  });
-  void syncAppStateDatabaseImmediately().catch((error) => {
-    console.error("Farmodoro app state could not be flushed", error);
-  });
-  void syncFarmDataDatabaseImmediately().catch((error) => {
-    console.error("Farmodoro farm data could not be flushed", error);
-  });
-  if (isFocusTimerOwner()) {
-    void syncFocusTimerDatabaseImmediately();
-  }
-  void flushFocusTime();
+  void flushFarmodoroDataOnExit();
 });
 
 window.flushFarmodoroDataBeforeReload = async () => {
   if (!activeAuthUser) return true;
-  saveState();
-  const operations = [flushFocusTime()];
-  if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
-  if (appStateHydrated) operations.push(syncAppStateDatabaseImmediately());
-  if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
-  if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
-  const results = await Promise.allSettled(operations);
-  const failed = results.some((result) => result.status === "rejected");
-  if (failed) showToast("저장에 실패해서 자동 업데이트를 멈췄어. 연결을 확인해.");
-  return !failed;
+  exitFlushKeepAlive = true;
+  try {
+    saveState();
+    const operations = [flushFocusTime()];
+    if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
+    if (appStateHydrated) operations.push(syncAppStateDatabaseImmediately());
+    if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
+    if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
+    const results = await Promise.allSettled(operations);
+    const failed = results.some((result) => result.status === "rejected");
+    if (failed) showToast("저장에 실패해서 자동 업데이트를 멈췄어. 연결을 확인해.");
+    return !failed;
+  } finally {
+    exitFlushKeepAlive = false;
+  }
 };
 
 window.addEventListener("pagehide", () => {
-  void syncTaskDatabaseImmediately().catch(() => {});
-  void syncAppStateDatabaseImmediately().catch(() => {});
-  void syncFarmDataDatabaseImmediately().catch(() => {});
-  if (isFocusTimerOwner()) void syncFocusTimerDatabaseImmediately();
-  void flushFocusTime();
+  void flushFarmodoroDataOnExit();
 });
 
 document.querySelector("#openMiniFocus").addEventListener("click", () => {

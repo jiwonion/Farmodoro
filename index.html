@@ -17,7 +17,21 @@
         document.documentElement.classList.remove("app-initializing");
       }, 1500);
       window.setTimeout(() => {
-        document.documentElement.classList.remove("auth-resolving");
+        if (window.__farmodoroAppJsLoaded) {
+          document.documentElement.classList.remove("auth-resolving");
+          return;
+        }
+        // app.js never started running (blocked script, thrown error before
+        // its first line) -- show a retry message instead of silently
+        // revealing the static placeholder numbers in the app shell.
+        var boot = document.querySelector(".auth-boot");
+        if (boot) {
+          boot.innerHTML =
+            '<div style="text-align:center;color:#2f5d45;font:15px/1.5 -apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:0 24px;">' +
+            "불러오는 데 문제가 생겼어.<br />인터넷 연결을 확인해줘." +
+            '<br /><button type="button" onclick="location.reload()" ' +
+            'style="margin-top:14px;padding:8px 18px;border:0;border-radius:8px;background:#2f5d45;color:#fff;font-size:14px;cursor:pointer;">새로고침</button></div>';
+        }
       }, 8000);
     </script>
     <link rel="stylesheet" href="./styles.css?v=94" />
@@ -295,6 +309,7 @@
                 type="text"
                 maxlength="60"
                 placeholder="새 할 일을 입력해"
+                aria-label="새 할 일 입력"
                 autocomplete="off"
               />
               <div class="custom-group-select" id="customTaskGroupSelect">
@@ -323,6 +338,7 @@
                   type="text"
                   maxlength="16"
                   placeholder="새 그룹 이름"
+                  aria-label="새 그룹 이름 입력"
                   autocomplete="off"
                 />
                 <button class="primary-button compact" id="addGroupButton" type="button">추가</button>
@@ -399,6 +415,7 @@
                 type="text"
                 maxlength="30"
                 placeholder="습관 이름"
+                aria-label="습관 이름 입력"
                 autocomplete="off"
               />
               <div class="habit-measure-row">
@@ -975,34 +992,6 @@
           <button class="secondary-button" type="button" data-cancel-task-delete>취소</button>
           <button class="danger-button" id="confirmTaskDelete" type="button">삭제하고 차감하기</button>
         </div>
-      </section>
-    </div>
-
-    <div class="content-encryption-modal hidden" id="contentEncryptionModal" role="dialog" aria-modal="true" aria-labelledby="contentEncryptionTitle" aria-describedby="contentEncryptionDescription">
-      <div class="content-encryption-backdrop"></div>
-      <section class="content-encryption-panel">
-        <span class="section-kicker">PRIVATE DATA</span>
-        <h2 id="contentEncryptionTitle">데이터 암호 설정</h2>
-        <p id="contentEncryptionDescription">
-          할 일, 습관, 그룹 이름을 암호화해서 저장해. Google 비밀번호 말고 별도 암호를 입력해.
-        </p>
-        <form id="contentEncryptionForm">
-          <input type="email" autocomplete="username" value="" hidden />
-          <label class="content-encryption-field">
-            <span>보안 암호</span>
-            <input id="contentEncryptionPassword" type="password" minlength="10" autocomplete="new-password" required />
-          </label>
-          <label class="content-encryption-field" id="contentEncryptionConfirmField">
-            <span>보안 암호 확인</span>
-            <input id="contentEncryptionPasswordConfirm" type="password" minlength="10" autocomplete="new-password" required />
-          </label>
-          <p class="content-encryption-warning" id="contentEncryptionWarning">
-            이 암호는 서버에 저장하지 않아. 잊으면 기존 이름을 복구할 수 없어.
-          </p>
-          <p class="content-encryption-status" id="contentEncryptionStatus" role="alert"></p>
-          <button class="primary-button" id="contentEncryptionSubmit" type="submit">암호화 시작</button>
-          <button class="content-encryption-signout" id="contentEncryptionSignOut" type="button">Google 계정에서 로그아웃</button>
-        </form>
       </section>
     </div>
 
