@@ -20,7 +20,7 @@
         document.documentElement.classList.remove("auth-resolving");
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=82" />
+    <link rel="stylesheet" href="./styles.css?v=84" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -426,6 +426,19 @@
                 </div>
                 <input id="habitTargetValue" type="number" min="1" step="1" value="1" inputmode="numeric" aria-label="목표값" />
                 <input id="habitUnit" type="text" maxlength="8" value="회" aria-label="단위" />
+              </div>
+              <label class="weekday-target-toggle">
+                <input id="habitWeekdayTargetsEnabled" type="checkbox" />
+                <span>요일별 목표 설정</span>
+              </label>
+              <div class="weekday-target-grid hidden" id="habitWeekdayTargets" aria-label="요일별 목표값">
+                <label><span>월</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="1" aria-label="월요일 목표값" /></label>
+                <label><span>화</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="2" aria-label="화요일 목표값" /></label>
+                <label><span>수</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="3" aria-label="수요일 목표값" /></label>
+                <label><span>목</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="4" aria-label="목요일 목표값" /></label>
+                <label><span>금</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="5" aria-label="금요일 목표값" /></label>
+                <label><span>토</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="6" aria-label="토요일 목표값" /></label>
+                <label><span>일</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="7" aria-label="일요일 목표값" /></label>
               </div>
               <fieldset class="weekday-field">
                 <legend>반복 요일</legend>
@@ -1182,7 +1195,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=82"></script>
-    <script src="./pwa-register.js?v=82"></script>
+    <script src="./app.js?v=84"></script>
+    <script src="./pwa-register.js?v=84"></script>
   </body>
 </html>

@@ -91,6 +91,7 @@ let lastFarmDataSyncSignature = "";
 let lastFarmDataSyncError = "";
 let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
+let productivityRealtimeMutedUntil = 0;
 let tutorialStep = 0;
 let tutorialShownForUserId = null;
 let tutorialPreviousFocus = null;
@@ -1814,12 +1815,13 @@ state.habits = state.habits.map((habit) => {
         : []);
   return {
     ...habit,
+    targetByWeekday: habit.targetByWeekday ?? {},
     completedDate: habit.completedDate ?? (habit.complete ? toLocalDateString() : ""),
     completionDates,
     progressByDate:
       habit.progressByDate ??
       (habit.measureType === "count"
-        ? Object.fromEntries(completionDates.map((date) => [date, habit.targetValue ?? 1]))
+        ? Object.fromEntries(completionDates.map((date) => [date, getHabitTargetForDate(habit, date)]))
         : {}),
     focusSecondsByDate: habit.focusSecondsByDate ?? {},
   };
@@ -1882,6 +1884,7 @@ let farmMailRealtimeRefreshTimer = null;
 let farmContentRealtimeRefreshTimer = null;
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
+const selectedRecipeIngredients = ["", "", ""];
 let farmLeaderboard = [];
 ensureDailyFarmMail();
 ensureDailyFarmInbox();
@@ -1917,6 +1920,8 @@ const habitMeasureTrigger = document.querySelector("#habitMeasureTrigger");
 const habitMeasureLabel = document.querySelector("#habitMeasureLabel");
 const habitMeasureMenu = document.querySelector("#habitMeasureMenu");
 const habitTargetValue = document.querySelector("#habitTargetValue");
+const habitWeekdayTargetsEnabled = document.querySelector("#habitWeekdayTargetsEnabled");
+const habitWeekdayTargets = document.querySelector("#habitWeekdayTargets");
 const habitUnit = document.querySelector("#habitUnit");
 const habitEndDate = document.querySelector("#habitEndDate");
 const freePassTargetModal = document.querySelector("#freePassTargetModal");
@@ -2491,6 +2496,7 @@ function loadState(savedState = null) {
         focusSecondsByDate: habit.focusSecondsByDate ?? {},
         measureType: habit.measureType ?? "count",
         targetValue: habit.targetValue ?? 1,
+        targetByWeekday: habit.targetByWeekday ?? {},
         unit: habit.unit ?? "회",
         weekdays: habit.weekdays ?? [1, 2, 3, 4, 5, 6, 7],
         startDate: habit.startDate ?? "",
@@ -2936,6 +2942,7 @@ function createUuid() {
 
 function resetTaskDatabaseState() {
   stopProductivityRealtime();
+  productivityRealtimeMutedUntil = 0;
   taskDataHydrated = false;
   taskDataUserId = null;
   taskDataLoadPromise = null;
@@ -2956,14 +2963,15 @@ function serializeTaskDatabaseState() {
       ...Object.keys(habit.recordMetaByDate ?? {}),
     ]);
     return [...recordDates].map((recordDate) => {
+      const targetValue = getHabitTargetForDate(habit, recordDate);
       const progressValue = habit.measureType === "count"
         ? Math.max(0, Number(habit.progressByDate?.[recordDate] ?? 0))
         : habit.completionDates.includes(recordDate)
-          ? Number(habit.targetValue)
+          ? targetValue
           : 0;
       const completed =
         habit.completionDates.includes(recordDate) ||
-        (habit.measureType === "count" && progressValue >= Number(habit.targetValue));
+        (habit.measureType === "count" && progressValue >= targetValue);
       const recordMeta = habit.recordMetaByDate?.[recordDate] ?? {};
       const isToday = recordDate === toLocalDateString();
       return {
@@ -3019,6 +3027,7 @@ function serializeTaskDatabaseState() {
       title: habit.title,
       measure_type: habit.measureType,
       target_value: Number(habit.targetValue),
+      target_by_weekday: habit.targetByWeekday ?? {},
       unit: habit.unit,
       weekdays: habit.weekdays,
       start_date: habit.startDate || null,
@@ -3027,6 +3036,24 @@ function serializeTaskDatabaseState() {
     })),
     habitRecords,
   });
+}
+
+function serializeTaskRenderSignature() {
+  const snapshot = JSON.parse(serializeTaskDatabaseState());
+  snapshot.tasks.forEach((task) => delete task.focus_seconds);
+  snapshot.habitRecords = snapshot.habitRecords
+    .map((record) => {
+      delete record.focus_seconds;
+      return record;
+    })
+    .filter(
+      (record) =>
+        Number(record.progress_value) > 0 ||
+        Boolean(record.completed_at) ||
+        Number(record.completion_reward) > 0 ||
+        Boolean(record.completed_with_free_pass),
+    );
+  return JSON.stringify(snapshot);
 }
 
 function mapDatabaseTaskGroup(group) {
@@ -3087,6 +3114,14 @@ function mapDatabaseHabit(habit, records) {
     recordMetaByDate,
     measureType: habit.measure_type,
     targetValue: Number(habit.target_value),
+    targetByWeekday:
+      habit.target_by_weekday && typeof habit.target_by_weekday === "object"
+        ? Object.fromEntries(
+            Object.entries(habit.target_by_weekday)
+              .map(([day, value]) => [day, Number(value)])
+              .filter(([day, value]) => /^[1-7]$/.test(day) && Number.isInteger(value) && value > 0),
+          )
+        : {},
     unit: habit.unit,
     weekdays: habit.weekdays.map(Number),
     startDate:
@@ -3135,7 +3170,18 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
 
   const hadCurrentData = taskDataUserId === user.id && taskDataHydrated;
-  const previousSignature = hadCurrentData ? serializeTaskDatabaseState() : "";
+  const previousRenderSignature = hadCurrentData ? serializeTaskRenderSignature() : "";
+  const liveFocusItem = runningFocusMode === "linked" && isFocusTimerOwner()
+    ? getFocusItem()
+    : null;
+  const liveFocusSnapshot = liveFocusItem && activeFocus
+    ? {
+        type: activeFocus.type,
+        id: liveFocusItem.id,
+        taskSeconds: Number(liveFocusItem.focusSeconds ?? 0),
+        habitSeconds: getHabitDailyFocusSeconds(liveFocusItem),
+      }
+    : null;
   taskDataUserId = user.id;
   taskDataHydrated = false;
   const requestedUserId = user.id;
@@ -3160,6 +3206,19 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         habitRecordRows.filter((record) => record.habit_id === habit.id),
       ),
     );
+    if (liveFocusSnapshot?.type === "task") {
+      const task = state.tasks.find((item) => item.id === liveFocusSnapshot.id);
+      if (task) task.focusSeconds = Math.max(task.focusSeconds, liveFocusSnapshot.taskSeconds);
+    } else if (liveFocusSnapshot?.type === "habit") {
+      const habit = state.habits.find((item) => item.id === liveFocusSnapshot.id);
+      if (habit) {
+        const today = toLocalDateString();
+        habit.focusSecondsByDate[today] = Math.max(
+          getHabitDailyFocusSeconds(habit),
+          liveFocusSnapshot.habitSeconds,
+        );
+      }
+    }
     if (!hadCurrentData) {
       taskGroupFilter = "all";
     }
@@ -3171,13 +3230,15 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
     }
     taskDataHydrated = true;
     const nextSignature = serializeTaskDatabaseState();
+    const nextRenderSignature = serializeTaskRenderSignature();
     lastTaskSyncSignature = nextSignature;
-    if (nextSignature !== previousSignature) render();
+    if (nextRenderSignature !== previousRenderSignature) render();
+    else updateProductivityFocusLabels();
   })()
     .catch((error) => {
       console.error("Farmodoro task data could not be loaded", error);
       if (activeAuthUser?.id === requestedUserId) {
-        showToast("할 일과 습관 데이터를 불러오지 못했어. Supabase 019 SQL을 확인해줘");
+        showToast("할 일과 습관 데이터를 불러오지 못했어. Supabase 035 SQL을 확인해줘");
       }
     })
     .finally(() => {
@@ -3265,6 +3326,8 @@ async function syncTaskDatabaseImmediately() {
 async function syncTaskDatabaseSnapshot(userId, snapshot) {
   if (activeAuthUser?.id !== userId || taskDataUserId !== userId) return;
 
+  productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 5000);
+
   const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
   const taskRows = snapshot.tasks.map((task) => ({ ...task, user_id: userId }));
   const habitRows = snapshot.habits.map((habit) => ({ ...habit, user_id: userId }));
@@ -3328,6 +3391,8 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
     throwTaskSyncError("그룹 삭제", error);
     deletedGroupIds.forEach((groupId) => pendingGroupDatabaseDeletes.delete(groupId));
   }
+
+  productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 1500);
 }
 
 function escapeHtml(value) {
@@ -3383,7 +3448,7 @@ function getHabitDailyFocusSeconds(habit, dateString = toLocalDateString()) {
 function getLinkedFocusSeconds(item = getFocusItem()) {
   if (!item) return 0;
   if (activeFocus?.type === "task") return Math.max(0, Math.floor(item.focusSeconds ?? 0));
-  const targetSeconds = Math.max(0, Number(item.targetValue) * 60);
+  const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
   return Math.max(0, targetSeconds - getHabitDailyFocusSeconds(item));
 }
 
@@ -3539,6 +3604,7 @@ function renderTasks() {
             draggable="${task.archived || isEditing ? "false" : "true"}"
             data-task-id="${task.id}"
           >
+            ${task.archived || isEditing ? "" : '<span class="card-drag-handle" aria-hidden="true">⠿</span>'}
             ${
               isEditing
                 ? `
@@ -3576,12 +3642,13 @@ function renderTasks() {
                       task.archived
                         ? '<span class="task-archived-label">보관됨</span>'
                         : task.status === "done"
-                          ? `<span class="task-focus-pill completed-focus-time">◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
+                          ? `<span class="task-focus-pill completed-focus-time" data-task-focus-time>◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
                           : `
                           <button
                             class="task-focus-pill"
                             type="button"
                             data-focus-task="${task.id}"
+                            data-task-focus-time
                             aria-label="${escapeHtml(task.title)} 집중 시작"
                           >
                             ◷ 집중 ${formatFocusTime(task.focusSeconds)}
@@ -3908,15 +3975,25 @@ function isHabitScheduledToday(habit) {
   return isHabitScheduledOn(habit, new Date());
 }
 
+function getHabitTargetForDate(habit, date = new Date()) {
+  const targetDate = typeof date === "string" ? new Date(`${date}T12:00:00`) : date;
+  const weekday = targetDate.getDay() === 0 ? 7 : targetDate.getDay();
+  const weekdayTarget = Number(habit.targetByWeekday?.[weekday]);
+  return Number.isInteger(weekdayTarget) && weekdayTarget > 0
+    ? weekdayTarget
+    : Math.max(1, Number(habit.targetValue) || 1);
+}
+
 function getHabitProgress(habit, dateString = toLocalDateString()) {
+  const targetValue = getHabitTargetForDate(habit, dateString);
   if (habit.measureType !== "count") {
-    return habit.completionDates.includes(dateString) ? habit.targetValue : 0;
+    return habit.completionDates.includes(dateString) ? targetValue : 0;
   }
   return Math.max(0, Number(habit.progressByDate?.[dateString] ?? 0));
 }
 
 function getHabitProgressRatio(habit, dateString = toLocalDateString()) {
-  return Math.min(1, getHabitProgress(habit, dateString) / Math.max(1, habit.targetValue));
+  return Math.min(1, getHabitProgress(habit, dateString) / getHabitTargetForDate(habit, dateString));
 }
 
 function isHabitCompleteToday(habit) {
@@ -3954,6 +4031,23 @@ function formatHabitSchedule(habit, includeEndDate = true) {
           ? "주말"
           : habit.weekdays.map((day) => labels[day - 1]).join("·");
   return includeEndDate && habit.endDate ? `${weekdays} · ${habit.endDate}까지` : weekdays;
+}
+
+function formatHabitTargets(habit) {
+  const labels = ["월", "화", "수", "목", "금", "토", "일"];
+  const groups = new Map();
+  habit.weekdays.forEach((day) => {
+    const target = getHabitTargetForDate(
+      habit,
+      new Date(2024, 0, day),
+    );
+    if (!groups.has(target)) groups.set(target, []);
+    groups.get(target).push(labels[day - 1]);
+  });
+  if (groups.size <= 1) return `${groups.keys().next().value ?? habit.targetValue}${habit.unit}`;
+  return [...groups.entries()]
+    .map(([target, days]) => `${days.join("·")} ${target}${habit.unit}`)
+    .join(" / ");
 }
 
 const focusDailyQuotes = [
@@ -4054,6 +4148,7 @@ function renderHabits() {
       const scheduledToday = isHabitScheduledToday(habit);
       const completeToday = isHabitCompleteToday(habit);
       const countProgress = getHabitProgress(habit);
+      const todayTarget = getHabitTargetForDate(habit);
       const isCountHabit = habit.measureType === "count";
       const control = isCountHabit
         ? `
@@ -4063,7 +4158,7 @@ function renderHabits() {
               data-adjust-habit="${habit.id}"
               data-delta="1"
               aria-label="횟수 늘리기"
-              ${!scheduledToday || countProgress >= habit.targetValue ? "disabled" : ""}
+              ${!scheduledToday || countProgress >= todayTarget ? "disabled" : ""}
             >＋</button>
             <strong>${countProgress}</strong>
             <button
@@ -4101,10 +4196,11 @@ function renderHabits() {
           : "";
       return `
         <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
+          <span class="card-drag-handle" aria-hidden="true">⠿</span>
           ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
-            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${habit.targetValue}${escapeHtml(habit.unit)}` : `${habit.targetValue}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${habit.measureType === "time" ? ` · 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}` : ""}</small>
+            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${todayTarget}${escapeHtml(habit.unit)}` : `${todayTarget}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${currentPage === "habits" && Object.keys(habit.targetByWeekday ?? {}).length ? ` · ${escapeHtml(formatHabitTargets(habit))}` : ""}${habit.measureType === "time" ? ` <span data-habit-focus-time>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}</span>` : ""}</small>
             ${focusAction}
           </span>
           <span>
@@ -4140,6 +4236,7 @@ function renderHabitHeatmap() {
         const date = new Date(year, month, index + 1);
         const dateString = toLocalDateString(date);
         const progress = getHabitProgress(habit, dateString);
+        const targetValue = getHabitTargetForDate(habit, dateString);
         const progressRatio = getHabitProgressRatio(habit, dateString);
         const completed = progressRatio >= 1;
         const beforeRegistration = Boolean(habit.startDate && dateString < habit.startDate);
@@ -4160,7 +4257,7 @@ function renderHabitHeatmap() {
         const status = beforeRegistration
           ? "등록 전"
           : habit.measureType === "count" && scheduled
-            ? `${progress} / ${habit.targetValue}${habit.unit}`
+            ? `${progress} / ${targetValue}${habit.unit}`
             : completed
               ? "완료"
               : scheduled
@@ -4297,7 +4394,7 @@ function useFreePassOnTarget(targetValue) {
     if (!habit || isHabitCompleteToday(habit)) return;
     if (habit.measureType === "count") {
       habit.progressByDate ??= {};
-      habit.progressByDate[toLocalDateString()] = habit.targetValue;
+      habit.progressByDate[toLocalDateString()] = getHabitTargetForDate(habit);
     }
     habit.complete = true;
     habit.completedDate = toLocalDateString();
@@ -4930,7 +5027,9 @@ function renderFarm() {
   ["recipeIngredient1", "recipeIngredient2", "recipeIngredient3"].forEach((id) => {
     const select = document.querySelector(`#${id}`);
     if (!select) return;
+    const index = Number(id.at(-1)) - 1;
     select.innerHTML = ingredientOptions;
+    select.value = CROPS[selectedRecipeIngredients[index]] ? selectedRecipeIngredients[index] : "";
     renderRecipeIngredientPicker(select);
   });
 
@@ -5372,7 +5471,7 @@ function adjustHabitCount(id, delta) {
   const today = toLocalDateString();
   const wasComplete = isHabitCompleteToday(habit);
   const nextProgress = Math.min(
-    habit.targetValue,
+    getHabitTargetForDate(habit),
     Math.max(0, getHabitProgress(habit) + delta),
   );
   habit.progressByDate ??= {};
@@ -5385,7 +5484,7 @@ function adjustHabitCount(id, delta) {
   } else if (result && !result.complete) {
     showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
   } else {
-    showToast(`${nextProgress} / ${habit.targetValue}${habit.unit}`);
+    showToast(`${nextProgress} / ${getHabitTargetForDate(habit)}${habit.unit}`);
   }
   renderHabitUpdates();
   scheduleTaskDatabaseSync(0);
@@ -5407,7 +5506,7 @@ function updateFocusDisplay() {
   const totalSeconds = Math.max(
     1,
     focusMode === "linked" && activeFocus?.type === "habit" && item
-      ? Number(item.targetValue) * 60
+      ? getHabitTargetForDate(item) * 60
       : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
   const remainingRatio = isTaskStopwatch
@@ -5556,7 +5655,10 @@ function startProductivityRealtime(user) {
   stopProductivityRealtime();
   if (!supabaseClient || !user) return;
 
-  const handleChange = () => scheduleProductivityRealtimeRefresh(user.id);
+  const handleChange = () => {
+    if (Date.now() < productivityRealtimeMutedUntil) return;
+    scheduleProductivityRealtimeRefresh(user.id);
+  };
   productivityRealtimeChannel = subscribeToUserTables(
     supabaseClient.channel(`productivity:${user.id}`),
     ["task_groups", "tasks", "habits"],
@@ -5684,6 +5786,40 @@ function addFocusSecond(elapsedSeconds = 1, mode = focusMode) {
   state.focusRewardSeconds = Math.max(0, (focusDailyServerSeconds + getPendingFocusDailySeconds()) % 3600);
 }
 
+function updateProductivityFocusLabels() {
+  document.querySelectorAll("[data-task-id]").forEach((card) => {
+    const task = state.tasks.find((item) => item.id === card.dataset.taskId);
+    const label = card.querySelector("[data-task-focus-time]");
+    if (task && label) label.textContent = `◷ 집중 ${formatFocusTime(task.focusSeconds)}`;
+  });
+  document.querySelectorAll("[data-habit-id]").forEach((card) => {
+    const habit = state.habits.find((item) => item.id === card.dataset.habitId);
+    const label = card.querySelector("[data-habit-focus-time]");
+    if (habit && label) {
+      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}`;
+    }
+  });
+}
+
+function updateActiveFocusCard() {
+  if (runningFocusMode !== "linked" || !activeFocus) return;
+  const item = getFocusItem();
+  if (!item) return;
+
+  if (activeFocus.type === "task") {
+    document.querySelectorAll(`[data-task-id="${item.id}"] [data-task-focus-time]`).forEach((button) => {
+      button.textContent = `◷ 집중 ${formatFocusTime(item.focusSeconds)}`;
+    });
+    return;
+  }
+
+  document
+    .querySelectorAll(`[data-habit-id="${item.id}"] [data-habit-focus-time]`)
+    .forEach((label) => {
+      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(item))}`;
+    });
+}
+
 function updateFocusActionButton() {
   const button = document.querySelector("#focusButton");
   if (runningFocusMode === focusMode) {
@@ -5734,7 +5870,7 @@ function advanceRunningFocusTimer(mode) {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
       } else if (activeFocus?.type === "habit") {
         const today = toLocalDateString();
-        const targetSeconds = Math.max(0, Number(item.targetValue) * 60);
+        const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
         const focusedSeconds = Math.min(
           targetSeconds,
           getHabitDailyFocusSeconds(item, today) + appliedSeconds,
@@ -5744,6 +5880,7 @@ function advanceRunningFocusTimer(mode) {
       }
     }
     addFocusSecond(appliedSeconds, mode);
+    updateActiveFocusCard();
   }
 
   if (focusMode === mode) {
@@ -6272,6 +6409,11 @@ function resetHabitForm() {
   habitInput.value = "";
   habitMeasureType.value = "count";
   habitTargetValue.value = 1;
+  habitWeekdayTargetsEnabled.checked = false;
+  habitWeekdayTargets.classList.add("hidden");
+  habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
+    input.value = 1;
+  });
   habitUnit.value = "회";
   document
     .querySelectorAll('[name="habitWeekday"]')
@@ -6291,6 +6433,12 @@ function openHabitModal(habit = null) {
     habitInput.value = habit.title;
     habitMeasureType.value = habit.measureType;
     habitTargetValue.value = habit.targetValue;
+    const hasWeekdayTargets = Object.keys(habit.targetByWeekday ?? {}).length > 0;
+    habitWeekdayTargetsEnabled.checked = hasWeekdayTargets;
+    habitWeekdayTargets.classList.toggle("hidden", !hasWeekdayTargets);
+    habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
+      input.value = habit.targetByWeekday?.[input.dataset.habitWeekdayTarget] ?? habit.targetValue;
+    });
     habitUnit.value = habit.unit;
     document.querySelectorAll('[name="habitWeekday"]').forEach((input) => {
       input.checked = habit.weekdays.includes(Number(input.value));
@@ -6413,6 +6561,26 @@ function syncHabitMeasureFields() {
   habitUnit.placeholder = isAmount ? "단위" : "";
   syncHabitMeasurePicker();
 }
+
+function syncHabitWeekdayTargetVisibility() {
+  habitWeekdayTargets.classList.toggle("hidden", !habitWeekdayTargetsEnabled.checked);
+  if (!habitWeekdayTargetsEnabled.checked) return;
+  habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
+    if (!input.value) input.value = habitTargetValue.value || "1";
+  });
+}
+
+habitWeekdayTargetsEnabled.addEventListener("change", syncHabitWeekdayTargetVisibility);
+
+habitWeekdayTargets.addEventListener("keydown", (event) => {
+  if ([".", ",", "e", "E", "-", "+"].includes(event.key)) event.preventDefault();
+});
+
+habitWeekdayTargets.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-habit-weekday-target]");
+  if (!input || !input.value) return;
+  input.value = String(Math.max(1, Math.trunc(Number(input.value) || 1)));
+});
 
 habitMeasureType.addEventListener("change", syncHabitMeasureFields);
 
@@ -6583,6 +6751,13 @@ habitForm.addEventListener("submit", (event) => {
     (input) => Number(input.value),
   );
   const targetValue = Number(habitTargetValue.value);
+  const targetByWeekday = habitWeekdayTargetsEnabled.checked
+    ? Object.fromEntries(
+        [...habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]")]
+          .filter((input) => weekdays.includes(Number(input.dataset.habitWeekdayTarget)))
+          .map((input) => [input.dataset.habitWeekdayTarget, Number(input.value)]),
+      )
+    : {};
   const unit = habitUnit.value.trim();
 
   if (!weekdays.length) {
@@ -6597,6 +6772,10 @@ habitForm.addEventListener("submit", (event) => {
     showToast("목표값은 정수로 입력해");
     return;
   }
+  if (Object.values(targetByWeekday).some((value) => !Number.isInteger(value) || value <= 0)) {
+    showToast("요일별 목표값을 확인해");
+    return;
+  }
   if (!unit) {
     showToast("목표 단위를 입력해");
     return;
@@ -6608,6 +6787,7 @@ habitForm.addEventListener("submit", (event) => {
       title,
       measureType: habitMeasureType.value,
       targetValue,
+      targetByWeekday,
       unit,
       weekdays,
       endDate: habitEndDate.value,
@@ -6630,6 +6810,7 @@ habitForm.addEventListener("submit", (event) => {
       recordMetaByDate: {},
       measureType: habitMeasureType.value,
       targetValue,
+      targetByWeekday,
       unit,
       weekdays,
       startDate: toLocalDateString(),
@@ -6818,6 +6999,19 @@ function reorderTask(taskId, status, targetId = null, placeAfter = false) {
   state.tasks.splice(insertIndex, 0, task);
 }
 
+function commitTaskReorder(taskId, status, targetId = null, placeAfter = false) {
+  const task = state.tasks.find((entry) => entry.id === taskId);
+  if (!task) return false;
+  if (task.status !== status) {
+    moveTaskTo(taskId, status);
+    if (task.status !== status) return false;
+  }
+  reorderTask(taskId, status, targetId, placeAfter);
+  renderTasks();
+  saveState();
+  return true;
+}
+
 document.querySelector("#taskBoard").addEventListener("drop", async (event) => {
   const column = event.target.closest("[data-status]");
   if (!column) return;
@@ -6830,12 +7024,7 @@ document.querySelector("#taskBoard").addEventListener("drop", async (event) => {
     ? event.clientY >= targetCard.getBoundingClientRect().top + targetCard.offsetHeight / 2
     : false;
   document.querySelectorAll(".board-column").forEach((item) => item.classList.remove("drag-over"));
-  const task = state.tasks.find((entry) => entry.id === taskId);
-  if (!task) return;
-  if (task.status !== column.dataset.status) moveTaskTo(taskId, column.dataset.status);
-  reorderTask(taskId, column.dataset.status, targetId, placeAfter);
-  renderTasks();
-  saveState();
+  if (!commitTaskReorder(taskId, column.dataset.status, targetId, placeAfter)) return;
   try {
     await syncTaskDatabaseImmediately();
   } catch (error) {
@@ -6879,20 +7068,156 @@ document.querySelector("#habitList").addEventListener("drop", (event) => {
   const target = event.target.closest(".habit-item:not(.dragging)");
   if (!habitId || !target) return;
   const targetId = target.dataset.habitId;
-  const sourceIndex = state.habits.findIndex((habit) => habit.id === habitId);
-  if (sourceIndex < 0 || habitId === targetId) return;
   const placeAfter = event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2;
-  const [habit] = state.habits.splice(sourceIndex, 1);
-  const targetIndex = state.habits.findIndex((entry) => entry.id === targetId);
-  state.habits.splice(targetIndex + (placeAfter ? 1 : 0), 0, habit);
+  if (!reorderHabit(habitId, targetId, placeAfter)) return;
   renderHabits();
   saveState();
-  scheduleTaskDatabaseSync(0);
+  void syncTaskDatabaseImmediately().catch((error) => {
+    console.error("Farmodoro habit reorder could not be saved", error);
+    showToast("순서 변경을 저장하지 못했어");
+  });
 });
+
+function reorderHabit(habitId, targetId, placeAfter = false) {
+  const sourceIndex = state.habits.findIndex((habit) => habit.id === habitId);
+  if (sourceIndex < 0 || habitId === targetId) return false;
+  const [habit] = state.habits.splice(sourceIndex, 1);
+  const targetIndex = state.habits.findIndex((entry) => entry.id === targetId);
+  if (targetIndex < 0) {
+    state.habits.splice(sourceIndex, 0, habit);
+    return false;
+  }
+  state.habits.splice(targetIndex + (placeAfter ? 1 : 0), 0, habit);
+  return true;
+}
 
 document.querySelector("#habitList").addEventListener("dragend", () => {
   document.querySelectorAll(".habit-item").forEach((card) => card.classList.remove("dragging", "drop-before", "drop-after"));
 });
+
+function clearPointerDropState() {
+  document.querySelectorAll(".board-column").forEach((item) => item.classList.remove("drag-over"));
+  document.querySelectorAll(".task-card, .habit-item").forEach((item) => {
+    item.classList.remove("dragging", "drop-before", "drop-after");
+  });
+}
+
+function installTouchReorder(container, type) {
+  let dragState = null;
+
+  container.addEventListener("contextmenu", (event) => {
+    const card = event.target.closest(type === "task" ? ".task-card" : ".habit-item.reorderable");
+    if (card && !event.target.closest("input, select, textarea")) event.preventDefault();
+  });
+
+  container.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse" || event.button !== 0) return;
+    const handle = event.target.closest(".card-drag-handle");
+    const card = handle?.closest(type === "task" ? "[data-task-id]" : "[data-habit-id]");
+    if (!card || (type === "habit" && !["today", "habits"].includes(currentPage))) return;
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    card.classList.add("dragging");
+    document.body.classList.add("touch-reordering");
+    dragState = {
+      pointerId: event.pointerId,
+      id: type === "task" ? card.dataset.taskId : card.dataset.habitId,
+      targetId: null,
+      status: type === "task" ? card.closest("[data-status]")?.dataset.status : null,
+      placeAfter: false,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+  });
+
+  container.addEventListener("pointermove", (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    event.preventDefault();
+    if (!dragState.moved) {
+      dragState.moved = Math.hypot(
+        event.clientX - dragState.startX,
+        event.clientY - dragState.startY,
+      ) >= 6;
+      if (!dragState.moved) return;
+    }
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    document.querySelectorAll(".task-card, .habit-item").forEach((item) => {
+      item.classList.remove("drop-before", "drop-after");
+    });
+
+    if (type === "task") {
+      const column = hit?.closest("[data-status]");
+      document.querySelectorAll(".board-column").forEach((item) => {
+        item.classList.toggle("drag-over", item === column);
+      });
+      if (!column) {
+        dragState.status = null;
+        dragState.targetId = null;
+        return;
+      }
+      dragState.status = column.dataset.status;
+      const target = hit.closest(".task-card:not(.dragging)");
+      dragState.targetId = target?.dataset.taskId ?? null;
+      dragState.placeAfter = Boolean(
+        target && event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
+      );
+      target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
+      return;
+    }
+
+    const target = hit?.closest(".habit-item:not(.dragging)");
+    dragState.targetId = target?.dataset.habitId ?? null;
+    dragState.placeAfter = Boolean(
+      target && event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
+    );
+    target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
+  });
+
+  const finish = (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    const completedDrag = dragState;
+    dragState = null;
+    document.body.classList.remove("touch-reordering");
+    clearPointerDropState();
+    if (!completedDrag.moved) return;
+
+    if (type === "task" && completedDrag.status) {
+      if (!commitTaskReorder(
+        completedDrag.id,
+        completedDrag.status,
+        completedDrag.targetId,
+        completedDrag.placeAfter,
+      )) return;
+      void syncTaskDatabaseImmediately().catch((error) => {
+        console.error("Farmodoro touch task reorder could not be saved", error);
+        showToast("순서 변경을 저장하지 못했어");
+      });
+    } else if (
+      type === "habit" &&
+      completedDrag.targetId &&
+      reorderHabit(completedDrag.id, completedDrag.targetId, completedDrag.placeAfter)
+    ) {
+      renderHabits();
+      saveState();
+      void syncTaskDatabaseImmediately().catch((error) => {
+        console.error("Farmodoro touch habit reorder could not be saved", error);
+        showToast("순서 변경을 저장하지 못했어");
+      });
+    }
+  };
+
+  container.addEventListener("pointerup", finish);
+  container.addEventListener("pointercancel", (event) => {
+    if (!dragState || event.pointerId !== dragState.pointerId) return;
+    dragState = null;
+    document.body.classList.remove("touch-reordering");
+    clearPointerDropState();
+  });
+}
+
+installTouchReorder(document.querySelector("#taskBoard"), "task");
+installTouchReorder(document.querySelector("#habitList"), "habit");
 
 document.querySelector("#habitList").addEventListener("click", (event) => {
   const focusButton = event.target.closest("[data-focus-habit]");
@@ -7258,9 +7583,7 @@ document.querySelector("#morrisonBuyList").addEventListener("click", (event) => 
 });
 
 document.querySelector("#cookRecipeButton").addEventListener("click", () => {
-  const ingredientIds = [1, 2, 3]
-    .map((index) => document.querySelector(`#recipeIngredient${index}`).value)
-    .filter(Boolean);
+  const ingredientIds = selectedRecipeIngredients.filter(Boolean);
   if (ingredientIds.length < 2) {
     showToast("재료를 두 가지 이상 골라");
     return;
@@ -7285,6 +7608,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   const recipeEntry = getRecipeByIngredients(ingredientIds);
   if (!recipeEntry) {
     state.wasteCount += 1;
+    selectedRecipeIngredients.fill("");
     showToast("도감에 없는 조합이야 폐기물이 생겼어");
     render();
     return;
@@ -7294,6 +7618,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   state.foodInventory[recipeId] += 1;
   const firstDiscovery = !state.discoveredRecipes.includes(recipeId);
   if (firstDiscovery) state.discoveredRecipes.push(recipeId);
+  selectedRecipeIngredients.fill("");
   showToast(
     firstDiscovery
       ? `새 레시피 발견! ${recipe.name}`
@@ -7597,6 +7922,7 @@ farmKitchenModal.addEventListener("click", (event) => {
     const select = picker.querySelector("select");
     const triggerButton = picker.querySelector(".recipe-ingredient-trigger");
     select.value = option.dataset.recipeIngredientValue;
+    selectedRecipeIngredients[Number(select.id.at(-1)) - 1] = select.value;
     renderRecipeIngredientPicker(select);
     closeRecipeIngredientMenus();
     triggerButton.focus();

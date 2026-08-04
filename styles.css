@@ -5801,6 +5801,37 @@ button {
   box-shadow: 0 3px 12px rgba(34, 44, 37, 0.035);
   cursor: grab;
   animation: card-in 180ms ease;
+  -webkit-touch-callout: none;
+}
+
+.card-drag-handle {
+  display: grid;
+  width: 18px;
+  height: 32px;
+  place-items: center;
+  color: #7f8d82;
+  font-size: 17px;
+  line-height: 1;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.task-card > .card-drag-handle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}
+
+.task-card > .card-drag-handle + .task-top h4 {
+  padding-right: 14px;
+}
+
+body.touch-reordering {
+  overscroll-behavior: none;
+  user-select: none;
 }
 
 .task-card:active {
@@ -6336,6 +6367,50 @@ button {
   gap: 6px;
 }
 
+.weekday-target-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  color: var(--green-700);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.weekday-target-toggle input {
+  width: 16px;
+  height: 16px;
+  min-height: 0 !important;
+  accent-color: var(--green-700);
+}
+
+.weekday-target-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.weekday-target-grid.hidden {
+  display: none;
+}
+
+.weekday-target-grid label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.weekday-target-grid input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 4px !important;
+  text-align: center;
+}
+
 .habit-measure-select {
   z-index: 5;
 }
@@ -6678,7 +6753,7 @@ input.themed-date-native {
 .habit-item {
   position: relative;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: 18px 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 65px;
@@ -6691,6 +6766,7 @@ input.themed-date-native {
 
 .habit-item.reorderable {
   cursor: grab;
+  -webkit-touch-callout: none;
 }
 
 .habit-item.reorderable:active {
@@ -6702,7 +6778,7 @@ input.themed-date-native {
 }
 
 .habit-item.count-habit {
-  grid-template-columns: 70px minmax(0, 1fr) auto;
+  grid-template-columns: 18px 70px minmax(0, 1fr) auto;
 }
 
 .habit-count-control {
@@ -10070,14 +10146,23 @@ canvas {
   :is(#todayPage, #tasksPage) #taskForm input,
   :is(#todayPage, #tasksPage) #taskForm .custom-group-trigger,
   :is(#todayPage, #tasksPage) #taskForm > button {
+    box-sizing: border-box;
     min-height: 32px;
     height: 32px;
     padding-inline: 7px;
     font-size: 10px;
   }
+  :is(#todayPage, #tasksPage) #taskForm > .primary-button {
+    align-self: stretch;
+    block-size: 32px;
+  }
   :is(#todayPage, #tasksPage) #taskForm .primary-button { grid-column: 2; grid-row: 1; }
   :is(#todayPage, #tasksPage) #taskForm .custom-group-select { grid-column: 1; grid-row: 2; }
   :is(#todayPage, #tasksPage) #taskForm .secondary-button { grid-column: 2; grid-row: 2; }
+
+  .weekday-target-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 
   #farmPage .farm-panel-header {
     display: flex;
