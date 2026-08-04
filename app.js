@@ -7105,6 +7105,7 @@ function clearPointerDropState() {
 function installTouchReorder(container, type) {
   let dragState = null;
   let holdTimer = null;
+  let suppressClickUntil = 0;
 
   const cardSelector = type === "task" ? "[data-task-id]" : "[data-habit-id]";
 
@@ -7121,8 +7122,18 @@ function installTouchReorder(container, type) {
     if (card && !event.target.closest("input, select, textarea")) event.preventDefault();
   });
 
+  container.addEventListener("click", (event) => {
+    if (Date.now() >= suppressClickUntil) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+
   container.addEventListener("touchstart", (event) => {
-    if (event.touches.length !== 1 || event.target.closest("button, input, select, textarea, a")) return;
+    if (
+      event.touches.length !== 1 ||
+      event.target.closest("input, select, textarea, a") ||
+      (type === "task" && event.target.closest("button"))
+    ) return;
     const card = event.target.closest(cardSelector);
     if (
       !card ||
@@ -7197,10 +7208,14 @@ function installTouchReorder(container, type) {
     target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
   }, { passive: false });
 
-  const finish = () => {
+  const finish = (event) => {
     if (!dragState) return;
     const completedDrag = dragState;
     clearDrag();
+    if (completedDrag.active) {
+      if (event.cancelable) event.preventDefault();
+      suppressClickUntil = Date.now() + 500;
+    }
     if (!completedDrag.active || !completedDrag.moved) return;
 
     if (type === "task" && completedDrag.status) {
@@ -7228,7 +7243,7 @@ function installTouchReorder(container, type) {
     }
   };
 
-  container.addEventListener("touchend", finish);
+  container.addEventListener("touchend", finish, { passive: false });
   container.addEventListener("touchcancel", clearDrag);
 }
 
