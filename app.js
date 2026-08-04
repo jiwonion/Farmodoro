@@ -8155,6 +8155,7 @@ let focusWakeLockRequest = null;
 const focusAudioButton = document.querySelector("#toggleFocusAudio");
 const focusYoutubeButton = document.querySelector("#toggleFocusYoutube");
 const focusYoutubePanel = document.querySelector("#focusYoutubePanel");
+const focusYoutubePlayerWrap = document.querySelector("#focusYoutubePlayerWrap");
 const focusYoutubeForm = document.querySelector("#focusYoutubeForm");
 const focusYoutubeNameInput = document.querySelector("#focusYoutubeName");
 const focusYoutubeUrlInput = document.querySelector("#focusYoutubeUrl");
@@ -8534,16 +8535,98 @@ function renderFocusYoutubeLibrary() {
   });
 }
 
-function openFocusYoutubeLink(source, title) {
-  window.open(source.url, "_blank", "noopener,noreferrer");
-  focusYoutubeStatus.textContent = `${title} 링크를 새 탭으로 열었어.`;
+// Most videos allow embedding, but a video's owner can disable playback on
+// other sites entirely (common for official music videos) -- that specific
+// video will never play in an embed no matter what site tries it. The
+// YouTube player reports this as error 101/150 (embedding disallowed) or
+// 100 (video missing/private). There's no way around that from here, so we
+// fall back to opening the video directly on YouTube instead.
+const FOCUS_YOUTUBE_UNEMBEDDABLE_ERROR_CODES = [100, 101, 150];
+
+let youtubeIframeApiPromise = null;
+function loadYoutubeIframeApi() {
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeIframeApiPromise) return youtubeIframeApiPromise;
+  youtubeIframeApiPromise = new Promise((resolve, reject) => {
+    const previousCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      previousCallback?.();
+      resolve();
+    };
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    script.onerror = () => reject(new Error("YouTube 플레이어를 불러오지 못했어"));
+    document.head.appendChild(script);
+  });
+  return youtubeIframeApiPromise;
+}
+
+let focusYoutubePlayer = null;
+let focusYoutubePlayerReadyPromise = null;
+let pendingFocusYoutubeFallback = null;
+
+function ensureFocusYoutubePlayer() {
+  if (focusYoutubePlayerReadyPromise) return focusYoutubePlayerReadyPromise;
+  focusYoutubePlayerReadyPromise = loadYoutubeIframeApi().then(
+    () =>
+      new Promise((resolve) => {
+        focusYoutubePlayer = new YT.Player("focusYoutubePlayer", {
+          width: "100%",
+          height: "100%",
+          playerVars: { rel: 0, modestbranding: 1 },
+          events: {
+            onReady: () => resolve(focusYoutubePlayer),
+            onError: (event) => handleFocusYoutubePlayerError(event.data),
+          },
+        });
+      }),
+  );
+  return focusYoutubePlayerReadyPromise;
+}
+
+function handleFocusYoutubePlayerError(code) {
+  const fallback = pendingFocusYoutubeFallback;
+  pendingFocusYoutubeFallback = null;
+  if (!FOCUS_YOUTUBE_UNEMBEDDABLE_ERROR_CODES.includes(code)) return;
+  focusYoutubePlayerWrap.classList.add("hidden");
+  if (!fallback) return;
+  window.open(fallback.source.url, "_blank", "noopener,noreferrer");
+  focusYoutubeStatus.textContent =
+    `${fallback.title}은(는) 소유자가 다른 사이트 재생을 막아둬서 여기서 재생할 수 없어. ` +
+    "YouTube 새 탭으로 열었어.";
+}
+
+async function openFocusYoutubeLink(source, title) {
+  stopFocusAudio();
   focusYoutubePanel.classList.remove("minimized");
   focusYoutubeButton.classList.add("active");
   focusYoutubeButton.setAttribute("aria-expanded", "true");
   renderFocusYoutubeLibrary();
+  focusYoutubeStatus.textContent = `${title} 불러오는 중…`;
+
+  pendingFocusYoutubeFallback = { source, title };
+  try {
+    const player = await ensureFocusYoutubePlayer();
+    focusYoutubePlayerWrap.classList.remove("hidden");
+    if (source.type === "playlist") {
+      player.loadPlaylist({ list: source.id });
+    } else {
+      player.loadVideoById(source.id);
+    }
+    focusYoutubeStatus.textContent = `${title} 재생 중.`;
+  } catch (error) {
+    console.error("Farmodoro YouTube player could not load", error);
+    pendingFocusYoutubeFallback = null;
+    focusYoutubePlayerWrap.classList.add("hidden");
+    window.open(source.url, "_blank", "noopener,noreferrer");
+    focusYoutubeStatus.textContent = `${title} 링크를 새 탭으로 열었어.`;
+  }
 }
 
 function stopFocusYoutube() {
+  focusYoutubePlayer?.stopVideo?.();
+  focusYoutubePlayerWrap.classList.add("hidden");
   focusYoutubePanel.classList.add("hidden");
   focusYoutubeButton.classList.remove("active");
   focusYoutubeButton.setAttribute("aria-expanded", "false");
