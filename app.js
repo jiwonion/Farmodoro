@@ -89,6 +89,7 @@ let farmDataSyncTimer = null;
 let farmDataSyncChain = Promise.resolve();
 let lastFarmDataSyncSignature = "";
 let lastFarmDataSyncError = "";
+let farmDataLoadRequest = 0;
 let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
 let productivityRealtimeMutedUntil = 0;
@@ -754,9 +755,10 @@ async function applyAuthSession(session) {
       maybeOpenTutorial(session.user);
       return;
     }
+    const needsAppStateLoad = !appStateHydrated || appStateUserId !== session.user.id;
     await Promise.all([
       loadUserProfile(session.user),
-      loadAppStateFromDatabase(session.user),
+      needsAppStateLoad ? loadAppStateFromDatabase(session.user) : Promise.resolve(),
     ]);
     await loadFarmAdminPermission(session.user);
     const hasLegacyContentEncryption = isContentEncryptionEnabled();
@@ -765,9 +767,15 @@ async function applyAuthSession(session) {
       if (!unlocked) return;
     }
     await Promise.all([
-      loadTaskDataFromDatabase(session.user),
-      loadFarmWallet(session.user),
-      loadFarmDataFromDatabase(session.user),
+      !taskDataHydrated || taskDataUserId !== session.user.id
+        ? loadTaskDataFromDatabase(session.user)
+        : Promise.resolve(),
+      !farmWalletHydrated || farmWalletUserId !== session.user.id
+        ? loadFarmWallet(session.user)
+        : Promise.resolve(),
+      !farmDataHydrated || farmDataUserId !== session.user.id
+        ? loadFarmDataFromDatabase(session.user)
+        : Promise.resolve(),
     ]);
     startProductivityRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
@@ -1950,12 +1958,25 @@ function resetFarmDataDatabaseState() {
   lastFarmDataSyncSignature = "";
   lastFarmDataSyncError = "";
   farmDataSyncChain = Promise.resolve();
+  farmDataLoadRequest += 1;
   if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
   farmDataSyncTimer = null;
   farmMailContacts = [];
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
   farmMailUnreadPollInterval = null;
+}
+
+function captureFarmState() {
+  return Object.fromEntries(
+    FARM_STATE_KEYS.map((key) => [key, structuredClone(state[key])]),
+  );
+}
+
+function restoreFarmState(snapshot) {
+  FARM_STATE_KEYS.forEach((key) => {
+    state[key] = structuredClone(snapshot[key]);
+  });
 }
 
 function stopFarmMailRealtime() {
@@ -2214,6 +2235,7 @@ async function loadFarmMailContacts(user) {
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
+  const requestId = ++farmDataLoadRequest;
   const previousRenderSignature = farmDataUserId === requestedUserId && farmDataHydrated
     ? JSON.stringify({
         farm: serializeFarmData(),
@@ -2229,7 +2251,11 @@ async function loadFarmDataFromDatabase(user) {
   if (error?.code === "PGRST202" || error?.code === "42883") {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state"));
   }
-  if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
+  if (
+    requestId !== farmDataLoadRequest ||
+    activeAuthUser?.id !== requestedUserId ||
+    farmDataUserId !== requestedUserId
+  ) return;
   if (error) {
     console.error("Farmodoro farm data could not be loaded", error);
     showToast(`농장 DB 불러오기 실패 · ${error.message || "알 수 없는 오류"}`);
@@ -2293,7 +2319,11 @@ async function loadFarmDataFromDatabase(user) {
   state.farmMailSentCount = (data?.sentToday ?? []).length;
 
   await loadFarmMailContacts(user);
-  if (activeAuthUser?.id !== requestedUserId || farmDataUserId !== requestedUserId) return;
+  if (
+    requestId !== farmDataLoadRequest ||
+    activeAuthUser?.id !== requestedUserId ||
+    farmDataUserId !== requestedUserId
+  ) return;
 
   farmDataHydrated = true;
   const nextSignature = serializeFarmData();
@@ -2573,20 +2603,18 @@ async function loadAppStateFromDatabase(user) {
     tasks: state.tasks,
     habits: state.habits,
   };
+  const farmState = captureFarmState();
   if (error) {
     console.error("Farmodoro app state could not be loaded", error);
-    state = loadState();
     showToast("앱 데이터를 불러오지 못했어. Supabase에서 008 SQL을 실행해줘");
-  } else {
-    state = loadState(data?.state ?? null);
+    return;
   }
+  state = loadState(data?.state ?? null);
   // Coin and Farm Money are owned exclusively by farm_wallets.
   // Never display an older balance that may still exist in user_app_state.
   state.coins = 0;
   state.farmMoney = 0;
-  FARM_STATE_KEYS.forEach((key) => {
-    state[key] = structuredClone(defaultState[key]);
-  });
+  restoreFarmState(farmState);
   state.groups = productivityState.groups;
   state.tasks = productivityState.tasks;
   state.habits = productivityState.habits;
@@ -7102,6 +7130,37 @@ function clearPointerDropState() {
   });
 }
 
+function getTouchDropPlacement(container, cardSelector, clientX, clientY) {
+  const candidates = [...container.querySelectorAll(`${cardSelector}:not(.dragging)`)];
+  if (!candidates.length) return null;
+
+  const target = candidates
+    .map((card) => {
+      const rect = card.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      return {
+        card,
+        rect,
+        centerX,
+        centerY,
+        distance: Math.hypot(clientX - centerX, clientY - centerY),
+      };
+    })
+    .reduce((closest, candidate) =>
+      candidate.distance < closest.distance ? candidate : closest,
+    );
+  const columnCount = getComputedStyle(container).gridTemplateColumns
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const placeAfter = columnCount > 1 && clientY >= target.rect.top && clientY <= target.rect.bottom
+    ? clientX >= target.centerX
+    : clientY >= target.centerY;
+
+  return { target: target.card, placeAfter };
+}
+
 function installTouchReorder(container, type) {
   let dragState = null;
   let holdTimer = null;
@@ -7180,8 +7239,8 @@ function installTouchReorder(container, type) {
       item.classList.remove("drop-before", "drop-after");
     });
 
+    const column = type === "task" ? hit?.closest("[data-status]") : null;
     if (type === "task") {
-      const column = hit?.closest("[data-status]");
       document.querySelectorAll(".board-column").forEach((item) => {
         item.classList.toggle("drag-over", item === column);
       });
@@ -7191,21 +7250,23 @@ function installTouchReorder(container, type) {
         return;
       }
       dragState.status = column.dataset.status;
-      const target = hit.closest(".task-card:not(.dragging)");
-      dragState.targetId = target?.dataset.taskId ?? null;
-      dragState.placeAfter = Boolean(
-        target && touch.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
-      );
-      target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
-      return;
     }
 
-    const target = hit?.closest(".habit-item:not(.dragging)");
-    dragState.targetId = target?.dataset.habitId ?? null;
-    dragState.placeAfter = Boolean(
-      target && touch.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
+    const dropContainer = type === "task"
+      ? column.querySelector(".task-list")
+      : container;
+    const dropCardSelector = type === "task" ? ".task-card" : ".habit-item";
+    const placement = getTouchDropPlacement(
+      dropContainer,
+      dropCardSelector,
+      touch.clientX,
+      touch.clientY,
     );
-    target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
+    dragState.targetId = type === "task"
+      ? placement?.target.dataset.taskId ?? null
+      : placement?.target.dataset.habitId ?? null;
+    dragState.placeAfter = placement?.placeAfter ?? false;
+    placement?.target.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
   }, { passive: false });
 
   const finish = (event) => {
@@ -7415,7 +7476,7 @@ confirmFreePassTarget.addEventListener("click", () => {
   if (selectedFreePassTarget) useFreePassOnTarget(selectedFreePassTarget);
 });
 
-document.querySelector("#farmGrid").addEventListener("click", (event) => {
+document.querySelector("#farmGrid").addEventListener("click", async (event) => {
   const plotElement = event.target.closest("[data-plot-id]");
   if (!selectedSeed && selectedFarmItem && plotElement) {
     const plot = state.farmPlots.find(
@@ -7476,6 +7537,8 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     );
     if (!plot || plot.crop) return;
 
+    const previousFarmState = captureFarmState();
+    const plantedSeed = selectedSeed;
     plot.crop = selectedSeed;
     plot.growth = 0;
     plot.plantedDate = toLocalDateString();
@@ -7488,6 +7551,15 @@ document.querySelector("#farmGrid").addEventListener("click", (event) => {
     if (state.seedInventory[selectedSeed] === 0) selectedSeed = null;
     showToast(`${cropName} 씨앗을 심었어`);
     render();
+    try {
+      await syncFarmDataDatabaseImmediately();
+    } catch (error) {
+      console.error("Farmodoro planted crop could not be saved", error);
+      restoreFarmState(previousFarmState);
+      selectedSeed = state.seedInventory[plantedSeed] ? plantedSeed : null;
+      render();
+      showToast("작물 저장에 실패해서 심기 전 상태로 되돌렸어.");
+    }
     return;
   }
 
@@ -8799,6 +8871,20 @@ document.addEventListener("visibilitychange", () => {
   }
   void flushDailyFocusTime();
 });
+
+window.flushFarmodoroDataBeforeReload = async () => {
+  if (!activeAuthUser) return true;
+  saveState();
+  const operations = [flushDailyFocusTime()];
+  if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
+  if (appStateHydrated) operations.push(syncAppStateDatabaseImmediately());
+  if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
+  if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
+  const results = await Promise.allSettled(operations);
+  const failed = results.some((result) => result.status === "rejected");
+  if (failed) showToast("저장에 실패해서 자동 업데이트를 멈췄어. 연결을 확인해.");
+  return !failed;
+};
 
 window.addEventListener("pagehide", () => {
   void syncTaskDatabaseImmediately().catch(() => {});

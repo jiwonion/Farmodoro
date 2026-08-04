@@ -28,9 +28,16 @@
   }
 
   let reloading = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
+  navigator.serviceWorker.addEventListener("controllerchange", async () => {
     if (reloading) return;
     reloading = true;
+    if (typeof window.flushFarmodoroDataBeforeReload === "function") {
+      const saved = await window.flushFarmodoroDataBeforeReload();
+      if (!saved) {
+        reloading = false;
+        return;
+      }
+    }
     window.location.reload();
   });
 
