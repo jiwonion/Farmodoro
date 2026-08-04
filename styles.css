@@ -5180,12 +5180,17 @@ button {
   font-size: 11px;
 }
 
+/* A 3x3 plot is wider than the old 4x4 one, so the ceiling here is raised to
+ * keep the crop filling about the same share of its bed. The 5vw slope is
+ * unchanged, which leaves phones and tablets exactly where they were -- only
+ * viewports past ~1280px, where the art used to sit capped at 64px in a much
+ * roomier plot, get the extra size. */
 #farmPage .crop-visual span {
-  font-size: clamp(40px, 5vw, 64px);
+  font-size: clamp(40px, 5vw, 88px);
 }
 
 #farmPage .crop-visual.stage-0 span {
-  font-size: 32px;
+  font-size: clamp(32px, 2.5vw, 44px);
 }
 
 #farmPage .crop-info strong {
@@ -11133,51 +11138,70 @@ canvas {
     width: min(230px, calc(100vw - 28px));
   }
 
+  /* On a phone a plot needs more height than a square 3x3 grid can give it
+   * (see the min-height below), so the field stops being square here and
+   * lets its rows grow to fit. Keeping aspect-ratio: 1 would pin each row to
+   * a third of the width and the plots would overflow onto each other. */
   #farmPage .farm-scene .farm-grid {
+    grid-template-rows: repeat(3, auto);
     gap: 7px;
     padding: 8px;
+    aspect-ratio: auto;
   }
 
+  /* Three columns on a phone leave a plot about 90-100px wide, so the height
+   * is set by what the contents need rather than by a ratio. */
   #farmPage .farm-scene .farm-plot {
     height: auto;
-    min-height: 168px;
-    aspect-ratio: 1 / 1.06;
+    min-height: 134px;
+    aspect-ratio: auto;
   }
 
   #farmPage .farm-scene .crop-plot {
-    grid-template-rows: minmax(68px, 1fr) auto auto auto;
-    padding: 7px;
+    grid-template-rows: minmax(46px, 1fr) auto auto auto;
+    padding: 5px;
   }
 
   #farmPage .farm-scene .crop-visual span {
-    font-size: clamp(42px, 14vw, 56px);
+    font-size: clamp(30px, 10vw, 44px);
   }
 
+  /* Name and progress sit side by side when they fit and drop to two lines
+   * when they don't -- at this width the crop name decides which. */
   #farmPage .farm-scene .crop-info {
     position: static;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    margin: 0 0 5px;
+    gap: 2px 4px;
+    margin: 0 0 4px;
   }
 
   #farmPage .farm-scene .crop-info strong,
   #farmPage .farm-scene .crop-info small {
     display: block;
-    padding: 2px 5px;
+    padding: 1px 4px;
     font-size: 10px;
   }
 
   #farmPage .farm-scene .crop-wilt-countdown {
-    margin-bottom: 5px;
-    padding: 4px;
+    margin-bottom: 4px;
+    padding: 3px;
     font-size: 9px;
+  }
+
+  /* The coin button only ever holds "● 1", so it takes just what it needs
+   * and the watering can keeps the rest of a narrow row. */
+  #farmPage .farm-scene .plot-growth-actions {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 3px;
   }
 
   #farmPage .farm-scene .crop-plot > button,
   #farmPage .farm-scene .plot-growth-actions button {
-    min-height: 30px;
+    min-height: 28px;
+    padding: 0 3px;
     font-size: 10px;
   }
 }
