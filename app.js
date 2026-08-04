@@ -7075,7 +7075,7 @@ document.querySelector("#habitList").addEventListener("dragstart", (event) => {
   const card = event.target.closest("[data-habit-id]");
   if (!card) return;
   event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/x-habit-id", card.dataset.habitId);
+  event.dataTransfer.setData("text/plain", card.dataset.habitId);
   requestAnimationFrame(() => card.classList.add("dragging"));
 });
 
@@ -7092,7 +7092,7 @@ document.querySelector("#habitList").addEventListener("dragover", (event) => {
 document.querySelector("#habitList").addEventListener("drop", (event) => {
   if (!["today", "habits"].includes(currentPage)) return;
   event.preventDefault();
-  const habitId = event.dataTransfer.getData("text/x-habit-id");
+  const habitId = event.dataTransfer.getData("text/plain");
   const target = event.target.closest(".habit-item:not(.dragging)");
   if (!habitId || !target) return;
   const targetId = target.dataset.habitId;
