@@ -10789,4 +10789,61 @@ canvas {
   :is(input, textarea)::placeholder {
     font-size: 10px !important;
   }
+
+  .focus-settings {
+    right: 0;
+    left: auto;
+    width: min(230px, calc(100vw - 28px));
+  }
+
+  #farmPage .farm-scene .farm-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+    aspect-ratio: auto;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  #farmPage .farm-scene .farm-plot {
+    height: auto;
+    min-height: 168px;
+    aspect-ratio: 1 / 1.06;
+  }
+
+  #farmPage .farm-scene .crop-plot {
+    grid-template-rows: minmax(68px, 1fr) auto auto auto;
+    padding: 7px;
+  }
+
+  #farmPage .farm-scene .crop-visual span {
+    font-size: clamp(42px, 14vw, 56px);
+  }
+
+  #farmPage .farm-scene .crop-info {
+    position: static;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin: 0 0 5px;
+  }
+
+  #farmPage .farm-scene .crop-info strong,
+  #farmPage .farm-scene .crop-info small {
+    display: block;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+
+  #farmPage .farm-scene .crop-wilt-countdown {
+    margin-bottom: 5px;
+    padding: 4px;
+    font-size: 9px;
+  }
+
+  #farmPage .farm-scene .crop-plot > button,
+  #farmPage .farm-scene .plot-growth-actions button {
+    min-height: 30px;
+    font-size: 10px;
+  }
 }

@@ -83,6 +83,8 @@ let lastAppStateSyncSignature = "";
 let farmWalletHydrated = false;
 let farmWalletUserId = null;
 let farmWalletMutationChain = Promise.resolve();
+let farmWalletMutationVersion = 0;
+let farmWalletRealtimeRefreshTimer = null;
 let farmDataHydrated = false;
 let farmDataUserId = null;
 let farmDataSyncTimer = null;
@@ -432,21 +434,38 @@ function resetFarmWalletDatabaseState() {
   farmWalletHydrated = false;
   farmWalletUserId = null;
   farmWalletMutationChain = Promise.resolve();
+  farmWalletMutationVersion = 0;
+  if (farmWalletRealtimeRefreshTimer) clearTimeout(farmWalletRealtimeRefreshTimer);
+  farmWalletRealtimeRefreshTimer = null;
 }
 
-async function loadFarmWallet(user) {
+async function loadFarmWallet(
+  user,
+  { background = false, expectedMutationVersion = null } = {},
+) {
   if (!supabaseClient || !user) return;
   const previousCoins = Number(state.coins ?? 0);
   const previousFarmMoney = Number(state.farmMoney ?? 0);
-  farmWalletHydrated = false;
-  farmWalletUserId = user.id;
+  if (background) {
+    if (!farmWalletHydrated || farmWalletUserId !== user.id) return;
+  } else {
+    farmWalletHydrated = false;
+    farmWalletUserId = user.id;
+  }
 
   const { data, error } = await supabaseClient.rpc("get_my_farm_wallet");
 
   if (activeAuthUser?.id !== user.id || farmWalletUserId !== user.id) return;
+  if (
+    background &&
+    expectedMutationVersion !== null &&
+    expectedMutationVersion !== farmWalletMutationVersion
+  ) return;
   if (error) {
     console.error("Farmodoro wallet could not be loaded", error);
-    showToast("지갑 데이터를 불러오지 못했어. Supabase에서 006, 012 SQL을 확인해줘");
+    if (!background) {
+      showToast("지갑 데이터를 불러오지 못했어. Supabase에서 006, 012 SQL을 확인해줘");
+    }
     return;
   }
 
@@ -486,6 +505,7 @@ function applyFarmWalletChange(
     showToast(currency === "coin" ? "Coin이 부족해" : "Farm Money가 부족해");
     return false;
   }
+  const mutationVersion = ++farmWalletMutationVersion;
   state[stateKey] += numericAmount;
   renderSummary();
   renderFarm();
@@ -498,7 +518,11 @@ function applyFarmWalletChange(
         p_reference_key: referenceKey,
       });
       if (error) throw error;
-      if (activeAuthUser?.id === userId && farmWalletUserId === userId) {
+      if (
+        activeAuthUser?.id === userId &&
+        farmWalletUserId === userId &&
+        farmWalletMutationVersion === mutationVersion
+      ) {
         state[stateKey] = Number(data);
         renderSummary();
         renderFarm();
@@ -780,7 +804,7 @@ async function applyAuthSession(session) {
     startProductivityRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
     startFarmMailRealtime(session.user);
-    await loadDailyFocusProgress(session.user);
+    await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     startFocusRealtime(session.user);
     if (hasLegacyContentEncryption && taskDataHydrated) {
@@ -1865,14 +1889,13 @@ let focusTimerSyncTimer = null;
 let focusTimerPollInterval = null;
 let focusTimerLastUpdatedAt = "";
 let focusTimerLastHeartbeatAt = 0;
-let focusDailyServerSeconds = 0;
-let focusDailyDate = "";
-let focusDailyApiUnavailable = false;
-let focusDailySyncPromise = null;
+let focusProgressServerSeconds = 0;
+let focusProgressApiUnavailable = false;
+let focusProgressSyncPromise = null;
 let focusRealtimeChannel = null;
 let focusRealtimeRefreshTimer = null;
-const pendingFocusDailySeconds = { linked: 0, quick: 0 };
-const focusDailyEventQueue = [];
+const pendingFocusSeconds = { linked: 0, quick: 0 };
+const focusProgressEventQueue = [];
 let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
@@ -1982,8 +2005,10 @@ function restoreFarmState(snapshot) {
 function stopFarmMailRealtime() {
   if (farmMailRealtimeRefreshTimer) clearTimeout(farmMailRealtimeRefreshTimer);
   if (farmContentRealtimeRefreshTimer) clearTimeout(farmContentRealtimeRefreshTimer);
+  if (farmWalletRealtimeRefreshTimer) clearTimeout(farmWalletRealtimeRefreshTimer);
   farmMailRealtimeRefreshTimer = null;
   farmContentRealtimeRefreshTimer = null;
+  farmWalletRealtimeRefreshTimer = null;
   if (farmMailRealtimeChannel && supabaseClient) {
     void supabaseClient.removeChannel(farmMailRealtimeChannel);
   }
@@ -2020,14 +2045,32 @@ function scheduleFarmMailRealtimeRefresh(userId) {
   }, 350);
 }
 
+function scheduleFarmWalletRealtimeRefresh(user) {
+  if (activeAuthUser?.id !== user.id) return;
+  if (farmWalletRealtimeRefreshTimer) clearTimeout(farmWalletRealtimeRefreshTimer);
+  farmWalletRealtimeRefreshTimer = window.setTimeout(async () => {
+    farmWalletRealtimeRefreshTimer = null;
+    if (activeAuthUser?.id !== user.id) return;
+    const pendingChain = farmWalletMutationChain;
+    await pendingChain;
+    if (activeAuthUser?.id !== user.id) return;
+    if (pendingChain !== farmWalletMutationChain) {
+      scheduleFarmWalletRealtimeRefresh(user);
+      return;
+    }
+    await loadFarmWallet(user, {
+      background: true,
+      expectedMutationVersion: farmWalletMutationVersion,
+    });
+  }, 180);
+}
+
 function startFarmMailRealtime(user) {
   stopFarmMailRealtime();
   if (!supabaseClient || !user) return;
   const handleChange = () => scheduleFarmMailRealtimeRefresh(user.id);
   const handleFarmContentChange = () => scheduleFarmContentRealtimeRefresh(user.id);
-  const handleWalletChange = () => {
-    void farmWalletMutationChain.then(() => loadFarmWallet(user));
-  };
+  const handleWalletChange = () => scheduleFarmWalletRealtimeRefresh(user);
   farmMailRealtimeChannel = supabaseClient
     .channel(`farm-mail:${user.id}`)
     .on(
@@ -2695,7 +2738,7 @@ function resetFocusTimerDatabaseState() {
   if (focusTimerPollInterval) clearInterval(focusTimerPollInterval);
   focusTimerSyncTimer = null;
   focusTimerPollInterval = null;
-  resetDailyFocusProgressState();
+  resetFocusProgressState();
 }
 
 function stopFocusRealtime() {
@@ -2717,10 +2760,10 @@ function startFocusRealtime(user) {
       if (activeAuthUser?.id === user.id) void pollFocusTimerFromDatabase();
     }, 150);
   };
-  const refreshDailyProgress = () => {
+  const refreshFocusProgress = () => {
     if (activeAuthUser?.id !== user.id) return;
-    void Promise.resolve(focusDailySyncPromise)
-      .then(() => loadDailyFocusProgress(user));
+    void Promise.resolve(focusProgressSyncPromise)
+      .then(() => loadFocusProgress(user));
   };
   focusRealtimeChannel = subscribeToUserTables(
     supabaseClient.channel(`focus:${user.id}`),
@@ -2730,9 +2773,9 @@ function startFocusRealtime(user) {
   );
   focusRealtimeChannel = subscribeToUserTables(
     focusRealtimeChannel,
-    ["user_focus_daily"],
+    ["user_focus_progress"],
     user.id,
-    refreshDailyProgress,
+    refreshFocusProgress,
   );
   focusRealtimeChannel.subscribe((status) => {
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -2787,6 +2830,17 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     payload.runtimes?.quick,
     { seconds: state.settings.quick.focusMinutes * 60, phase: "focus", started: false, sessionMinutes: state.settings.quick.focusMinutes },
   );
+  const savedQuickMinutes = focusRuntimeByMode.quick.sessionMinutes;
+  const configuredQuickMinutes = getFocusSettings("quick").focusMinutes;
+  const staleQuickRuntime = savedQuickMinutes !== configuredQuickMinutes;
+  if (staleQuickRuntime) {
+    focusRuntimeByMode.quick = {
+      seconds: configuredQuickMinutes * 60,
+      phase: "focus",
+      started: false,
+      sessionMinutes: configuredQuickMinutes,
+    };
+  }
   activeFocus = payload.activeFocus?.type && payload.activeFocus?.id
     ? { type: payload.activeFocus.type, id: payload.activeFocus.id }
     : null;
@@ -2794,8 +2848,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   runningFocusMode = ["linked", "quick"].includes(payload.runningMode)
     ? payload.runningMode
     : null;
+  if (staleQuickRuntime && runningFocusMode === "quick") runningFocusMode = null;
   focusTimerOwnerId = runningFocusMode ? String(payload.ownerId || "") : "";
-  if (focusDailyApiUnavailable && Number.isFinite(Number(payload.rewardSeconds))) {
+  if (focusProgressApiUnavailable && Number.isFinite(Number(payload.rewardSeconds))) {
     state.focusRewardSeconds = Math.max(0, Math.floor(Number(payload.rewardSeconds))) % 3600;
   }
 
@@ -2838,7 +2893,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       if (recoveredFocusSeconds > 0) {
         addFocusSecond(recoveredFocusSeconds, runningFocusMode);
         scheduleTaskDatabaseSync(0);
-        void flushDailyFocusTime();
+        void flushFocusTime();
       }
     }
     focusLastTickAt = ownsTimer ? Date.now() : 0;
@@ -2874,6 +2929,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   updateFocusTarget();
   updateMiniFocusTimer();
   renderSummary();
+  if (staleQuickRuntime) scheduleFocusTimerDatabaseSync(0);
 }
 
 function handleFocusTimerDatabaseError(error) {
@@ -5459,7 +5515,7 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
       "coin",
       reward,
       "습관 완료",
-      `habit:${habit.id}:${today}:complete:${completedAt}`,
+      `habit:${habit.id}:${today}:complete:${createUuid()}`,
     );
     habit.completionReward = reward;
     habit.completedWithFreePass = false;
@@ -5472,12 +5528,11 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
   }
 
   const reward = habit.completionReward ?? 1;
-  const completionToken = habit.recordMetaByDate[today]?.completedAt || "legacy";
   applyFarmWalletChange(
     "coin",
     -reward,
     "습관 완료 취소",
-    `habit:${habit.id}:${today}:undo:${completionToken}`,
+    `habit:${habit.id}:${today}:undo:${createUuid()}`,
     true,
   );
   habit.completionReward = 0;
@@ -5727,97 +5782,94 @@ function startProductivityRealtime(user) {
     });
 }
 
-function getPendingFocusDailySeconds() {
-  return pendingFocusDailySeconds.linked +
-    pendingFocusDailySeconds.quick +
-    focusDailyEventQueue.reduce((sum, event) => sum + event.seconds, 0);
+function getPendingFocusSeconds() {
+  return pendingFocusSeconds.linked +
+    pendingFocusSeconds.quick +
+    focusProgressEventQueue.reduce((sum, event) => sum + event.seconds, 0);
 }
 
-function refreshDailyFocusProgress() {
-  state.focusRewardSeconds = Math.max(0, (focusDailyServerSeconds + getPendingFocusDailySeconds()) % 3600);
+function refreshFocusProgress() {
+  state.focusRewardSeconds = Math.max(0, (focusProgressServerSeconds + getPendingFocusSeconds()) % 3600);
   renderSummary();
 }
 
-function resetDailyFocusProgressState() {
-  focusDailyServerSeconds = 0;
-  focusDailyDate = "";
-  focusDailyApiUnavailable = false;
-  focusDailySyncPromise = null;
-  pendingFocusDailySeconds.linked = 0;
-  pendingFocusDailySeconds.quick = 0;
-  focusDailyEventQueue.length = 0;
+function resetFocusProgressState() {
+  focusProgressServerSeconds = 0;
+  focusProgressApiUnavailable = false;
+  focusProgressSyncPromise = null;
+  pendingFocusSeconds.linked = 0;
+  pendingFocusSeconds.quick = 0;
+  focusProgressEventQueue.length = 0;
 }
 
-async function loadDailyFocusProgress(user) {
+async function loadFocusProgress(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
-  const { data, error } = await supabaseClient.rpc("get_my_daily_focus_progress");
+  const { data, error } = await supabaseClient.rpc("get_my_focus_progress");
   if (activeAuthUser?.id !== requestedUserId) return;
   if (error) {
     if (["42883", "PGRST202"].includes(error.code)) {
-      focusDailyApiUnavailable = true;
-      console.warn("Farmodoro daily focus API is unavailable; apply migration 025", error);
+      focusProgressApiUnavailable = true;
+      console.warn("Farmodoro focus progress API is unavailable; apply migration 036", error);
       return;
     }
-    console.error("Farmodoro daily focus progress could not be loaded", error);
+    console.error("Farmodoro focus progress could not be loaded", error);
     return;
   }
-  focusDailyApiUnavailable = false;
-  focusDailyDate = String(data?.focusDate || "");
-  focusDailyServerSeconds = Math.max(0, Math.floor(Number(data?.totalSeconds) || 0));
-  state.focusRewardSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0));
+  focusProgressApiUnavailable = false;
+  focusProgressServerSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0)) % 3600;
+  state.focusRewardSeconds = focusProgressServerSeconds;
   renderSummary();
 }
 
-function stagePendingFocusDailyEvents() {
+function stagePendingFocusEvents() {
   ["linked", "quick"].forEach((mode) => {
-    let remaining = pendingFocusDailySeconds[mode];
-    pendingFocusDailySeconds[mode] = 0;
+    let remaining = pendingFocusSeconds[mode];
+    pendingFocusSeconds[mode] = 0;
     while (remaining > 0) {
       const seconds = Math.min(600, remaining);
-      focusDailyEventQueue.push({ id: crypto.randomUUID(), mode, seconds });
+      focusProgressEventQueue.push({ id: crypto.randomUUID(), mode, seconds });
       remaining -= seconds;
     }
   });
 }
 
-async function flushDailyFocusTime() {
-  if (focusDailyApiUnavailable || !activeAuthUser) return;
-  stagePendingFocusDailyEvents();
-  if (!focusDailyEventQueue.length) return;
-  if (focusDailySyncPromise) return focusDailySyncPromise;
+async function flushFocusTime() {
+  if (focusProgressApiUnavailable || !activeAuthUser) return;
+  stagePendingFocusEvents();
+  if (!focusProgressEventQueue.length) return;
+  if (focusProgressSyncPromise) return focusProgressSyncPromise;
 
   const userId = activeAuthUser.id;
-  focusDailySyncPromise = (async () => {
-    while (focusDailyEventQueue.length && activeAuthUser?.id === userId) {
-      const event = focusDailyEventQueue[0];
-      const { data, error } = await supabaseClient.rpc("record_my_daily_focus_time", {
+  focusProgressSyncPromise = (async () => {
+    while (focusProgressEventQueue.length && activeAuthUser?.id === userId) {
+      const event = focusProgressEventQueue[0];
+      const { data, error } = await supabaseClient.rpc("record_my_focus_time", {
         p_event_id: event.id,
         p_focus_mode: event.mode,
         p_elapsed_seconds: event.seconds,
       });
       if (error) throw error;
-      focusDailyEventQueue.shift();
-      focusDailyDate = String(data?.focusDate || focusDailyDate);
-      focusDailyServerSeconds = Math.max(0, Math.floor(Number(data?.totalSeconds) || 0));
+      focusProgressEventQueue.shift();
+      focusProgressServerSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0)) % 3600;
       if (Number.isFinite(Number(data?.coinBalance))) state.coins = Number(data.coinBalance);
       const awardedCoins = Math.max(0, Number(data?.awardedCoins) || 0);
-      if (awardedCoins > 0) showToast(`오늘 집중 60분 완료 ${awardedCoins} Coin을 받았어`);
-      refreshDailyFocusProgress();
+      if (awardedCoins > 0) showToast(`집중 누적 60분 완료 ${awardedCoins} Coin을 받았어`);
+      refreshFocusProgress();
       renderFarm();
     }
   })()
     .catch((error) => {
-      console.error("Farmodoro daily focus time could not be saved", error);
+      console.error("Farmodoro focus time could not be saved", error);
       if (["42883", "PGRST202"].includes(error?.code)) {
-        focusDailyApiUnavailable = true;
-        showToast("집중 시간 통합 저장을 쓰려면 Supabase 025 SQL을 적용해줘");
+        focusProgressApiUnavailable = true;
+        showToast("집중 시간 누적 저장을 쓰려면 Supabase 036 SQL을 적용해줘");
       }
     })
     .finally(() => {
-      focusDailySyncPromise = null;
+      focusProgressSyncPromise = null;
     });
-  return focusDailySyncPromise;
+  return focusProgressSyncPromise;
 }
 
 function addLegacyFocusRewardSeconds(elapsedSeconds) {
@@ -5831,13 +5883,13 @@ function addLegacyFocusRewardSeconds(elapsedSeconds) {
 }
 
 function addFocusSecond(elapsedSeconds = 1, mode = focusMode) {
-  if (focusDailyApiUnavailable) {
+  if (focusProgressApiUnavailable) {
     addLegacyFocusRewardSeconds(elapsedSeconds);
     return;
   }
-  const dailyMode = mode === "quick" ? "quick" : "linked";
-  pendingFocusDailySeconds[dailyMode] += elapsedSeconds;
-  state.focusRewardSeconds = Math.max(0, (focusDailyServerSeconds + getPendingFocusDailySeconds()) % 3600);
+  const progressMode = mode === "quick" ? "quick" : "linked";
+  pendingFocusSeconds[progressMode] += elapsedSeconds;
+  state.focusRewardSeconds = Math.max(0, (focusProgressServerSeconds + getPendingFocusSeconds()) % 3600);
 }
 
 function updateProductivityFocusLabels() {
@@ -6008,7 +6060,7 @@ function finishFocusRuntime(mode) {
         : "집중 측정을 완료했어",
     );
     scheduleFocusTimerDatabaseSync(0);
-    void flushDailyFocusTime();
+    void flushFocusTime();
     return;
   }
 
@@ -6035,7 +6087,7 @@ function finishFocusRuntime(mode) {
   render();
   showToast("집중 세트를 완료했어");
   scheduleFocusTimerDatabaseSync(0);
-  void flushDailyFocusTime();
+  void flushFocusTime();
 }
 
 function finishBreakRuntime(mode) {
@@ -6072,7 +6124,7 @@ function startFocusTickInterval(mode) {
       renderSummary();
       scheduleTaskDatabaseSync(0);
       scheduleFocusTimerDatabaseSync(0);
-      void flushDailyFocusTime();
+      void flushFocusTime();
     }
   }, 250);
 }
@@ -6098,7 +6150,7 @@ function toggleFocus() {
     saveState();
     scheduleTaskDatabaseSync(0);
     scheduleFocusTimerDatabaseSync(0);
-    void flushDailyFocusTime();
+    void flushFocusTime();
     return;
   }
 
@@ -6145,7 +6197,7 @@ function endFocusSession(mode = focusMode) {
   saveState();
   scheduleTaskDatabaseSync(0);
   scheduleFocusTimerDatabaseSync(0);
-  void flushDailyFocusTime();
+  void flushFocusTime();
   showToast(mode === "quick" ? "빠른 집중을 종료했어" : "집중 측정을 종료했어");
 }
 
@@ -6556,7 +6608,7 @@ function resetDeletedFocusTarget(type, id) {
   updateMiniFocusTimer();
   saveState();
   scheduleFocusTimerDatabaseSync(0);
-  void flushDailyFocusTime();
+  void flushFocusTime();
   return true;
 }
 
@@ -8743,7 +8795,11 @@ document.querySelector("#saveFocusSettings").addEventListener("click", async (ev
   saveState();
   saveButton.disabled = true;
   try {
-    await syncAppStateDatabaseImmediately();
+    await Promise.all([
+      syncAppStateDatabaseImmediately(),
+      syncFocusTimerDatabaseImmediately(),
+      flushFocusTime(),
+    ]);
     focusSettings.classList.add("hidden");
     showToast("집중 설정을 저장했어");
   } catch (error) {
@@ -8842,9 +8898,9 @@ async function refreshPageData(page = currentPage) {
     }
 
     if (["today", "focus"].includes(requestedPage)) {
-      await flushDailyFocusTime();
+      await flushFocusTime();
       await Promise.all([
-        loadDailyFocusProgress(user),
+        loadFocusProgress(user),
         pollFocusTimerFromDatabase(),
       ]);
     }
@@ -8952,13 +9008,13 @@ document.addEventListener("visibilitychange", () => {
   if (isFocusTimerOwner()) {
     void syncFocusTimerDatabaseImmediately();
   }
-  void flushDailyFocusTime();
+  void flushFocusTime();
 });
 
 window.flushFarmodoroDataBeforeReload = async () => {
   if (!activeAuthUser) return true;
   saveState();
-  const operations = [flushDailyFocusTime()];
+  const operations = [flushFocusTime()];
   if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
   if (appStateHydrated) operations.push(syncAppStateDatabaseImmediately());
   if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
@@ -8974,7 +9030,7 @@ window.addEventListener("pagehide", () => {
   void syncAppStateDatabaseImmediately().catch(() => {});
   void syncFarmDataDatabaseImmediately().catch(() => {});
   if (isFocusTimerOwner()) void syncFocusTimerDatabaseImmediately();
-  void flushDailyFocusTime();
+  void flushFocusTime();
 });
 
 document.querySelector("#openMiniFocus").addEventListener("click", () => {
