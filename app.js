@@ -1793,7 +1793,7 @@ function scheduleFarmContentRealtimeRefresh(userId) {
   farmContentRealtimeRefreshTimer = window.setTimeout(async () => {
     farmContentRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
-    await farmDataSyncChain;
+    await syncFarmDataDatabaseImmediately();
     const farmUiVisible =
       currentPage === "farm" ||
       !document.querySelector("#farmMailModal")?.classList.contains("hidden") ||
@@ -1811,7 +1811,7 @@ function scheduleFarmMailRealtimeRefresh(userId) {
     await pollFarmMailUnreadCount(activeAuthUser);
     const mailModalOpen = !document.querySelector("#farmMailModal")?.classList.contains("hidden");
     if (currentPage === "farm" || mailModalOpen) {
-      await farmDataSyncChain;
+      await syncFarmDataDatabaseImmediately();
       await loadFarmDataFromDatabase(activeAuthUser);
     }
   }, 350);
@@ -7442,8 +7442,23 @@ confirmFreePassTarget.addEventListener("click", () => {
 });
 
 document.querySelector("#farmGrid").addEventListener("click", async (event) => {
+  const plantButton = event.target.closest("[data-plant-plot]");
+  const growButton = event.target.closest("[data-grow-plot]");
+  const waterButton = event.target.closest("[data-water-plot]");
+  const harvestButton = event.target.closest("[data-harvest-plot]");
+  const discardButton = event.target.closest("[data-discard-plot]");
+
   const plotElement = event.target.closest("[data-plot-id]");
-  if (!selectedSeed && selectedFarmItem && plotElement) {
+  if (
+    !selectedSeed &&
+    selectedFarmItem &&
+    plotElement &&
+    !plantButton &&
+    !growButton &&
+    !waterButton &&
+    !harvestButton &&
+    !discardButton
+  ) {
     const plot = state.farmPlots.find(
       (item) => item.id === Number(plotElement.dataset.plotId),
     );
@@ -7484,12 +7499,6 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     render();
     return;
   }
-
-  const plantButton = event.target.closest("[data-plant-plot]");
-  const growButton = event.target.closest("[data-grow-plot]");
-  const waterButton = event.target.closest("[data-water-plot]");
-  const harvestButton = event.target.closest("[data-harvest-plot]");
-  const discardButton = event.target.closest("[data-discard-plot]");
 
   if (plantButton) {
     if (!selectedSeed || !state.seedInventory[selectedSeed]) {
