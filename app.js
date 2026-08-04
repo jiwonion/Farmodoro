@@ -5998,7 +5998,7 @@ function startFocusTickInterval(mode) {
   focusInterval = setInterval(() => {
     const tickResult = advanceRunningFocusTimer(mode);
     if (!tickResult.advanced || tickResult.finished || !isFocusTimerOwner()) return;
-    if (Date.now() - focusTimerLastHeartbeatAt >= 5000) {
+    if (Date.now() - focusTimerLastHeartbeatAt >= 2000) {
       focusTimerLastHeartbeatAt = Date.now();
       saveState();
       renderSummary();
