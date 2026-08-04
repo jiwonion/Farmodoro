@@ -1865,6 +1865,7 @@ let focusSeconds = 0;
 let focusRunning = false;
 let focusSessionStarted = false;
 let focusMode = "linked";
+let focusModeUserSelected = false;
 let runningFocusMode = null;
 let timerPhase = "focus";
 const focusRuntimeByMode = {
@@ -2729,6 +2730,7 @@ function isFocusTimerOwner() {
 
 function resetFocusTimerDatabaseState() {
   stopFocusRealtime();
+  focusModeUserSelected = false;
   focusTimerDatabaseHydrated = false;
   focusTimerDatabaseUnavailable = false;
   focusTimerLastUpdatedAt = "";
@@ -2844,7 +2846,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   activeFocus = payload.activeFocus?.type && payload.activeFocus?.id
     ? { type: payload.activeFocus.type, id: payload.activeFocus.id }
     : null;
-  focusMode = ["linked", "quick"].includes(payload.focusMode) ? payload.focusMode : "linked";
+  if (!focusModeUserSelected) {
+    focusMode = ["linked", "quick"].includes(payload.focusMode) ? payload.focusMode : "linked";
+  }
   runningFocusMode = ["linked", "quick"].includes(payload.runningMode)
     ? payload.runningMode
     : null;
@@ -6204,6 +6208,7 @@ function endFocusSession(mode = focusMode) {
 function setFocusMode(mode) {
   saveCurrentFocusRuntime();
   focusMode = mode;
+  focusModeUserSelected = true;
   const runtime = focusRuntimeByMode[mode];
   timerPhase = runtime.phase;
   focusSeconds = runtime.seconds;
@@ -6242,6 +6247,7 @@ function startItemFocus(type, id) {
   saveCurrentFocusRuntime();
   stopFocusTimer();
   focusMode = "linked";
+  focusModeUserSelected = true;
   timerPhase = "focus";
   activeFocus = { type, id };
   focusSettingsButton.hidden = true;
