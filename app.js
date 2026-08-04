@@ -5669,6 +5669,7 @@ function stopFocusTimer() {
   focusLastTickAt = 0;
   runningFocusMode = null;
   focusRunning = false;
+  void syncFocusWakeLock();
 }
 
 function saveCurrentFocusRuntime() {
@@ -5874,6 +5875,7 @@ function updateActiveFocusCard() {
 }
 
 function updateFocusActionButton() {
+  void syncFocusWakeLock();
   const button = document.querySelector("#focusButton");
   if (runningFocusMode === focusMode) {
     button.innerHTML = timerPhase === "focus"
@@ -8182,6 +8184,8 @@ document.addEventListener("click", (event) => {
 
 const focusPageStage = document.querySelector("#focusPageStage");
 const focusFullscreenButton = document.querySelector("#toggleFocusFullscreen");
+let focusWakeLock = null;
+let focusWakeLockRequest = null;
 const focusAudioButton = document.querySelector("#toggleFocusAudio");
 const focusYoutubeButton = document.querySelector("#toggleFocusYoutube");
 const focusYoutubePanel = document.querySelector("#focusYoutubePanel");
@@ -8212,6 +8216,50 @@ let focusAudioPlayer = null;
 let focusPlaylistQueue = [];
 let currentFocusTrack = null;
 let focusBackgroundObjectUrl = null;
+
+function shouldHoldFocusWakeLock() {
+  return (
+    "wakeLock" in navigator &&
+    document.visibilityState === "visible" &&
+    document.fullscreenElement === focusPageStage &&
+    Boolean(runningFocusMode)
+  );
+}
+
+async function releaseFocusWakeLock() {
+  const activeLock = focusWakeLock;
+  focusWakeLock = null;
+  if (activeLock && !activeLock.released) await activeLock.release();
+}
+
+async function requestFocusWakeLock() {
+  if (!shouldHoldFocusWakeLock() || (focusWakeLock && !focusWakeLock.released)) return;
+  if (focusWakeLockRequest) return focusWakeLockRequest;
+
+  focusWakeLockRequest = navigator.wakeLock.request("screen")
+    .then(async (wakeLock) => {
+      focusWakeLock = wakeLock;
+      wakeLock.addEventListener("release", () => {
+        if (focusWakeLock === wakeLock) focusWakeLock = null;
+      });
+      if (!shouldHoldFocusWakeLock()) await releaseFocusWakeLock();
+    })
+    .catch((error) => {
+      console.warn("Farmodoro screen wake lock could not be acquired", error);
+    })
+    .finally(() => {
+      focusWakeLockRequest = null;
+    });
+  return focusWakeLockRequest;
+}
+
+async function syncFocusWakeLock() {
+  if (shouldHoldFocusWakeLock()) {
+    await requestFocusWakeLock();
+    return;
+  }
+  await releaseFocusWakeLock();
+}
 
 function updateFocusMusicIndicator() {
   const defaultMusicPlaying = Boolean(
@@ -8346,6 +8394,7 @@ focusFullscreenButton.addEventListener("click", async () => {
     } else {
       await focusPageStage.requestFullscreen();
     }
+    await syncFocusWakeLock();
   } catch {
     showToast("이 브라우저에서는 전체 화면을 사용할 수 없어");
   }
@@ -8358,6 +8407,11 @@ document.addEventListener("fullscreenchange", () => {
     : '<span aria-hidden="true">⛶</span> 전체 화면';
   scheduleFocusStageCenterUpdate();
   requestAnimationFrame(updateFocusYoutubePanelPosition);
+  void syncFocusWakeLock();
+});
+
+document.addEventListener("visibilitychange", () => {
+  void syncFocusWakeLock();
 });
 
 function stopFocusAudio() {
