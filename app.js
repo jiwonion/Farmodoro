@@ -20,6 +20,7 @@ const userSettingsForm = document.querySelector("#userSettingsForm");
 const farmAdminMailSection = document.querySelector("#farmAdminMailSection");
 const farmAdminMailTitleInput = document.querySelector("#farmAdminMailTitleInput");
 const farmAdminMailMessageInput = document.querySelector("#farmAdminMailMessageInput");
+const farmAdminMailBoxCountInput = document.querySelector("#farmAdminMailBoxCountInput");
 const farmAdminMailStatus = document.querySelector("#farmAdminMailStatus");
 const sendFarmAdminMailButton = document.querySelector("#sendFarmAdminMail");
 const profileSettingsAvatar = document.querySelector("#profileSettingsAvatar");
@@ -971,13 +972,16 @@ sendFarmAdminMailButton.addEventListener("click", async () => {
     farmAdminMailStatus.textContent = "제목과 내용을 모두 적어.";
     return;
   }
-  if (!window.confirm("모든 사용자에게 이 우편과 랜덤 박스를 보낼 거야.")) return;
+  const boxCount = Math.min(20, Math.max(1, Math.round(Number(farmAdminMailBoxCountInput.value) || 1)));
+  farmAdminMailBoxCountInput.value = boxCount;
+  if (!window.confirm(`모든 사용자에게 이 우편과 랜덤 박스 ${boxCount}개를 보낼 거야.`)) return;
 
   sendFarmAdminMailButton.disabled = true;
   farmAdminMailStatus.textContent = "발송 중…";
   const { data, error } = await supabaseClient.rpc("broadcast_farm_update_mail", {
     p_title: title,
     p_message: message,
+    p_box_count: boxCount,
   });
   sendFarmAdminMailButton.disabled = false;
   if (error) {
@@ -992,6 +996,7 @@ sendFarmAdminMailButton.addEventListener("click", async () => {
   farmAdminMailStatus.textContent = `${recipientCount}명에게 발송했어.`;
   farmAdminMailTitleInput.value = "";
   farmAdminMailMessageInput.value = "";
+  farmAdminMailBoxCountInput.value = "1";
   await loadFarmDataFromDatabase(activeAuthUser);
   render();
 });
@@ -1391,29 +1396,107 @@ const CROPS = {
     sellPrice: 27,
     stages: ["seed", "sprout", "leaf", "flower", "키위"],
   },
+  pumpkinSquash: {
+    name: "단호박",
+    seedPrice: 4,
+    sellPrice: 17,
+    stages: ["•", "🌱", "🌿", "🌼", "🎃"],
+  },
+  daikon: {
+    name: "열무",
+    seedPrice: 2,
+    sellPrice: 9,
+    stages: ["seed", "sprout", "leaf", "열무"],
+  },
+  edamame: {
+    name: "풋콩",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "flower", "풋콩"],
+  },
+  bokchoy: {
+    name: "청경채",
+    seedPrice: 2,
+    sellPrice: 8,
+    stages: ["seed", "sprout", "leaf", "청경채"],
+  },
+  chestnut: {
+    name: "밤",
+    seedPrice: 6,
+    sellPrice: 26,
+    stages: ["seed", "sprout", "leaf", "flower", "밤"],
+  },
+  fig: {
+    name: "무화과",
+    seedPrice: 6,
+    sellPrice: 25,
+    stages: ["seed", "sprout", "leaf", "flower", "무화과"],
+  },
+  plum: {
+    name: "자두",
+    seedPrice: 5,
+    sellPrice: 21,
+    stages: ["seed", "sprout", "leaf", "flower", "자두"],
+  },
+  mango: {
+    name: "망고",
+    seedPrice: 7,
+    sellPrice: 30,
+    stages: ["seed", "sprout", "leaf", "flower", "망고"],
+  },
+  passionFruit: {
+    name: "패션프루트",
+    seedPrice: 6,
+    sellPrice: 26,
+    stages: ["seed", "sprout", "leaf", "flower", "패션프루트"],
+  },
+  bellFlower: {
+    name: "도라지",
+    seedPrice: 3,
+    sellPrice: 13,
+    stages: ["seed", "sprout", "leaf", "도라지"],
+  },
+  sweetCorn: {
+    name: "찰옥수수",
+    seedPrice: 4,
+    sellPrice: 17,
+    stages: ["•", "🌱", "🌿", "🌾", "🌽"],
+  },
+  truffle: {
+    name: "송로버섯",
+    seedPrice: 6,
+    sellPrice: 27,
+    stages: ["•", "◦", "♧", "🍄"],
+  },
+  lavender: {
+    name: "라벤더",
+    seedPrice: 4,
+    sellPrice: 16,
+    stages: ["•", "🌱", "🌿", "🌼", "🌸"],
+  },
 };
 
 const CROP_GROWTH_TYPES = Object.fromEntries(
   [
-    ["root", "carrot potato sweetPotato onion garlic beet radish turnip peanut"],
-    ["leafy", "cabbage broccoli lettuce spinach kale celery"],
-    ["grain", "corn rice wheat barley oat"],
-    ["vine", "tomato strawberry eggplant pepper cucumber pumpkin watermelon melon chili pea bean grape"],
+    ["root", "carrot potato sweetPotato onion garlic beet radish turnip peanut bellFlower"],
+    ["leafy", "cabbage broccoli lettuce spinach kale celery daikon bokchoy"],
+    ["grain", "corn rice wheat barley oat sweetCorn"],
+    ["vine", "tomato strawberry eggplant pepper cucumber pumpkin watermelon melon chili pea bean grape pumpkinSquash edamame"],
     ["berry", "blueberry raspberry"],
-    ["tree", "apple pear peach cherry lemon orange kiwi"],
-    ["tropical", "pineapple"],
-    ["fungus", "mushroom"],
-    ["flower", "sunflower"],
+    ["tree", "apple pear peach cherry lemon orange kiwi chestnut fig plum"],
+    ["tropical", "pineapple mango passionFruit"],
+    ["fungus", "mushroom truffle"],
+    ["flower", "sunflower lavender"],
   ].flatMap(([type, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, type])),
 );
 
 const CROP_GROWTH_COSTS = Object.fromEntries(
   [
-    [2, "radish lettuce spinach mushroom pea"],
-    [3, "carrot potato onion garlic cabbage kale celery beet turnip broccoli rice wheat barley oat"],
-    [4, "tomato corn sweetPotato eggplant pepper cucumber strawberry chili bean peanut sunflower"],
-    [5, "pumpkin watermelon melon grape blueberry raspberry pineapple"],
-    [6, "apple pear peach cherry lemon orange kiwi"],
+    [2, "radish lettuce spinach mushroom pea daikon bokchoy"],
+    [3, "carrot potato onion garlic cabbage kale celery beet turnip broccoli rice wheat barley oat bellFlower truffle lavender"],
+    [4, "tomato corn sweetPotato eggplant pepper cucumber strawberry chili bean peanut sunflower pumpkinSquash edamame sweetCorn"],
+    [5, "pumpkin watermelon melon grape blueberry raspberry pineapple plum mango passionFruit"],
+    [6, "apple pear peach cherry lemon orange kiwi chestnut fig"],
   ].flatMap(([cost, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, cost])),
 );
 
@@ -1424,73 +1507,119 @@ const FARM_ITEMS = {
   luckyFertilizer: {
     name: "행운 비료",
     icon: "✦",
-    price: 90,
+    price: 70,
     description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해",
     type: "plot",
   },
   moistureFertilizer: {
     name: "보습 비료",
     icon: "💧",
-    price: 70,
+    price: 55,
     description: "다음 수확까지 물 1회당 2단계 성장해",
     type: "plot",
   },
   premiumFertilizer: {
     name: "프리미엄 비료",
     icon: "♛",
-    price: 140,
+    price: 110,
     description: "행운 비료와 보습 비료 효과를 함께 적용해",
     type: "plot",
   },
   goldenFestivalPass: {
     name: "황금 수확제 초대장",
     icon: "🎟",
-    price: 240,
+    price: 190,
     description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼",
     type: "instant",
   },
   farmFestivalPass: {
     name: "푸른 들판 축제권",
     icon: "🎐",
-    price: 160,
+    price: 130,
     description: "사용 후 24시간 동안 모든 작물이 시들지 않아",
     type: "instant",
   },
   freePass: {
     name: "농부의 프리패스",
     icon: "✓",
-    price: 150,
+    price: 120,
     description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해",
     type: "target",
   },
   revivalTonic: {
     name: "새벽이슬 회복제",
     icon: "☘",
-    price: 60,
+    price: 50,
     description: "시든 작물 하나를 되살려",
     type: "plot",
   },
   growthTonic: {
     name: "햇살 성장제",
     icon: "☀",
-    price: 280,
+    price: 220,
     description: "성장 중인 작물 하나를 즉시 완전히 성장시켜",
     type: "plot",
   },
   seedMarketRefresh: {
     name: "씨앗 진열 교환권",
     icon: "↻",
-    price: 50,
+    price: 40,
     description: "오늘의 씨앗 판매대 7종을 즉시 새로 뽑아",
     type: "market",
   },
   foodMarketRefresh: {
     name: "매입 목록 교환권",
     icon: "▤",
-    price: 70,
-    description: "오늘의 음식 매입 목록 4종을 즉시 새로 뽑아",
+    price: 55,
+    description: "노아의 음식·작물 매입 목록을 즉시 새로 뽑아",
     type: "market",
   },
+};
+
+const FARM_THEMES = [
+  { id: "cherryBlossom", name: "벚꽃", price: 2000 },
+  { id: "valentine", name: "발렌타인", price: 2000 },
+  { id: "halloween", name: "할로윈", price: 2000 },
+  { id: "christmas", name: "크리스마스", price: 2000 },
+  { id: "whiteDay", name: "화이트데이", price: 2000 },
+  { id: "springMeadow", name: "봄날 들판", price: 2000 },
+  { id: "galaxyNight", name: "은하수 밤", price: 2000 },
+  { id: "ocean", name: "바다", price: 2000 },
+  { id: "bubbleField", name: "거품 밭", price: 2000 },
+];
+
+const PLOT_SKINS = [
+  { id: "cherryPetalFall", name: "벚꽃 낙화", price: 800 },
+  { id: "frostbite", name: "결빙", price: 800 },
+  { id: "chocolate", name: "초콜릿", price: 800 },
+  { id: "candy", name: "사탕", price: 800 },
+  { id: "starCandy", name: "별사탕", price: 800 },
+  { id: "mapleLeaf", name: "단풍잎", price: 800 },
+  { id: "snowField", name: "눈밭", price: 800 },
+  { id: "sandDune", name: "모래사장", price: 800 },
+  { id: "lava", name: "용암", price: 800 },
+  { id: "rainbow", name: "무지개", price: 800 },
+  { id: "golden", name: "황금", price: 800 },
+  { id: "lavenderField", name: "라벤더", price: 800 },
+];
+
+const LABEL_EFFECTS = [
+  { id: "goldenSparkle", name: "금빛 반짝임", price: 1200 },
+  { id: "confetti", name: "색종이 컨페티", price: 1200 },
+  { id: "cherryDrift", name: "벚꽃 흩날림", price: 1200 },
+  { id: "snowSparkle", name: "눈송이 반짝임", price: 1200 },
+  { id: "rainbowGradient", name: "무지개 그라데이션", price: 1200 },
+  { id: "starAurora", name: "별빛 오로라", price: 1200 },
+  { id: "heartPop", name: "하트 뿅뿅", price: 1200 },
+  { id: "flameBorder", name: "불꽃 테두리", price: 1200 },
+  { id: "butterflyFlutter", name: "나비 팔랑임", price: 1200 },
+  { id: "galaxySparkle", name: "은하수 반짝임", price: 1200 },
+];
+
+const COSMETIC_CATALOGS = {
+  farm_theme: FARM_THEMES,
+  plot_skin: PLOT_SKINS,
+  label_effect: LABEL_EFFECTS,
 };
 
 const SYSTEM_FARM_SENDER = {
@@ -1501,33 +1630,45 @@ const SYSTEM_FARM_SENDER = {
 };
 
 const RECIPES = {
-  countryStew: { name: "시골 채소 스튜", icon: "🍲", ingredients: ["carrot", "potato"], sellPrice: 42 },
-  sunsetSoup: { name: "노을 토마토 수프", icon: "🥣", ingredients: ["tomato", "corn"], sellPrice: 48 },
-  berryParfait: { name: "딸기 멜론 파르페", icon: "🍨", ingredients: ["strawberry", "melon"], sellPrice: 76 },
-  berryTart: { name: "들판 딸기 타르트", icon: "🥧", ingredients: ["wheat", "strawberry"], sellPrice: 58 },
-  mushroomRice: { name: "버섯 영양밥", icon: "🍚", ingredients: ["rice", "mushroom"], sellPrice: 55 },
-  pumpkinSoup: { name: "황금 호박 수프", icon: "🥣", ingredients: ["pumpkin", "onion"], sellPrice: 62 },
-  appleJam: { name: "사과 레몬 잼", icon: "🍯", ingredients: ["apple", "lemon"], sellPrice: 92 },
-  gardenSalad: { name: "정원 샐러드", icon: "🥗", ingredients: ["cabbage", "carrot", "cucumber"], sellPrice: 68 },
-  ratatouille: { name: "모리슨 라따뚜이", icon: "🍛", ingredients: ["eggplant", "tomato", "pepper"], sellPrice: 78 },
-  farmPizza: { name: "농장 피자", icon: "🍕", ingredients: ["wheat", "tomato", "corn"], sellPrice: 82 },
-  friedRice: { name: "피망 완두 볶음밥", icon: "🍳", ingredients: ["rice", "pepper", "pea"], sellPrice: 74 },
-  tropicalPunch: { name: "열대 과일 펀치", icon: "🍹", ingredients: ["pineapple", "orange", "kiwi"], sellPrice: 118 },
-  cornChowder: { name: "옥수수 감자 차우더", icon: "🥣", ingredients: ["corn", "potato", "onion"], sellPrice: 72 },
-  gazpacho: { name: "토마토 오이 가스파초", icon: "🍅", ingredients: ["tomato", "cucumber", "pepper"], sellPrice: 70 },
-  beetAppleJuice: { name: "비트 사과 주스", icon: "🧃", ingredients: ["beet", "apple"], sellPrice: 78 },
-  broccoliMushroom: { name: "브로콜리 버섯볶음", icon: "🥘", ingredients: ["broccoli", "mushroom"], sellPrice: 58 },
-  cabbageRiceRoll: { name: "배추 쌈밥", icon: "🍙", ingredients: ["cabbage", "rice"], sellPrice: 54 },
-  applePie: { name: "햇살 사과 파이", icon: "🥧", ingredients: ["wheat", "apple"], sellPrice: 88 },
-  blueberryCake: { name: "블루베리 레몬 케이크", icon: "🍰", ingredients: ["wheat", "blueberry", "lemon"], sellPrice: 112 },
-  grapePeachPunch: { name: "포도 복숭아 펀치", icon: "🍹", ingredients: ["grape", "peach"], sellPrice: 96 },
-  pumpkinPorridge: { name: "호박 쌀죽", icon: "🥣", ingredients: ["pumpkin", "rice"], sellPrice: 66 },
-  spicyPeanut: { name: "매콤 땅콩 볶음", icon: "🥜", ingredients: ["peanut", "chili"], sellPrice: 64 },
-  carrotOrangeJuice: { name: "당근 오렌지 주스", icon: "🧃", ingredients: ["carrot", "orange"], sellPrice: 76 },
-  pearKiwiSmoothie: { name: "배 키위 스무디", icon: "🥤", ingredients: ["pear", "kiwi"], sellPrice: 102 },
-  watermelonBerryPunch: { name: "수박 딸기 화채", icon: "🍧", ingredients: ["watermelon", "strawberry"], sellPrice: 90 },
-  barleyMushroomPilaf: { name: "보리 버섯 필라프", icon: "🍛", ingredients: ["barley", "mushroom", "onion"], sellPrice: 75 },
-  oatBlueberryPorridge: { name: "귀리 블루베리죽", icon: "🥣", ingredients: ["oat", "blueberry"], sellPrice: 82 },
+  countryStew: { name: "시골 채소 스튜", icon: "🍲", ingredients: ["carrot", "potato"], sellPrice: 34 },
+  sunsetSoup: { name: "노을 토마토 수프", icon: "🥣", ingredients: ["tomato", "corn"], sellPrice: 38 },
+  berryParfait: { name: "딸기 멜론 파르페", icon: "🍨", ingredients: ["strawberry", "melon"], sellPrice: 60 },
+  berryTart: { name: "들판 딸기 타르트", icon: "🥧", ingredients: ["wheat", "strawberry"], sellPrice: 46 },
+  mushroomRice: { name: "버섯 영양밥", icon: "🍚", ingredients: ["rice", "mushroom"], sellPrice: 44 },
+  pumpkinSoup: { name: "황금 호박 수프", icon: "🥣", ingredients: ["pumpkin", "onion"], sellPrice: 50 },
+  appleJam: { name: "사과 레몬 잼", icon: "🍯", ingredients: ["apple", "lemon"], sellPrice: 74 },
+  gardenSalad: { name: "정원 샐러드", icon: "🥗", ingredients: ["cabbage", "carrot", "cucumber"], sellPrice: 54 },
+  ratatouille: { name: "들판 라따뚜이", icon: "🍛", ingredients: ["eggplant", "tomato", "pepper"], sellPrice: 62 },
+  farmPizza: { name: "농장 피자", icon: "🍕", ingredients: ["wheat", "tomato", "corn"], sellPrice: 66 },
+  friedRice: { name: "피망 완두 볶음밥", icon: "🍳", ingredients: ["rice", "pepper", "pea"], sellPrice: 60 },
+  tropicalPunch: { name: "열대 과일 펀치", icon: "🍹", ingredients: ["pineapple", "orange", "kiwi"], sellPrice: 94 },
+  cornChowder: { name: "옥수수 감자 차우더", icon: "🥣", ingredients: ["corn", "potato", "onion"], sellPrice: 58 },
+  gazpacho: { name: "토마토 오이 가스파초", icon: "🍅", ingredients: ["tomato", "cucumber", "pepper"], sellPrice: 56 },
+  beetAppleJuice: { name: "비트 사과 주스", icon: "🧃", ingredients: ["beet", "apple"], sellPrice: 62 },
+  broccoliMushroom: { name: "브로콜리 버섯볶음", icon: "🥘", ingredients: ["broccoli", "mushroom"], sellPrice: 46 },
+  cabbageRiceRoll: { name: "배추 쌈밥", icon: "🍙", ingredients: ["cabbage", "rice"], sellPrice: 44 },
+  applePie: { name: "햇살 사과 파이", icon: "🥧", ingredients: ["wheat", "apple"], sellPrice: 70 },
+  blueberryCake: { name: "블루베리 레몬 케이크", icon: "🍰", ingredients: ["wheat", "blueberry", "lemon"], sellPrice: 90 },
+  grapePeachPunch: { name: "포도 복숭아 펀치", icon: "🍹", ingredients: ["grape", "peach"], sellPrice: 76 },
+  pumpkinPorridge: { name: "호박 쌀죽", icon: "🥣", ingredients: ["pumpkin", "rice"], sellPrice: 52 },
+  spicyPeanut: { name: "매콤 땅콩 볶음", icon: "🥜", ingredients: ["peanut", "chili"], sellPrice: 50 },
+  carrotOrangeJuice: { name: "당근 오렌지 주스", icon: "🧃", ingredients: ["carrot", "orange"], sellPrice: 60 },
+  pearKiwiSmoothie: { name: "배 키위 스무디", icon: "🥤", ingredients: ["pear", "kiwi"], sellPrice: 82 },
+  watermelonBerryPunch: { name: "수박 딸기 화채", icon: "🍧", ingredients: ["watermelon", "strawberry"], sellPrice: 72 },
+  barleyMushroomPilaf: { name: "보리 버섯 필라프", icon: "🍛", ingredients: ["barley", "mushroom", "onion"], sellPrice: 60 },
+  oatBlueberryPorridge: { name: "귀리 블루베리죽", icon: "🥣", ingredients: ["oat", "blueberry"], sellPrice: 66 },
+  kabochaCurry: { name: "단호박 카레", icon: "🍛", ingredients: ["pumpkinSquash", "onion"], sellPrice: 48 },
+  bokchoyStirFry: { name: "청경채 굴소스볶음", icon: "🥘", ingredients: ["bokchoy", "garlic"], sellPrice: 36 },
+  edamameSalad: { name: "풋콩 두부 샐러드", icon: "🥗", ingredients: ["edamame", "cucumber"], sellPrice: 38 },
+  chestnutRiceCake: { name: "밤 인절미", icon: "🍡", ingredients: ["chestnut", "rice"], sellPrice: 58 },
+  figCheesePlatter: { name: "무화과 치즈 플레이트", icon: "🧀", ingredients: ["fig", "raspberry"], sellPrice: 76 },
+  plumSorbet: { name: "자두 셔벗", icon: "🍧", ingredients: ["plum", "lemon"], sellPrice: 68 },
+  mangoSticky: { name: "망고 찰밥", icon: "🍚", ingredients: ["mango", "sweetCorn"], sellPrice: 86 },
+  passionYogurt: { name: "패션프루트 요거트", icon: "🍨", ingredients: ["passionFruit", "blueberry"], sellPrice: 78 },
+  bellFlowerNamul: { name: "도라지 나물", icon: "🥗", ingredients: ["bellFlower", "spinach"], sellPrice: 46 },
+  sweetCornCheeseBake: { name: "찰옥수수 치즈구이", icon: "🧈", ingredients: ["sweetCorn", "pepper"], sellPrice: 52 },
+  truffleRisotto: { name: "송로버섯 리조또", icon: "🍚", ingredients: ["truffle", "rice", "mushroom"], sellPrice: 96 },
+  lavenderTea: { name: "라벤더 밀크티", icon: "🍵", ingredients: ["lavender", "oat"], sellPrice: 50 },
 };
 
 const defaultState = {
@@ -1548,9 +1689,14 @@ const defaultState = {
   marketRotationDate: "",
   dailySeedOffers: [],
   dailyFoodOffers: [],
+  dailyCropSellOffers: [],
+  dailyCosmeticOffers: [],
+  ownedCosmetics: [],
+  equippedFarmTheme: null,
+  equippedPlotSkin: null,
+  equippedLabelEffect: null,
   foodInventory: Object.fromEntries(Object.keys(RECIPES).map((recipeId) => [recipeId, 0])),
   discoveredRecipes: [],
-  wasteCount: 0,
   farmItemInventory: Object.fromEntries(
     Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
   ),
@@ -1563,8 +1709,8 @@ const defaultState = {
   },
   seedInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
   harvestInventory: Object.fromEntries(Object.keys(CROPS).map((cropId) => [cropId, 0])),
-  farmPlots: Array.from({ length: 16 }, (_, index) => ({
-      id: index,
+  farmPlots: [0, 1, 2, 4, 5, 6, 8, 9, 10].map((id) => ({
+      id,
       crop: null,
       growth: 0,
       plantedDate: "",
@@ -1597,9 +1743,14 @@ const FARM_STATE_KEYS = [
   "marketRotationDate",
   "dailySeedOffers",
   "dailyFoodOffers",
+  "dailyCropSellOffers",
+  "dailyCosmeticOffers",
+  "ownedCosmetics",
+  "equippedFarmTheme",
+  "equippedPlotSkin",
+  "equippedLabelEffect",
   "foodInventory",
   "discoveredRecipes",
-  "wasteCount",
   "farmItemInventory",
   "seedInventory",
   "harvestInventory",
@@ -1675,6 +1826,9 @@ let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedSeed = null;
 let selectedFarmItem = null;
+const NPC_PANELS = ["morrison", "noah", "rachel"];
+let activeNpcPanel = "morrison";
+let rachelActiveTab = "offers";
 let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
@@ -1936,7 +2090,6 @@ function buildFarmDatabaseState(snapshot = state) {
       farmName: snapshot.farmName,
       productionBoostUntil: toDatabaseTimestamp(snapshot.productionBoostUntil),
       wiltProtectionUntil: toDatabaseTimestamp(snapshot.wiltProtectionUntil),
-      wasteCount: snapshot.wasteCount,
     },
     plots: snapshot.farmPlots.map((plot) => ({
       id: plot.id,
@@ -1955,6 +2108,8 @@ function buildFarmDatabaseState(snapshot = state) {
       date: snapshot.marketRotationDate,
       seedOffers: [...snapshot.dailySeedOffers],
       foodOffers: [...snapshot.dailyFoodOffers],
+      cropSellOffers: snapshot.dailyCropSellOffers.map((entry) => ({ ...entry })),
+      cosmeticOffers: snapshot.dailyCosmeticOffers.map((entry) => ({ ...entry })),
     },
   };
 }
@@ -2062,7 +2217,13 @@ async function loadFarmDataFromDatabase(user) {
     : "";
   farmDataHydrated = false;
   farmDataUserId = requestedUserId;
-  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v2");
+  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v4");
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v3"));
+  }
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v2"));
+  }
   if (error?.code === "PGRST202" || error?.code === "42883") {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state"));
   }
@@ -2081,14 +2242,25 @@ async function loadFarmDataFromDatabase(user) {
   state.farmName = farm.farmName || defaultState.farmName;
   state.productionBoostUntil = Date.parse(farm.productionBoostUntil || "") || 0;
   state.wiltProtectionUntil = Date.parse(farm.wiltProtectionUntil || "") || 0;
-  state.wasteCount = Math.max(0, Number(farm.wasteCount ?? 0));
+  state.equippedFarmTheme = FARM_THEMES.some((theme) => theme.id === farm.equippedFarmTheme)
+    ? farm.equippedFarmTheme
+    : null;
+  state.equippedPlotSkin = PLOT_SKINS.some((skin) => skin.id === farm.equippedPlotSkin)
+    ? farm.equippedPlotSkin
+    : null;
+  state.equippedLabelEffect = LABEL_EFFECTS.some((effect) => effect.id === farm.equippedLabelEffect)
+    ? farm.equippedLabelEffect
+    : null;
+  state.ownedCosmetics = (data?.ownedCosmetics ?? []).filter(
+    (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
+  );
 
   const plotRows = new Map((data?.plots ?? []).map((plot) => [Number(plot.id), plot]));
-  state.farmPlots = defaultState.farmPlots.map((fallback, index) => {
-    const plot = plotRows.get(index);
+  state.farmPlots = defaultState.farmPlots.map((fallback) => {
+    const plot = plotRows.get(fallback.id);
     if (!plot) return structuredClone(fallback);
     return {
-      id: index,
+      id: fallback.id,
       crop: CROPS[plot.crop] ? plot.crop : null,
       growth: Math.max(0, Number(plot.growth ?? 0)),
       plantedDate: plot.plantedDate ?? "",
@@ -2124,6 +2296,22 @@ async function loadFarmDataFromDatabase(user) {
   state.marketRotationDate = rotation.date ?? "";
   state.dailySeedOffers = (rotation.seedOffers ?? []).filter((cropId) => CROPS[cropId]);
   state.dailyFoodOffers = (rotation.foodOffers ?? []).filter((recipeId) => RECIPES[recipeId]);
+  // rotation.cropSellOffers/cosmeticOffers are only present once the backend
+  // has the 042/043 migrations applied (returned via get_my_farm_state_v3/v4).
+  // On an unmigrated backend the key is simply absent (undefined) -- leave
+  // whatever ensureDailyMarket() already rolled locally alone in that case,
+  // rather than resetting it to empty and forcing a fresh, unsaved reroll on
+  // every reload.
+  if (rotation.cropSellOffers !== undefined) {
+    state.dailyCropSellOffers = rotation.cropSellOffers.filter(
+      (entry) => CROPS[entry?.cropId] && (entry.bundleSize === 5 || entry.bundleSize === 10),
+    );
+  }
+  if (rotation.cosmeticOffers !== undefined) {
+    state.dailyCosmeticOffers = rotation.cosmeticOffers.filter(
+      (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
+    );
+  }
   state.farmRankingWeekStart = getFarmWeekStart();
   state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
   state.farmInbox = mapFarmInboxFromDatabase(data?.inbox ?? []);
@@ -2170,7 +2358,13 @@ function scheduleFarmDataDatabaseSync(delay = 250) {
     const payload = JSON.parse(latestSignature);
     farmDataSyncChain = farmDataSyncChain
       .then(async () => {
-        let { error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
+        let { error } = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
+        if (error?.code === "PGRST202" || error?.code === "42883") {
+          ({ error } = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload }));
+        }
+        if (error?.code === "PGRST202" || error?.code === "42883") {
+          ({ error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload }));
+        }
         if (error?.code === "PGRST202" || error?.code === "42883") {
           ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
         }
@@ -2208,7 +2402,13 @@ async function syncFarmDataDatabaseImmediately() {
   }
   const payload = JSON.parse(signature);
   const operation = farmDataSyncChain.then(async () => {
-    let { error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
+    let { error } = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
+    if (error?.code === "PGRST202" || error?.code === "42883") {
+      ({ error } = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload }));
+    }
+    if (error?.code === "PGRST202" || error?.code === "42883") {
+      ({ error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload }));
+    }
     if (error?.code === "PGRST202" || error?.code === "42883") {
       ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
     }
@@ -2245,7 +2445,7 @@ function loadState(savedState = null) {
     const migratedCoins = Number(saved.coins ?? 0);
     const migratedFarmMoney = Number(saved.farmMoney ?? 0);
     const migratedFarmPlots =
-      Array.isArray(saved.farmPlots) && saved.farmPlots.length === 16
+      Array.isArray(saved.farmPlots) && saved.farmPlots.length === 9
         ? saved.farmPlots.map((plot, index) => ({
             id: plot.id ?? index,
             crop: plot.crop ?? null,
@@ -2281,12 +2481,17 @@ function loadState(savedState = null) {
       marketRotationDate: saved.marketRotationDate ?? "",
       dailySeedOffers: saved.dailySeedOffers ?? [],
       dailyFoodOffers: saved.dailyFoodOffers ?? [],
+      dailyCropSellOffers: saved.dailyCropSellOffers ?? [],
+      dailyCosmeticOffers: saved.dailyCosmeticOffers ?? [],
+      ownedCosmetics: Array.isArray(saved.ownedCosmetics) ? saved.ownedCosmetics : [],
+      equippedFarmTheme: saved.equippedFarmTheme ?? null,
+      equippedPlotSkin: saved.equippedPlotSkin ?? null,
+      equippedLabelEffect: saved.equippedLabelEffect ?? null,
       foodInventory: {
         ...structuredClone(defaultState.foodInventory),
         ...(saved.foodInventory ?? {}),
       },
       discoveredRecipes: saved.discoveredRecipes ?? [],
-      wasteCount: saved.wasteCount ?? 0,
       farmItemInventory: {
         ...structuredClone(defaultState.farmItemInventory),
         ...(saved.farmItemInventory ?? {}),
@@ -3609,7 +3814,9 @@ function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
   if (farmLeaderboard.length) return farmLeaderboard;
   return [
     {
-      name: state.farmName || "내 농장",
+      farmName: state.farmName || "내 농장",
+      displayName: currentProfile?.display_name || "농부",
+      labelEffect: state.equippedLabelEffect || null,
       score: userScore,
       isMe: true,
     },
@@ -3757,18 +3964,51 @@ function getRandomSelection(values, count) {
   return shuffled.slice(0, count);
 }
 
+function getCropBundlePrice(cropId, bundleSize) {
+  const crop = CROPS[cropId];
+  const growCost = crop.seedPrice + getCropGrowthCost(cropId);
+  return growCost * bundleSize + 2;
+}
+
+function rollCropSellOffers() {
+  return getRandomSelection(Object.keys(CROPS), 5).map((cropId) => ({
+    cropId,
+    bundleSize: Math.random() < 0.5 ? 5 : 10,
+  }));
+}
+
+function getAvailableCosmeticEntries() {
+  const ownedKeys = new Set(state.ownedCosmetics.map((entry) => `${entry.type}:${entry.id}`));
+  return Object.entries(COSMETIC_CATALOGS).flatMap(([type, items]) =>
+    items
+      .filter((item) => !ownedKeys.has(`${type}:${item.id}`))
+      .map((item) => ({ type, id: item.id })),
+  );
+}
+
 function ensureDailyMarket() {
   const today = toLocalDateString();
-  if (
-    state.marketRotationDate === today &&
-    state.dailySeedOffers.length === 7 &&
-    state.dailyFoodOffers.length === 4
-  ) {
-    return;
+  const isNewDay = state.marketRotationDate !== today;
+  if (isNewDay) state.marketRotationDate = today;
+
+  // Each rotation category is checked independently (not as one combined
+  // condition) so that a category missing data -- e.g. because the backend
+  // hasn't picked up a newly added rotation field yet -- only re-rolls that
+  // one category instead of resetting every stall's lineup for the day.
+  if (isNewDay || state.dailySeedOffers.length !== 7) {
+    state.dailySeedOffers = getRandomSelection(Object.keys(CROPS), 7);
   }
-  state.marketRotationDate = today;
-  state.dailySeedOffers = getRandomSelection(Object.keys(CROPS), 7);
-  state.dailyFoodOffers = getRandomSelection(Object.keys(RECIPES), 4);
+  if (isNewDay || state.dailyFoodOffers.length !== 4) {
+    state.dailyFoodOffers = getRandomSelection(Object.keys(RECIPES), 4);
+  }
+  if (isNewDay || state.dailyCropSellOffers.length !== 5) {
+    state.dailyCropSellOffers = rollCropSellOffers();
+  }
+  const availableCosmetics = getAvailableCosmeticEntries();
+  const expectedCosmeticOfferCount = Math.min(3, availableCosmetics.length);
+  if (isNewDay || state.dailyCosmeticOffers.length !== expectedCosmeticOfferCount) {
+    state.dailyCosmeticOffers = getRandomSelection(availableCosmetics, expectedCosmeticOfferCount);
+  }
 }
 
 function getRefreshedMarketSelection(values, count, currentSelection) {
@@ -3805,6 +4045,62 @@ function launchHarvestCelebration() {
   ).join("");
   document.body.append(celebration);
   setTimeout(() => celebration.remove(), 1800);
+}
+
+function launchRecipeDiscoveryFireworks() {
+  const stage = document.createElement("div");
+  stage.className = "recipe-fireworks";
+  const colors = ["#f2c84b", "#e66b56", "#5ea76d", "#7e78bd", "#4fb3d9", "#f08fb0"];
+  const bursts = [
+    { left: 50, top: 40, delay: 0 },
+    { left: 32, top: 54, delay: 180 },
+    { left: 68, top: 52, delay: 320 },
+  ];
+  stage.innerHTML =
+    `<div class="flash"></div>` +
+    bursts
+      .map(({ left, top, delay }, burstIndex) => {
+        const particleCount = 26;
+        const particles = Array.from({ length: particleCount }, (_, index) => {
+          const angle = (index / particleCount) * Math.PI * 2 + Math.random() * 0.3;
+          const distance = 90 + Math.random() * 110;
+          const tx = Math.round(Math.cos(angle) * distance);
+          const ty = Math.round(Math.sin(angle) * distance);
+          const rot = Math.round(Math.random() * 360 - 180);
+          const duration = (0.9 + Math.random() * 0.5).toFixed(2);
+          const particleDelay = (delay / 1000 + Math.random() * 0.05).toFixed(2);
+          const color = colors[(burstIndex + index) % colors.length];
+          const style = `--tx:${tx}px;--ty:${ty}px;--rot:${rot}deg;--dur:${duration}s;--delay:${particleDelay}s;--color:${color};`;
+          return index % 3 === 0
+            ? `<b class="spark" style="${style}">✦</b>`
+            : `<i class="chip" style="${style}"></i>`;
+        }).join("");
+        const ringColor = colors[burstIndex % colors.length];
+        return `
+          <div class="burst" style="left:${left}%;top:${top}%;">
+            <span class="ring" style="border-color:${ringColor};animation-delay:${(delay / 1000).toFixed(2)}s"></span>
+            ${particles}
+          </div>
+        `;
+      })
+      .join("");
+  document.body.append(stage);
+  setTimeout(() => stage.remove(), 2200);
+}
+
+function launchCraftWasteEffect() {
+  const poof = document.createElement("div");
+  poof.className = "craft-waste-poof";
+  const dust = Array.from({ length: 18 }, (_, index) => {
+    const angle = (index / 18) * Math.PI * 2;
+    const distance = 100 + (index % 4) * 26;
+    const tx = Math.round(Math.cos(angle) * distance);
+    const ty = Math.round(Math.sin(angle) * distance + 55);
+    return `<i style="--tx:${tx}px;--ty:${ty}px;--delay:${(index % 5) * 0.03}s"></i>`;
+  }).join("");
+  poof.innerHTML = `<span class="poof-icon">💥</span>${dust}`;
+  document.body.append(poof);
+  setTimeout(() => poof.remove(), 1500);
 }
 
 function updateWiltedCrops() {
@@ -4317,8 +4613,8 @@ function renderFarmRanking() {
         <li class="farm-ranking-row ${farmer.isMe ? "is-me" : ""}">
           <span class="farm-ranking-rank">${rankLabel}</span>
           <span class="farm-ranking-name">
-            <strong>${escapeHtml(farmer.name)}</strong>
-            ${farmer.isMe ? "<small>나</small>" : ""}
+            <strong class="farm-ranking-farm-name" data-label-effect="${farmer.labelEffect ?? ""}">${escapeHtml(farmer.farmName)}</strong>
+            <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
           </span>
           <strong class="farm-ranking-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
         </li>
@@ -4711,6 +5007,112 @@ function closeRecipeIngredientMenus(exceptPicker = null) {
   });
 }
 
+const COSMETIC_TYPE_LABELS = {
+  farm_theme: "농장 테마",
+  plot_skin: "밭 스킨",
+  label_effect: "이름표 효과",
+};
+
+function getCosmeticEntry(type, id) {
+  return COSMETIC_CATALOGS[type]?.find((item) => item.id === id) ?? null;
+}
+
+function isCosmeticOwned(type, id) {
+  return state.ownedCosmetics.some((entry) => entry.type === type && entry.id === id);
+}
+
+function isCosmeticEquipped(type, id) {
+  if (type === "farm_theme") return state.equippedFarmTheme === id;
+  if (type === "plot_skin") return state.equippedPlotSkin === id;
+  return state.equippedLabelEffect === id;
+}
+
+function renderRachelPanel() {
+  const offersList = document.querySelector("#rachelOffersList");
+  const ownedList = document.querySelector("#rachelOwnedList");
+  if (!offersList || !ownedList) return;
+
+  offersList.classList.toggle("hidden", rachelActiveTab !== "offers");
+  ownedList.classList.toggle("hidden", rachelActiveTab !== "owned");
+  document.querySelectorAll("[data-rachel-tab]").forEach((tab) => {
+    tab.setAttribute("aria-selected", String(tab.dataset.rachelTab === rachelActiveTab));
+  });
+
+  offersList.innerHTML = state.dailyCosmeticOffers.length
+    ? state.dailyCosmeticOffers
+        .map(({ type, id }) => {
+          const entry = getCosmeticEntry(type, id);
+          if (!entry) return "";
+          const owned = isCosmeticOwned(type, id);
+          return `
+            <article class="rachel-cosmetic-card">
+              <div>
+                <strong>${entry.name}</strong>
+                <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
+              </div>
+              <button
+                type="button"
+                data-purchase-cosmetic="${type}:${id}"
+                ${owned || state.farmMoney < entry.price ? "disabled" : ""}
+              >
+                ${owned ? "보유 중" : `✦ ${entry.price}`}
+              </button>
+            </article>
+          `;
+        })
+        .join("")
+    : '<p class="rachel-status">오늘 진열된 소품을 모두 가지고 있어!</p>';
+
+  const ownedByType = ["farm_theme", "plot_skin", "label_effect"].flatMap((type) =>
+    state.ownedCosmetics
+      .filter((entry) => entry.type === type)
+      .map((entry) => ({ type, ...getCosmeticEntry(type, entry.id), id: entry.id }))
+      .filter((entry) => entry.name),
+  );
+  ownedList.innerHTML = ownedByType.length
+    ? ownedByType
+        .map(({ type, id, name }) => {
+          const equipped = isCosmeticEquipped(type, id);
+          // An empty id in data-equip-cosmetic means "unequip this slot" --
+          // equip_farm_cosmetic accepts a null cosmetic id and clears the
+          // column, which puts the farm back on its default look.
+          const action = equipped
+            ? `<span class="rachel-equipped-badge">장착됨</span>
+               <button type="button" class="rachel-unequip" data-equip-cosmetic="${type}:">해제</button>`
+            : `<button type="button" data-equip-cosmetic="${type}:${id}">장착</button>`;
+          return `
+            <article class="rachel-cosmetic-card${equipped ? " equipped" : ""}">
+              <div>
+                <strong>${name}</strong>
+                <small>${COSMETIC_TYPE_LABELS[type]}</small>
+              </div>
+              <div class="rachel-cosmetic-actions">${action}</div>
+            </article>
+          `;
+        })
+        .join("")
+    : '<p class="rachel-status">아직 보유한 소품이 없어</p>';
+}
+
+function applyFarmTheme(themeId) {
+  const farmPage = document.querySelector("#farmPage");
+  if (!farmPage) return;
+  if (themeId) farmPage.dataset.farmTheme = themeId;
+  else delete farmPage.dataset.farmTheme;
+}
+
+function renderNpcMarketCarousel() {
+  const market = document.querySelector("#npcMarket");
+  if (!market) return;
+  market.dataset.activeNpc = activeNpcPanel;
+  market.querySelectorAll("[data-npc-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.npcPanel !== activeNpcPanel;
+  });
+  market.querySelectorAll("[data-npc-dot]").forEach((dot) => {
+    dot.classList.toggle("active", dot.dataset.npcDot === activeNpcPanel);
+  });
+}
+
 function renderFarm() {
   const inventory = document.querySelector("#seedInventory");
   const shop = document.querySelector("#seedShop");
@@ -4718,7 +5120,8 @@ function renderFarm() {
   const farmBalance = document.querySelector("#farmCoinBalance");
   const farmHeaderBalance = document.querySelector("#farmHeaderCoinBalance");
   const harvestInventory = document.querySelector("#harvestInventory");
-  const morrisonBuyList = document.querySelector("#morrisonBuyList");
+  const noahBuyList = document.querySelector("#noahBuyList");
+  const noahCropBundleList = document.querySelector("#noahCropBundleList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
   const modalFarmMoney = document.querySelector("#modalFarmMoneyBalance");
   const topFarmMoney = document.querySelector("#farmMoneyBalance");
@@ -4739,7 +5142,8 @@ function renderFarm() {
     !farmBalance ||
     !farmHeaderBalance ||
     !harvestInventory ||
-    !morrisonBuyList ||
+    !noahBuyList ||
+    !noahCropBundleList ||
     !marketFarmMoney ||
     !modalFarmMoney ||
     !topFarmMoney ||
@@ -4757,7 +5161,9 @@ function renderFarm() {
     return;
   }
 
+  renderNpcMarketCarousel();
   ensureDailyMarket();
+  renderRachelPanel();
   ensureWeeklyFarmRanking();
   updateWiltedCrops();
   farmBalance.textContent = state.coins;
@@ -4781,6 +5187,12 @@ function renderFarm() {
   );
   supplyModalCount.textContent = supplyStorageCount.textContent;
   farmNameLabel.textContent = state.farmName;
+  if (state.equippedLabelEffect) {
+    farmNameLabel.dataset.labelEffect = state.equippedLabelEffect;
+  } else {
+    delete farmNameLabel.dataset.labelEffect;
+  }
+  applyFarmTheme(state.equippedFarmTheme);
   renderFarmRanking();
   renderFarmMail();
 
@@ -4880,12 +5292,12 @@ function renderFarm() {
     )
     .join("");
 
-  morrisonBuyList.innerHTML = state.dailyFoodOffers
+  noahBuyList.innerHTML = state.dailyFoodOffers
     .map(
       (recipeId) => {
         const recipe = RECIPES[recipeId];
         return `
-        <article class="morrison-buy-card">
+        <article class="noah-buy-card">
           <span>${recipe.icon}</span>
           <div>
             <strong>${recipe.name}</strong>
@@ -4898,6 +5310,30 @@ function renderFarm() {
       `;
       },
     )
+    .join("");
+
+  noahCropBundleList.innerHTML = state.dailyCropSellOffers
+    .map(({ cropId, bundleSize }) => {
+      const crop = CROPS[cropId];
+      const owned = state.harvestInventory[cropId] ?? 0;
+      return `
+        <article class="noah-buy-card">
+          <span>${cropSvg(cropId)}</span>
+          <div>
+            <strong>${crop.name} ${bundleSize}개 묶음</strong>
+            <small>보유 ${owned}개</small>
+          </div>
+          <button
+            type="button"
+            data-sell-crop-bundle="${cropId}"
+            data-bundle-size="${bundleSize}"
+            ${owned < bundleSize ? "disabled" : ""}
+          >
+            ✦ ${getCropBundlePrice(cropId, bundleSize)}
+          </button>
+        </article>
+      `;
+    })
     .join("");
 
   const ingredientOptions = [
@@ -4929,12 +5365,6 @@ function renderFarm() {
   foodInventory.innerHTML =
     storedFoods ||
     '<span class="empty-food-message">완성된 음식이 아직 없어</span>';
-  if (state.wasteCount) {
-    foodInventory.insertAdjacentHTML(
-      "beforeend",
-      `<button class="waste-item" type="button" data-discard-waste>🗑 폐기물 ${state.wasteCount}개 버리기</button>`,
-    );
-  }
 
   recipeBookProgress.textContent = `${state.discoveredRecipes.length} / ${Object.keys(RECIPES).length}`;
   recipeBook.innerHTML = Object.entries(RECIPES)
@@ -4961,6 +5391,7 @@ function renderFarm() {
             type="button"
             data-plant-plot="${plot.id}"
             data-plot-id="${plot.id}"
+            data-plot-skin="${state.equippedPlotSkin ?? ""}"
             aria-label="${plot.id + 1}번 빈 밭"
           >
             <span>＋</span>
@@ -4978,7 +5409,7 @@ function renderFarm() {
 
       if (plot.wilted) {
         return `
-          <article class="farm-plot crop-plot wilted" data-plot-id="${plot.id}">
+          <article class="farm-plot crop-plot wilted" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
               <span>${cropSvg(plot.crop, "wilted")}</span>
@@ -4998,6 +5429,7 @@ function renderFarm() {
           <article
             class="farm-plot crop-plot growable-plot"
             data-plot-id="${plot.id}"
+            data-plot-skin="${state.equippedPlotSkin ?? ""}"
           >
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
@@ -5023,7 +5455,7 @@ function renderFarm() {
       }
 
       return `
-        <article class="farm-plot crop-plot mature" data-plot-id="${plot.id}">
+        <article class="farm-plot crop-plot mature" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
           ${fertilizerBadge}
           <div class="crop-visual stage-${plot.growth}">
             <span>${cropSvg(plot.crop)}</span>
@@ -7407,7 +7839,8 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
         4,
         state.dailyFoodOffers,
       );
-      showToast("모리슨의 음식 매입 목록이 새로 바뀌었어");
+      state.dailyCropSellOffers = rollCropSellOffers();
+      showToast("노아의 매입 목록이 새로 바뀌었어");
     }
     render();
     return;
@@ -7679,21 +8112,21 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
   }
 });
 
-document.querySelector("#morrisonBuyList").addEventListener("click", (event) => {
+document.querySelector("#noahBuyList").addEventListener("click", (event) => {
   const button = event.target.closest("[data-sell-food]");
   if (!button) return;
 
   const recipeId = button.dataset.sellFood;
   const recipe = RECIPES[recipeId];
   if (!recipe || !state.foodInventory[recipeId]) {
-    showToast("오늘 모리슨에게 팔 수 있는 음식이 없어");
+    showToast("오늘 노아에게 팔 수 있는 음식이 없어");
     return;
   }
 
   if (
     !earnFarmMoney(
       recipe.sellPrice,
-      "모리슨 음식 판매",
+      "노아 음식 판매",
       `food:${recipeId}:${Date.now()}`,
     )
   ) return;
@@ -7702,7 +8135,32 @@ document.querySelector("#morrisonBuyList").addEventListener("click", (event) => 
   render();
 });
 
-document.querySelector("#cookRecipeButton").addEventListener("click", () => {
+document.querySelector("#noahCropBundleList").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-sell-crop-bundle]");
+  if (!button) return;
+
+  const cropId = button.dataset.sellCropBundle;
+  const bundleSize = Number(button.dataset.bundleSize);
+  const crop = CROPS[cropId];
+  if (!crop || (state.harvestInventory[cropId] ?? 0) < bundleSize) {
+    showToast("판매할 작물이 부족해");
+    return;
+  }
+
+  const totalPrice = getCropBundlePrice(cropId, bundleSize);
+  if (
+    !earnFarmMoney(
+      totalPrice,
+      "노아 작물 대량 판매",
+      `crop-bundle:${cropId}:${bundleSize}:${Date.now()}`,
+    )
+  ) return;
+  state.harvestInventory[cropId] -= bundleSize;
+  showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
+  render();
+});
+
+document.querySelector("#cookRecipeButton").addEventListener("click", (event) => {
   const ingredientIds = selectedRecipeIngredients.filter(Boolean);
   if (ingredientIds.length < 2) {
     showToast("재료를 두 가지 이상 골라");
@@ -7721,15 +8179,20 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
     return;
   }
 
+  const cookButton = event.currentTarget;
+  cookButton.classList.remove("mixing");
+  void cookButton.offsetWidth;
+  cookButton.classList.add("mixing");
+
   Object.entries(requiredCounts).forEach(([cropId, count]) => {
     state.harvestInventory[cropId] -= count;
   });
 
   const recipeEntry = getRecipeByIngredients(ingredientIds);
   if (!recipeEntry) {
-    state.wasteCount += 1;
     selectedRecipeIngredients.fill("");
-    showToast("도감에 없는 조합이야 폐기물이 생겼어");
+    launchCraftWasteEffect();
+    showToast("도감에 없는 조합이야 재료가 사라졌어");
     render();
     return;
   }
@@ -7737,7 +8200,10 @@ document.querySelector("#cookRecipeButton").addEventListener("click", () => {
   const [recipeId, recipe] = recipeEntry;
   state.foodInventory[recipeId] += 1;
   const firstDiscovery = !state.discoveredRecipes.includes(recipeId);
-  if (firstDiscovery) state.discoveredRecipes.push(recipeId);
+  if (firstDiscovery) {
+    state.discoveredRecipes.push(recipeId);
+    launchRecipeDiscoveryFireworks();
+  }
   selectedRecipeIngredients.fill("");
   showToast(
     firstDiscovery
@@ -7754,11 +8220,97 @@ document.querySelector("#toggleRecipeBook").addEventListener("click", (event) =>
   event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
 });
 
-document.querySelector("#foodInventory").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-discard-waste]");
-  if (!button) return;
-  state.wasteCount = 0;
-  showToast("폐기물을 모두 버렸어");
+function stepNpcPanel(step) {
+  const currentIndex = NPC_PANELS.indexOf(activeNpcPanel);
+  const nextIndex = (currentIndex + step + NPC_PANELS.length) % NPC_PANELS.length;
+  activeNpcPanel = NPC_PANELS[nextIndex];
+  renderNpcMarketCarousel();
+}
+
+document.querySelector("#npcMarket").addEventListener("click", (event) => {
+  if (event.target.closest(".npc-carousel-prev")) stepNpcPanel(-1);
+  else if (event.target.closest(".npc-carousel-next")) stepNpcPanel(1);
+});
+document.querySelector(".npc-market-dots").addEventListener("click", (event) => {
+  const dot = event.target.closest("[data-npc-dot]");
+  if (!dot) return;
+  activeNpcPanel = dot.dataset.npcDot;
+  renderNpcMarketCarousel();
+});
+
+document.querySelector(".rachel-tabs").addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-rachel-tab]");
+  if (!tab) return;
+  rachelActiveTab = tab.dataset.rachelTab;
+  renderRachelPanel();
+});
+
+document.querySelector("#rachelOffersList").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-purchase-cosmetic]");
+  if (!button || button.disabled) return;
+  if (!supabaseClient || !activeAuthUser) {
+    showToast("로그인 후 구매할 수 있어");
+    return;
+  }
+  const [type, id] = button.dataset.purchaseCosmetic.split(":");
+  const entry = getCosmeticEntry(type, id);
+  if (!entry) return;
+
+  button.disabled = true;
+  const { error } = await supabaseClient.rpc("purchase_farm_cosmetic", {
+    p_cosmetic_type: type,
+    p_cosmetic_id: id,
+    p_price: entry.price,
+  });
+  if (error) {
+    console.error("Farmodoro cosmetic purchase failed", error);
+    showToast(
+      error.message?.includes("Insufficient")
+        ? "Farm Money가 부족해"
+        : "구매하지 못했어. 잠시 후 다시 시도해줘.",
+    );
+    button.disabled = false;
+    return;
+  }
+
+  state.farmMoney -= entry.price;
+  state.ownedCosmetics.push({ type, id });
+  if (type === "farm_theme") state.equippedFarmTheme = id;
+  if (type === "plot_skin") state.equippedPlotSkin = id;
+  if (type === "label_effect") state.equippedLabelEffect = id;
+  showToast(`${entry.name}을 구매해서 바로 장착했어`);
+  render();
+});
+
+document.querySelector("#rachelOwnedList").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-equip-cosmetic]");
+  if (!button || button.disabled) return;
+  if (!supabaseClient || !activeAuthUser) {
+    showToast("로그인 후 장착할 수 있어");
+    return;
+  }
+  const [type, rawId] = button.dataset.equipCosmetic.split(":");
+  // An empty id is the unequip action; it clears the slot back to default.
+  const targetId = rawId || null;
+  const entry = targetId ? getCosmeticEntry(type, targetId) : null;
+  if (targetId && !entry) return;
+
+  button.disabled = true;
+  const { error } = await supabaseClient.rpc("equip_farm_cosmetic", {
+    p_cosmetic_type: type,
+    p_cosmetic_id: targetId,
+  });
+  if (error) {
+    console.error("Farmodoro cosmetic equip failed", error);
+    showToast(targetId ? "장착하지 못했어. 잠시 후 다시 시도해줘." : "해제하지 못했어. 잠시 후 다시 시도해줘.");
+    button.disabled = false;
+    return;
+  }
+
+  if (type === "farm_theme") state.equippedFarmTheme = targetId;
+  if (type === "plot_skin") state.equippedPlotSkin = targetId;
+  if (type === "label_effect") state.equippedLabelEffect = targetId;
+  showToast(targetId ? `${entry.name}을 장착했어` : `${COSMETIC_TYPE_LABELS[type]}를 해제했어`);
   render();
 });
 
@@ -7779,7 +8331,9 @@ document.querySelector("#openFarmRanking").addEventListener("click", async () =>
       console.warn("Farmodoro leaderboard could not be loaded", error);
     } else {
       farmLeaderboard = (data ?? []).map((farmer) => ({
-        name: farmer.display_name || farmer.farm_name || "농부",
+        farmName: farmer.farm_name || "이름 없는 농장",
+        displayName: farmer.display_name || "농부",
+        labelEffect: farmer.equipped_label_effect || null,
         score: Number(farmer.earned_farm_money ?? 0),
         isMe: Boolean(farmer.is_me),
       }));
@@ -8049,6 +8603,11 @@ farmKitchenModal.addEventListener("click", (event) => {
     renderRecipeIngredientPicker(select);
     closeRecipeIngredientMenus();
     triggerButton.focus();
+    if (select.value) {
+      triggerButton.classList.remove("ingredient-pop");
+      void triggerButton.offsetWidth;
+      triggerButton.classList.add("ingredient-pop");
+    }
     return;
   }
 

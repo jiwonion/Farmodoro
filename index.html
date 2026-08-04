@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=102" />
+    <link rel="stylesheet" href="./styles.css?v=120" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -643,6 +643,13 @@
 
           <section class="farm-layout">
             <div class="farm-panel">
+              <div class="farm-theme-decor" aria-hidden="true">
+                <div class="farm-theme-decor-ground"></div>
+                <div class="farm-theme-decor-particles">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
               <header class="farm-panel-header">
                 <div class="farm-name-editor">
                   <div class="farm-name-display" id="farmNameDisplay">
@@ -681,21 +688,13 @@
 
               <section class="farm-scene">
                 <div class="farm-scene-grid">
-                  <div class="farm-grid" id="farmGrid" aria-label="4 곱하기 4 농장 밭"></div>
+                  <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
                 </div>
               </section>
 
             </div>
 
-            <aside class="seed-shop">
-              <header class="morrison-profile">
-                <span class="morrison-avatar">🧑‍🌾</span>
-                <div>
-                  <span class="section-kicker">MORRISON'S MARKET</span>
-                  <h2>Morrison</h2>
-                  <p>오늘의 씨앗을 팔고 특별한 음식을 사줄게</p>
-                </div>
-              </header>
+            <aside class="seed-shop npc-market" id="npcMarket" data-active-npc="morrison">
               <div class="market-utility-row">
                 <button class="farm-weekly-ranking-button" id="openFarmRanking" type="button">
                   <span>농장 주간보</span>
@@ -707,13 +706,66 @@
                 </div>
               </div>
               <button class="open-permanent-market" id="openPermanentMarket" type="button">
-                <span>모리슨 상시 시장</span>
+                <span>농장 상시 시장</span>
                 <small>비료·티켓·특별 용품 구매</small>
               </button>
-              <h3 class="market-section-title">씨앗 판매대</h3>
-              <div class="seed-shop-list" id="seedShop"></div>
-              <h3 class="market-section-title">오늘의 음식 매입</h3>
-              <div class="morrison-buy-list" id="morrisonBuyList"></div>
+
+              <div class="npc-market-panels">
+                <section class="npc-panel" data-npc-panel="morrison">
+                  <header class="npc-profile">
+                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
+                    <span class="npc-avatar"><img src="./assets/npc-morrison.png" alt="" /></span>
+                    <div class="npc-profile-info">
+                      <span class="section-kicker">MORRISON'S MARKET</span>
+                      <h2>Morrison</h2>
+                      <p>오늘의 씨앗을 팔게</p>
+                    </div>
+                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
+                  </header>
+                  <h3 class="market-section-title">씨앗 판매대</h3>
+                  <div class="seed-shop-list" id="seedShop"></div>
+                </section>
+
+                <section class="npc-panel" data-npc-panel="noah" hidden>
+                  <header class="npc-profile">
+                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
+                    <span class="npc-avatar"><img src="./assets/npc-noah.png" alt="" /></span>
+                    <div class="npc-profile-info">
+                      <span class="section-kicker">NOAH'S PANTRY</span>
+                      <h2>Noah</h2>
+                      <p>완성한 음식과 수확한 작물을 사줄게</p>
+                    </div>
+                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
+                  </header>
+                  <h3 class="market-section-title">오늘의 음식 매입</h3>
+                  <div class="noah-buy-list" id="noahBuyList"></div>
+                  <h3 class="market-section-title">오늘의 작물 대량 매입</h3>
+                  <div class="noah-crop-bundle-list" id="noahCropBundleList"></div>
+                </section>
+
+                <section class="npc-panel" data-npc-panel="rachel" hidden>
+                  <header class="npc-profile">
+                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
+                    <span class="npc-avatar"><img src="./assets/npc-rachel.png" alt="" /></span>
+                    <div class="npc-profile-info">
+                      <span class="section-kicker">RACHEL'S ATELIER</span>
+                      <h2>Rachel</h2>
+                      <p>농장을 꾸밀 특별한 소품을 팔게</p>
+                    </div>
+                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
+                  </header>
+                  <div class="rachel-tabs" role="tablist">
+                    <button type="button" data-rachel-tab="offers" aria-selected="true">오늘의 진열</button>
+                    <button type="button" data-rachel-tab="owned" aria-selected="false">보유함</button>
+                  </div>
+                  <p class="rachel-status" id="rachelStatus" role="status" aria-live="polite"></p>
+                  <div class="rachel-cosmetic-list" id="rachelOffersList"></div>
+                  <div class="rachel-cosmetic-list hidden" id="rachelOwnedList"></div>
+                </section>
+              </div>
+              <div class="npc-market-dots" aria-hidden="true">
+                <span data-npc-dot="morrison"></span><span data-npc-dot="noah"></span><span data-npc-dot="rachel"></span>
+              </div>
             </aside>
           </section>
         </section>
@@ -725,8 +777,8 @@
       <section class="market-modal-panel">
         <header>
           <div>
-            <span class="section-kicker">MORRISON'S PERMANENT MARKET</span>
-            <h2 id="permanentMarketTitle">모리슨 상시 시장</h2>
+            <span class="section-kicker">FARM'S PERMANENT MARKET</span>
+            <h2 id="permanentMarketTitle">농장 상시 시장</h2>
             <p>Farm Money로 비료, 티켓, 특별 농장 용품을 구매해</p>
           </div>
           <button type="button" data-close-market aria-label="시장 닫기">×</button>
@@ -859,7 +911,7 @@
           <div>
             <span class="section-kicker">FARM KITCHEN</span>
             <h2 id="farmKitchenTitle">농장 주방</h2>
-            <p>수확한 재료를 조합해 음식을 만들고 레시피 도감을 채워</p>
+            <p>수확한 재료를 두 가지 이상 조합해 음식을 만들고 레시피 도감을 채워</p>
           </div>
           <button type="button" data-close-kitchen aria-label="주방 닫기">×</button>
         </header>
@@ -1111,7 +1163,7 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="farmAdminMailTitle">전체 업데이트 우편</strong>
-                <small>모든 사용자에게 랜덤 박스 1개와 함께 보내</small>
+                <small>모든 사용자에게 랜덤 박스와 함께 보내</small>
               </div>
             </div>
             <label>
@@ -1121,6 +1173,10 @@
             <label>
               <span>내용</span>
               <textarea id="farmAdminMailMessageInput" maxlength="1000" rows="5" placeholder="업데이트 내용을 적어"></textarea>
+            </label>
+            <label>
+              <span>랜덤 박스 개수</span>
+              <input id="farmAdminMailBoxCountInput" type="number" min="1" max="20" step="1" value="1" inputmode="numeric" />
             </label>
             <div class="farm-admin-mail-actions">
               <small id="farmAdminMailStatus" role="status" aria-live="polite"></small>
@@ -1187,7 +1243,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=102"></script>
-    <script src="./pwa-register.js?v=102"></script>
+    <script src="./app.js?v=120"></script>
+    <script src="./pwa-register.js?v=120"></script>
   </body>
 </html>

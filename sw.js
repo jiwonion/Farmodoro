@@ -1,17 +1,20 @@
-const CACHE_VERSION = "farmodoro-v102";
+const CACHE_VERSION = "farmodoro-v120";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=102",
-  "./app.js?v=102",
-  "./pwa-register.js?v=102",
+  "./styles.css?v=120",
+  "./app.js?v=120",
+  "./pwa-register.js?v=120",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
   "./assets/crops.svg",
   "./assets/farmodoro-logo-v2.png",
   "./assets/focus-farm-background.png",
+  "./assets/npc-morrison.png",
+  "./assets/npc-noah.png",
+  "./assets/npc-rachel.png",
   "./assets/fonts/Maplestory-Light.ttf",
   "./assets/fonts/Maplestory-Bold.ttf",
   "./assets/icons/icon-192.png",
