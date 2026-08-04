@@ -3604,7 +3604,6 @@ function renderTasks() {
             draggable="${task.archived || isEditing ? "false" : "true"}"
             data-task-id="${task.id}"
           >
-            ${task.archived || isEditing ? "" : '<span class="card-drag-handle" aria-hidden="true">⠿</span>'}
             ${
               isEditing
                 ? `
@@ -4044,9 +4043,8 @@ function formatHabitTargets(habit) {
     if (!groups.has(target)) groups.set(target, []);
     groups.get(target).push(labels[day - 1]);
   });
-  if (groups.size <= 1) return `${groups.keys().next().value ?? habit.targetValue}${habit.unit}`;
   return [...groups.entries()]
-    .map(([target, days]) => `${days.join("·")} ${target}${habit.unit}`)
+    .map(([target, days]) => `${days.join(" ")} ${target}${habit.unit}`)
     .join(" / ");
 }
 
@@ -4196,11 +4194,13 @@ function renderHabits() {
           : "";
       return `
         <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
-          <span class="card-drag-handle" aria-hidden="true">⠿</span>
           ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
-            <small class="habit-summary">${scheduledToday ? (completeToday ? "오늘 완료" : isCountHabit ? `${countProgress} / ${todayTarget}${escapeHtml(habit.unit)}` : `${todayTarget}${escapeHtml(habit.unit)}`) : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${currentPage === "habits" && Object.keys(habit.targetByWeekday ?? {}).length ? ` · ${escapeHtml(formatHabitTargets(habit))}` : ""}${habit.measureType === "time" ? ` <span data-habit-focus-time>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}</span>` : ""}</small>
+            <small class="habit-summary">
+              <span class="habit-summary-primary">${scheduledToday ? `${todayTarget}${escapeHtml(habit.unit)}` : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${habit.measureType === "time" ? ` <span data-habit-focus-time>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}</span>` : ""}</span>
+              ${currentPage === "habits" && Object.keys(habit.targetByWeekday ?? {}).length ? `<span class="habit-summary-targets">${escapeHtml(formatHabitTargets(habit))}</span>` : ""}
+            </small>
             ${focusAction}
           </span>
           <span>
@@ -7104,44 +7104,67 @@ function clearPointerDropState() {
 
 function installTouchReorder(container, type) {
   let dragState = null;
+  let holdTimer = null;
+
+  const cardSelector = type === "task" ? "[data-task-id]" : "[data-habit-id]";
+
+  const clearDrag = () => {
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = null;
+    dragState = null;
+    document.body.classList.remove("touch-reordering");
+    clearPointerDropState();
+  };
 
   container.addEventListener("contextmenu", (event) => {
     const card = event.target.closest(type === "task" ? ".task-card" : ".habit-item.reorderable");
     if (card && !event.target.closest("input, select, textarea")) event.preventDefault();
   });
 
-  container.addEventListener("pointerdown", (event) => {
-    if (event.pointerType === "mouse" || event.button !== 0) return;
-    const handle = event.target.closest(".card-drag-handle");
-    const card = handle?.closest(type === "task" ? "[data-task-id]" : "[data-habit-id]");
-    if (!card || (type === "habit" && !["today", "habits"].includes(currentPage))) return;
-    event.preventDefault();
-    handle.setPointerCapture(event.pointerId);
-    card.classList.add("dragging");
-    document.body.classList.add("touch-reordering");
+  container.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1 || event.target.closest("button, input, select, textarea, a")) return;
+    const card = event.target.closest(cardSelector);
+    if (
+      !card ||
+      card.classList.contains("editing") ||
+      card.classList.contains("archived") ||
+      (type === "habit" && !["today", "habits"].includes(currentPage))
+    ) return;
+    const touch = event.touches[0];
     dragState = {
-      pointerId: event.pointerId,
+      card,
       id: type === "task" ? card.dataset.taskId : card.dataset.habitId,
       targetId: null,
       status: type === "task" ? card.closest("[data-status]")?.dataset.status : null,
       placeAfter: false,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      active: false,
       moved: false,
     };
-  });
+    holdTimer = window.setTimeout(() => {
+      if (!dragState) return;
+      dragState.active = true;
+      dragState.card.classList.add("dragging");
+      document.body.classList.add("touch-reordering");
+    }, 180);
+  }, { passive: true });
 
-  container.addEventListener("pointermove", (event) => {
-    if (!dragState || event.pointerId !== dragState.pointerId) return;
-    event.preventDefault();
-    if (!dragState.moved) {
-      dragState.moved = Math.hypot(
-        event.clientX - dragState.startX,
-        event.clientY - dragState.startY,
-      ) >= 6;
-      if (!dragState.moved) return;
+  container.addEventListener("touchmove", (event) => {
+    if (!dragState || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    const distance = Math.hypot(
+      touch.clientX - dragState.startX,
+      touch.clientY - dragState.startY,
+    );
+    if (!dragState.active) {
+      if (distance >= 8) clearDrag();
+      return;
     }
-    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    event.preventDefault();
+    dragState.moved ||= distance >= 6;
+    if (!dragState.moved) return;
+    const hit = document.elementFromPoint(touch.clientX, touch.clientY);
     document.querySelectorAll(".task-card, .habit-item").forEach((item) => {
       item.classList.remove("drop-before", "drop-after");
     });
@@ -7160,7 +7183,7 @@ function installTouchReorder(container, type) {
       const target = hit.closest(".task-card:not(.dragging)");
       dragState.targetId = target?.dataset.taskId ?? null;
       dragState.placeAfter = Boolean(
-        target && event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
+        target && touch.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
       );
       target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
       return;
@@ -7169,18 +7192,16 @@ function installTouchReorder(container, type) {
     const target = hit?.closest(".habit-item:not(.dragging)");
     dragState.targetId = target?.dataset.habitId ?? null;
     dragState.placeAfter = Boolean(
-      target && event.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
+      target && touch.clientY >= target.getBoundingClientRect().top + target.offsetHeight / 2,
     );
     target?.classList.add(dragState.placeAfter ? "drop-after" : "drop-before");
-  });
+  }, { passive: false });
 
-  const finish = (event) => {
-    if (!dragState || event.pointerId !== dragState.pointerId) return;
+  const finish = () => {
+    if (!dragState) return;
     const completedDrag = dragState;
-    dragState = null;
-    document.body.classList.remove("touch-reordering");
-    clearPointerDropState();
-    if (!completedDrag.moved) return;
+    clearDrag();
+    if (!completedDrag.active || !completedDrag.moved) return;
 
     if (type === "task" && completedDrag.status) {
       if (!commitTaskReorder(
@@ -7207,13 +7228,8 @@ function installTouchReorder(container, type) {
     }
   };
 
-  container.addEventListener("pointerup", finish);
-  container.addEventListener("pointercancel", (event) => {
-    if (!dragState || event.pointerId !== dragState.pointerId) return;
-    dragState = null;
-    document.body.classList.remove("touch-reordering");
-    clearPointerDropState();
-  });
+  container.addEventListener("touchend", finish);
+  container.addEventListener("touchcancel", clearDrag);
 }
 
 installTouchReorder(document.querySelector("#taskBoard"), "task");

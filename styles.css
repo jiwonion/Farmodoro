@@ -5804,31 +5804,6 @@ button {
   -webkit-touch-callout: none;
 }
 
-.card-drag-handle {
-  display: grid;
-  width: 18px;
-  height: 32px;
-  place-items: center;
-  color: #7f8d82;
-  font-size: 17px;
-  line-height: 1;
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-
-.task-card > .card-drag-handle {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 2;
-}
-
-.task-card > .card-drag-handle + .task-top h4 {
-  padding-right: 14px;
-}
-
 body.touch-reordering {
   overscroll-behavior: none;
   user-select: none;
@@ -6753,7 +6728,7 @@ input.themed-date-native {
 .habit-item {
   position: relative;
   display: grid;
-  grid-template-columns: 18px 38px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 65px;
@@ -6778,7 +6753,7 @@ input.themed-date-native {
 }
 
 .habit-item.count-habit {
-  grid-template-columns: 18px 70px minmax(0, 1fr) auto;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
 }
 
 .habit-count-control {
@@ -6885,11 +6860,21 @@ input.themed-date-native {
 }
 
 .habit-copy .habit-summary {
-  display: block;
-  overflow: hidden;
+  display: grid;
+  gap: 2px;
   max-width: 100%;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.habit-summary-primary,
+.habit-summary-targets {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.habit-summary-targets {
+  color: var(--green-700);
 }
 
 .habit-focus-button {
@@ -10753,7 +10738,7 @@ canvas {
     display: block;
     width: 100%;
     min-width: 0;
-    padding-right: 28px;
+    padding-right: 48px;
     box-sizing: border-box;
   }
 
@@ -10778,6 +10763,17 @@ canvas {
 
   :is(input, textarea)::placeholder {
     font-size: 11px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  :is(#todayPage, #tasksPage) #taskForm > #taskInput,
+  :is(#todayPage, #tasksPage) #taskForm > .primary-button.compact {
+    box-sizing: border-box;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    align-self: stretch;
   }
 }
 
