@@ -2222,6 +2222,17 @@ async function syncFarmDataDatabaseImmediately() {
   }
 }
 
+async function persistFarmPlotAction(revert, failureMessage) {
+  try {
+    await syncFarmDataDatabaseImmediately();
+  } catch (error) {
+    console.error("Farmodoro farm plot action could not be saved", error);
+    revert();
+    render();
+    showToast(failureMessage);
+  }
+}
+
 function loadState(savedState = null) {
   try {
     const saved = savedState && typeof savedState === "object" ? savedState : null;
@@ -7469,6 +7480,10 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       return;
     }
 
+    const previousPlotState = { ...plot };
+    const previousInventoryCount = state.farmItemInventory[itemId];
+    const previousSelectedFarmItem = selectedFarmItem;
+
     if (itemId === "revivalTonic") {
       if (!plot.wilted) {
         showToast("시든 작물에만 회복제를 사용할 수 있어");
@@ -7497,6 +7512,11 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     selectedFarmItem = null;
     showToast(`${item.name}을 적용했어`);
     render();
+    await persistFarmPlotAction(() => {
+      Object.assign(plot, previousPlotState);
+      state.farmItemInventory[itemId] = previousInventoryCount;
+      selectedFarmItem = previousSelectedFarmItem;
+    }, "아이템 적용 저장에 실패해서 되돌렸어.");
     return;
   }
 
@@ -7511,8 +7531,9 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     );
     if (!plot || plot.crop) return;
 
-    const previousFarmState = captureFarmState();
+    const previousPlotState = { ...plot };
     const plantedSeed = selectedSeed;
+    const previousSeedCount = state.seedInventory[plantedSeed];
     plot.crop = selectedSeed;
     plot.growth = 0;
     plot.plantedDate = toLocalDateString();
@@ -7529,8 +7550,9 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       await syncFarmDataDatabaseImmediately();
     } catch (error) {
       console.error("Farmodoro planted crop could not be saved", error);
-      restoreFarmState(previousFarmState);
-      selectedSeed = state.seedInventory[plantedSeed] ? plantedSeed : null;
+      Object.assign(plot, previousPlotState);
+      state.seedInventory[plantedSeed] = previousSeedCount;
+      selectedSeed = plantedSeed;
       render();
       showToast("작물 저장에 실패해서 심기 전 상태로 되돌렸어.");
     }
@@ -7543,10 +7565,15 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     );
     if (!plot?.crop || !plot.wilted) return;
 
+    const previousPlotState = { ...plot };
     const cropName = CROPS[plot.crop].name;
     clearFarmPlot(plot);
     showToast(`시든 ${cropName}을 폐기했어`);
     render();
+    await persistFarmPlotAction(
+      () => Object.assign(plot, previousPlotState),
+      "폐기 저장에 실패해서 되돌렸어.",
+    );
     return;
   }
 
@@ -7560,6 +7587,8 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     const maxGrowth = getCropGrowthCost(plot.crop);
     if (plot.wilted || plot.growth < maxGrowth) return;
 
+    const previousPlotState = { ...plot };
+    const previousHarvestCount = state.harvestInventory[plot.crop];
     const fertilizer = plot.fertilizer;
     const hasLuckEffect =
       fertilizer === "luckyFertilizer" || fertilizer === "premiumFertilizer";
@@ -7575,6 +7604,10 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어`,
     );
     render();
+    await persistFarmPlotAction(() => {
+      Object.assign(plot, previousPlotState);
+      state.harvestInventory[plot.crop] = previousHarvestCount;
+    }, "수확 저장에 실패해서 되돌렸어. 다시 수확해줘.");
     return;
   }
 
@@ -7593,6 +7626,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       return;
     }
 
+    const previousPlotState = { ...plot };
     plot.lastFreeWaterAt = Date.now();
     advanceFarmPlotGrowth(plot);
     showToast(
@@ -7601,6 +7635,10 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `물을 주니 ${crop.name}이 한 단계 자랐어`,
     );
     render();
+    await persistFarmPlotAction(
+      () => Object.assign(plot, previousPlotState),
+      "물주기 저장에 실패해서 되돌렸어.",
+    );
     return;
   }
 
@@ -7626,6 +7664,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         `plot:${plot.id}:${Date.now()}`,
       )
     ) return;
+    const previousPlotState = { ...plot };
     advanceFarmPlotGrowth(plot);
     showToast(
       plot.growth >= maxGrowth
@@ -7633,6 +7672,10 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `${crop.name}이 한 단계 자랐어`,
     );
     render();
+    await persistFarmPlotAction(
+      () => Object.assign(plot, previousPlotState),
+      "성장 저장에 실패해서 되돌렸어.",
+    );
   }
 });
 
