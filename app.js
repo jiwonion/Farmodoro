@@ -4,6 +4,12 @@
 // revealing the static HTML placeholder values as if they were real data.
 window.__farmodoroAppJsLoaded = true;
 
+// Read straight off this script's own <script src="app.js?v=NN"> tag rather
+// than hard-coding a number here, so it can never drift out of sync with the
+// cache-busting version that index.html/sw.js were actually bumped to.
+const APP_VERSION = new URL(document.currentScript?.src ?? "", location.href)
+  .searchParams.get("v") ?? "?";
+
 const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
 const APP_THEMES = new Set(["white", "classic", "sunset", "sky", "dark"]);
@@ -31,6 +37,8 @@ const profileDisplayNameInput = document.querySelector("#profileDisplayName");
 const profileNameLength = document.querySelector("#profileNameLength");
 const settingsAccountEmail = document.querySelector("#settingsAccountEmail");
 const settingsFarmCode = document.querySelector("#settingsFarmCode");
+const settingsAppVersion = document.querySelector("#settingsAppVersion");
+if (settingsAppVersion) settingsAppVersion.textContent = `v${APP_VERSION}`;
 const copyFarmCodeButton = document.querySelector("#copyFarmCode");
 const saveUserSettingsButton = document.querySelector("#saveUserSettings");
 const tutorialModal = document.querySelector("#tutorialModal");
