@@ -85,12 +85,9 @@ const pendingHabitDatabaseDeletes = new Set();
 const pendingGroupDatabaseDeletes = new Set();
 let appStateHydrated = false;
 let appStateUserId = null;
-let appStateSyncTimer = null;
-let appStateSyncChain = Promise.resolve();
-let lastAppStateSyncSignature = "";
 let appStateRealtimeChannel = null;
 let appStateRealtimeRefreshTimer = null;
-let appStateVersion = 0;
+let appStateRealtimeMutedUntil = 0;
 let farmWalletHydrated = false;
 let farmWalletUserId = null;
 let farmWalletMutationChain = Promise.resolve();
@@ -108,7 +105,6 @@ let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
 let productivityRealtimeMutedUntil = 0;
 let farmContentRealtimeMutedUntil = 0;
-let appStateRealtimeMutedUntil = 0;
 let tutorialStep = 0;
 let tutorialShownForUserId = null;
 let tutorialPreviousFocus = null;
@@ -587,7 +583,7 @@ async function applyAuthSession(session) {
     const needsAppStateLoad = !appStateHydrated || appStateUserId !== session.user.id;
     await Promise.all([
       loadUserProfile(session.user),
-      needsAppStateLoad ? loadAppStateFromDatabase(session.user) : Promise.resolve(),
+      needsAppStateLoad ? loadUserPreferences(session.user) : Promise.resolve(),
     ]);
     await loadFarmAdminPermission(session.user);
     await Promise.all([
@@ -807,7 +803,7 @@ function closeTutorial() {
   window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" });
   if (!state.tutorialCompleted) {
     state.tutorialCompleted = true;
-    scheduleAppStateDatabaseSync(null, 0);
+    void completeMyTutorial();
   }
   if (
     tutorialPreviousFocus instanceof HTMLElement &&
@@ -1716,7 +1712,6 @@ const defaultState = {
     Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
   ),
   focusRewardSeconds: 0,
-  focusYoutubeUrl: "",
   focusYoutubePlaylists: [],
   settings: {
     linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
@@ -2576,25 +2571,6 @@ function loadState(savedState = null) {
         ...structuredClone(defaultState.farmItemInventory),
         ...(saved.farmItemInventory ?? {}),
       },
-      focusYoutubeUrl:
-        typeof saved.focusYoutubeUrl === "string" ? saved.focusYoutubeUrl : "",
-      focusYoutubePlaylists: (
-        Array.isArray(saved.focusYoutubePlaylists)
-          ? saved.focusYoutubePlaylists
-          : saved.focusYoutubeUrl
-            ? [{ id: createUuid(), title: "내 집중 음악", url: saved.focusYoutubeUrl }]
-            : []
-      )
-        .filter((item) => item && typeof item.url === "string")
-        .slice(0, 5)
-        .map((item, index) => ({
-          id: typeof item.id === "string" && item.id ? item.id : createUuid(),
-          title:
-            typeof item.title === "string" && item.title.trim()
-              ? item.title.trim().slice(0, 30)
-              : `플레이리스트 ${index + 1}`,
-          url: item.url.trim(),
-        })),
       settings: normalizeFocusSettings(saved.settings),
       seedInventory: {
         ...structuredClone(defaultState.seedInventory),
@@ -2640,21 +2616,8 @@ function loadState(savedState = null) {
 }
 
 function saveState() {
-  scheduleAppStateDatabaseSync(JSON.parse(serializeAppState()));
   scheduleTaskDatabaseSync();
   scheduleFarmDataDatabaseSync();
-}
-
-function serializeAppState(snapshot = state) {
-  const appState = { ...snapshot };
-  // focusRewardSeconds is server-owned (user_focus_progress) and unconditionally
-  // overwritten by the server's value on every load (see loadFocusProgress) --
-  // persisting it here just meant it ticked every second and forced a write
-  // roughly every 2 seconds while any focus timer ran. schemaVersion is never
-  // read back (loadState hard-codes it). Neither belongs in this document.
-  ["groups", "tasks", "habits", "coins", "farmMoney", "focusRewardSeconds", "schemaVersion", ...FARM_STATE_KEYS]
-    .forEach((key) => delete appState[key]);
-  return JSON.stringify(appState);
 }
 
 function resetAppStateDatabaseState() {
@@ -2662,9 +2625,6 @@ function resetAppStateDatabaseState() {
   appStateHydrated = false;
   appStateUserId = null;
   appStateRealtimeMutedUntil = 0;
-  lastAppStateSyncSignature = "";
-  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
-  appStateSyncTimer = null;
 }
 
 function applyLoadedAppStateRuntime(isInitialLoad = true) {
@@ -2698,30 +2658,37 @@ function applyLoadedAppStateRuntime(isInitialLoad = true) {
   syncFocusSettingsForm();
 }
 
-async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
+// tutorialCompleted/settings/playlists each live in their own row(s) now
+// (migration 050) instead of one shared JSON document, so this only ever
+// reads -- every mutation goes out immediately through its own dedicated
+// RPC (completeMyTutorial / saveMyFocusSettings / upsert|deleteMyFocusPlaylist)
+// at the moment the user does it. There is nothing left to debounce or flush.
+async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
   appStateHydrated = false;
   appStateUserId = requestedUserId;
 
-  // get_my_app_state returns { state, version }; on a backend without
-  // migration 049 it doesn't exist yet, so fall back to reading the row
-  // directly and leave the version at 0 (matching the unversioned save
-  // fallback, which never checks it).
-  let savedState = null;
-  let loadedVersion = 0;
-  let { data, error } = await supabaseClient.rpc("get_my_app_state");
+  let { data, error } = await supabaseClient.rpc("get_my_preferences");
   if (error?.code === "PGRST202" || error?.code === "42883") {
+    // Backend hasn't run migration 050 yet -- read the legacy blob so the
+    // app still works during the rollout window, just without the new RPCs.
     const fallback = await supabaseClient
       .from("user_app_state")
       .select("state")
       .eq("user_id", requestedUserId)
       .maybeSingle();
     error = fallback.error;
-    savedState = fallback.data?.state ?? null;
-  } else if (!error) {
-    savedState = data?.state ?? null;
-    loadedVersion = Number(data?.version ?? 0);
+    const legacy = fallback.data?.state ?? null;
+    data = legacy
+      ? {
+          tutorialCompleted: legacy.tutorialCompleted,
+          settings: legacy.settings,
+          playlists: Array.isArray(legacy.focusYoutubePlaylists)
+            ? legacy.focusYoutubePlaylists
+            : [],
+        }
+      : null;
   }
 
   if (activeAuthUser?.id !== requestedUserId || appStateUserId !== requestedUserId) return;
@@ -2732,14 +2699,18 @@ async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
   };
   const farmState = captureFarmState();
   if (error) {
-    console.error("Farmodoro app state could not be loaded", error);
-    if (isInitialLoad) showToast("앱 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
+    console.error("Farmodoro preferences could not be loaded", error);
+    if (isInitialLoad) showToast("설정을 불러오지 못했어. 잠시 후 다시 시도해줘");
     return;
   }
-  appStateVersion = loadedVersion;
-  state = loadState(savedState);
+
+  const previousPlaylistsSignature = JSON.stringify(state.focusYoutubePlaylists ?? []);
+  state = loadState({
+    tutorialCompleted: data?.tutorialCompleted ?? false,
+    settings: data?.settings,
+  });
+  state.focusYoutubePlaylists = Array.isArray(data?.playlists) ? data.playlists : [];
   // Coin and Farm Money are owned exclusively by farm_wallets.
-  // Never display an older balance that may still exist in user_app_state.
   state.coins = 0;
   state.farmMoney = 0;
   restoreFarmState(farmState);
@@ -2749,14 +2720,9 @@ async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
 
   applyLoadedAppStateRuntime(isInitialLoad);
   appStateHydrated = true;
-  const nextSignature = serializeAppState();
-  // focusRewardSeconds alone used to make this differ from the previous
-  // signature on essentially every load, forcing a full render (including
-  // the entire task list) on every realtime echo of the ~2s focus heartbeat
-  // save. Only render when something actually changed.
-  const changed = nextSignature !== lastAppStateSyncSignature;
-  lastAppStateSyncSignature = nextSignature;
-  if (isInitialLoad || changed) render();
+  const playlistsChanged =
+    JSON.stringify(state.focusYoutubePlaylists) !== previousPlaylistsSignature;
+  if (isInitialLoad || playlistsChanged) render();
 }
 
 function stopAppStateRealtime() {
@@ -2775,10 +2741,9 @@ function scheduleAppStateRealtimeRefresh(userId) {
     appStateRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
     try {
-      // Read-only, for the same reason as scheduleFarmContentRealtimeRefresh.
-      await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
+      await loadUserPreferences(activeAuthUser, { isInitialLoad: false });
     } catch (error) {
-      console.warn("Farmodoro realtime app state refresh failed", error);
+      console.warn("Farmodoro realtime preferences refresh failed", error);
     }
   }, 500);
 }
@@ -2788,7 +2753,7 @@ function startAppStateRealtime(user) {
   if (!supabaseClient || !user) return;
   appStateRealtimeChannel = subscribeToUserTables(
     supabaseClient.channel(`app-state:${user.id}`),
-    ["user_app_state"],
+    ["user_preferences", "user_focus_playlists"],
     user.id,
     () => {
       if (Date.now() < appStateRealtimeMutedUntil) return;
@@ -2801,92 +2766,49 @@ function startAppStateRealtime(user) {
   });
 }
 
-// Mirrors saveFarmSnapshotToDatabase: version-checked save first, falling
-// back to the old unguarded upsert on a backend without migration 049.
-async function saveAppStateToDatabase(userId, savedState) {
+// Shared by every preferences-writing action below: mutes our own echo of
+// the write we're about to make (mirrors productivityRealtimeMutedUntil /
+// farmContentRealtimeMutedUntil), then calls the RPC.
+async function callPreferencesRpc(rpcName, params) {
   appStateRealtimeMutedUntil = Math.max(appStateRealtimeMutedUntil, Date.now() + 3000);
-  let { data, error } = await supabaseClient.rpc("save_my_app_state", {
-    p_state: savedState,
-    p_expected_version: appStateVersion,
+  return supabaseClient.rpc(rpcName, params);
+}
+
+async function completeMyTutorial() {
+  if (!activeAuthUser) return;
+  const { error } = await callPreferencesRpc("complete_my_tutorial");
+  if (error) console.error("Farmodoro tutorial completion could not be saved", error);
+}
+
+async function saveMyFocusSettings(mode, focusMinutes, breakEnabled, breakMinutes) {
+  const { data, error } = await callPreferencesRpc("save_my_focus_settings", {
+    p_mode: mode,
+    p_focus_minutes: focusMinutes,
+    p_break_enabled: breakEnabled,
+    p_break_minutes: breakMinutes,
   });
-  if (error?.code === "PGRST202" || error?.code === "42883") {
-    const fallback = await supabaseClient
-      .from("user_app_state")
-      .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
-    return { error: fallback.error, stale: false };
-  }
-  if (error?.message === "APP_STATE_STALE") {
-    return { error, stale: true };
-  }
-  if (!error) appStateVersion = Number(data ?? appStateVersion);
-  return { error, stale: false };
+  if (error) throw error;
+  return data;
 }
 
-async function recoverFromStaleAppStateSave(userId) {
-  if (activeAuthUser?.id !== userId) return;
-  await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
-}
-
-function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
-  if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) return;
-  const signature = snapshot ? JSON.stringify(snapshot) : serializeAppState();
-  if (signature === lastAppStateSyncSignature) return;
-  if (appStateSyncTimer) {
-    if (delay > 0) return;
-    clearTimeout(appStateSyncTimer);
-  }
-
-  appStateSyncTimer = window.setTimeout(() => {
-    appStateSyncTimer = null;
-    const userId = activeAuthUser?.id;
-    if (!userId || userId !== appStateUserId) return;
-    const latestSignature = serializeAppState();
-    const savedState = JSON.parse(latestSignature);
-    appStateSyncChain = appStateSyncChain
-      .then(async () => {
-        const { error, stale } = await saveAppStateToDatabase(userId, savedState);
-        if (stale) {
-          await recoverFromStaleAppStateSave(userId);
-          return;
-        }
-        if (error) throw error;
-        if (activeAuthUser?.id === userId) lastAppStateSyncSignature = latestSignature;
-      })
-      .catch((error) => {
-        console.error("Farmodoro app state could not be saved", error);
-        if (activeAuthUser?.id === userId) {
-          showToast("앱 데이터를 저장하지 못했어. 연결을 확인해줘");
-        }
-      });
-  }, delay);
-}
-
-async function syncAppStateDatabaseImmediately() {
-  if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) {
-    throw new Error("로그인한 계정의 앱 데이터를 아직 불러오지 못했어");
-  }
-  if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
-  appStateSyncTimer = null;
-
-  const userId = activeAuthUser.id;
-  const signature = serializeAppState();
-  const savedState = JSON.parse(signature);
-  let staleConflict = false;
-  const operation = appStateSyncChain.then(async () => {
-    const { error, stale } = await saveAppStateToDatabase(userId, savedState);
-    if (stale) {
-      staleConflict = true;
-      return;
-    }
-    if (error) throw error;
+async function upsertMyFocusPlaylist(id, title, url) {
+  const { data, error } = await callPreferencesRpc("upsert_my_focus_playlist", {
+    p_id: id,
+    p_title: title,
+    p_url: url,
   });
-  appStateSyncChain = operation.catch(() => {});
-  await operation;
-  if (staleConflict) {
-    await recoverFromStaleAppStateSave(userId);
-    return;
-  }
-  if (activeAuthUser?.id === userId) lastAppStateSyncSignature = signature;
+  if (error) throw error;
+  return data;
+}
+
+async function deleteMyFocusPlaylist(id) {
+  const { error } = await callPreferencesRpc("delete_my_focus_playlist", { p_id: id });
+  if (error) throw error;
+}
+
+async function touchMyFocusPlaylist(id) {
+  const { error } = await callPreferencesRpc("touch_my_focus_playlist", { p_id: id });
+  if (error) console.error("Farmodoro playlist play could not be recorded", error);
 }
 
 function isFocusTimerOwner() {
@@ -9627,7 +9549,7 @@ focusYoutubeButton.addEventListener("click", () => {
 
 closeFocusYoutubeButton.addEventListener("click", minimizeFocusYoutube);
 
-focusYoutubeLibrary.addEventListener("click", (event) => {
+focusYoutubeLibrary.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action][data-id]");
   if (!button) return;
   const playlists = getFocusYoutubePlaylists();
@@ -9640,9 +9562,8 @@ focusYoutubeLibrary.addEventListener("click", (event) => {
       focusYoutubeStatus.textContent = "저장된 주소가 올바르지 않아. 수정해.";
       return;
     }
-    state.focusYoutubeUrl = playlist.url;
     openFocusYoutubeLink(source, playlist.title);
-    scheduleAppStateDatabaseSync(null, 0);
+    void touchMyFocusPlaylist(playlist.id);
     return;
   }
 
@@ -9656,17 +9577,24 @@ focusYoutubeLibrary.addEventListener("click", (event) => {
   }
 
   const index = playlists.findIndex((item) => item.id === playlist.id);
-  playlists.splice(index, 1);
+  const [removed] = playlists.splice(index, 1);
   if (editingFocusYoutubeId === playlist.id) {
     editingFocusYoutubeId = null;
     focusYoutubeForm.reset();
   }
   renderFocusYoutubeLibrary();
   focusYoutubeStatus.textContent = "삭제했어.";
-  scheduleAppStateDatabaseSync(null, 0);
+  try {
+    await deleteMyFocusPlaylist(playlist.id);
+  } catch (error) {
+    console.error("Farmodoro playlist could not be deleted", error);
+    playlists.splice(index, 0, removed);
+    renderFocusYoutubeLibrary();
+    focusYoutubeStatus.textContent = "삭제하지 못했어. 다시 시도해줘.";
+  }
 });
 
-focusYoutubeForm.addEventListener("submit", (event) => {
+focusYoutubeForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const source = parseFocusYoutubeUrl(focusYoutubeUrlInput.value);
   if (!source) {
@@ -9675,28 +9603,28 @@ focusYoutubeForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const playlists = getFocusYoutubePlaylists();
-  const title =
-    focusYoutubeNameInput.value.trim().slice(0, 30) || `플레이리스트 ${playlists.length + 1}`;
-  let playlist = editingFocusYoutubeId
-    ? playlists.find((item) => item.id === editingFocusYoutubeId)
-    : playlists.find((item) => item.url === source.url);
-  if (!playlist && playlists.length >= 5) {
-    focusYoutubeStatus.textContent = "5개까지 저장할 수 있어. 하나 지우고 추가해.";
-    return;
+  const title = focusYoutubeNameInput.value.trim().slice(0, 30);
+  const editingId = editingFocusYoutubeId;
+  const submitButton = focusYoutubeForm.querySelector('[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+  try {
+    const saved = await upsertMyFocusPlaylist(editingId, title, source.url);
+    const playlists = getFocusYoutubePlaylists();
+    const index = playlists.findIndex((item) => item.id === saved.id);
+    if (index === -1) playlists.push(saved);
+    else playlists[index] = saved;
+    editingFocusYoutubeId = null;
+    openFocusYoutubeLink(source, saved.title);
+    renderFocusYoutubeLibrary();
+  } catch (error) {
+    console.error("Farmodoro playlist could not be saved", error);
+    focusYoutubeStatus.textContent =
+      error?.message === "PLAYLIST_LIMIT"
+        ? "5개까지 저장할 수 있어. 하나 지우고 추가해."
+        : "저장하지 못했어. 다시 시도해줘.";
+  } finally {
+    if (submitButton) submitButton.disabled = false;
   }
-  if (playlist) {
-    playlist.title = title;
-    playlist.url = source.url;
-  } else {
-    playlist = { id: createUuid(), title, url: source.url };
-    playlists.push(playlist);
-  }
-
-  editingFocusYoutubeId = null;
-  state.focusYoutubeUrl = source.url;
-  openFocusYoutubeLink(source, title);
-  scheduleAppStateDatabaseSync(null, 0);
 });
 
 const focusSettings = document.querySelector("#focusSettings");
@@ -9744,7 +9672,7 @@ document.querySelector("#saveFocusSettings").addEventListener("click", async (ev
   saveButton.disabled = true;
   try {
     await Promise.all([
-      syncAppStateDatabaseImmediately(),
+      saveMyFocusSettings("quick", focusMinutes, breakEnabledInput.checked, breakMinutes),
       syncFocusTimerDatabaseImmediately(),
       flushFocusTime(),
     ]);
@@ -9953,9 +9881,6 @@ async function flushFarmodoroDataOnExit() {
       syncTaskDatabaseImmediately().catch((error) => {
         console.error("Farmodoro productivity state could not be flushed", error);
       }),
-      syncAppStateDatabaseImmediately().catch((error) => {
-        console.error("Farmodoro app state could not be flushed", error);
-      }),
       syncFarmDataDatabaseImmediately().catch((error) => {
         console.error("Farmodoro farm data could not be flushed", error);
       }),
@@ -9987,11 +9912,7 @@ document.addEventListener("visibilitychange", () => {
   // user actually looks at the tab again.
   if (document.visibilityState === "visible") {
     void refreshPageData();
-    if (appStateHydrated) {
-      void syncAppStateDatabaseImmediately()
-        .catch(() => {})
-        .then(() => loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false }));
-    }
+    if (appStateHydrated) void loadUserPreferences(activeAuthUser, { isInitialLoad: false });
   }
 });
 
@@ -10002,7 +9923,6 @@ window.flushFarmodoroDataBeforeReload = async () => {
     saveState();
     const operations = [flushFocusTime()];
     if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
-    if (appStateHydrated) operations.push(syncAppStateDatabaseImmediately());
     if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
     if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
     const results = await Promise.allSettled(operations);
