@@ -1952,7 +1952,11 @@ function scheduleFarmContentRealtimeRefresh(userId) {
   farmContentRealtimeRefreshTimer = window.setTimeout(async () => {
     farmContentRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
-    await syncFarmDataDatabaseImmediately();
+    // Deliberately does NOT push local state first. Our own writes bump
+    // farms.version, which comes straight back as a realtime event -- pushing
+    // in response to that fed an endless save -> event -> save loop, and any
+    // push racing a concurrent load reported FARM_STATE_STALE and spammed a
+    // toast + reload. A remote change is a signal to READ, never to write.
     const farmUiVisible =
       currentPage === "farm" ||
       !document.querySelector("#farmMailModal")?.classList.contains("hidden") ||
@@ -1970,7 +1974,6 @@ function scheduleFarmMailRealtimeRefresh(userId) {
     await pollFarmMailUnreadCount(activeAuthUser);
     const mailModalOpen = !document.querySelector("#farmMailModal")?.classList.contains("hidden");
     if (currentPage === "farm" || mailModalOpen) {
-      await syncFarmDataDatabaseImmediately();
       await loadFarmDataFromDatabase(activeAuthUser);
     }
   }, 350);
@@ -2343,6 +2346,11 @@ async function loadFarmDataFromDatabase(user) {
   ) return;
 
   farmDataHydrated = true;
+  // Must run BEFORE the signature is captured. Rolling the market afterwards
+  // left lastFarmDataSyncSignature already stale, so the very next render
+  // scheduled a save, whose write echoed back as a realtime event, which
+  // reloaded and rolled again -- a self-sustaining save/reload loop.
+  ensureDailyMarket();
   const nextSignature = serializeFarmData();
   const nextRenderSignature = JSON.stringify({
     farm: nextSignature,
@@ -2352,7 +2360,6 @@ async function loadFarmDataFromDatabase(user) {
     weeklyEarned: state.weeklyFarmMoneyEarned,
   });
   lastFarmDataSyncSignature = nextSignature;
-  ensureDailyMarket();
   if (nextRenderSignature !== previousRenderSignature) render();
 }
 
@@ -2385,10 +2392,12 @@ async function saveFarmSnapshotToDatabase(payload) {
   return { error, stale: false };
 }
 
+// Silent on purpose: a stale-version rejection is a background reconcile, not
+// something the user did. Toasting it turned every concurrent save into a
+// visible interruption.
 async function recoverFromStaleFarmSave(userId) {
   if (activeAuthUser?.id !== userId) return;
   await loadFarmDataFromDatabase(activeAuthUser);
-  showToast("다른 기기에서 방금 저장한 내용이 있어서 최신 상태로 새로고침했어. 방금 한 작업을 다시 해줘.");
 }
 
 function scheduleFarmDataDatabaseSync(delay = 250) {
@@ -2734,7 +2743,7 @@ function scheduleAppStateRealtimeRefresh(userId) {
     appStateRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
     try {
-      await syncAppStateDatabaseImmediately();
+      // Read-only, for the same reason as scheduleFarmContentRealtimeRefresh.
       await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
     } catch (error) {
       console.warn("Farmodoro realtime app state refresh failed", error);
@@ -2780,7 +2789,6 @@ async function saveAppStateToDatabase(userId, savedState) {
 async function recoverFromStaleAppStateSave(userId) {
   if (activeAuthUser?.id !== userId) return;
   await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
-  showToast("다른 기기에서 방금 저장한 설정이 있어서 최신 상태로 새로고침했어. 방금 한 변경을 다시 해줘.");
 }
 
 function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
