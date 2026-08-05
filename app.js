@@ -2802,7 +2802,7 @@ function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
       .then(async () => {
         const { error, stale } = await saveAppStateToDatabase(userId, savedState);
         if (stale) {
-          await recoverFromStaleAppStateSave(userId);
+          //await recoverFromStaleAppStateSave(userId);
           return;
         }
         if (error) throw error;
