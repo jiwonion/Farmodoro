@@ -87,6 +87,7 @@ let farmWalletMutationVersion = 0;
 let farmWalletRealtimeRefreshTimer = null;
 let farmDataHydrated = false;
 let farmDataUserId = null;
+let farmDataVersion = 0;
 let farmDataSyncTimer = null;
 let farmDataSyncChain = Promise.resolve();
 let lastFarmDataSyncSignature = "";
@@ -2216,7 +2217,10 @@ async function loadFarmDataFromDatabase(user) {
     : "";
   farmDataHydrated = false;
   farmDataUserId = requestedUserId;
-  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v4");
+  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v5");
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v4"));
+  }
   if (error?.code === "PGRST202" || error?.code === "42883") {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v3"));
   }
@@ -2238,6 +2242,11 @@ async function loadFarmDataFromDatabase(user) {
   }
 
   const farm = data?.farm ?? {};
+  // farm.version is only present once the backend has migration 047 applied
+  // (returned via get_my_farm_state_v5). On an unmigrated backend it's
+  // simply absent -- keep the client-side counter at 0, which matches the
+  // unmigrated save_my_farm_state_v5 fallback path never checking it.
+  farmDataVersion = Number(farm.version ?? 0);
   state.farmName = farm.farmName || defaultState.farmName;
   state.productionBoostUntil = Date.parse(farm.productionBoostUntil || "") || 0;
   state.wiltProtectionUntil = Date.parse(farm.wiltProtectionUntil || "") || 0;
@@ -2343,6 +2352,41 @@ async function loadFarmDataFromDatabase(user) {
   if (nextRenderSignature !== previousRenderSignature) render();
 }
 
+// Tries the version-checked save first (rejected if another device saved
+// since this client last loaded, instead of silently overwriting it), and
+// falls back to the older, unversioned chain on a backend that hasn't run
+// migration 047 yet.
+async function saveFarmSnapshotToDatabase(payload) {
+  let { data, error } = await supabaseClient.rpc("save_my_farm_state_v5", {
+    p_state: payload,
+    p_expected_version: farmDataVersion,
+  });
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    let fallback = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
+    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
+      fallback = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload });
+    }
+    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
+      fallback = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
+    }
+    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
+      fallback = await supabaseClient.rpc("save_my_farm_state", { p_state: payload });
+    }
+    return { error: fallback.error, stale: false };
+  }
+  if (error?.message === "FARM_STATE_STALE") {
+    return { error, stale: true };
+  }
+  if (!error) farmDataVersion = Number(data ?? farmDataVersion);
+  return { error, stale: false };
+}
+
+async function recoverFromStaleFarmSave(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  await loadFarmDataFromDatabase(activeAuthUser);
+  showToast("다른 기기에서 방금 저장한 내용이 있어서 최신 상태로 새로고침했어. 방금 한 작업을 다시 해줘.");
+}
+
 function scheduleFarmDataDatabaseSync(delay = 250) {
   if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
   const signature = serializeFarmData();
@@ -2359,19 +2403,12 @@ function scheduleFarmDataDatabaseSync(delay = 250) {
     const payload = JSON.parse(latestSignature);
     farmDataSyncChain = farmDataSyncChain
       .then(async () => {
-        let { error } = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
-        if (error?.code === "PGRST202" || error?.code === "42883") {
-          ({ error } = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload }));
-        }
-        if (error?.code === "PGRST202" || error?.code === "42883") {
-          ({ error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload }));
-        }
-        if (error?.code === "PGRST202" || error?.code === "42883") {
-          ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
+        const { error, stale } = await saveFarmSnapshotToDatabase(payload);
+        if (stale) {
+          await recoverFromStaleFarmSave(userId);
+          return;
         }
         if (error) throw error;
-      })
-      .then(() => {
         if (activeAuthUser?.id === userId) {
           lastFarmDataSyncSignature = latestSignature;
           lastFarmDataSyncError = "";
@@ -2402,21 +2439,21 @@ async function syncFarmDataDatabaseImmediately() {
     return;
   }
   const payload = JSON.parse(signature);
+  let staleConflict = false;
   const operation = farmDataSyncChain.then(async () => {
-    let { error } = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
-    if (error?.code === "PGRST202" || error?.code === "42883") {
-      ({ error } = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload }));
-    }
-    if (error?.code === "PGRST202" || error?.code === "42883") {
-      ({ error } = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload }));
-    }
-    if (error?.code === "PGRST202" || error?.code === "42883") {
-      ({ error } = await supabaseClient.rpc("save_my_farm_state", { p_state: payload }));
+    const { error, stale } = await saveFarmSnapshotToDatabase(payload);
+    if (stale) {
+      staleConflict = true;
+      return;
     }
     if (error) throw error;
   });
   farmDataSyncChain = operation.catch(() => {});
   await operation;
+  if (staleConflict) {
+    await recoverFromStaleFarmSave(userId);
+    return;
+  }
   if (activeAuthUser?.id === userId) {
     lastFarmDataSyncSignature = signature;
     lastFarmDataSyncError = "";
@@ -9765,8 +9802,20 @@ async function flushFarmodoroDataOnExit() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "hidden" || !activeAuthUser) return;
-  void flushFarmodoroDataOnExit();
+  if (!activeAuthUser) return;
+  if (document.visibilityState === "hidden") {
+    void flushFarmodoroDataOnExit();
+    return;
+  }
+  // A backgrounded PWA/tab is often suspended rather than fully torn down,
+  // so coming back to "visible" doesn't re-run app.js and doesn't refetch
+  // anything on its own -- whatever was last in memory (possibly hours
+  // stale, from before another device made changes) just keeps rendering
+  // until something happens to save over it. Pull fresh data the moment the
+  // user actually looks at the tab again.
+  if (document.visibilityState === "visible") {
+    void refreshPageData();
+  }
 });
 
 window.flushFarmodoroDataBeforeReload = async () => {
