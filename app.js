@@ -3512,6 +3512,15 @@ function formatFocusTime(seconds = 0) {
   return `${Math.floor(seconds / 60)}분`;
 }
 
+function formatArchivedCompletionDate(value) {
+  const date = parseDateInputValue(value);
+  if (!date) return "";
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return sameYear
+    ? `${date.getMonth() + 1}월 ${date.getDate()}일 완료`
+    : `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 완료`;
+}
+
 function getFocusItem() {
   if (!activeFocus) return null;
   const collection = activeFocus.type === "task" ? state.tasks : state.habits;
@@ -3737,7 +3746,14 @@ function renderTasks() {
                     ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
                     ${
                       task.archived
-                        ? '<span class="task-archived-label">보관됨</span>'
+                        ? `
+                          <span class="task-archived-label">보관됨</span>
+                          ${
+                            task.completedDate
+                              ? `<span class="task-completed-date">${formatArchivedCompletionDate(task.completedDate)}</span>`
+                              : ""
+                          }
+                        `
                         : task.status === "done"
                           ? `<span class="task-focus-pill completed-focus-time" data-task-focus-time>◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
                           : `
