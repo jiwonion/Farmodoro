@@ -6272,7 +6272,9 @@ function scheduleProductivityRealtimeRefresh(userId) {
     productivityRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
     try {
-      await syncTaskDatabaseImmediately();
+      // Read-only, same reasoning as scheduleFarmContentRealtimeRefresh:
+      // pushing local state in response to a remote-change notification is
+      // what turns one save into a save -> echo -> save loop.
       await loadTaskDataFromDatabase(activeAuthUser, { force: true });
     } catch (error) {
       console.warn("Farmodoro realtime productivity refresh failed", error);
