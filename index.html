@@ -584,7 +584,7 @@
                 </button>
               </div>
             </div>
-            <section class="focus-youtube-panel hidden" id="focusYoutubePanel" aria-labelledby="focusYoutubeTitle">
+            <section class="focus-youtube-panel hidden" id="focusYoutubePanel" aria-labelledby="focusYoutubeTitle" tabindex="-1">
               <header>
                 <div>
                   <span class="section-kicker">YOUTUBE LINKS</span>
@@ -1241,6 +1241,18 @@
           <button id="miniFocusStop" type="button">종료</button>
         </div>
       </aside>
+    </div>
+
+    <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
+      <div class="focus-alert-icon" aria-hidden="true">⏰</div>
+      <div class="focus-alert-text">
+        <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
+        <span id="focusAlertSubtitle"></span>
+      </div>
+      <div class="focus-alert-actions">
+        <button type="button" id="focusAlertMuteButton" hidden>🔇 소리 끄기</button>
+        <button type="button" id="focusAlertDismissButton" aria-label="알림 닫기">✕</button>
+      </div>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -6029,8 +6029,11 @@ function showToast(message) {
 }
 
 function updateFocusDisplay() {
-  const minutes = String(Math.floor(focusSeconds / 60)).padStart(2, "0");
-  const seconds = String(focusSeconds % 60).padStart(2, "0");
+  const runtime = focusRuntimeByMode[focusMode];
+  const inOvertime = focusMode === "quick" && timerPhase === "focus" && Boolean(runtime.overtime);
+  const displaySeconds = inOvertime ? (runtime.overtimeSeconds ?? 0) : focusSeconds;
+  const minutes = String(Math.floor(displaySeconds / 60)).padStart(2, "0");
+  const seconds = String(displaySeconds % 60).padStart(2, "0");
   const settings = getFocusSettings();
   const item = focusMode === "linked" ? getFocusItem() : null;
   const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
@@ -6040,25 +6043,27 @@ function updateFocusDisplay() {
       ? getHabitTargetForDate(item) * 60
       : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
-  const remainingRatio = isTaskStopwatch
+  const remainingRatio = isTaskStopwatch || inOvertime
     ? 1
     : Math.max(0, Math.min(1, focusSeconds / totalSeconds));
   const timerCircumference = 2 * Math.PI * 46;
   const timerRing = document.querySelector(".timer-ring");
-  document.querySelector("#focusTime").textContent = `${minutes}:${seconds}`;
+  document.querySelector("#focusTime").textContent = `${inOvertime ? "+" : ""}${minutes}:${seconds}`;
   timerRing.style.setProperty(
     "--timer-offset",
     `${timerCircumference * (1 - remainingRatio)}`,
   );
   timerRing.style.setProperty(
     "--timer-ring-color",
-    timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
+    inOvertime ? "#e8895f" : timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
   );
   timerRing.querySelector("span").textContent = isTaskStopwatch
     ? "STOPWATCH"
-    : timerPhase === "focus"
-      ? "FOCUS"
-      : "BREAK";
+    : inOvertime
+      ? "OVERTIME"
+      : timerPhase === "focus"
+        ? "FOCUS"
+        : "BREAK";
   updateMiniFocusTimer();
 }
 
@@ -6088,9 +6093,17 @@ function updateMiniFocusTimer() {
   if (miniFocusTimer.hidden) return;
 
   const item = visibleMode === "linked" ? getFocusItem() : null;
-  const minutes = String(Math.floor(runtime.seconds / 60)).padStart(2, "0");
-  const seconds = String(runtime.seconds % 60).padStart(2, "0");
-  miniFocusStatus.textContent = runtime.phase === "break" ? "휴식 중" : timerRunning ? "집중 중" : "일시정지";
+  const inOvertime = visibleMode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
+  const displaySeconds = inOvertime ? (runtime.overtimeSeconds ?? 0) : runtime.seconds;
+  const minutes = String(Math.floor(displaySeconds / 60)).padStart(2, "0");
+  const seconds = String(displaySeconds % 60).padStart(2, "0");
+  miniFocusStatus.textContent = inOvertime
+    ? "초과 집중 중"
+    : runtime.phase === "break"
+      ? "휴식 중"
+      : timerRunning
+        ? "집중 중"
+        : "일시정지";
   miniFocusTitle.textContent =
     runtime.phase === "break"
       ? visibleMode === "quick"
@@ -6099,9 +6112,26 @@ function updateMiniFocusTimer() {
       : visibleMode === "quick"
         ? "빠른 집중"
         : item?.title ?? "항목 집중";
-  miniFocusTime.textContent = `${minutes}:${seconds}`;
+  miniFocusTime.textContent = `${inOvertime ? "+" : ""}${minutes}:${seconds}`;
   miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
+}
+
+// Shrinks #focusTarget's font instead of letting a long linked-task title
+// wrap past the CSS max-height (3 lines) and get clipped by the stage.
+function fitFocusTargetText() {
+  const target = document.querySelector("#focusTarget");
+  if (!target) return;
+  target.style.fontSize = "";
+  const minFontSize = 14;
+  let fontSize = parseFloat(getComputedStyle(target).fontSize);
+  if (!fontSize) return;
+  let guard = 0;
+  while (fontSize > minFontSize && target.scrollHeight > target.clientHeight + 1 && guard < 40) {
+    fontSize -= 1;
+    target.style.fontSize = `${fontSize}px`;
+    guard += 1;
+  }
 }
 
 function updateFocusTarget() {
@@ -6116,15 +6146,24 @@ function updateFocusTarget() {
     focusButton.disabled = false;
     target.textContent = "잠깐 쉬어";
     description.textContent = `${settings.breakMinutes}분 휴식 후 다시 집중해`;
+    fitFocusTargetText();
     return;
   }
 
   if (focusMode === "quick") {
     focusButton.disabled = false;
     const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
+    if (focusRuntimeByMode.quick.overtime) {
+      target.textContent = "목표 시간을 넘겨서 집중 중이야";
+      description.textContent = "쉬고 싶으면 아래 버튼을 눌러줘";
+      description.hidden = false;
+      fitFocusTargetText();
+      return;
+    }
     target.textContent = `그냥 ${sessionMinutes}분 집중해`;
     description.textContent = "";
     description.hidden = true;
+    fitFocusTargetText();
     return;
   }
 
@@ -6133,6 +6172,7 @@ function updateFocusTarget() {
     target.textContent = "집중할 항목을 선택해";
     description.textContent = "";
     description.hidden = true;
+    fitFocusTargetText();
     return;
   }
 
@@ -6140,6 +6180,7 @@ function updateFocusTarget() {
   target.textContent = item.title;
   description.textContent = "";
   description.hidden = true;
+  fitFocusTargetText();
 }
 
 function stopFocusTimer() {
@@ -6355,6 +6396,14 @@ function updateActiveFocusCard() {
 function updateFocusActionButton() {
   void syncFocusWakeLock();
   const button = document.querySelector("#focusButton");
+  const runtime = focusRuntimeByMode[focusMode];
+  if (runningFocusMode === focusMode && focusMode === "quick" && runtime.phase === "focus" && runtime.overtime) {
+    const quickSettings = getFocusSettings("quick");
+    button.innerHTML = quickSettings.breakEnabled
+      ? `<span>■</span> ${quickSettings.breakMinutes}분 휴식 시작`
+      : "<span>■</span> 세트 종료";
+    return;
+  }
   if (runningFocusMode === focusMode) {
     button.innerHTML = timerPhase === "focus"
       ? "<span>Ⅱ</span> 집중 멈춤"
@@ -6377,6 +6426,77 @@ function updateFocusActionButton() {
     : "<span>▶</span> 집중 시작";
 }
 
+let focusAlarmAudioCtx = null;
+let focusAlarmIntervalId = null;
+
+// Synthesized instead of a bundled asset -- two short sine beeps via
+// WebAudio, repeated on an interval until the user mutes or dismisses.
+function playFocusAlarmTone() {
+  try {
+    focusAlarmAudioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = focusAlarmAudioCtx;
+    if (ctx.state === "suspended") void ctx.resume();
+    const now = ctx.currentTime;
+    [0, 0.18].forEach((offset, index) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = index === 0 ? 880 : 1175;
+      gain.gain.setValueAtTime(0, now + offset);
+      gain.gain.linearRampToValueAtTime(0.2, now + offset + 0.02);
+      gain.gain.linearRampToValueAtTime(0, now + offset + 0.16);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + 0.2);
+    });
+  } catch (error) {
+    console.warn("Farmodoro focus alarm tone failed", error);
+  }
+}
+
+function startFocusAlarmSound() {
+  stopFocusAlarmSound();
+  playFocusAlarmTone();
+  focusAlarmIntervalId = setInterval(playFocusAlarmTone, 1800);
+  const muteButton = document.querySelector("#focusAlertMuteButton");
+  if (muteButton) muteButton.hidden = false;
+}
+
+function stopFocusAlarmSound() {
+  if (focusAlarmIntervalId) {
+    clearInterval(focusAlarmIntervalId);
+    focusAlarmIntervalId = null;
+  }
+  const muteButton = document.querySelector("#focusAlertMuteButton");
+  if (muteButton) muteButton.hidden = true;
+}
+
+function showFocusAlertBanner(title, subtitle) {
+  const banner = document.querySelector("#focusAlertBanner");
+  if (!banner) return;
+  document.querySelector("#focusAlertTitle").textContent = title;
+  document.querySelector("#focusAlertSubtitle").textContent = subtitle;
+  banner.classList.remove("hidden");
+  startFocusAlarmSound();
+}
+
+function hideFocusAlertBanner() {
+  const banner = document.querySelector("#focusAlertBanner");
+  if (banner) banner.classList.add("hidden");
+  stopFocusAlarmSound();
+}
+
+function notifyFocusPhaseComplete(kind) {
+  if (kind === "focus") {
+    showFocusAlertBanner(
+      "집중 시간이 끝났어",
+      "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘.",
+    );
+  } else {
+    showFocusAlertBanner("휴식이 끝났어", "버튼을 눌러 다시 집중을 시작해줘.");
+  }
+}
+
 function advanceRunningFocusTimer(mode) {
   if (!isFocusTimerOwner()) {
     focusLastTickAt = 0;
@@ -6395,12 +6515,21 @@ function advanceRunningFocusTimer(mode) {
 
   const item = mode === "linked" ? getFocusItem() : null;
   const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
-  const appliedSeconds = isTaskStopwatch
+  // Quick-mode focus that already hit zero keeps counting up (overtime)
+  // instead of auto-finishing -- same "don't cap at the target" shape as
+  // the task stopwatch case above.
+  const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
+  const countsUp = isTaskStopwatch || isQuickOvertime;
+  const appliedSeconds = countsUp
     ? elapsedSeconds
     : Math.min(elapsedSeconds, runtime.seconds);
-  runtime.seconds = isTaskStopwatch
-    ? runtime.seconds + appliedSeconds
-    : Math.max(0, runtime.seconds - appliedSeconds);
+  if (isQuickOvertime) {
+    runtime.overtimeSeconds = (runtime.overtimeSeconds ?? 0) + appliedSeconds;
+  } else {
+    runtime.seconds = isTaskStopwatch
+      ? runtime.seconds + appliedSeconds
+      : Math.max(0, runtime.seconds - appliedSeconds);
+  }
   if (runtime.phase === "focus") {
     if (item) {
       if (activeFocus?.type === "task") {
@@ -6428,7 +6557,15 @@ function advanceRunningFocusTimer(mode) {
     updateMiniFocusTimer();
   }
 
-  if (!isTaskStopwatch && runtime.seconds <= 0) {
+  if (!isTaskStopwatch && !isQuickOvertime && mode === "quick" && runtime.phase === "focus" && runtime.seconds <= 0) {
+    runtime.overtime = true;
+    runtime.overtimeSeconds = 0;
+    notifyFocusPhaseComplete("focus");
+    if (focusMode === mode) updateFocusActionButton();
+    return { advanced: true, finished: false };
+  }
+
+  if (!isTaskStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
     if (runtime.phase === "focus") finishFocusRuntime(mode);
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
@@ -6459,6 +6596,9 @@ function finishFocusRuntime(mode) {
   clearInterval(focusInterval);
   focusLastTickAt = 0;
   runningFocusMode = null;
+  runtime.overtime = false;
+  runtime.overtimeSeconds = 0;
+  hideFocusAlertBanner();
 
   if (mode === "linked") {
     let completionResult = null;
@@ -6525,6 +6665,8 @@ function finishBreakRuntime(mode) {
   runtime.phase = "focus";
   runtime.seconds = settings.focusMinutes * 60;
   runtime.started = false;
+  runtime.overtime = false;
+  runtime.overtimeSeconds = 0;
   if (focusMode === mode) {
     focusRunning = false;
     timerPhase = "focus";
@@ -6536,6 +6678,7 @@ function finishBreakRuntime(mode) {
   }
   updateMiniFocusTimer();
   showToast("휴식 끝 다음 세트를 시작하면 돼");
+  notifyFocusPhaseComplete("break");
   scheduleFocusTimerDatabaseSync(0);
 }
 
@@ -6563,6 +6706,14 @@ function toggleFocus() {
     focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
     const tickResult = advanceRunningFocusTimer(focusMode);
     if (tickResult.finished) return;
+    // Clicking the button while a quick-mode set is in overtime ends the
+    // set (starts the break, or resets for the next set) instead of just
+    // pausing -- this is the "휴식"/"세트 종료" action the overtime banner
+    // is waiting on.
+    if (focusMode === "quick" && runtime.phase === "focus" && runtime.overtime) {
+      finishFocusRuntime(focusMode);
+      return;
+    }
     clearInterval(focusInterval);
     focusLastTickAt = 0;
     runningFocusMode = null;
@@ -6585,6 +6736,7 @@ function toggleFocus() {
     clearInterval(focusInterval);
   }
 
+  hideFocusAlertBanner();
   runningFocusMode = focusMode;
   focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   focusTimerLastHeartbeatAt = Date.now();
@@ -6612,6 +6764,7 @@ function toggleFocus() {
 
 function endFocusSession(mode = focusMode) {
   focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
+  hideFocusAlertBanner();
   if (focusMode !== mode) setFocusMode(mode);
   stopFocusTimer();
   if (mode === "linked") activeFocus = null;
@@ -8959,6 +9112,8 @@ document.querySelector("#focusButton").addEventListener("click", toggleFocus);
 document.querySelectorAll("[data-focus-mode]").forEach((button) => {
   button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
 });
+document.querySelector("#focusAlertDismissButton").addEventListener("click", hideFocusAlertBanner);
+document.querySelector("#focusAlertMuteButton").addEventListener("click", stopFocusAlarmSound);
 
 const focusItemPicker = document.querySelector(".focus-item-picker");
 const focusItemTrigger = document.querySelector("#focusItemTrigger");
@@ -9532,7 +9687,10 @@ function openFocusYoutube() {
   renderFocusYoutubeLibrary();
   requestAnimationFrame(() => {
     updateFocusYoutubePanelPosition();
-    focusYoutubeNameInput.focus();
+    // Focus the panel itself, not the text input -- focusing an <input>
+    // here pops the on-screen keyboard on mobile/tablet just from tapping
+    // the toolbar button, before the user asked to type anything.
+    focusYoutubePanel.focus({ preventScroll: true });
   });
 }
 
@@ -9710,6 +9868,7 @@ function updateFocusStageCenter() {
     Math.min(cardRect.height - visualRadius, backgroundCenter - cardRect.top),
   );
   focusCard.style.setProperty("--focus-stage-center-y", `${Math.round(centerY)}px`);
+  fitFocusTargetText();
 }
 
 function scheduleFocusStageCenterUpdate() {
