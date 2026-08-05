@@ -2409,7 +2409,7 @@ function scheduleFarmDataDatabaseSync(delay = 250) {
       .then(async () => {
         const { error, stale } = await saveFarmSnapshotToDatabase(payload);
         if (stale) {
-          await recoverFromStaleFarmSave(userId);
+          //await recoverFromStaleFarmSave(userId);
           return;
         }
         if (error) throw error;
