@@ -82,6 +82,7 @@ let appStateSyncChain = Promise.resolve();
 let lastAppStateSyncSignature = "";
 let appStateRealtimeChannel = null;
 let appStateRealtimeRefreshTimer = null;
+let appStateVersion = 0;
 let farmWalletHydrated = false;
 let farmWalletUserId = null;
 let farmWalletMutationChain = Promise.resolve();
@@ -2668,11 +2669,25 @@ async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
   appStateHydrated = false;
   appStateUserId = requestedUserId;
 
-  const { data, error } = await supabaseClient
-    .from("user_app_state")
-    .select("state")
-    .eq("user_id", requestedUserId)
-    .maybeSingle();
+  // get_my_app_state returns { state, version }; on a backend without
+  // migration 049 it doesn't exist yet, so fall back to reading the row
+  // directly and leave the version at 0 (matching the unversioned save
+  // fallback, which never checks it).
+  let savedState = null;
+  let loadedVersion = 0;
+  let { data, error } = await supabaseClient.rpc("get_my_app_state");
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    const fallback = await supabaseClient
+      .from("user_app_state")
+      .select("state")
+      .eq("user_id", requestedUserId)
+      .maybeSingle();
+    error = fallback.error;
+    savedState = fallback.data?.state ?? null;
+  } else if (!error) {
+    savedState = data?.state ?? null;
+    loadedVersion = Number(data?.version ?? 0);
+  }
 
   if (activeAuthUser?.id !== requestedUserId || appStateUserId !== requestedUserId) return;
   const productivityState = {
@@ -2686,7 +2701,8 @@ async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
     if (isInitialLoad) showToast("앱 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
     return;
   }
-  state = loadState(data?.state ?? null);
+  appStateVersion = loadedVersion;
+  state = loadState(savedState);
   // Coin and Farm Money are owned exclusively by farm_wallets.
   // Never display an older balance that may still exist in user_app_state.
   state.coins = 0;
@@ -2741,6 +2757,32 @@ function startAppStateRealtime(user) {
   });
 }
 
+// Mirrors saveFarmSnapshotToDatabase: version-checked save first, falling
+// back to the old unguarded upsert on a backend without migration 049.
+async function saveAppStateToDatabase(userId, savedState) {
+  let { data, error } = await supabaseClient.rpc("save_my_app_state", {
+    p_state: savedState,
+    p_expected_version: appStateVersion,
+  });
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    const fallback = await supabaseClient
+      .from("user_app_state")
+      .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
+    return { error: fallback.error, stale: false };
+  }
+  if (error?.message === "APP_STATE_STALE") {
+    return { error, stale: true };
+  }
+  if (!error) appStateVersion = Number(data ?? appStateVersion);
+  return { error, stale: false };
+}
+
+async function recoverFromStaleAppStateSave(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
+  showToast("다른 기기에서 방금 저장한 설정이 있어서 최신 상태로 새로고침했어. 방금 한 변경을 다시 해줘.");
+}
+
 function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
   if (!appStateHydrated || !activeAuthUser || activeAuthUser.id !== appStateUserId) return;
   const signature = snapshot ? JSON.stringify(snapshot) : serializeAppState();
@@ -2758,12 +2800,12 @@ function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
     const savedState = JSON.parse(latestSignature);
     appStateSyncChain = appStateSyncChain
       .then(async () => {
-        const { error } = await supabaseClient
-          .from("user_app_state")
-          .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
+        const { error, stale } = await saveAppStateToDatabase(userId, savedState);
+        if (stale) {
+          await recoverFromStaleAppStateSave(userId);
+          return;
+        }
         if (error) throw error;
-      })
-      .then(() => {
         if (activeAuthUser?.id === userId) lastAppStateSyncSignature = latestSignature;
       })
       .catch((error) => {
@@ -2785,14 +2827,21 @@ async function syncAppStateDatabaseImmediately() {
   const userId = activeAuthUser.id;
   const signature = serializeAppState();
   const savedState = JSON.parse(signature);
+  let staleConflict = false;
   const operation = appStateSyncChain.then(async () => {
-    const { error } = await supabaseClient
-      .from("user_app_state")
-      .upsert({ user_id: userId, state: savedState }, { onConflict: "user_id" });
+    const { error, stale } = await saveAppStateToDatabase(userId, savedState);
+    if (stale) {
+      staleConflict = true;
+      return;
+    }
     if (error) throw error;
   });
   appStateSyncChain = operation.catch(() => {});
   await operation;
+  if (staleConflict) {
+    await recoverFromStaleAppStateSave(userId);
+    return;
+  }
   if (activeAuthUser?.id === userId) lastAppStateSyncSignature = signature;
 }
 
