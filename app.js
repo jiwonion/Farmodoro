@@ -2455,7 +2455,7 @@ async function syncFarmDataDatabaseImmediately() {
   farmDataSyncChain = operation.catch(() => {});
   await operation;
   if (staleConflict) {
-    await recoverFromStaleFarmSave(userId);
+    //await recoverFromStaleFarmSave(userId);
     return;
   }
   if (activeAuthUser?.id === userId) {
