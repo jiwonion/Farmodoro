@@ -80,6 +80,8 @@ let appStateUserId = null;
 let appStateSyncTimer = null;
 let appStateSyncChain = Promise.resolve();
 let lastAppStateSyncSignature = "";
+let appStateRealtimeChannel = null;
+let appStateRealtimeRefreshTimer = null;
 let farmWalletHydrated = false;
 let farmWalletUserId = null;
 let farmWalletMutationChain = Promise.resolve();
@@ -589,6 +591,7 @@ async function applyAuthSession(session) {
         : Promise.resolve(),
     ]);
     startProductivityRealtime(session.user);
+    startAppStateRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
     startFarmMailRealtime(session.user);
     await loadFocusProgress(session.user);
@@ -2620,6 +2623,7 @@ function serializeAppState(snapshot = state) {
 }
 
 function resetAppStateDatabaseState() {
+  stopAppStateRealtime();
   appStateHydrated = false;
   appStateUserId = null;
   lastAppStateSyncSignature = "";
@@ -2627,11 +2631,16 @@ function resetAppStateDatabaseState() {
   appStateSyncTimer = null;
 }
 
-function applyLoadedAppStateRuntime() {
+function applyLoadedAppStateRuntime(isInitialLoad = true) {
   ensureWeeklyFarmRanking();
   ensureDailyFarmMail();
   ensureDailyFarmInbox();
-  if (typeof focusRuntimeByMode !== "undefined") {
+  if (typeof focusRuntimeByMode === "undefined") return;
+  // A realtime/resume refresh mid-session must not stomp on a focus timer
+  // that's actively counting down -- that state is owned separately by
+  // user_focus_timer and kept in sync on its own channel. Only reset the
+  // runtime to a fresh, idle timer on the one true cold-start load.
+  if (isInitialLoad) {
     focusRuntimeByMode.linked = {
       seconds: 0,
       phase: "focus",
@@ -2649,11 +2658,11 @@ function applyLoadedAppStateRuntime() {
     runningFocusMode = null;
     timerPhase = "focus";
     resetToFocus();
-    syncFocusSettingsForm();
   }
+  syncFocusSettingsForm();
 }
 
-async function loadAppStateFromDatabase(user) {
+async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
   appStateHydrated = false;
@@ -2674,7 +2683,7 @@ async function loadAppStateFromDatabase(user) {
   const farmState = captureFarmState();
   if (error) {
     console.error("Farmodoro app state could not be loaded", error);
-    showToast("앱 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
+    if (isInitialLoad) showToast("앱 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
     return;
   }
   state = loadState(data?.state ?? null);
@@ -2687,10 +2696,49 @@ async function loadAppStateFromDatabase(user) {
   state.tasks = productivityState.tasks;
   state.habits = productivityState.habits;
 
-  applyLoadedAppStateRuntime();
+  applyLoadedAppStateRuntime(isInitialLoad);
   appStateHydrated = true;
   lastAppStateSyncSignature = serializeAppState();
   render();
+}
+
+function stopAppStateRealtime() {
+  if (appStateRealtimeRefreshTimer) clearTimeout(appStateRealtimeRefreshTimer);
+  appStateRealtimeRefreshTimer = null;
+  if (appStateRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(appStateRealtimeChannel);
+  }
+  appStateRealtimeChannel = null;
+}
+
+function scheduleAppStateRealtimeRefresh(userId) {
+  if (activeAuthUser?.id !== userId) return;
+  if (appStateRealtimeRefreshTimer) clearTimeout(appStateRealtimeRefreshTimer);
+  appStateRealtimeRefreshTimer = window.setTimeout(async () => {
+    appStateRealtimeRefreshTimer = null;
+    if (activeAuthUser?.id !== userId) return;
+    try {
+      await syncAppStateDatabaseImmediately();
+      await loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false });
+    } catch (error) {
+      console.warn("Farmodoro realtime app state refresh failed", error);
+    }
+  }, 500);
+}
+
+function startAppStateRealtime(user) {
+  stopAppStateRealtime();
+  if (!supabaseClient || !user) return;
+  appStateRealtimeChannel = subscribeToUserTables(
+    supabaseClient.channel(`app-state:${user.id}`),
+    ["user_app_state"],
+    user.id,
+    () => scheduleAppStateRealtimeRefresh(user.id),
+  ).subscribe((status) => {
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      console.warn(`Farmodoro app state realtime subscription: ${status}`);
+    }
+  });
 }
 
 function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
@@ -6156,7 +6204,7 @@ function scheduleProductivityRealtimeRefresh(userId) {
     productivityRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
     try {
-      await taskSyncChain;
+      await syncTaskDatabaseImmediately();
       await loadTaskDataFromDatabase(activeAuthUser, { force: true });
     } catch (error) {
       console.warn("Farmodoro realtime productivity refresh failed", error);
@@ -9815,6 +9863,11 @@ document.addEventListener("visibilitychange", () => {
   // user actually looks at the tab again.
   if (document.visibilityState === "visible") {
     void refreshPageData();
+    if (appStateHydrated) {
+      void syncAppStateDatabaseImmediately()
+        .catch(() => {})
+        .then(() => loadAppStateFromDatabase(activeAuthUser, { isInitialLoad: false }));
+    }
   }
 });
 
