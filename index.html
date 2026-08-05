@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=135" />
+    <link rel="stylesheet" href="./styles.css?v=137" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -313,7 +313,6 @@
                   aria-label="새 할 일 입력"
                   autocomplete="off"
                 ></textarea>
-                <button type="button" id="taskInputNewline" class="task-input-newline-button" aria-label="줄바꿈 추가">↵</button>
               </div>
               <div class="custom-group-select" id="customTaskGroupSelect">
                 <select id="taskGroup" aria-label="그룹 선택" hidden></select>
@@ -618,6 +617,17 @@
               <p id="focusYoutubeStatus" role="status" aria-live="polite">영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.</p>
             </section>
             <div class="focus-page-slot" id="focusPageSlot"></div>
+            <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
+              <div class="focus-alert-icon" aria-hidden="true">⏰</div>
+              <div class="focus-alert-text">
+                <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
+                <span id="focusAlertSubtitle"></span>
+              </div>
+              <div class="focus-alert-actions">
+                <button type="button" id="focusAlertMuteButton" hidden>🔇 소리 끄기</button>
+                <button type="button" id="focusAlertDismissButton" aria-label="알림 닫기">✕</button>
+              </div>
+            </div>
           </section>
         </section>
 
@@ -1243,23 +1253,11 @@
       </aside>
     </div>
 
-    <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
-      <div class="focus-alert-icon" aria-hidden="true">⏰</div>
-      <div class="focus-alert-text">
-        <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
-        <span id="focusAlertSubtitle"></span>
-      </div>
-      <div class="focus-alert-actions">
-        <button type="button" id="focusAlertMuteButton" hidden>🔇 소리 끄기</button>
-        <button type="button" id="focusAlertDismissButton" aria-label="알림 닫기">✕</button>
-      </div>
-    </div>
-
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=135"></script>
-    <script src="./pwa-register.js?v=135"></script>
+    <script src="./app.js?v=137"></script>
+    <script src="./pwa-register.js?v=137"></script>
   </body>
 </html>

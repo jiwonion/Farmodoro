@@ -5987,30 +5987,11 @@ button {
   height: auto;
   min-height: 38px;
   max-height: 120px;
-  padding: 9px 34px 9px 12px;
+  padding: 9px 12px;
   resize: none;
   overflow-y: auto;
   line-height: 1.4;
-}
-
-.task-input-newline-button {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 26px;
-  height: 24px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--muted);
-  background: var(--paper);
-  font-size: 12px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.task-input-newline-button:hover {
-  border-color: #9bb29f;
-  color: var(--ink);
+  font-family: "Maplestory", sans-serif;
 }
 
 .secondary-button {
@@ -6244,7 +6225,7 @@ body.touch-reordering {
 
 .task-card h4 {
   margin: 0;
-  padding-right: 52px;
+  padding-right: 28px;
   overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 600;
@@ -6306,7 +6287,7 @@ body.touch-reordering {
   border-radius: 8px;
   color: var(--ink);
   background: var(--paper);
-  font: 600 14px/1.4 "Pretendard", sans-serif;
+  font: 600 14px/1.4 "Maplestory", sans-serif;
   outline: none;
   resize: none;
   overflow-y: auto;
@@ -8573,6 +8554,85 @@ input.themed-date-native {
   font-size: 13px;
 }
 
+/* Base sizing above is the tablet/mid-size default; scale down for phones
+   and up for laptop/desktop monitors so the banner reads at a comfortable
+   size relative to how far away the screen usually is. */
+@media (max-width: 600px) {
+  .focus-alert-banner {
+    top: 14px;
+    gap: 8px;
+    width: min(300px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border-radius: 12px;
+    box-shadow: 4px 4px 0 #d4b95f;
+  }
+
+  .focus-alert-icon {
+    font-size: 18px;
+  }
+
+  .focus-alert-text strong {
+    font-size: 11px;
+  }
+
+  .focus-alert-text span {
+    font-size: 9px;
+  }
+
+  .focus-alert-actions {
+    gap: 4px;
+  }
+
+  .focus-alert-actions button {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  #focusAlertDismissButton {
+    width: 26px;
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .focus-alert-banner {
+    top: 28px;
+    gap: 16px;
+    width: min(460px, calc(100vw - 48px));
+    padding: 18px 22px;
+    border-radius: 16px;
+    box-shadow: 8px 8px 0 #d4b95f;
+  }
+
+  .focus-alert-icon {
+    font-size: 30px;
+  }
+
+  .focus-alert-text strong {
+    font-size: 16px;
+  }
+
+  .focus-alert-text span {
+    font-size: 13px;
+  }
+
+  .focus-alert-actions {
+    gap: 8px;
+  }
+
+  .focus-alert-actions button {
+    height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  #focusAlertDismissButton {
+    width: 36px;
+    font-size: 15px;
+  }
+}
+
 .mini-focus-timer {
   position: fixed;
   right: 24px;
@@ -10602,7 +10662,7 @@ canvas {
   .board-column, #tasksPage .board-column, .task-list, .farm-panel, .seed-shop { gap: 7px; }
   .card-heading h2, .farm-panel-header h2, .market-modal-panel h2, .habit-modal-panel h2 { font-size: 18px; }
   .task-card h4, .farm-mail-inbox-copy > strong { font-size: 13px; }
-  .task-card:not(.editing) .task-top { padding-right: 52px; }
+  .task-card:not(.editing) .task-top { padding-right: 28px; }
   .task-card:not(.editing) h4 {
     min-width: 0;
     padding-right: 0;
@@ -11288,7 +11348,7 @@ canvas {
     display: block;
     width: 100%;
     min-width: 0;
-    padding-right: 52px;
+    padding-right: 28px;
     box-sizing: border-box;
   }
 
@@ -11317,13 +11377,23 @@ canvas {
 }
 
 @media (max-width: 900px) {
-  :is(#todayPage, #tasksPage) #taskForm > #taskInput,
+  :is(#todayPage, #tasksPage) #taskForm .task-input-wrap,
+  :is(#todayPage, #tasksPage) #taskForm > .primary-button.compact {
+    align-self: stretch;
+  }
+
+  :is(#todayPage, #tasksPage) #taskForm #taskInput,
   :is(#todayPage, #tasksPage) #taskForm > .primary-button.compact {
     box-sizing: border-box;
     height: 40px;
     min-height: 40px;
     max-height: 40px;
-    align-self: stretch;
+  }
+
+  /* A single-line entry otherwise sits flush at the top of the fixed 40px
+     box (textareas don't center their text like inputs do). */
+  :is(#todayPage, #tasksPage) #taskForm #taskInput {
+    align-content: center;
   }
 }
 

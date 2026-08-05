@@ -3,9 +3,9 @@ const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=135",
-  "./app.js?v=135",
-  "./pwa-register.js?v=135",
+  "./styles.css?v=137",
+  "./app.js?v=137",
+  "./pwa-register.js?v=137",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
