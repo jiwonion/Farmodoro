@@ -95,11 +95,7 @@ let farmWalletMutationVersion = 0;
 let farmWalletRealtimeRefreshTimer = null;
 let farmDataHydrated = false;
 let farmDataUserId = null;
-let farmDataVersion = 0;
-let farmDataSyncTimer = null;
-let farmDataSyncChain = Promise.resolve();
-let lastFarmDataSyncSignature = "";
-let lastFarmDataSyncError = "";
+let lastFarmRenderSignature = "";
 let farmDataLoadRequest = 0;
 let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
@@ -1915,12 +1911,9 @@ function resetFarmDataDatabaseState() {
   farmDataHydrated = false;
   farmDataUserId = null;
   farmContentRealtimeMutedUntil = 0;
-  lastFarmDataSyncSignature = "";
-  lastFarmDataSyncError = "";
-  farmDataSyncChain = Promise.resolve();
+  lastFarmRenderSignature = "";
   farmDataLoadRequest += 1;
-  if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
-  farmDataSyncTimer = null;
+  farmActionChain = Promise.resolve();
   farmMailContacts = [];
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
@@ -2095,7 +2088,7 @@ function toDatabaseTimestamp(milliseconds) {
   return value > 0 ? new Date(value).toISOString() : "";
 }
 
-function buildFarmDatabaseState(snapshot = state) {
+function farmRenderSignatureState(snapshot = state) {
   const inventory = [
     ...Object.entries(snapshot.seedInventory).map(([itemId, quantity]) => ({ category: "seed", itemId, quantity })),
     ...Object.entries(snapshot.harvestInventory).map(([itemId, quantity]) => ({ category: "harvest", itemId, quantity })),
@@ -2130,8 +2123,8 @@ function buildFarmDatabaseState(snapshot = state) {
   };
 }
 
-function serializeFarmData(snapshot = state) {
-  return JSON.stringify(buildFarmDatabaseState(snapshot));
+function farmRenderSignature(snapshot = state) {
+  return JSON.stringify(farmRenderSignatureState(snapshot));
 }
 
 function getFarmMailItemName(category, itemId) {
@@ -2218,13 +2211,66 @@ async function loadFarmMailContacts(user) {
     .filter((contact) => /^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(contact.code));
 }
 
+// Shared by loadFarmDataFromDatabase (the full periodic/realtime reload)
+// and applyFarmActionResult (the per-click intent-RPC result) so a full
+// load and a single action's result can never disagree about how to turn
+// server JSON into `state` shape.
+function applyServerFarmPlot(plotJson) {
+  const plotId = Number(plotJson.id);
+  const target = state.farmPlots.find((entry) => entry.id === plotId);
+  if (!target) return;
+  target.crop = CROPS[plotJson.crop] ? plotJson.crop : null;
+  target.growth = Math.max(0, Number(plotJson.growth ?? 0));
+  target.plantedDate = plotJson.plantedDate ?? "";
+  target.lastWateredDate = plotJson.lastWateredDate ?? "";
+  target.lastFreeWaterAt = Date.parse(plotJson.lastFreeWaterAt || "") || 0;
+  target.lastCaredAt =
+    Date.parse(plotJson.lastCaredAt || "") || (plotJson.crop ? Date.now() : 0);
+  target.wilted = Boolean(plotJson.wilted);
+  target.fertilizer = FARM_ITEMS[plotJson.fertilizer] ? plotJson.fertilizer : null;
+}
+
+function applyServerFarmInventoryEntry(entry) {
+  const targets = {
+    seed: state.seedInventory,
+    harvest: state.harvestInventory,
+    supply: state.farmItemInventory,
+    food: state.foodInventory,
+  };
+  const target = targets[entry.category];
+  if (target && Object.hasOwn(target, entry.itemId)) {
+    target[entry.itemId] = Math.max(0, Number(entry.quantity ?? 0));
+  }
+}
+
+function applyServerMarketRotation(rotation) {
+  if (!rotation) return;
+  if (rotation.date !== undefined) state.marketRotationDate = rotation.date ?? "";
+  if (rotation.seedOffers !== undefined) {
+    state.dailySeedOffers = rotation.seedOffers.filter((cropId) => CROPS[cropId]);
+  }
+  if (rotation.foodOffers !== undefined) {
+    state.dailyFoodOffers = rotation.foodOffers.filter((recipeId) => RECIPES[recipeId]);
+  }
+  if (rotation.cropSellOffers !== undefined) {
+    state.dailyCropSellOffers = rotation.cropSellOffers.filter(
+      (entry) => CROPS[entry?.cropId] && (entry.bundleSize === 5 || entry.bundleSize === 10),
+    );
+  }
+  if (rotation.cosmeticOffers !== undefined) {
+    state.dailyCosmeticOffers = rotation.cosmeticOffers.filter(
+      (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
+    );
+  }
+}
+
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
   const requestId = ++farmDataLoadRequest;
   const previousRenderSignature = farmDataUserId === requestedUserId && farmDataHydrated
     ? JSON.stringify({
-        farm: serializeFarmData(),
+        farm: farmRenderSignature(),
         inbox: state.farmInbox,
         history: state.farmMailHistory,
         sentCount: state.farmMailSentCount,
@@ -2233,7 +2279,10 @@ async function loadFarmDataFromDatabase(user) {
     : "";
   farmDataHydrated = false;
   farmDataUserId = requestedUserId;
-  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v5");
+  let { data, error } = await supabaseClient.rpc("get_my_farm_state_v6");
+  if (error?.code === "PGRST202" || error?.code === "42883") {
+    ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v5"));
+  }
   if (error?.code === "PGRST202" || error?.code === "42883") {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v4"));
   }
@@ -2258,11 +2307,6 @@ async function loadFarmDataFromDatabase(user) {
   }
 
   const farm = data?.farm ?? {};
-  // farm.version is only present once the backend has migration 047 applied
-  // (returned via get_my_farm_state_v5). On an unmigrated backend it's
-  // simply absent -- keep the client-side counter at 0, which matches the
-  // unmigrated save_my_farm_state_v5 fallback path never checking it.
-  farmDataVersion = Number(farm.version ?? 0);
   state.farmName = farm.farmName || defaultState.farmName;
   state.productionBoostUntil = Date.parse(farm.productionBoostUntil || "") || 0;
   state.wiltProtectionUntil = Date.parse(farm.wiltProtectionUntil || "") || 0;
@@ -2281,63 +2325,22 @@ async function loadFarmDataFromDatabase(user) {
   state.equippedPlotSkin = equippedIfOwned("plot_skin", farm.equippedPlotSkin);
   state.equippedLabelEffect = equippedIfOwned("label_effect", farm.equippedLabelEffect);
 
-  const plotRows = new Map((data?.plots ?? []).map((plot) => [Number(plot.id), plot]));
-  state.farmPlots = defaultState.farmPlots.map((fallback) => {
-    const plot = plotRows.get(fallback.id);
-    if (!plot) return structuredClone(fallback);
-    return {
-      id: fallback.id,
-      crop: CROPS[plot.crop] ? plot.crop : null,
-      growth: Math.max(0, Number(plot.growth ?? 0)),
-      plantedDate: plot.plantedDate ?? "",
-      lastWateredDate: plot.lastWateredDate ?? "",
-      lastFreeWaterAt: Date.parse(plot.lastFreeWaterAt || "") || 0,
-      lastCaredAt:
-        Date.parse(plot.lastCaredAt || "") ||
-        (plot.crop ? Date.now() : 0),
-      wilted: Boolean(plot.wilted),
-      fertilizer: FARM_ITEMS[plot.fertilizer] ? plot.fertilizer : null,
-    };
-  });
+  state.farmPlots = defaultState.farmPlots.map((fallback) => structuredClone(fallback));
+  (data?.plots ?? []).forEach(applyServerFarmPlot);
 
   state.seedInventory = structuredClone(defaultState.seedInventory);
   state.harvestInventory = structuredClone(defaultState.harvestInventory);
   state.farmItemInventory = structuredClone(defaultState.farmItemInventory);
   state.foodInventory = structuredClone(defaultState.foodInventory);
-  const inventoryTargets = {
-    seed: state.seedInventory,
-    harvest: state.harvestInventory,
-    supply: state.farmItemInventory,
-    food: state.foodInventory,
-  };
-  (data?.inventory ?? []).forEach((entry) => {
-    const target = inventoryTargets[entry.category];
-    if (target && Object.hasOwn(target, entry.itemId)) {
-      target[entry.itemId] = Math.max(0, Number(entry.quantity ?? 0));
-    }
-  });
+  (data?.inventory ?? []).forEach(applyServerFarmInventoryEntry);
 
   state.discoveredRecipes = (data?.discoveredRecipes ?? []).filter((recipeId) => RECIPES[recipeId]);
-  const rotation = data?.marketRotation ?? {};
-  state.marketRotationDate = rotation.date ?? "";
-  state.dailySeedOffers = (rotation.seedOffers ?? []).filter((cropId) => CROPS[cropId]);
-  state.dailyFoodOffers = (rotation.foodOffers ?? []).filter((recipeId) => RECIPES[recipeId]);
   // rotation.cropSellOffers/cosmeticOffers are only present once the backend
   // has the 042/043 migrations applied (returned via get_my_farm_state_v3/v4).
   // On an unmigrated backend the key is simply absent (undefined) -- leave
-  // whatever ensureDailyMarket() already rolled locally alone in that case,
-  // rather than resetting it to empty and forcing a fresh, unsaved reroll on
-  // every reload.
-  if (rotation.cropSellOffers !== undefined) {
-    state.dailyCropSellOffers = rotation.cropSellOffers.filter(
-      (entry) => CROPS[entry?.cropId] && (entry.bundleSize === 5 || entry.bundleSize === 10),
-    );
-  }
-  if (rotation.cosmeticOffers !== undefined) {
-    state.dailyCosmeticOffers = rotation.cosmeticOffers.filter(
-      (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
-    );
-  }
+  // whatever's already local alone in that case, rather than resetting it to
+  // empty and forcing a fresh, unsaved reroll on every reload.
+  applyServerMarketRotation(data?.marketRotation ?? {});
   state.farmRankingWeekStart = getFarmWeekStart();
   state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
   state.farmInbox = mapFarmInboxFromDatabase(data?.inbox ?? []);
@@ -2355,12 +2358,10 @@ async function loadFarmDataFromDatabase(user) {
   ) return;
 
   farmDataHydrated = true;
-  // Must run BEFORE the signature is captured. Rolling the market afterwards
-  // left lastFarmDataSyncSignature already stale, so the very next render
-  // scheduled a save, whose write echoed back as a realtime event, which
-  // reloaded and rolled again -- a self-sustaining save/reload loop.
-  ensureDailyMarket();
-  const nextSignature = serializeFarmData();
+  // Market rotation and wilt are now rolled/latched server-side
+  // (get_my_farm_state_v6 -> ensure_farm_market_rotation/refresh_farm_wilt)
+  // and already reflected in data above -- no local reroll needed here.
+  const nextSignature = farmRenderSignature();
   const nextRenderSignature = JSON.stringify({
     farm: nextSignature,
     inbox: state.farmInbox,
@@ -2368,134 +2369,114 @@ async function loadFarmDataFromDatabase(user) {
     sentCount: state.farmMailSentCount,
     weeklyEarned: state.weeklyFarmMoneyEarned,
   });
-  lastFarmDataSyncSignature = nextSignature;
+  lastFarmRenderSignature = nextSignature;
   if (nextRenderSignature !== previousRenderSignature) render();
 }
 
-// Tries the version-checked save first (rejected if another device saved
-// since this client last loaded, instead of silently overwriting it), and
-// falls back to the older, unversioned chain on a backend that hasn't run
-// migration 047 yet.
-async function saveFarmSnapshotToDatabase(payload) {
-  // Set before the write goes out: our own farms/farm_plots/farm_inventory
-  // row touches echo back as a realtime event almost immediately, and
-  // reacting to that with a reload (even a read-only one) raced the save
-  // that hadn't committed yet and produced a visible re-render roughly every
-  // time anything saved. Mirrors productivityRealtimeMutedUntil.
-  farmContentRealtimeMutedUntil = Math.max(farmContentRealtimeMutedUntil, Date.now() + 3000);
-  let { data, error } = await supabaseClient.rpc("save_my_farm_state_v5", {
-    p_state: payload,
-    p_expected_version: farmDataVersion,
-  });
-  if (error?.code === "PGRST202" || error?.code === "42883") {
-    let fallback = await supabaseClient.rpc("save_my_farm_state_v4", { p_state: payload });
-    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
-      fallback = await supabaseClient.rpc("save_my_farm_state_v3", { p_state: payload });
-    }
-    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
-      fallback = await supabaseClient.rpc("save_my_farm_state_v2", { p_state: payload });
-    }
-    if (fallback.error?.code === "PGRST202" || fallback.error?.code === "42883") {
-      fallback = await supabaseClient.rpc("save_my_farm_state", { p_state: payload });
-    }
-    return { error: fallback.error, stale: false };
-  }
-  if (error?.message === "FARM_STATE_STALE") {
-    return { error, stale: true };
-  }
-  if (!error) farmDataVersion = Number(data ?? farmDataVersion);
-  return { error, stale: false };
+// Every farm action (plant, water, harvest, buy, ...) now commits through
+// its own intent RPC (migration 052) the moment the user does it -- there
+// is no more "whole farm snapshot" to debounce and send later, so nothing
+// here schedules or flushes a save. farmActionChain only serializes the
+// network calls themselves so two rapid actions can't race each other.
+let farmActionChain = Promise.resolve();
+
+const FARM_ACTION_ERROR_MESSAGES = {
+  FARM_PLOT_EMPTY: "빈 밭이야.",
+  FARM_PLOT_WILTED: "시든 작물에는 할 수 없어.",
+  FARM_PLOT_NOT_WILTED: "시들지 않은 작물에는 쓸 수 없어.",
+  FARM_PLOT_NOT_READY: "아직 다 자라지 않았어.",
+  FARM_PLOT_NOT_GROWABLE: "성장 중인 작물에만 쓸 수 있어.",
+  FARM_PLOT_OCCUPIED: "이미 작물이 심겨 있어.",
+  FARM_PLOT_NOT_FOUND: "밭을 찾을 수 없어.",
+  FARM_ALREADY_FERTILIZED: "이미 비료가 적용된 밭이야.",
+  FARM_WATER_COOLDOWN: "아직 물 줄 시간이 안 됐어.",
+  FARM_ITEM_OUT_OF_STOCK: "보유 수량이 부족해.",
+  FARM_UNKNOWN_CROP: "알 수 없는 작물이야.",
+  FARM_UNKNOWN_ITEM: "알 수 없는 아이템이야.",
+  FARM_UNKNOWN_RECIPE: "알 수 없는 레시피야.",
+  FARM_OFFER_EXPIRED: "오늘의 목록이 바뀌었어. 새로고침했어.",
+  FARM_INVALID_INGREDIENTS: "재료를 2~3개 골라야 해.",
+  FARM_UNSUPPORTED_BUNDLE: "지원하지 않는 판매 단위야.",
+  FARM_UNSUPPORTED_TARGET: "지원하지 않는 대상이야.",
+};
+
+function farmActionErrorSentinel(error) {
+  const message = String(error?.message ?? "");
+  return Object.keys(FARM_ACTION_ERROR_MESSAGES).find((sentinel) => message.includes(sentinel));
 }
 
-// Silent on purpose: a stale-version rejection is a background reconcile, not
-// something the user did. Toasting it turned every concurrent save into a
-// visible interruption.
-async function recoverFromStaleFarmSave(userId) {
-  if (activeAuthUser?.id !== userId) return;
-  await loadFarmDataFromDatabase(activeAuthUser);
-}
-
-function scheduleFarmDataDatabaseSync(delay = 250) {
-  if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
-  const signature = serializeFarmData();
-  if (signature === lastFarmDataSyncSignature) return;
-  if (farmDataSyncTimer) {
-    if (delay > 0) return;
-    clearTimeout(farmDataSyncTimer);
+// One reconciler for every intent RPC's result shape -- only the keys
+// actually present get applied, so a "water this plot" result touching
+// just `plots` never disturbs inventory/wallet/etc.
+function applyFarmActionResult(result) {
+  if (!result) return;
+  (result.plots ?? []).forEach(applyServerFarmPlot);
+  (result.inventory ?? []).forEach(applyServerFarmInventoryEntry);
+  if (Array.isArray(result.discoveredRecipes)) {
+    result.discoveredRecipes.forEach((recipeId) => {
+      if (!state.discoveredRecipes.includes(recipeId)) state.discoveredRecipes.push(recipeId);
+    });
   }
-  farmDataSyncTimer = window.setTimeout(() => {
-    farmDataSyncTimer = null;
-    const userId = activeAuthUser?.id;
-    if (!userId || userId !== farmDataUserId) return;
-    const latestSignature = serializeFarmData();
-    const payload = JSON.parse(latestSignature);
-    farmDataSyncChain = farmDataSyncChain
-      .then(async () => {
-        const { error, stale } = await saveFarmSnapshotToDatabase(payload);
-        if (stale) {
-          await recoverFromStaleFarmSave(userId);
-          return;
-        }
-        if (error) throw error;
-        if (activeAuthUser?.id === userId) {
-          lastFarmDataSyncSignature = latestSignature;
-          lastFarmDataSyncError = "";
-        }
-      })
-      .catch((syncError) => {
-        console.error("Farmodoro farm data could not be saved", syncError);
-        if (activeAuthUser?.id === userId) {
-          const message = syncError?.message || "알 수 없는 오류";
-          if (message !== lastFarmDataSyncError) {
-            lastFarmDataSyncError = message;
-            showToast(`농장 DB 저장 실패 · ${message}`);
-          }
-        }
-      });
-  }, delay);
+  if (result.marketRotation) applyServerMarketRotation(result.marketRotation);
+  if (result.farm) {
+    if (result.farm.productionBoostUntil !== undefined) {
+      state.productionBoostUntil = Date.parse(result.farm.productionBoostUntil || "") || 0;
+    }
+    if (result.farm.wiltProtectionUntil !== undefined) {
+      state.wiltProtectionUntil = Date.parse(result.farm.wiltProtectionUntil || "") || 0;
+    }
+  }
+  if (result.wallet) {
+    if (result.wallet.coinBalance !== undefined && result.wallet.coinBalance !== null) {
+      state.coins = Number(result.wallet.coinBalance);
+    }
+    if (result.wallet.farmMoneyBalance !== undefined && result.wallet.farmMoneyBalance !== null) {
+      state.farmMoney = Number(result.wallet.farmMoneyBalance);
+    }
+  }
 }
 
-async function syncFarmDataDatabaseImmediately() {
-  if (!farmDataHydrated || !activeAuthUser || activeAuthUser.id !== farmDataUserId) return;
-  if (farmDataSyncTimer) clearTimeout(farmDataSyncTimer);
-  farmDataSyncTimer = null;
-
+// Optimistic apply -> RPC -> reconcile-from-result, with a precise revert
+// on failure. `apply`/`revert` touch only what this one action means to
+// change (never a whole-state snapshot), so a failure here can't take
+// anything else down with it.
+async function runFarmAction({ rpc, params, apply, revert, failureMessage }) {
+  if (!activeAuthUser || !farmDataHydrated) {
+    showToast("농장 데이터를 불러오는 중이야");
+    return null;
+  }
   const userId = activeAuthUser.id;
-  const signature = serializeFarmData();
-  if (signature === lastFarmDataSyncSignature) {
-    await farmDataSyncChain;
-    return;
-  }
-  const payload = JSON.parse(signature);
-  let staleConflict = false;
-  const operation = farmDataSyncChain.then(async () => {
-    const { error, stale } = await saveFarmSnapshotToDatabase(payload);
-    if (stale) {
-      staleConflict = true;
-      return;
-    }
-    if (error) throw error;
-  });
-  farmDataSyncChain = operation.catch(() => {});
-  await operation;
-  if (staleConflict) {
-    await recoverFromStaleFarmSave(userId);
-    return;
-  }
-  if (activeAuthUser?.id === userId) {
-    lastFarmDataSyncSignature = signature;
-    lastFarmDataSyncError = "";
-  }
-}
+  apply();
+  renderFarm();
+  renderSummary();
 
-async function persistFarmStateAction(revert, failureMessage) {
+  const call = farmActionChain.then(async () => {
+    const { data, error } = await supabaseClient.rpc(rpc, { ...params, p_request_id: createUuid() });
+    if (error) throw error;
+    return data;
+  });
+  farmActionChain = call.catch(() => {});
+
   try {
-    await syncFarmDataDatabaseImmediately();
+    const result = await call;
+    if (activeAuthUser?.id === userId) {
+      applyFarmActionResult(result);
+      renderFarm();
+      renderSummary();
+    }
+    return result;
   } catch (error) {
-    console.error("Farmodoro farm plot action could not be saved", error);
+    if (activeAuthUser?.id !== userId) return null;
+    console.error(`Farmodoro farm action ${rpc} failed`, error);
     revert();
-    render();
-    showToast(failureMessage);
+    renderFarm();
+    renderSummary();
+    const sentinel = farmActionErrorSentinel(error);
+    if (sentinel === "FARM_OFFER_EXPIRED") {
+      void loadFarmDataFromDatabase(activeAuthUser);
+    }
+    showToast(sentinel ? FARM_ACTION_ERROR_MESSAGES[sentinel] : failureMessage);
+    return null;
   }
 }
 
@@ -2617,7 +2598,6 @@ function loadState(savedState = null) {
 
 function saveState() {
   scheduleTaskDatabaseSync();
-  scheduleFarmDataDatabaseSync();
 }
 
 function resetAppStateDatabaseState() {
@@ -4095,84 +4075,10 @@ function updateFarmItemEffects() {
     ?.classList.toggle("farm-festival-active", isWiltProtectionActive());
 }
 
-function getRandomSelection(values, count) {
-  const shuffled = [...values];
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-  }
-  return shuffled.slice(0, count);
-}
-
 function getCropBundlePrice(cropId, bundleSize) {
   const crop = CROPS[cropId];
   const growCost = crop.seedPrice + getCropGrowthCost(cropId);
   return growCost * bundleSize + 2;
-}
-
-function rollCropSellOffers() {
-  return getRandomSelection(Object.keys(CROPS), 5).map((cropId) => ({
-    cropId,
-    bundleSize: Math.random() < 0.5 ? 5 : 10,
-  }));
-}
-
-function getAvailableCosmeticEntries() {
-  const ownedKeys = new Set(state.ownedCosmetics.map((entry) => `${entry.type}:${entry.id}`));
-  return Object.entries(COSMETIC_CATALOGS).flatMap(([type, items]) =>
-    items
-      .filter((item) => !ownedKeys.has(`${type}:${item.id}`))
-      .map((item) => ({ type, id: item.id })),
-  );
-}
-
-function ensureDailyMarket() {
-  const today = toLocalDateString();
-  const isNewDay = state.marketRotationDate !== today;
-  if (isNewDay) state.marketRotationDate = today;
-
-  // Each rotation category is checked independently (not as one combined
-  // condition) so that a category missing data -- e.g. because the backend
-  // hasn't picked up a newly added rotation field yet -- only re-rolls that
-  // one category instead of resetting every stall's lineup for the day.
-  if (isNewDay || state.dailySeedOffers.length !== 7) {
-    state.dailySeedOffers = getRandomSelection(Object.keys(CROPS), 7);
-  }
-  if (isNewDay || state.dailyFoodOffers.length !== 4) {
-    state.dailyFoodOffers = getRandomSelection(Object.keys(RECIPES), 4);
-  }
-  if (isNewDay || state.dailyCropSellOffers.length !== 5) {
-    state.dailyCropSellOffers = rollCropSellOffers();
-  }
-  const availableCosmetics = getAvailableCosmeticEntries();
-  const expectedCosmeticOfferCount = Math.min(3, availableCosmetics.length);
-  if (isNewDay || state.dailyCosmeticOffers.length !== expectedCosmeticOfferCount) {
-    state.dailyCosmeticOffers = getRandomSelection(availableCosmetics, expectedCosmeticOfferCount);
-  }
-}
-
-function getRefreshedMarketSelection(values, count, currentSelection) {
-  const currentKey = [...currentSelection].sort().join("|");
-  let nextSelection = getRandomSelection(values, count);
-  for (
-    let attempt = 0;
-    attempt < 4 && [...nextSelection].sort().join("|") === currentKey;
-    attempt += 1
-  ) {
-    nextSelection = getRandomSelection(values, count);
-  }
-  if ([...nextSelection].sort().join("|") === currentKey) {
-    const replacement = values.find((value) => !currentSelection.includes(value));
-    if (replacement) nextSelection[nextSelection.length - 1] = replacement;
-  }
-  return nextSelection;
-}
-
-function getRecipeByIngredients(ingredientIds) {
-  const key = ingredientIds.filter(Boolean).sort().join("|");
-  return Object.entries(RECIPES).find(
-    ([, recipe]) => [...recipe.ingredients].sort().join("|") === key,
-  );
 }
 
 function launchHarvestCelebration() {
@@ -4241,19 +4147,6 @@ function launchCraftWasteEffect() {
   poof.innerHTML = `<span class="poof-icon">💥</span>${dust}`;
   document.body.append(poof);
   setTimeout(() => poof.remove(), 1500);
-}
-
-function updateWiltedCrops() {
-  if (isWiltProtectionActive()) return false;
-  let changed = false;
-  state.farmPlots.forEach((plot) => {
-    if (!plot.crop || plot.wilted) return;
-    if (plot.lastCaredAt && Date.now() - Number(plot.lastCaredAt) >= FARM_WILT_AFTER_MS) {
-      plot.wilted = true;
-      changed = true;
-    }
-  });
-  return changed;
 }
 
 function clearFarmPlot(plot) {
@@ -4688,7 +4581,7 @@ function closeFreePassTargetModal() {
   freePassTargetModal.classList.add("hidden");
 }
 
-function useFreePassOnTarget(targetValue) {
+async function useFreePassOnTarget(targetValue) {
   const target = getFreePassTargets().find((entry) => entry.value === targetValue);
   if (!target || !state.farmItemInventory.freePass) {
     showToast("완료할 항목을 다시 골라줘");
@@ -4698,48 +4591,110 @@ function useFreePassOnTarget(targetValue) {
   const [targetType, targetId] = target.value.split(":");
   const reward = productionCoinReward();
   const completionCycleId = createUuid();
+  const today = toLocalDateString();
+
+  let task = null;
+  let previousTaskState = null;
+  let habit = null;
+  let previousHabitState = null;
+  let progressValue = 0;
 
   if (targetType === "task") {
-    const task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
+    task = state.tasks.find((entry) => entry.id === targetId && entry.status !== "done");
     if (!task) return;
-    task.status = "done";
-    task.completedDate = toLocalDateString();
-    task.completionCycleId = completionCycleId;
-    task.completionReward = reward;
-    task.completedWithFreePass = true;
-    state.coins += reward;
-    confirmTaskCompletionWithServer(task, completionCycleId, reward, true);
+    previousTaskState = { ...task };
   } else {
-    const habit = state.habits.find((entry) => entry.id === targetId);
+    habit = state.habits.find((entry) => entry.id === targetId);
     if (!habit || isHabitCompleteToday(habit)) return;
-    const today = toLocalDateString();
-    if (habit.measureType === "count") {
-      habit.progressByDate ??= {};
-      habit.progressByDate[today] = getHabitTargetForDate(habit);
-    }
-    const progressValue = habit.measureType === "count"
-      ? Math.max(0, Number(habit.progressByDate?.[today] ?? 0))
-      : getHabitTargetForDate(habit);
-    habit.complete = true;
-    habit.completedDate = today;
-    habit.completionDates.push(today);
-    habit.completionReward = reward;
-    habit.completedWithFreePass = true;
-    habit.recordMetaByDate ??= {};
-    habit.recordMetaByDate[today] = {
-      completedAt: new Date().toISOString(),
-      completionReward: reward,
-      completedWithFreePass: true,
-      completionCycleId,
+    previousHabitState = {
+      complete: habit.complete,
+      completedDate: habit.completedDate,
+      completionDates: [...habit.completionDates],
+      completionReward: habit.completionReward,
+      completedWithFreePass: habit.completedWithFreePass,
+      recordMetaByDate: habit.recordMetaByDate ? { ...habit.recordMetaByDate } : undefined,
+      progressByDate: habit.progressByDate ? { ...habit.progressByDate } : undefined,
     };
-    state.coins += reward;
-    confirmHabitCompletionWithServer(habit, today, progressValue, completionCycleId, reward, true);
+    progressValue = getHabitTargetForDate(habit);
   }
-  state.farmItemInventory.freePass -= 1;
-  closeFreePassTargetModal();
-  showToast(`프리패스로 완료 처리했어 ${reward} Coin 획득`);
-  render();
-  scheduleTaskDatabaseSync(0);
+
+  const previousFreePassCount = state.farmItemInventory.freePass;
+
+  // use_farm_free_pass decrements the pass and completes the task/habit in
+  // one transaction server-side; the reward/coin reconciliation below mirrors
+  // confirmTaskCompletionWithServer/confirmHabitCompletionWithServer since
+  // this bypasses those (they'd double-complete against the same row).
+  const result = await runFarmAction({
+    rpc: "use_farm_free_pass",
+    params: {
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_record_date: today,
+      p_progress_value: progressValue,
+    },
+    apply: () => {
+      if (targetType === "task") {
+        task.status = "done";
+        task.completedDate = today;
+        task.completionCycleId = completionCycleId;
+        task.completionReward = reward;
+        task.completedWithFreePass = true;
+      } else {
+        if (habit.measureType === "count") {
+          habit.progressByDate ??= {};
+          habit.progressByDate[today] = getHabitTargetForDate(habit);
+        }
+        habit.complete = true;
+        habit.completedDate = today;
+        habit.completionDates.push(today);
+        habit.completionReward = reward;
+        habit.completedWithFreePass = true;
+        habit.recordMetaByDate ??= {};
+        habit.recordMetaByDate[today] = {
+          completedAt: new Date().toISOString(),
+          completionReward: reward,
+          completedWithFreePass: true,
+          completionCycleId,
+        };
+      }
+      state.coins += reward;
+      state.farmItemInventory.freePass -= 1;
+      closeFreePassTargetModal();
+      showToast(`프리패스로 완료 처리했어 ${reward} Coin 획득`);
+      render();
+    },
+    revert: () => {
+      if (targetType === "task") {
+        Object.assign(task, previousTaskState);
+      } else {
+        Object.assign(habit, previousHabitState);
+      }
+      state.coins = Math.max(0, state.coins - reward);
+      state.farmItemInventory.freePass = previousFreePassCount;
+      render();
+    },
+    failureMessage: "프리패스 사용을 저장하지 못했어.",
+  });
+  if (!result) return;
+
+  const completion = result.event?.completion;
+  if (!completion) return;
+  if (targetType === "task") {
+    if (task.completionCycleId === completionCycleId) {
+      task.completionReward = Number(completion.completionReward) || task.completionReward;
+      task.completionCycleId = completion.completionCycleId || task.completionCycleId;
+      task.completedDate = completion.completedOn || task.completedDate;
+    }
+  } else {
+    const meta = habit.recordMetaByDate?.[today];
+    if (meta && meta.completionCycleId === completionCycleId) {
+      meta.completionReward = Number(completion.completionReward) || meta.completionReward;
+      meta.completionCycleId = completion.completionCycleId || meta.completionCycleId;
+      if (today === toLocalDateString()) habit.completionReward = meta.completionReward;
+    }
+  }
+  renderSummary();
+  renderFarm();
 }
 
 function renderFarmRanking() {
@@ -5310,10 +5265,8 @@ function renderFarm() {
   }
 
   renderNpcMarketCarousel();
-  ensureDailyMarket();
   renderRachelPanel();
   ensureWeeklyFarmRanking();
-  updateWiltedCrops();
   farmBalance.textContent = state.coins;
   farmHeaderBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
@@ -7944,24 +7897,26 @@ document.querySelector("#seedShop").addEventListener("click", async (event) => {
     return;
   }
 
-  if (
-    !applyFarmWalletChange(
-      "coin",
-      -crop.seedPrice,
-      "씨앗 구매",
-      `seed:${cropId}:${Date.now()}`,
-    )
-  ) return;
+  const previousCoins = state.coins;
   const previousSeedCount = state.seedInventory[cropId];
   const previousSelectedSeed = selectedSeed;
-  state.seedInventory[cropId] += 1;
-  if (!selectedSeed) selectedSeed = cropId;
-  showToast(`${crop.name} 씨앗을 1개 샀어`);
-  render();
-  await persistFarmStateAction(() => {
-    state.seedInventory[cropId] = previousSeedCount;
-    selectedSeed = previousSelectedSeed;
-  }, "씨앗 구매 저장에 실패해서 되돌렸어.");
+
+  await runFarmAction({
+    rpc: "buy_farm_seed",
+    params: { p_crop_id: cropId },
+    apply: () => {
+      state.coins -= crop.seedPrice;
+      state.seedInventory[cropId] += 1;
+      if (!selectedSeed) selectedSeed = cropId;
+      showToast(`${crop.name} 씨앗을 1개 샀어`);
+    },
+    revert: () => {
+      state.coins = previousCoins;
+      state.seedInventory[cropId] = previousSeedCount;
+      selectedSeed = previousSelectedSeed;
+    },
+    failureMessage: "씨앗 구매 저장에 실패해서 되돌렸어.",
+  });
 });
 
 document.querySelector("#seedInventory").addEventListener("click", (event) => {
@@ -7989,25 +7944,27 @@ document.querySelector("#farmItemShop").addEventListener("click", async (event) 
     showToast(`${item.name}을 사려면 ${item.price} Farm Money가 필요해`);
     return;
   }
-  if (
-    !applyFarmWalletChange(
-      "farm_money",
-      -item.price,
-      "농장 용품 구매",
-      `farm-item:${itemId}:${Date.now()}`,
-    )
-  ) return;
+
+  const previousFarmMoney = state.farmMoney;
   const previousItemCount = state.farmItemInventory[itemId];
-  state.farmItemInventory[itemId] += 1;
-  showToast(`${item.name}을 구매했어`);
-  render();
-  await persistFarmStateAction(
-    () => { state.farmItemInventory[itemId] = previousItemCount; },
-    "농장 용품 구매 저장에 실패해서 되돌렸어.",
-  );
+
+  await runFarmAction({
+    rpc: "buy_farm_supply",
+    params: { p_item_id: itemId },
+    apply: () => {
+      state.farmMoney -= item.price;
+      state.farmItemInventory[itemId] += 1;
+      showToast(`${item.name}을 구매했어`);
+    },
+    revert: () => {
+      state.farmMoney = previousFarmMoney;
+      state.farmItemInventory[itemId] = previousItemCount;
+    },
+    failureMessage: "농장 용품 구매 저장에 실패해서 되돌렸어.",
+  });
 });
 
-document.querySelector("#farmItemInventory").addEventListener("click", (event) => {
+document.querySelector("#farmItemInventory").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-use-farm-item]");
   if (!button) return;
   const itemId = button.dataset.useFarmItem;
@@ -8023,42 +7980,56 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
   }
 
   if (itemId === "seedMarketRefresh" || itemId === "foodMarketRefresh") {
-    state.farmItemInventory[itemId] -= 1;
-    if (itemId === "seedMarketRefresh") {
-      state.dailySeedOffers = getRefreshedMarketSelection(
-        Object.keys(CROPS),
-        7,
-        state.dailySeedOffers,
-      );
-      showToast("모리슨의 씨앗 판매대가 새로 바뀌었어");
-    } else {
-      state.dailyFoodOffers = getRefreshedMarketSelection(
-        Object.keys(RECIPES),
-        4,
-        state.dailyFoodOffers,
-      );
-      state.dailyCropSellOffers = rollCropSellOffers();
-      showToast("노아의 매입 목록이 새로 바뀌었어");
-    }
-    render();
+    const previousItemCount = state.farmItemInventory[itemId];
+    // No optimistic local reroll here (unlike the old getRefreshedMarketSelection
+    // call) -- the server does its own roll and applyFarmActionResult renders it
+    // once, instead of showing a local guess that then gets replaced.
+    await runFarmAction({
+      rpc: "use_farm_market_refresh",
+      params: { p_item_id: itemId },
+      apply: () => {
+        state.farmItemInventory[itemId] -= 1;
+        showToast(
+          itemId === "seedMarketRefresh"
+            ? "모리슨의 씨앗 판매대가 새로 바뀌었어"
+            : "노아의 매입 목록이 새로 바뀌었어",
+        );
+      },
+      revert: () => {
+        state.farmItemInventory[itemId] = previousItemCount;
+      },
+      failureMessage: "새로고침 저장에 실패해서 되돌렸어.",
+    });
     return;
   }
 
-  if (itemId === "goldenFestivalPass") {
-    state.farmItemInventory[itemId] -= 1;
-    state.productionBoostUntil =
-      Math.max(Date.now(), state.productionBoostUntil) + 24 * 60 * 60 * 1000;
-    showToast("황금 수확제가 시작됐어! 24시간 동안 생산 Coin이 2배야");
-    render();
-    return;
-  }
+  if (itemId === "goldenFestivalPass" || itemId === "farmFestivalPass") {
+    const previousItemCount = state.farmItemInventory[itemId];
+    const previousProductionBoost = state.productionBoostUntil;
+    const previousWiltProtection = state.wiltProtectionUntil;
 
-  if (itemId === "farmFestivalPass") {
-    state.farmItemInventory[itemId] -= 1;
-    state.wiltProtectionUntil =
-      Math.max(Date.now(), state.wiltProtectionUntil) + 24 * 60 * 60 * 1000;
-    showToast("푸른 들판 축제가 시작됐어! 24시간 동안 작물이 시들지 않아");
-    render();
+    await runFarmAction({
+      rpc: "use_farm_festival_pass",
+      params: { p_item_id: itemId },
+      apply: () => {
+        state.farmItemInventory[itemId] -= 1;
+        if (itemId === "goldenFestivalPass") {
+          state.productionBoostUntil =
+            Math.max(Date.now(), state.productionBoostUntil) + 24 * 60 * 60 * 1000;
+          showToast("황금 수확제가 시작됐어! 24시간 동안 생산 Coin이 2배야");
+        } else {
+          state.wiltProtectionUntil =
+            Math.max(Date.now(), state.wiltProtectionUntil) + 24 * 60 * 60 * 1000;
+          showToast("푸른 들판 축제가 시작됐어! 24시간 동안 작물이 시들지 않아");
+        }
+      },
+      revert: () => {
+        state.farmItemInventory[itemId] = previousItemCount;
+        state.productionBoostUntil = previousProductionBoost;
+        state.wiltProtectionUntil = previousWiltProtection;
+      },
+      failureMessage: "축제권 사용 저장에 실패해서 되돌렸어.",
+    });
     return;
   }
 
@@ -8111,43 +8082,57 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       return;
     }
 
+    if (itemId === "revivalTonic" && !plot.wilted) {
+      showToast("시든 작물에만 회복제를 사용할 수 있어");
+      return;
+    }
+    if (
+      itemId === "growthTonic" &&
+      (plot.wilted || plot.growth >= getCropGrowthCost(plot.crop))
+    ) {
+      showToast("성장 중인 작물에만 사용할 수 있어");
+      return;
+    }
+    if (
+      itemId !== "revivalTonic" &&
+      itemId !== "growthTonic" &&
+      (plot.wilted || plot.fertilizer)
+    ) {
+      showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야" : "시든 작물에는 비료를 쓸 수 없어");
+      return;
+    }
+
     const previousPlotState = { ...plot };
     const previousInventoryCount = state.farmItemInventory[itemId];
     const previousSelectedFarmItem = selectedFarmItem;
+    const plotIndex = plot.id;
 
-    if (itemId === "revivalTonic") {
-      if (!plot.wilted) {
-        showToast("시든 작물에만 회복제를 사용할 수 있어");
-        return;
-      }
-      plot.wilted = false;
-      plot.lastWateredDate = toLocalDateString();
-      plot.lastCaredAt = Date.now();
-    } else if (itemId === "growthTonic") {
-      if (plot.wilted || plot.growth >= getCropGrowthCost(plot.crop)) {
-        showToast("성장 중인 작물에만 사용할 수 있어");
-        return;
-      }
-      plot.growth = getCropGrowthCost(plot.crop);
-      plot.lastWateredDate = toLocalDateString();
-      plot.lastCaredAt = Date.now();
-    } else {
-      if (plot.wilted || plot.fertilizer) {
-        showToast(plot.fertilizer ? "이미 비료가 적용된 밭이야" : "시든 작물에는 비료를 쓸 수 없어");
-        return;
-      }
-      plot.fertilizer = itemId;
-    }
-
-    state.farmItemInventory[itemId] -= 1;
-    selectedFarmItem = null;
-    showToast(`${item.name}을 적용했어`);
-    render();
-    await persistFarmStateAction(() => {
-      Object.assign(plot, previousPlotState);
-      state.farmItemInventory[itemId] = previousInventoryCount;
-      selectedFarmItem = previousSelectedFarmItem;
-    }, "아이템 적용 저장에 실패해서 되돌렸어.");
+    await runFarmAction({
+      rpc: "apply_farm_plot_item",
+      params: { p_plot_index: plotIndex, p_item_id: itemId },
+      apply: () => {
+        if (itemId === "revivalTonic") {
+          plot.wilted = false;
+          plot.lastWateredDate = toLocalDateString();
+          plot.lastCaredAt = Date.now();
+        } else if (itemId === "growthTonic") {
+          plot.growth = getCropGrowthCost(plot.crop);
+          plot.lastWateredDate = toLocalDateString();
+          plot.lastCaredAt = Date.now();
+        } else {
+          plot.fertilizer = itemId;
+        }
+        state.farmItemInventory[itemId] -= 1;
+        selectedFarmItem = null;
+        showToast(`${item.name}을 적용했어`);
+      },
+      revert: () => {
+        Object.assign(plot, previousPlotState);
+        state.farmItemInventory[itemId] = previousInventoryCount;
+        selectedFarmItem = previousSelectedFarmItem;
+      },
+      failureMessage: "아이템 적용 저장에 실패해서 되돌렸어.",
+    });
     return;
   }
 
@@ -8165,28 +8150,31 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     const previousPlotState = { ...plot };
     const plantedSeed = selectedSeed;
     const previousSeedCount = state.seedInventory[plantedSeed];
-    plot.crop = selectedSeed;
-    plot.growth = 0;
-    plot.plantedDate = toLocalDateString();
-    plot.lastWateredDate = "";
-    plot.lastFreeWaterAt = 0;
-    plot.lastCaredAt = Date.now();
-    plot.wilted = false;
-    state.seedInventory[selectedSeed] -= 1;
-    const cropName = CROPS[selectedSeed].name;
-    if (state.seedInventory[selectedSeed] === 0) selectedSeed = null;
-    showToast(`${cropName} 씨앗을 심었어`);
-    render();
-    try {
-      await syncFarmDataDatabaseImmediately();
-    } catch (error) {
-      console.error("Farmodoro planted crop could not be saved", error);
-      Object.assign(plot, previousPlotState);
-      state.seedInventory[plantedSeed] = previousSeedCount;
-      selectedSeed = plantedSeed;
-      render();
-      showToast("작물 저장에 실패해서 심기 전 상태로 되돌렸어.");
-    }
+    const cropName = CROPS[plantedSeed].name;
+    const plotIndex = plot.id;
+
+    await runFarmAction({
+      rpc: "plant_farm_seed",
+      params: { p_plot_index: plotIndex, p_crop_id: plantedSeed },
+      apply: () => {
+        plot.crop = plantedSeed;
+        plot.growth = 0;
+        plot.plantedDate = toLocalDateString();
+        plot.lastWateredDate = "";
+        plot.lastFreeWaterAt = 0;
+        plot.lastCaredAt = Date.now();
+        plot.wilted = false;
+        state.seedInventory[plantedSeed] -= 1;
+        if (state.seedInventory[plantedSeed] === 0) selectedSeed = null;
+        showToast(`${cropName} 씨앗을 심었어`);
+      },
+      revert: () => {
+        Object.assign(plot, previousPlotState);
+        state.seedInventory[plantedSeed] = previousSeedCount;
+        selectedSeed = plantedSeed;
+      },
+      failureMessage: "작물 저장에 실패해서 심기 전 상태로 되돌렸어.",
+    });
     return;
   }
 
@@ -8198,13 +8186,18 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
 
     const previousPlotState = { ...plot };
     const cropName = CROPS[plot.crop].name;
-    clearFarmPlot(plot);
-    showToast(`시든 ${cropName}을 폐기했어`);
-    render();
-    await persistFarmStateAction(
-      () => Object.assign(plot, previousPlotState),
-      "폐기 저장에 실패해서 되돌렸어.",
-    );
+    const plotIndex = plot.id;
+
+    await runFarmAction({
+      rpc: "discard_farm_plot",
+      params: { p_plot_index: plotIndex },
+      apply: () => {
+        clearFarmPlot(plot);
+        showToast(`시든 ${cropName}을 폐기했어`);
+      },
+      revert: () => Object.assign(plot, previousPlotState),
+      failureMessage: "폐기 저장에 실패해서 되돌렸어.",
+    });
     return;
   }
 
@@ -8219,26 +8212,28 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     if (plot.wilted || plot.growth < maxGrowth) return;
 
     const previousPlotState = { ...plot };
-    const previousHarvestCount = state.harvestInventory[plot.crop];
-    const fertilizer = plot.fertilizer;
-    const hasLuckEffect =
-      fertilizer === "luckyFertilizer" || fertilizer === "premiumFertilizer";
-    const jackpot = hasLuckEffect && Math.random() < 0.05;
-    const harvestAmount = hasLuckEffect ? (jackpot ? 5 : 2) : 1;
-    state.harvestInventory[plot.crop] += harvestAmount;
     const cropName = crop.name;
-    clearFarmPlot(plot);
+    const plotIndex = plot.id;
+
+    // Amount and jackpot are rolled server-side now (harvest_farm_plot) --
+    // the toast/celebration below reads the RPC's result instead of rolling
+    // its own random() the way this used to.
+    const result = await runFarmAction({
+      rpc: "harvest_farm_plot",
+      params: { p_plot_index: plotIndex },
+      apply: () => clearFarmPlot(plot),
+      revert: () => Object.assign(plot, previousPlotState),
+      failureMessage: "수확 저장에 실패해서 되돌렸어. 다시 수확해줘.",
+    });
+    if (!result) return;
+    const harvestAmount = result.event?.harvestAmount ?? 1;
+    const jackpot = Boolean(result.event?.jackpot);
     if (jackpot) launchHarvestCelebration();
     showToast(
       jackpot
         ? `대풍년! ${cropName}을 5개 수확했어!`
         : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어`,
     );
-    render();
-    await persistFarmStateAction(() => {
-      Object.assign(plot, previousPlotState);
-      state.harvestInventory[plot.crop] = previousHarvestCount;
-    }, "수확 저장에 실패해서 되돌렸어. 다시 수확해줘.");
     return;
   }
 
@@ -8258,18 +8253,23 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     }
 
     const previousPlotState = { ...plot };
-    plot.lastFreeWaterAt = Date.now();
-    advanceFarmPlotGrowth(plot);
-    showToast(
-      plot.growth >= maxGrowth
-        ? `물을 주니 ${crop.name}이 다 자랐어`
-        : `물을 주니 ${crop.name}이 한 단계 자랐어`,
-    );
-    render();
-    await persistFarmStateAction(
-      () => Object.assign(plot, previousPlotState),
-      "물주기 저장에 실패해서 되돌렸어.",
-    );
+    const plotIndex = plot.id;
+
+    await runFarmAction({
+      rpc: "water_farm_plot",
+      params: { p_plot_index: plotIndex },
+      apply: () => {
+        plot.lastFreeWaterAt = Date.now();
+        advanceFarmPlotGrowth(plot);
+        showToast(
+          plot.growth >= maxGrowth
+            ? `물을 주니 ${crop.name}이 다 자랐어`
+            : `물을 주니 ${crop.name}이 한 단계 자랐어`,
+        );
+      },
+      revert: () => Object.assign(plot, previousPlotState),
+      failureMessage: "물주기 저장에 실패해서 되돌렸어.",
+    });
     return;
   }
 
@@ -8287,26 +8287,28 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       return;
     }
 
-    if (
-      !applyFarmWalletChange(
-        "coin",
-        -1,
-        "작물 성장",
-        `plot:${plot.id}:${Date.now()}`,
-      )
-    ) return;
     const previousPlotState = { ...plot };
-    advanceFarmPlotGrowth(plot);
-    showToast(
-      plot.growth >= maxGrowth
-        ? `${crop.name}이 다 자랐어`
-        : `${crop.name}이 한 단계 자랐어`,
-    );
-    render();
-    await persistFarmStateAction(
-      () => Object.assign(plot, previousPlotState),
-      "성장 저장에 실패해서 되돌렸어.",
-    );
+    const previousCoins = state.coins;
+    const plotIndex = plot.id;
+
+    await runFarmAction({
+      rpc: "grow_farm_plot_with_coin",
+      params: { p_plot_index: plotIndex },
+      apply: () => {
+        state.coins -= 1;
+        advanceFarmPlotGrowth(plot);
+        showToast(
+          plot.growth >= maxGrowth
+            ? `${crop.name}이 다 자랐어`
+            : `${crop.name}이 한 단계 자랐어`,
+        );
+      },
+      revert: () => {
+        Object.assign(plot, previousPlotState);
+        state.coins = previousCoins;
+      },
+      failureMessage: "성장 저장에 실패해서 되돌렸어.",
+    });
   }
 });
 
@@ -8321,21 +8323,23 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
     return;
   }
 
-  if (
-    !earnFarmMoney(
-      recipe.sellPrice,
-      "노아 음식 판매",
-      `food:${recipeId}:${Date.now()}`,
-    )
-  ) return;
   const previousFoodCount = state.foodInventory[recipeId];
-  state.foodInventory[recipeId] -= 1;
-  showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
-  render();
-  await persistFarmStateAction(
-    () => { state.foodInventory[recipeId] = previousFoodCount; },
-    "음식 판매 저장에 실패해서 되돌렸어.",
-  );
+  const previousFarmMoney = state.farmMoney;
+
+  await runFarmAction({
+    rpc: "sell_farm_food",
+    params: { p_recipe_id: recipeId },
+    apply: () => {
+      state.foodInventory[recipeId] -= 1;
+      state.farmMoney += recipe.sellPrice;
+      showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
+    },
+    revert: () => {
+      state.foodInventory[recipeId] = previousFoodCount;
+      state.farmMoney = previousFarmMoney;
+    },
+    failureMessage: "음식 판매 저장에 실패해서 되돌렸어.",
+  });
 });
 
 document.querySelector("#noahCropBundleList").addEventListener("click", async (event) => {
@@ -8351,21 +8355,23 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
   }
 
   const totalPrice = getCropBundlePrice(cropId, bundleSize);
-  if (
-    !earnFarmMoney(
-      totalPrice,
-      "노아 작물 대량 판매",
-      `crop-bundle:${cropId}:${bundleSize}:${Date.now()}`,
-    )
-  ) return;
   const previousHarvestCount = state.harvestInventory[cropId];
-  state.harvestInventory[cropId] -= bundleSize;
-  showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
-  render();
-  await persistFarmStateAction(
-    () => { state.harvestInventory[cropId] = previousHarvestCount; },
-    "작물 판매 저장에 실패해서 되돌렸어.",
-  );
+  const previousFarmMoney = state.farmMoney;
+
+  await runFarmAction({
+    rpc: "sell_farm_crop_bundle",
+    params: { p_crop_id: cropId, p_bundle_size: bundleSize },
+    apply: () => {
+      state.harvestInventory[cropId] -= bundleSize;
+      state.farmMoney += totalPrice;
+      showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
+    },
+    revert: () => {
+      state.harvestInventory[cropId] = previousHarvestCount;
+      state.farmMoney = previousFarmMoney;
+    },
+    failureMessage: "작물 판매 저장에 실패해서 되돌렸어.",
+  });
 });
 
 document.querySelector("#cookRecipeButton").addEventListener("click", async (event) => {
@@ -8395,47 +8401,41 @@ document.querySelector("#cookRecipeButton").addEventListener("click", async (eve
   const previousHarvestCounts = Object.fromEntries(
     Object.keys(requiredCounts).map((cropId) => [cropId, state.harvestInventory[cropId]]),
   );
-  const restoreHarvestCounts = () => {
-    Object.entries(previousHarvestCounts).forEach(([cropId, count]) => {
-      state.harvestInventory[cropId] = count;
-    });
-  };
-  Object.entries(requiredCounts).forEach(([cropId, count]) => {
-    state.harvestInventory[cropId] -= count;
-  });
 
-  const recipeEntry = getRecipeByIngredients(ingredientIds);
-  if (!recipeEntry) {
-    selectedRecipeIngredients.fill("");
+  // Matching + recipe discovery move server-side (cook_farm_recipe) --
+  // getRecipeByIngredients no longer decides the outcome, it's read back
+  // from result.event instead.
+  const result = await runFarmAction({
+    rpc: "cook_farm_recipe",
+    params: { p_crop_ids: ingredientIds },
+    apply: () => {
+      Object.entries(requiredCounts).forEach(([cropId, count]) => {
+        state.harvestInventory[cropId] -= count;
+      });
+      selectedRecipeIngredients.fill("");
+    },
+    revert: () => {
+      Object.entries(previousHarvestCounts).forEach(([cropId, count]) => {
+        state.harvestInventory[cropId] = count;
+      });
+    },
+    failureMessage: "요리 저장에 실패해서 되돌렸어.",
+  });
+  if (!result) return;
+
+  if (!result.event?.matched) {
     launchCraftWasteEffect();
     showToast("도감에 없는 조합이야 재료가 사라졌어");
-    render();
-    await persistFarmStateAction(restoreHarvestCounts, "재료 소모 저장에 실패해서 되돌렸어.");
     return;
   }
 
-  const [recipeId, recipe] = recipeEntry;
-  const previousFoodCount = state.foodInventory[recipeId];
-  const firstDiscovery = !state.discoveredRecipes.includes(recipeId);
-  state.foodInventory[recipeId] += 1;
-  if (firstDiscovery) {
-    state.discoveredRecipes.push(recipeId);
-    launchRecipeDiscoveryFireworks();
-  }
-  selectedRecipeIngredients.fill("");
+  const recipe = RECIPES[result.event.recipeId];
+  if (result.event.firstDiscovery) launchRecipeDiscoveryFireworks();
   showToast(
-    firstDiscovery
+    result.event.firstDiscovery
       ? `새 레시피 발견! ${recipe.name}`
       : `${recipe.name}을 만들었어`,
   );
-  render();
-  await persistFarmStateAction(() => {
-    restoreHarvestCounts();
-    state.foodInventory[recipeId] = previousFoodCount;
-    if (firstDiscovery) {
-      state.discoveredRecipes = state.discoveredRecipes.filter((id) => id !== recipeId);
-    }
-  }, "요리 저장에 실패해서 되돌렸어.");
 });
 
 document.querySelector("#toggleRecipeBook").addEventListener("click", (event) => {
@@ -8578,11 +8578,11 @@ document.querySelector("#openFarmMail").addEventListener("click", async () => {
   farmMailModal.classList.remove("hidden");
   if (!activeAuthUser) return;
   try {
-    await syncFarmDataDatabaseImmediately();
+    await farmActionChain;
     await loadFarmDataFromDatabase(activeAuthUser);
   } catch (error) {
-    console.error("Farmodoro farm data could not be flushed before opening mail", error);
-    showToast("농장 저장에 실패해서 우편함 새로고침을 멈췄어. 잠시 후 다시 열어줘.");
+    console.error("Farmodoro farm data could not be reloaded before opening mail", error);
+    showToast("우편함을 새로고침하지 못했어. 잠시 후 다시 열어줘.");
   }
 });
 document.querySelector("#todayMailAlert").addEventListener("click", async () => {
@@ -9764,7 +9764,7 @@ async function refreshPageData(page = currentPage) {
     }
 
     if (requestedPage === "farm") {
-      await syncFarmDataDatabaseImmediately();
+      await farmActionChain;
       await farmWalletMutationChain;
       await Promise.all([
         loadFarmDataFromDatabase(user),
@@ -9881,8 +9881,10 @@ async function flushFarmodoroDataOnExit() {
       syncTaskDatabaseImmediately().catch((error) => {
         console.error("Farmodoro productivity state could not be flushed", error);
       }),
-      syncFarmDataDatabaseImmediately().catch((error) => {
-        console.error("Farmodoro farm data could not be flushed", error);
+      // Each farm action already commits itself; this only drains an
+      // in-flight one so we don't navigate away mid-write.
+      farmActionChain.catch((error) => {
+        console.error("Farmodoro farm action could not be drained", error);
       }),
     ];
     if (isFocusTimerOwner()) {
@@ -9923,7 +9925,7 @@ window.flushFarmodoroDataBeforeReload = async () => {
     saveState();
     const operations = [flushFocusTime()];
     if (taskDataHydrated) operations.push(syncTaskDatabaseImmediately());
-    if (farmDataHydrated) operations.push(syncFarmDataDatabaseImmediately());
+    if (farmDataHydrated) operations.push(farmActionChain);
     if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
     const results = await Promise.allSettled(operations);
     const failed = results.some((result) => result.status === "rejected");
@@ -10010,9 +10012,11 @@ setInterval(() => {
   if (archiveChanged || farmRankingChanged || farmMailChanged || farmInboxChanged) render();
 }, 60000);
 
+// Wilt itself is latched server-side (refresh_farm_wilt) and picked up on
+// the next load/action result -- this interval only refreshes the countdown
+// text, it never flips plot.wilted locally.
 setInterval(() => {
-  if (updateWiltedCrops()) render();
-  else updateFarmWiltCountdowns();
+  updateFarmWiltCountdowns();
 }, 1000);
 
 render();
