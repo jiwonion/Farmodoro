@@ -107,6 +107,8 @@ let farmDataLoadRequest = 0;
 let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
 let productivityRealtimeMutedUntil = 0;
+let farmContentRealtimeMutedUntil = 0;
+let appStateRealtimeMutedUntil = 0;
 let tutorialStep = 0;
 let tutorialShownForUserId = null;
 let tutorialPreviousFocus = null;
@@ -1917,6 +1919,7 @@ function resetFarmDataDatabaseState() {
   stopFarmMailRealtime();
   farmDataHydrated = false;
   farmDataUserId = null;
+  farmContentRealtimeMutedUntil = 0;
   lastFarmDataSyncSignature = "";
   lastFarmDataSyncError = "";
   farmDataSyncChain = Promise.resolve();
@@ -2011,7 +2014,10 @@ function startFarmMailRealtime(user) {
   stopFarmMailRealtime();
   if (!supabaseClient || !user) return;
   const handleChange = () => scheduleFarmMailRealtimeRefresh(user.id);
-  const handleFarmContentChange = () => scheduleFarmContentRealtimeRefresh(user.id);
+  const handleFarmContentChange = () => {
+    if (Date.now() < farmContentRealtimeMutedUntil) return;
+    scheduleFarmContentRealtimeRefresh(user.id);
+  };
   const handleWalletChange = () => scheduleFarmWalletRealtimeRefresh(user);
   farmMailRealtimeChannel = supabaseClient
     .channel(`farm-mail:${user.id}`)
@@ -2376,6 +2382,12 @@ async function loadFarmDataFromDatabase(user) {
 // falls back to the older, unversioned chain on a backend that hasn't run
 // migration 047 yet.
 async function saveFarmSnapshotToDatabase(payload) {
+  // Set before the write goes out: our own farms/farm_plots/farm_inventory
+  // row touches echo back as a realtime event almost immediately, and
+  // reacting to that with a reload (even a read-only one) raced the save
+  // that hadn't committed yet and produced a visible re-render roughly every
+  // time anything saved. Mirrors productivityRealtimeMutedUntil.
+  farmContentRealtimeMutedUntil = Math.max(farmContentRealtimeMutedUntil, Date.now() + 3000);
   let { data, error } = await supabaseClient.rpc("save_my_farm_state_v5", {
     p_state: payload,
     p_expected_version: farmDataVersion,
@@ -2426,7 +2438,7 @@ function scheduleFarmDataDatabaseSync(delay = 250) {
       .then(async () => {
         const { error, stale } = await saveFarmSnapshotToDatabase(payload);
         if (stale) {
-          //await recoverFromStaleFarmSave(userId);
+          await recoverFromStaleFarmSave(userId);
           return;
         }
         if (error) throw error;
@@ -2472,7 +2484,7 @@ async function syncFarmDataDatabaseImmediately() {
   farmDataSyncChain = operation.catch(() => {});
   await operation;
   if (staleConflict) {
-    //await recoverFromStaleFarmSave(userId);
+    await recoverFromStaleFarmSave(userId);
     return;
   }
   if (activeAuthUser?.id === userId) {
@@ -2635,7 +2647,12 @@ function saveState() {
 
 function serializeAppState(snapshot = state) {
   const appState = { ...snapshot };
-  ["groups", "tasks", "habits", "coins", "farmMoney", ...FARM_STATE_KEYS]
+  // focusRewardSeconds is server-owned (user_focus_progress) and unconditionally
+  // overwritten by the server's value on every load (see loadFocusProgress) --
+  // persisting it here just meant it ticked every second and forced a write
+  // roughly every 2 seconds while any focus timer ran. schemaVersion is never
+  // read back (loadState hard-codes it). Neither belongs in this document.
+  ["groups", "tasks", "habits", "coins", "farmMoney", "focusRewardSeconds", "schemaVersion", ...FARM_STATE_KEYS]
     .forEach((key) => delete appState[key]);
   return JSON.stringify(appState);
 }
@@ -2644,6 +2661,7 @@ function resetAppStateDatabaseState() {
   stopAppStateRealtime();
   appStateHydrated = false;
   appStateUserId = null;
+  appStateRealtimeMutedUntil = 0;
   lastAppStateSyncSignature = "";
   if (appStateSyncTimer) clearTimeout(appStateSyncTimer);
   appStateSyncTimer = null;
@@ -2731,8 +2749,14 @@ async function loadAppStateFromDatabase(user, { isInitialLoad = true } = {}) {
 
   applyLoadedAppStateRuntime(isInitialLoad);
   appStateHydrated = true;
-  lastAppStateSyncSignature = serializeAppState();
-  render();
+  const nextSignature = serializeAppState();
+  // focusRewardSeconds alone used to make this differ from the previous
+  // signature on essentially every load, forcing a full render (including
+  // the entire task list) on every realtime echo of the ~2s focus heartbeat
+  // save. Only render when something actually changed.
+  const changed = nextSignature !== lastAppStateSyncSignature;
+  lastAppStateSyncSignature = nextSignature;
+  if (isInitialLoad || changed) render();
 }
 
 function stopAppStateRealtime() {
@@ -2766,7 +2790,10 @@ function startAppStateRealtime(user) {
     supabaseClient.channel(`app-state:${user.id}`),
     ["user_app_state"],
     user.id,
-    () => scheduleAppStateRealtimeRefresh(user.id),
+    () => {
+      if (Date.now() < appStateRealtimeMutedUntil) return;
+      scheduleAppStateRealtimeRefresh(user.id);
+    },
   ).subscribe((status) => {
     if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
       console.warn(`Farmodoro app state realtime subscription: ${status}`);
@@ -2777,6 +2804,7 @@ function startAppStateRealtime(user) {
 // Mirrors saveFarmSnapshotToDatabase: version-checked save first, falling
 // back to the old unguarded upsert on a backend without migration 049.
 async function saveAppStateToDatabase(userId, savedState) {
+  appStateRealtimeMutedUntil = Math.max(appStateRealtimeMutedUntil, Date.now() + 3000);
   let { data, error } = await supabaseClient.rpc("save_my_app_state", {
     p_state: savedState,
     p_expected_version: appStateVersion,
@@ -2818,7 +2846,7 @@ function scheduleAppStateDatabaseSync(snapshot = null, delay = 300) {
       .then(async () => {
         const { error, stale } = await saveAppStateToDatabase(userId, savedState);
         if (stale) {
-          //await recoverFromStaleAppStateSave(userId);
+          await recoverFromStaleAppStateSave(userId);
           return;
         }
         if (error) throw error;
