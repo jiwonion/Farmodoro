@@ -3860,13 +3860,16 @@ function renderTasks() {
               isEditing
                 ? `
                   <form class="task-inline-edit" data-inline-task-form="${task.id}">
-                    <textarea
-                      class="task-inline-title"
-                      rows="1"
-                      maxlength="60"
-                      aria-label="할 일 내용"
-                      required
-                    >${escapeHtml(editingTaskTitle)}</textarea>
+                    <div class="task-input-wrap">
+                      <textarea
+                        class="task-inline-title"
+                        rows="1"
+                        maxlength="60"
+                        aria-label="할 일 내용"
+                        required
+                      >${escapeHtml(editingTaskTitle)}</textarea>
+                      <button type="button" class="task-input-newline-button" data-inline-task-newline aria-label="줄바꿈 추가">↵</button>
+                    </div>
                     <div class="task-inline-edit-footer">
                       <div class="custom-group-select task-inline-group-select">
                         <button class="custom-group-trigger" type="button" data-inline-group-trigger aria-haspopup="listbox" aria-expanded="false">
@@ -7358,6 +7361,17 @@ taskForm.addEventListener("submit", (event) => {
 taskInput.addEventListener("input", () => autoGrowTextarea(taskInput));
 taskInput.addEventListener("keydown", (event) => submitOnEnterUnlessShift(event, taskForm));
 
+document.querySelector("#taskInputNewline")?.addEventListener("click", () => {
+  const start = taskInput.selectionStart ?? taskInput.value.length;
+  const end = taskInput.selectionEnd ?? taskInput.value.length;
+  const nextValue = `${taskInput.value.slice(0, start)}\n${taskInput.value.slice(end)}`;
+  if (nextValue.length > Number(taskInput.maxLength)) return;
+  taskInput.value = nextValue;
+  taskInput.focus();
+  taskInput.setSelectionRange(start + 1, start + 1);
+  autoGrowTextarea(taskInput);
+});
+
 habitForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (!taskDataHydrated) {
@@ -7446,6 +7460,7 @@ habitForm.addEventListener("submit", (event) => {
 document.querySelector("#taskBoard").addEventListener("click", (event) => {
   const inlineGroupTrigger = event.target.closest("[data-inline-group-trigger]");
   const inlineGroupOption = event.target.closest("[data-inline-task-group]");
+  const inlineNewlineButton = event.target.closest("[data-inline-task-newline]");
   const cancelEditButton = event.target.closest("[data-cancel-task-edit]");
   const focusButton = event.target.closest("[data-focus-task]");
   const editButton = event.target.closest("[data-edit-task]");
@@ -7466,6 +7481,20 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     editingTaskGroupId = inlineGroupOption.dataset.inlineTaskGroup || null;
     renderTasks();
     document.querySelector(`[data-task-id="${editingTaskId}"] [data-inline-group-trigger]`)?.focus();
+    return;
+  }
+  if (inlineNewlineButton) {
+    const textarea = inlineNewlineButton.closest(".task-input-wrap")?.querySelector(".task-inline-title");
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    const nextValue = `${textarea.value.slice(0, start)}\n${textarea.value.slice(end)}`;
+    if (nextValue.length > Number(textarea.maxLength)) return;
+    textarea.value = nextValue;
+    editingTaskTitle = nextValue;
+    textarea.focus();
+    textarea.setSelectionRange(start + 1, start + 1);
+    autoGrowTextarea(textarea);
     return;
   }
   if (cancelEditButton) {

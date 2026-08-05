@@ -304,14 +304,17 @@
             </div>
 
             <form class="quick-form hidden" id="taskForm">
-              <textarea
-                id="taskInput"
-                rows="1"
-                maxlength="60"
-                placeholder="새 할 일을 입력해 (Shift+Enter로 줄바꿈)"
-                aria-label="새 할 일 입력"
-                autocomplete="off"
-              ></textarea>
+              <div class="task-input-wrap">
+                <textarea
+                  id="taskInput"
+                  rows="1"
+                  maxlength="60"
+                  placeholder="새 할 일을 입력해 (Shift+Enter로 줄바꿈)"
+                  aria-label="새 할 일 입력"
+                  autocomplete="off"
+                ></textarea>
+                <button type="button" id="taskInputNewline" class="task-input-newline-button" aria-label="줄바꿈 추가">↵</button>
+              </div>
               <div class="custom-group-select" id="customTaskGroupSelect">
                 <select id="taskGroup" aria-label="그룹 선택" hidden></select>
                 <button

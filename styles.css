@@ -4041,8 +4041,8 @@ button {
 }
 
 .storage-grid-44 .very-long-name strong {
-  font-size: 9px;
-  letter-spacing: -0.03em;
+  font-size: 8px;
+  letter-spacing: -0.04em;
 }
 
 .storage-grid-44 .inventory-seed > span,
@@ -5969,14 +5969,40 @@ button {
   box-shadow: 0 0 0 3px rgba(65, 116, 81, 0.09);
 }
 
+.task-input-wrap {
+  position: relative;
+  min-width: 0;
+}
+
 #taskInput {
+  width: 100%;
   height: auto;
   min-height: 38px;
   max-height: 120px;
-  padding: 9px 12px;
+  padding: 9px 34px 9px 12px;
   resize: none;
   overflow-y: auto;
   line-height: 1.4;
+}
+
+.task-input-newline-button {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 26px;
+  height: 24px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--paper);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.task-input-newline-button:hover {
+  border-color: #9bb29f;
+  color: var(--ink);
 }
 
 .secondary-button {
@@ -11020,6 +11046,10 @@ canvas {
 
   :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) strong {
     font-size: 9px;
+  }
+  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 .very-long-name strong {
+    font-size: 7px;
+    letter-spacing: -0.03em;
   }
   :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) small {
     font-size: 8px;
