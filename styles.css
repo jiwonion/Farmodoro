@@ -4040,6 +4040,11 @@ button {
   letter-spacing: -0.05em;
 }
 
+.storage-grid-44 .very-long-name strong {
+  font-size: 9px;
+  letter-spacing: -0.03em;
+}
+
 .storage-grid-44 .inventory-seed > span,
 .storage-grid-44 .harvest-item i {
   font-size: 28px;
@@ -5931,6 +5936,7 @@ button {
 .quick-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 100px auto auto;
+  align-items: start;
   gap: 8px;
   margin-bottom: 15px;
   padding: 11px;
@@ -5961,6 +5967,16 @@ button {
 .quick-form select:focus {
   border-color: #9bb29f;
   box-shadow: 0 0 0 3px rgba(65, 116, 81, 0.09);
+}
+
+#taskInput {
+  height: auto;
+  min-height: 38px;
+  max-height: 120px;
+  padding: 9px 12px;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.4;
 }
 
 .secondary-button {
@@ -6198,6 +6214,7 @@ body.touch-reordering {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .task-actions {
@@ -6247,14 +6264,17 @@ body.touch-reordering {
 .task-inline-title {
   width: 100%;
   min-width: 0;
-  height: 36px;
-  padding: 0 10px;
+  min-height: 36px;
+  max-height: 140px;
+  padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
   background: var(--paper);
   font: 600 14px/1.4 "Pretendard", sans-serif;
   outline: none;
+  resize: none;
+  overflow-y: auto;
 }
 
 .task-inline-title:focus {

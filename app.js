@@ -2087,7 +2087,6 @@ function buildFarmDatabaseState(snapshot = state) {
   ];
   return {
     farm: {
-      farmName: snapshot.farmName,
       productionBoostUntil: toDatabaseTimestamp(snapshot.productionBoostUntil),
       wiltProtectionUntil: toDatabaseTimestamp(snapshot.wiltProtectionUntil),
     },
@@ -2424,7 +2423,7 @@ async function syncFarmDataDatabaseImmediately() {
   }
 }
 
-async function persistFarmPlotAction(revert, failureMessage) {
+async function persistFarmStateAction(revert, failureMessage) {
   try {
     await syncFarmDataDatabaseImmediately();
   } catch (error) {
@@ -3512,6 +3511,18 @@ function formatFocusTime(seconds = 0) {
   return `${Math.floor(seconds / 60)}분`;
 }
 
+function autoGrowTextarea(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
+function submitOnEnterUnlessShift(event, form) {
+  if (event.key !== "Enter" || event.shiftKey) return;
+  event.preventDefault();
+  form.requestSubmit();
+}
+
 function formatArchivedCompletionDate(value) {
   const date = parseDateInputValue(value);
   if (!date) return "";
@@ -3715,14 +3726,13 @@ function renderTasks() {
               isEditing
                 ? `
                   <form class="task-inline-edit" data-inline-task-form="${task.id}">
-                    <input
+                    <textarea
                       class="task-inline-title"
-                      type="text"
+                      rows="1"
                       maxlength="60"
-                      value="${escapeHtml(editingTaskTitle)}"
                       aria-label="할 일 내용"
                       required
-                    />
+                    >${escapeHtml(editingTaskTitle)}</textarea>
                     <div class="task-inline-edit-footer">
                       <div class="custom-group-select task-inline-group-select">
                         <button class="custom-group-trigger" type="button" data-inline-group-trigger aria-haspopup="listbox" aria-expanded="false">
@@ -4328,6 +4338,7 @@ function openTaskInlineEdit(task) {
   renderTasks();
   window.setTimeout(() => {
     const input = document.querySelector(`[data-task-id="${task.id}"] .task-inline-title`);
+    autoGrowTextarea(input);
     input?.focus();
     input?.select();
   }, 0);
@@ -4479,6 +4490,13 @@ function renderHabitHeatmap() {
     .join("");
 
   grid.innerHTML = `<span></span>${dayHeaders}${rows}`;
+}
+
+function getCropNameLengthClass(cropName) {
+  const length = [...cropName].length;
+  if (length >= 5) return "very-long-name";
+  if (length >= 3) return "long-name";
+  return "";
 }
 
 function cropSvg(cropId, stage = "mature") {
@@ -5276,7 +5294,7 @@ function renderFarm() {
       const count = state.seedInventory[cropId] ?? 0;
       return `
         <button
-          class="inventory-seed ${[...crop.name].length >= 3 ? "long-name" : ""} ${selectedSeed === cropId ? "selected" : ""} ${count === 0 ? "empty" : ""}"
+          class="inventory-seed ${getCropNameLengthClass(crop.name)} ${selectedSeed === cropId ? "selected" : ""} ${count === 0 ? "empty" : ""}"
           type="button"
           data-select-seed="${cropId}"
         >
@@ -5310,7 +5328,7 @@ function renderFarm() {
   harvestInventory.innerHTML = Object.entries(CROPS)
     .map(
       ([cropId, crop]) => `
-        <span class="harvest-item ${[...crop.name].length >= 3 ? "long-name" : ""} ${state.harvestInventory[cropId] ? "" : "empty"}">
+        <span class="harvest-item ${getCropNameLengthClass(crop.name)} ${state.harvestInventory[cropId] ? "" : "empty"}">
           <i>${cropSvg(cropId)}</i>
           <strong>${crop.name}</strong>
           <small>${state.harvestInventory[cropId] ?? 0}개</small>
@@ -7196,11 +7214,15 @@ taskForm.addEventListener("submit", (event) => {
     completedDate: "",
   });
   taskInput.value = "";
+  autoGrowTextarea(taskInput);
   taskForm.classList.add("hidden");
   showToast("대기 목록에 추가했어");
   render();
   scheduleTaskDatabaseSync(0);
 });
+
+taskInput.addEventListener("input", () => autoGrowTextarea(taskInput));
+taskInput.addEventListener("keydown", (event) => submitOnEnterUnlessShift(event, taskForm));
 
 habitForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -7366,7 +7388,14 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
 });
 
 document.querySelector("#taskBoard").addEventListener("input", (event) => {
-  if (event.target.matches(".task-inline-title")) editingTaskTitle = event.target.value;
+  if (!event.target.matches(".task-inline-title")) return;
+  editingTaskTitle = event.target.value;
+  autoGrowTextarea(event.target);
+});
+
+document.querySelector("#taskBoard").addEventListener("keydown", (event) => {
+  if (!event.target.matches(".task-inline-title")) return;
+  submitOnEnterUnlessShift(event, event.target.closest("[data-inline-task-form]"));
 });
 
 document.querySelector("#taskBoard").addEventListener("submit", (event) => {
@@ -7772,7 +7801,7 @@ document.querySelector("#habitList").addEventListener("click", (event) => {
   }
 });
 
-document.querySelector("#seedShop").addEventListener("click", (event) => {
+document.querySelector("#seedShop").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-buy-seed]");
   if (!button) return;
 
@@ -7792,10 +7821,16 @@ document.querySelector("#seedShop").addEventListener("click", (event) => {
       `seed:${cropId}:${Date.now()}`,
     )
   ) return;
+  const previousSeedCount = state.seedInventory[cropId];
+  const previousSelectedSeed = selectedSeed;
   state.seedInventory[cropId] += 1;
   if (!selectedSeed) selectedSeed = cropId;
   showToast(`${crop.name} 씨앗을 1개 샀어`);
   render();
+  await persistFarmStateAction(() => {
+    state.seedInventory[cropId] = previousSeedCount;
+    selectedSeed = previousSelectedSeed;
+  }, "씨앗 구매 저장에 실패해서 되돌렸어.");
 });
 
 document.querySelector("#seedInventory").addEventListener("click", (event) => {
@@ -7813,7 +7848,7 @@ document.querySelector("#seedInventory").addEventListener("click", (event) => {
   renderFarm();
 });
 
-document.querySelector("#farmItemShop").addEventListener("click", (event) => {
+document.querySelector("#farmItemShop").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-buy-farm-item]");
   if (!button) return;
   const itemId = button.dataset.buyFarmItem;
@@ -7831,9 +7866,14 @@ document.querySelector("#farmItemShop").addEventListener("click", (event) => {
       `farm-item:${itemId}:${Date.now()}`,
     )
   ) return;
+  const previousItemCount = state.farmItemInventory[itemId];
   state.farmItemInventory[itemId] += 1;
   showToast(`${item.name}을 구매했어`);
   render();
+  await persistFarmStateAction(
+    () => { state.farmItemInventory[itemId] = previousItemCount; },
+    "농장 용품 구매 저장에 실패해서 되돌렸어.",
+  );
 });
 
 document.querySelector("#farmItemInventory").addEventListener("click", (event) => {
@@ -7972,7 +8012,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     selectedFarmItem = null;
     showToast(`${item.name}을 적용했어`);
     render();
-    await persistFarmPlotAction(() => {
+    await persistFarmStateAction(() => {
       Object.assign(plot, previousPlotState);
       state.farmItemInventory[itemId] = previousInventoryCount;
       selectedFarmItem = previousSelectedFarmItem;
@@ -8030,7 +8070,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     clearFarmPlot(plot);
     showToast(`시든 ${cropName}을 폐기했어`);
     render();
-    await persistFarmPlotAction(
+    await persistFarmStateAction(
       () => Object.assign(plot, previousPlotState),
       "폐기 저장에 실패해서 되돌렸어.",
     );
@@ -8064,7 +8104,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어`,
     );
     render();
-    await persistFarmPlotAction(() => {
+    await persistFarmStateAction(() => {
       Object.assign(plot, previousPlotState);
       state.harvestInventory[plot.crop] = previousHarvestCount;
     }, "수확 저장에 실패해서 되돌렸어. 다시 수확해줘.");
@@ -8095,7 +8135,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `물을 주니 ${crop.name}이 한 단계 자랐어`,
     );
     render();
-    await persistFarmPlotAction(
+    await persistFarmStateAction(
       () => Object.assign(plot, previousPlotState),
       "물주기 저장에 실패해서 되돌렸어.",
     );
@@ -8132,14 +8172,14 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
         : `${crop.name}이 한 단계 자랐어`,
     );
     render();
-    await persistFarmPlotAction(
+    await persistFarmStateAction(
       () => Object.assign(plot, previousPlotState),
       "성장 저장에 실패해서 되돌렸어.",
     );
   }
 });
 
-document.querySelector("#noahBuyList").addEventListener("click", (event) => {
+document.querySelector("#noahBuyList").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-sell-food]");
   if (!button) return;
 
@@ -8157,12 +8197,17 @@ document.querySelector("#noahBuyList").addEventListener("click", (event) => {
       `food:${recipeId}:${Date.now()}`,
     )
   ) return;
+  const previousFoodCount = state.foodInventory[recipeId];
   state.foodInventory[recipeId] -= 1;
   showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
   render();
+  await persistFarmStateAction(
+    () => { state.foodInventory[recipeId] = previousFoodCount; },
+    "음식 판매 저장에 실패해서 되돌렸어.",
+  );
 });
 
-document.querySelector("#noahCropBundleList").addEventListener("click", (event) => {
+document.querySelector("#noahCropBundleList").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-sell-crop-bundle]");
   if (!button) return;
 
@@ -8182,12 +8227,17 @@ document.querySelector("#noahCropBundleList").addEventListener("click", (event) 
       `crop-bundle:${cropId}:${bundleSize}:${Date.now()}`,
     )
   ) return;
+  const previousHarvestCount = state.harvestInventory[cropId];
   state.harvestInventory[cropId] -= bundleSize;
   showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
   render();
+  await persistFarmStateAction(
+    () => { state.harvestInventory[cropId] = previousHarvestCount; },
+    "작물 판매 저장에 실패해서 되돌렸어.",
+  );
 });
 
-document.querySelector("#cookRecipeButton").addEventListener("click", (event) => {
+document.querySelector("#cookRecipeButton").addEventListener("click", async (event) => {
   const ingredientIds = selectedRecipeIngredients.filter(Boolean);
   if (ingredientIds.length < 2) {
     showToast("재료를 두 가지 이상 골라");
@@ -8211,6 +8261,14 @@ document.querySelector("#cookRecipeButton").addEventListener("click", (event) =>
   void cookButton.offsetWidth;
   cookButton.classList.add("mixing");
 
+  const previousHarvestCounts = Object.fromEntries(
+    Object.keys(requiredCounts).map((cropId) => [cropId, state.harvestInventory[cropId]]),
+  );
+  const restoreHarvestCounts = () => {
+    Object.entries(previousHarvestCounts).forEach(([cropId, count]) => {
+      state.harvestInventory[cropId] = count;
+    });
+  };
   Object.entries(requiredCounts).forEach(([cropId, count]) => {
     state.harvestInventory[cropId] -= count;
   });
@@ -8221,12 +8279,14 @@ document.querySelector("#cookRecipeButton").addEventListener("click", (event) =>
     launchCraftWasteEffect();
     showToast("도감에 없는 조합이야 재료가 사라졌어");
     render();
+    await persistFarmStateAction(restoreHarvestCounts, "재료 소모 저장에 실패해서 되돌렸어.");
     return;
   }
 
   const [recipeId, recipe] = recipeEntry;
-  state.foodInventory[recipeId] += 1;
+  const previousFoodCount = state.foodInventory[recipeId];
   const firstDiscovery = !state.discoveredRecipes.includes(recipeId);
+  state.foodInventory[recipeId] += 1;
   if (firstDiscovery) {
     state.discoveredRecipes.push(recipeId);
     launchRecipeDiscoveryFireworks();
@@ -8238,6 +8298,13 @@ document.querySelector("#cookRecipeButton").addEventListener("click", (event) =>
       : `${recipe.name}을 만들었어`,
   );
   render();
+  await persistFarmStateAction(() => {
+    restoreHarvestCounts();
+    state.foodInventory[recipeId] = previousFoodCount;
+    if (firstDiscovery) {
+      state.discoveredRecipes = state.discoveredRecipes.filter((id) => id !== recipeId);
+    }
+  }, "요리 저장에 실패해서 되돌렸어.");
 });
 
 document.querySelector("#toggleRecipeBook").addEventListener("click", (event) => {
@@ -8668,18 +8735,34 @@ document.querySelector("#editFarmName").addEventListener("click", () => {
   farmNameInput.select();
 });
 
-farmNameForm.addEventListener("submit", (event) => {
+farmNameForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const nextName = farmNameInput.value.trim();
   if (!nextName) {
     showToast("밭 이름을 입력해");
     return;
   }
+  if (!activeAuthUser) {
+    showToast("로그인 정보를 불러오는 중이야");
+    return;
+  }
 
+  const previousName = state.farmName;
   state.farmName = nextName;
   farmNameForm.hidden = true;
   farmNameDisplay.hidden = false;
   showToast(`밭 이름을 '${nextName}'으로 바꿨어`);
+  render();
+
+  try {
+    const { data, error } = await supabaseClient.rpc("update_my_farm_name", { p_name: nextName });
+    if (error) throw error;
+    state.farmName = data || nextName;
+  } catch (error) {
+    console.error("Farmodoro farm name could not be saved", error);
+    state.farmName = previousName;
+    showToast("밭 이름 저장에 실패해서 되돌렸어.");
+  }
   render();
 });
 

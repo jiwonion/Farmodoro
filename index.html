@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=123" />
+    <link rel="stylesheet" href="./styles.css?v=126" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -304,14 +304,14 @@
             </div>
 
             <form class="quick-form hidden" id="taskForm">
-              <input
+              <textarea
                 id="taskInput"
-                type="text"
+                rows="1"
                 maxlength="60"
-                placeholder="새 할 일을 입력해"
+                placeholder="새 할 일을 입력해 (Shift+Enter로 줄바꿈)"
                 aria-label="새 할 일 입력"
                 autocomplete="off"
-              />
+              ></textarea>
               <div class="custom-group-select" id="customTaskGroupSelect">
                 <select id="taskGroup" aria-label="그룹 선택" hidden></select>
                 <button
@@ -1243,7 +1243,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=123"></script>
-    <script src="./pwa-register.js?v=123"></script>
+    <script src="./app.js?v=126"></script>
+    <script src="./pwa-register.js?v=126"></script>
   </body>
 </html>
