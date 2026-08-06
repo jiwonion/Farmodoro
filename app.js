@@ -2678,6 +2678,12 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
     habits: state.habits,
   };
   const farmState = captureFarmState();
+  // Coin/Farm Money live in farm_wallets, not this blob -- loadState()
+  // below would otherwise reset them to the fresh-state default of 0,
+  // clobbering whatever loadFarmWallet/realtime already applied. Carry the
+  // in-memory value across the state replacement instead of zeroing it.
+  const previousCoins = state.coins;
+  const previousFarmMoney = state.farmMoney;
   if (error) {
     console.error("Farmodoro preferences could not be loaded", error);
     if (isInitialLoad) showToast("설정을 불러오지 못했어. 잠시 후 다시 시도해줘");
@@ -2690,9 +2696,8 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
     settings: data?.settings,
   });
   state.focusYoutubePlaylists = Array.isArray(data?.playlists) ? data.playlists : [];
-  // Coin and Farm Money are owned exclusively by farm_wallets.
-  state.coins = 0;
-  state.farmMoney = 0;
+  state.coins = previousCoins;
+  state.farmMoney = previousFarmMoney;
   restoreFarmState(farmState);
   state.groups = productivityState.groups;
   state.tasks = productivityState.tasks;
