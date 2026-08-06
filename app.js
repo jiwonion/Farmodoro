@@ -2616,7 +2616,15 @@ function applyLoadedAppStateRuntime(isInitialLoad = true) {
   // that's actively counting down -- that state is owned separately by
   // user_focus_timer and kept in sync on its own channel. Only reset the
   // runtime to a fresh, idle timer on the one true cold-start load.
-  if (isInitialLoad) {
+  //
+  // isInitialLoad alone isn't a reliable enough guard: onAuthStateChange
+  // re-runs applyAuthSession() for every auth event (not just sign-in), and
+  // a long background/suspend can make a reconnect-driven re-fire look like
+  // a fresh sign-in to that caller, defaulting isInitialLoad back to true
+  // even though a timer is already running this session. runningFocusMode
+  // is still null on a genuine cold start (loadFocusTimerFromDatabase runs
+  // after this), so checking it too costs nothing on the real cold path.
+  if (isInitialLoad && !runningFocusMode) {
     focusRuntimeByMode.linked = {
       seconds: 0,
       phase: "focus",
