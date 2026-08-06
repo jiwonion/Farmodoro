@@ -4911,6 +4911,11 @@ button {
   font-size: 14px;
 }
 
+.focus-card.standalone .secondary-button {
+  min-height: 45px;
+  font-size: 12px;
+}
+
 .focus-card.standalone .sprout {
   display: none;
 }

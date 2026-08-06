@@ -6409,6 +6409,10 @@ function updateFocusActionButton() {
   void syncFocusWakeLock();
   const button = document.querySelector("#focusButton");
   const runtime = focusRuntimeByMode[focusMode];
+  const skipBreakButton = document.querySelector("#focusSkipBreakButton");
+  if (skipBreakButton) {
+    skipBreakButton.hidden = !(focusMode === "quick" && timerPhase === "break");
+  }
   if (runningFocusMode === focusMode && focusMode === "quick" && runtime.phase === "focus" && runtime.overtime) {
     const quickSettings = getFocusSettings("quick");
     button.innerHTML = quickSettings.breakEnabled
@@ -6689,7 +6693,7 @@ function finishFocusRuntime(mode) {
   void flushFocusTime();
 }
 
-function finishBreakRuntime(mode) {
+function finishBreakRuntime(mode, { skipped = false } = {}) {
   const runtime = focusRuntimeByMode[mode];
   const settings = getFocusSettings(mode);
   clearInterval(focusInterval);
@@ -6710,9 +6714,20 @@ function finishBreakRuntime(mode) {
     updateFocusTarget();
   }
   updateMiniFocusTimer();
-  showToast("휴식 끝 다음 세트를 시작하면 돼");
-  notifyFocusPhaseComplete("break");
+  showToast(skipped ? "휴식을 건너뛰었어" : "휴식 끝 다음 세트를 시작하면 돼");
+  // A deliberate skip doesn't need the alarm-style banner+sound that a
+  // passive "break ended while you weren't looking" completion does.
+  if (!skipped) notifyFocusPhaseComplete("break");
   scheduleFocusTimerDatabaseSync(0);
+}
+
+function skipFocusBreak() {
+  if (focusMode !== "quick" || timerPhase !== "break") return;
+  if (runningFocusMode === "quick") {
+    const tickResult = advanceRunningFocusTimer("quick");
+    if (tickResult.finished) return;
+  }
+  finishBreakRuntime("quick", { skipped: true });
 }
 
 function startFocusTickInterval(mode) {
@@ -9129,6 +9144,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#focusButton").addEventListener("click", toggleFocus);
+document.querySelector("#focusSkipBreakButton").addEventListener("click", skipFocusBreak);
 document.querySelectorAll("[data-focus-mode]").forEach((button) => {
   button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
 });
