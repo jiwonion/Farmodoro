@@ -6723,6 +6723,19 @@ function startFocusTickInterval(mode) {
   }, 250);
 }
 
+// Minimizing the window or switching to another app/tab lets browsers
+// throttle (or fully suspend) a background setInterval for as long as it's
+// hidden, so the running timer can sit "stuck" until something forces it to
+// catch up. Called on visibilitychange->visible and window focus: applies
+// the real elapsed time immediately (advanceRunningFocusTimer works off
+// Date.now(), so it's correct regardless of how long the tick was starved)
+// and starts a fresh interval rather than trusting the old one to recover.
+function resumeFocusTimerAfterBackground() {
+  if (!runningFocusMode || !isFocusTimerOwner()) return;
+  const tickResult = advanceRunningFocusTimer(runningFocusMode);
+  if (!tickResult.finished) startFocusTickInterval(runningFocusMode);
+}
+
 function toggleFocus() {
   const button = document.querySelector("#focusButton");
   const runtime = focusRuntimeByMode[focusMode];
@@ -10025,6 +10038,7 @@ window.addEventListener("hashchange", () => {
 
 window.addEventListener("focus", () => {
   void refreshPageData(currentPage);
+  resumeFocusTimerAfterBackground();
 });
 
 async function flushFarmodoroDataOnExit() {
@@ -10073,6 +10087,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     void refreshPageData();
     if (appStateHydrated) void loadUserPreferences(activeAuthUser, { isInitialLoad: false });
+    resumeFocusTimerAfterBackground();
   }
 });
 
