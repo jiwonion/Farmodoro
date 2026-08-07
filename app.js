@@ -1838,7 +1838,11 @@ let rachelActiveTab = "offers";
 let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
+let selectedMailQuantity = 1;
+const FARM_MAIL_MAX_QUANTITY = 5;
 let farmMailView = "send";
+let farmBulletinPosts = [];
+let selectedBulletinType = "buy";
 let farmMailContacts = [];
 let farmMailServerUnreadCount = null;
 let farmMailUnreadPollInterval = null;
@@ -2173,6 +2177,7 @@ function mapFarmInboxFromDatabase(inbox = []) {
       sender,
       category: item.category,
       itemId: item.itemId,
+      quantity: Math.max(1, Number(item.quantity) || 1),
       claimed: Boolean(item.claimedAt),
       receivedDate,
     }));
@@ -2187,6 +2192,7 @@ function mapFarmSentHistoryFromDatabase(sentToday = []) {
       category: item.category,
       itemId: item.itemId,
       itemName: getFarmMailItemName(item.category, item.itemId),
+      quantity: Math.max(1, Number(item.quantity) || 1),
       sentTime: new Date(mail.sentAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     })),
   );
@@ -4954,6 +4960,10 @@ function renderFarmMail() {
   const openMailButton = document.querySelector("#openFarmMail");
   const todayMailAlert = document.querySelector("#todayMailAlert");
   const todayMailAlertCount = document.querySelector("#todayMailAlertCount");
+  const quantityRow = document.querySelector("#farmMailQuantityRow");
+  const quantityValue = document.querySelector("#farmMailQuantityValue");
+  const quantityMinusButton = document.querySelector("#farmMailQuantityMinus");
+  const quantityPlusButton = document.querySelector("#farmMailQuantityPlus");
   if (
     !remaining ||
     !friendCodeInput ||
@@ -4967,7 +4977,11 @@ function renderFarmMail() {
     !inboxList ||
     !unreadCount ||
     !headerUnreadCount ||
-    !openMailButton
+    !openMailButton ||
+    !quantityRow ||
+    !quantityValue ||
+    !quantityMinusButton ||
+    !quantityPlusButton
   ) return;
 
   ensureDailyFarmMail();
@@ -5011,7 +5025,7 @@ function renderFarmMail() {
                   <strong>${escapeHtml(friend.name)}</strong>
                   <small>${escapeHtml(gift.categoryName)} · ${daysUntilDelete}일 후 삭제</small>
                 </div>
-                <strong>${gift.icon}<span>${escapeHtml(gift.name)}</span></strong>
+                <strong>${gift.icon}<span>${escapeHtml(gift.name)}${mail.quantity > 1 ? ` x${mail.quantity}` : ""}</span></strong>
               </div>
               <button type="button" data-claim-farm-mail="${mail.id}" ${mail.claimed ? "disabled" : ""}>
                 ${mail.claimed
@@ -5028,6 +5042,11 @@ function renderFarmMail() {
 
   const items = getFarmMailItems();
   if (!items.some((item) => item.id === selectedMailItemId)) selectedMailItemId = null;
+  const selectedMailItem = items.find((item) => item.id === selectedMailItemId) ?? null;
+  const maxMailQuantity = selectedMailItem
+    ? Math.min(FARM_MAIL_MAX_QUANTITY, selectedMailItem.count)
+    : FARM_MAIL_MAX_QUANTITY;
+  selectedMailQuantity = Math.min(Math.max(1, selectedMailQuantity), maxMailQuantity);
   const remainingCount = Math.max(0, 3 - state.farmMailSentCount);
   remaining.textContent = remainingCount;
   if (friendCodeInput.value !== selectedMailFriendCode) {
@@ -5059,13 +5078,18 @@ function renderFarmMail() {
         .join("")
     : '<p class="farm-mail-empty">이 종류에는 보낼 수 있는 물건이 없어</p>';
 
+  quantityRow.classList.toggle("hidden", !selectedMailItem);
+  quantityValue.textContent = selectedMailQuantity;
+  quantityMinusButton.disabled = selectedMailQuantity <= 1;
+  quantityPlusButton.disabled = selectedMailQuantity >= maxMailQuantity;
+
   history.innerHTML = state.farmMailHistory.length
     ? state.farmMailHistory
         .map(
           (mail) => `
             <div class="farm-mail-history-row">
               <span>✓</span>
-              <p><strong>${escapeHtml(mail.itemName)}</strong>${getKoreanObjectParticle(mail.itemName)} ${escapeHtml(mail.friendName)}에게 보냈어</p>
+              <p><strong>${escapeHtml(mail.itemName)}${mail.quantity > 1 ? ` ${mail.quantity}개` : ""}</strong>${getKoreanObjectParticle(mail.quantity > 1 ? "개" : mail.itemName)} ${escapeHtml(mail.friendName)}에게 보냈어</p>
               <small>${escapeHtml(mail.sentTime)}</small>
             </div>
           `,
@@ -5078,6 +5102,87 @@ function renderFarmMail() {
     !/^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(selectedMailFriendCode) ||
     !selectedMailItemId;
   sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
+}
+
+async function loadFarmBulletinPosts() {
+  if (!supabaseClient || !activeAuthUser) return;
+  const userId = activeAuthUser.id;
+  const { data, error } = await supabaseClient.rpc("get_farm_bulletin_posts");
+  if (activeAuthUser?.id !== userId) return;
+  if (error) {
+    if (!["42883", "PGRST202"].includes(error.code)) {
+      console.warn("Farmodoro bulletin posts could not be loaded", error);
+    }
+    return;
+  }
+  farmBulletinPosts = (data ?? []).map((post) => ({
+    id: post.id,
+    postType: post.post_type,
+    message: post.message,
+    farmCode: post.farm_code,
+    displayName: post.display_name,
+    isMine: Boolean(post.is_mine),
+  }));
+  syncFarmBulletinMessageInput();
+  renderFarmBulletin();
+}
+
+// A user can have one live post per type (buy + sell at once) -- whichever
+// tab is selected shows/edits that type's own post, if any, instead of a
+// single post shared across both tabs.
+function syncFarmBulletinMessageInput() {
+  const messageInput = document.querySelector("#farmBulletinMessage");
+  if (!messageInput || document.activeElement === messageInput) return;
+  const myPost = farmBulletinPosts.find(
+    (post) => post.isMine && post.postType === selectedBulletinType,
+  );
+  messageInput.value = myPost ? myPost.message : "";
+}
+
+function renderFarmBulletin() {
+  const messageInput = document.querySelector("#farmBulletinMessage");
+  const messageCount = document.querySelector("#farmBulletinMessageCount");
+  const submitButton = document.querySelector("#submitFarmBulletinPost");
+  const deleteButton = document.querySelector("#deleteFarmBulletinPost");
+  const buyList = document.querySelector("#farmBulletinBuyList");
+  const sellList = document.querySelector("#farmBulletinSellList");
+  if (!messageInput || !messageCount || !submitButton || !deleteButton || !buyList || !sellList) return;
+
+  document.querySelectorAll("[data-bulletin-type]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.bulletinType === selectedBulletinType);
+  });
+
+  const messageLength = messageInput.value.trim().length;
+  messageCount.textContent = `${messageLength} / 60`;
+  submitButton.disabled = messageLength < 1 || messageLength > 60;
+
+  const myPost = farmBulletinPosts.find(
+    (post) => post.isMine && post.postType === selectedBulletinType,
+  );
+  deleteButton.hidden = !myPost;
+
+  const renderList = (type) => {
+    const posts = farmBulletinPosts.filter((post) => post.postType === type);
+    if (!posts.length) return '<p class="farm-mail-empty">아직 글이 없어</p>';
+    return posts
+      .map(
+        (post) => `
+          <article class="farm-bulletin-post farm-bulletin-post-${post.postType} ${post.isMine ? "mine" : ""}">
+            <div class="farm-bulletin-post-paper">
+              <p>${escapeHtml(post.message)}</p>
+              <div class="farm-bulletin-post-meta">
+                <strong>${escapeHtml(post.displayName || "농부")}</strong>
+                <button type="button" class="farm-bulletin-post-code" data-bulletin-code="${escapeHtml(post.farmCode)}">${escapeHtml(post.farmCode)}</button>
+              </div>
+            </div>
+          </article>
+        `,
+      )
+      .join("");
+  };
+
+  buyList.innerHTML = renderList("buy");
+  sellList.innerHTML = renderList("sell");
 }
 
 function renderRecipeIngredientPicker(select) {
@@ -8861,6 +8966,7 @@ farmMailModal.addEventListener("click", async (event) => {
       return;
     }
     claimButton.disabled = true;
+    const claimedQuantity = Math.max(1, Number(mail.quantity) || 1);
     try {
       if (mail.dbItemId) {
         const { error } = await supabaseClient.rpc("claim_farm_mail_item", {
@@ -8872,12 +8978,12 @@ farmMailModal.addEventListener("click", async (event) => {
           return;
         }
         await loadFarmDataFromDatabase(activeAuthUser);
-        showToast(`${gift.name} 1개를 보관함에 넣었어.`);
+        showToast(`${gift.name} ${claimedQuantity}개를 보관함에 넣었어.`);
         return;
       }
-      gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + 1;
+      gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + claimedQuantity;
       mail.claimed = true;
-      showToast(`${gift.name} 1개를 보관함에 넣었어`);
+      showToast(`${gift.name} ${claimedQuantity}개를 보관함에 넣었어`);
       render();
     } finally {
       claimButton.disabled = false;
@@ -8889,6 +8995,7 @@ farmMailModal.addEventListener("click", async (event) => {
   if (categoryButton) {
     selectedMailCategory = categoryButton.dataset.mailCategory;
     selectedMailItemId = null;
+    selectedMailQuantity = 1;
     renderFarmMail();
     return;
   }
@@ -8896,6 +9003,24 @@ farmMailModal.addEventListener("click", async (event) => {
   const itemButton = event.target.closest("[data-mail-item]");
   if (itemButton) {
     selectedMailItemId = itemButton.dataset.mailItem;
+    selectedMailQuantity = 1;
+    renderFarmMail();
+    return;
+  }
+
+  const quantityMinusButton = event.target.closest("#farmMailQuantityMinus");
+  if (quantityMinusButton) {
+    selectedMailQuantity = Math.max(1, selectedMailQuantity - 1);
+    renderFarmMail();
+    return;
+  }
+
+  const quantityPlusButton = event.target.closest("#farmMailQuantityPlus");
+  if (quantityPlusButton) {
+    const items = getFarmMailItems();
+    const selectedItem = items.find((item) => item.id === selectedMailItemId);
+    const maxQuantity = Math.min(FARM_MAIL_MAX_QUANTITY, selectedItem?.count ?? FARM_MAIL_MAX_QUANTITY);
+    selectedMailQuantity = Math.min(maxQuantity, selectedMailQuantity + 1);
     renderFarmMail();
   }
 });
@@ -8917,7 +9042,8 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     showToast("FARM-0000-0000 형식의 친구 코드를 입력해줘");
     return;
   }
-  if (!item || item.count < 1) {
+  const quantity = Math.min(FARM_MAIL_MAX_QUANTITY, Math.max(1, selectedMailQuantity));
+  if (!item || item.count < quantity) {
     showToast("보낼 물건을 다시 골라줘");
     renderFarmMail();
     return;
@@ -8927,6 +9053,7 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     p_recipient_farm_code: friendCode,
     p_category: selectedMailCategory,
     p_item_id: item.id,
+    p_quantity: quantity,
   });
   if (error) {
     console.error("Farmodoro mail could not be sent", error);
@@ -8936,12 +9063,14 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
         ? "해당 친구 코드를 찾지 못했어"
         : errorMessage.includes("Cannot send mail to yourself")
           ? "내 농장에는 우편을 보낼 수 없어"
-          : "농장 우편을 보내지 못했어",
+          : errorMessage.includes("Invalid gift quantity")
+            ? "보낼 개수는 1~5개까지만 가능해"
+            : "농장 우편을 보내지 못했어",
     );
     return;
   }
 
-  item.inventory[item.id] -= 1;
+  item.inventory[item.id] -= quantity;
   state.farmMailSentCount += 1;
   state.farmMailHistory.unshift({
     id: Date.now(),
@@ -8950,15 +9079,94 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     category: selectedMailCategory,
     itemId: item.id,
     itemName: item.name,
+    quantity,
     sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
   });
   if (!farmMailContacts.some((contact) => contact.code === friendCode)) {
     farmMailContacts.unshift({ code: friendCode, name: friendCode });
   }
   selectedMailItemId = null;
-  showToast(`${friendCode}에 ${item.name} 1개를 보냈어`);
+  selectedMailQuantity = 1;
+  showToast(`${friendCode}에 ${item.name} ${quantity}개를 보냈어`);
   render();
 });
+
+const farmBulletinModal = document.querySelector("#farmBulletinModal");
+document.querySelector("#openFarmBulletin").addEventListener("click", async () => {
+  if (!supabaseClient || !activeAuthUser) return;
+  farmBulletinModal.classList.remove("hidden");
+  renderFarmBulletin();
+  await loadFarmBulletinPosts();
+});
+farmBulletinModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-farm-bulletin]")) {
+    farmBulletinModal.classList.add("hidden");
+    return;
+  }
+  const typeButton = event.target.closest("[data-bulletin-type]");
+  if (typeButton) {
+    selectedBulletinType = typeButton.dataset.bulletinType;
+    syncFarmBulletinMessageInput();
+    renderFarmBulletin();
+    return;
+  }
+  const codeButton = event.target.closest("[data-bulletin-code]");
+  if (codeButton) {
+    const code = codeButton.dataset.bulletinCode;
+    farmBulletinModal.classList.add("hidden");
+    selectedMailFriendCode = code;
+    farmMailView = "send";
+    farmMailModal.classList.remove("hidden");
+    renderFarmMail();
+    showToast(`${code} 코드를 채워넣었어. 보낼 물건을 골라줘`);
+  }
+});
+document.querySelector("#farmBulletinMessage").addEventListener("input", renderFarmBulletin);
+document.querySelector("#farmBulletinForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!supabaseClient || !activeAuthUser) return;
+  const messageInput = document.querySelector("#farmBulletinMessage");
+  const message = messageInput.value.trim();
+  if (!message || message.length > 60) return;
+  const submitButton = document.querySelector("#submitFarmBulletinPost");
+  submitButton.disabled = true;
+  try {
+    const { error } = await supabaseClient.rpc("create_my_bulletin_post", {
+      p_post_type: selectedBulletinType,
+      p_message: message,
+    });
+    if (error) {
+      console.error("Farmodoro bulletin post could not be saved", error);
+      showToast("게시글을 올리지 못했어");
+      return;
+    }
+    showToast("대자보에 글을 붙였어");
+    await loadFarmBulletinPosts();
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+document.querySelector("#deleteFarmBulletinPost").addEventListener("click", async () => {
+  if (!supabaseClient || !activeAuthUser) return;
+  const deleteButton = document.querySelector("#deleteFarmBulletinPost");
+  deleteButton.disabled = true;
+  try {
+    const { error } = await supabaseClient.rpc("delete_my_bulletin_post", {
+      p_post_type: selectedBulletinType,
+    });
+    if (error) {
+      console.error("Farmodoro bulletin post could not be deleted", error);
+      showToast("글을 내리지 못했어");
+      return;
+    }
+    document.querySelector("#farmBulletinMessage").value = "";
+    showToast("대자보에서 글을 내렸어");
+    await loadFarmBulletinPosts();
+  } finally {
+    deleteButton.disabled = false;
+  }
+});
+
 const farmRewardBoxModal = document.querySelector("#farmRewardBoxModal");
 farmRewardBoxModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-reward-box]")) {

@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=141" />
+    <link rel="stylesheet" href="./styles.css?v=149" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -686,6 +686,9 @@
                   <button class="open-farm-kitchen" id="openFarmKitchen" type="button">
                     <span>🍳 농장 주방</span>
                   </button>
+                  <button class="open-farm-bulletin" id="openFarmBulletin" type="button">
+                    <span>📌 농장 대자보</span>
+                  </button>
                   <div class="farm-wallet">
                     <span>●</span>
                     <strong id="farmCoinBalance">0</strong>
@@ -880,8 +883,16 @@
               </div>
             </div>
             <div class="farm-mail-step">
-              <h3><span>3</span> 보낼 물건 <small>한 번에 1개</small></h3>
+              <h3><span>3</span> 보낼 물건 <small>최대 5개까지</small></h3>
               <div class="farm-mail-items" id="farmMailItemList"></div>
+              <div class="farm-mail-quantity hidden" id="farmMailQuantityRow">
+                <span>보낼 개수</span>
+                <div class="farm-mail-quantity-stepper">
+                  <button type="button" id="farmMailQuantityMinus" aria-label="개수 줄이기">−</button>
+                  <strong id="farmMailQuantityValue">1</strong>
+                  <button type="button" id="farmMailQuantityPlus" aria-label="개수 늘리기">+</button>
+                </div>
+              </div>
             </div>
             <button class="farm-mail-send" id="sendFarmMail" type="button" disabled>선물 보내기</button>
           </section>
@@ -893,6 +904,50 @@
         <div class="farm-mail-view hidden" id="farmMailInboxPanel">
           <div class="farm-mail-inbox-note">수령하면 해당 농장 보관함에 들어가며, 받은 우편은 도착 7일 후 자동 삭제돼</div>
           <div class="farm-mail-inbox" id="farmMailInboxList"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="farmBulletinModal" role="dialog" aria-modal="true" aria-labelledby="farmBulletinTitle">
+      <div class="market-modal-backdrop" data-close-farm-bulletin></div>
+      <section class="market-modal-panel farm-bulletin-modal-panel">
+        <header>
+          <div>
+            <span class="section-kicker">FARM BULLETIN</span>
+            <h2 id="farmBulletinTitle">농장 대자보</h2>
+            <p>사고 싶은 것, 팔고 싶은 것을 적고 친구 코드로 우편을 받아. 매일 00:00에 전부 초기화돼</p>
+          </div>
+          <button type="button" data-close-farm-bulletin aria-label="농장 대자보 닫기">×</button>
+        </header>
+        <form class="farm-bulletin-compose" id="farmBulletinForm">
+          <div class="farm-bulletin-type" role="radiogroup" aria-label="글 종류">
+            <button class="active" type="button" data-bulletin-type="buy">삽니다</button>
+            <button type="button" data-bulletin-type="sell">팝니다</button>
+          </div>
+          <textarea
+            id="farmBulletinMessage"
+            rows="2"
+            maxlength="60"
+            placeholder="예) 고구마 3개 삽니다! 감자랑 교환도 좋아요"
+            aria-label="게시글 내용"
+          ></textarea>
+          <div class="farm-bulletin-compose-footer">
+            <small id="farmBulletinMessageCount">0 / 60</small>
+            <div class="farm-bulletin-compose-actions">
+              <button type="button" id="deleteFarmBulletinPost" class="secondary-button" hidden>내 글 내리기</button>
+              <button type="submit" id="submitFarmBulletinPost">대자보에 붙이기</button>
+            </div>
+          </div>
+        </form>
+        <div class="farm-bulletin-board">
+          <section class="farm-bulletin-group">
+            <h3>🙋 삽니다</h3>
+            <div class="farm-bulletin-list" id="farmBulletinBuyList"></div>
+          </section>
+          <section class="farm-bulletin-group">
+            <h3>🏷 팝니다</h3>
+            <div class="farm-bulletin-list" id="farmBulletinSellList"></div>
+          </section>
         </div>
       </section>
     </div>
@@ -1258,7 +1313,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=141"></script>
-    <script src="./pwa-register.js?v=141"></script>
+    <script src="./app.js?v=149"></script>
+    <script src="./pwa-register.js?v=149"></script>
   </body>
 </html>
