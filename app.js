@@ -596,6 +596,7 @@ async function applyAuthSession(session) {
     startProductivityRealtime(session.user);
     startAppStateRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
+    startFarmBulletinUnreadPolling(session.user);
     startFarmMailRealtime(session.user);
     await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
@@ -1843,6 +1844,12 @@ const FARM_MAIL_MAX_QUANTITY = 5;
 let farmMailView = "send";
 let farmBulletinPosts = [];
 let selectedBulletinType = "buy";
+// "Seen" is tracked per-device (localStorage), not synced server-side --
+// the bulletin board is closer to a public noticeboard than to mail, so a
+// lightweight per-browser marker is enough for "is there something new"
+// without a migration.
+let farmBulletinLastSeenAt = Number(localStorage.getItem("farmodoro-bulletin-last-seen") || 0);
+let farmBulletinUnreadPollInterval = null;
 let farmMailContacts = [];
 let farmMailServerUnreadCount = null;
 let farmMailUnreadPollInterval = null;
@@ -1922,6 +1929,10 @@ function resetFarmDataDatabaseState() {
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
   farmMailUnreadPollInterval = null;
+  farmBulletinPosts = [];
+  if (farmBulletinUnreadPollInterval) clearInterval(farmBulletinUnreadPollInterval);
+  farmBulletinUnreadPollInterval = null;
+  updateFarmBulletinUnreadBadge();
 }
 
 function captureFarmState() {
@@ -5104,27 +5115,80 @@ function renderFarmMail() {
   sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
 }
 
-async function loadFarmBulletinPosts() {
-  if (!supabaseClient || !activeAuthUser) return;
-  const userId = activeAuthUser.id;
+async function fetchFarmBulletinPosts(user = activeAuthUser) {
+  if (!supabaseClient || !user) return null;
+  const requestedUserId = user.id;
   const { data, error } = await supabaseClient.rpc("get_farm_bulletin_posts");
-  if (activeAuthUser?.id !== userId) return;
+  if (activeAuthUser?.id !== requestedUserId) return null;
   if (error) {
     if (!["42883", "PGRST202"].includes(error.code)) {
       console.warn("Farmodoro bulletin posts could not be loaded", error);
     }
-    return;
+    return null;
   }
-  farmBulletinPosts = (data ?? []).map((post) => ({
+  return (data ?? []).map((post) => ({
     id: post.id,
     postType: post.post_type,
     message: post.message,
     farmCode: post.farm_code,
     displayName: post.display_name,
     isMine: Boolean(post.is_mine),
+    createdAt: Date.parse(post.created_at) || 0,
+    commentCount: Math.max(0, Number(post.comment_count) || 0),
   }));
+}
+
+async function loadFarmBulletinPosts() {
+  const posts = await fetchFarmBulletinPosts();
+  if (!posts) return;
+  farmBulletinPosts = posts;
   syncFarmBulletinMessageInput();
   renderFarmBulletin();
+  updateFarmBulletinUnreadBadge();
+}
+
+function getFarmBulletinUnreadCount() {
+  return farmBulletinPosts.filter(
+    (post) => !post.isMine && post.createdAt > farmBulletinLastSeenAt,
+  ).length;
+}
+
+function updateFarmBulletinUnreadBadge() {
+  const button = document.querySelector("#openFarmBulletin");
+  const badge = document.querySelector("#farmBulletinHeaderUnread");
+  if (!button || !badge) return;
+  const unreadCount = getFarmBulletinUnreadCount();
+  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+  badge.hidden = unreadCount === 0;
+  button.classList.toggle("has-unread", unreadCount > 0);
+  button.setAttribute(
+    "aria-label",
+    unreadCount ? `농장 대자보 · 새 글 ${unreadCount}개` : "농장 대자보",
+  );
+}
+
+function markFarmBulletinSeen() {
+  farmBulletinLastSeenAt = Date.now();
+  localStorage.setItem("farmodoro-bulletin-last-seen", String(farmBulletinLastSeenAt));
+  updateFarmBulletinUnreadBadge();
+}
+
+// Background check only -- unlike loadFarmBulletinPosts(), this must not
+// touch the compose form or re-render the list while a user could have the
+// modal open and be mid-edit; it only refreshes the header badge count.
+async function pollFarmBulletinUnread(user = activeAuthUser) {
+  const posts = await fetchFarmBulletinPosts(user);
+  if (!posts) return;
+  farmBulletinPosts = posts;
+  updateFarmBulletinUnreadBadge();
+}
+
+function startFarmBulletinUnreadPolling(user) {
+  if (farmBulletinUnreadPollInterval) clearInterval(farmBulletinUnreadPollInterval);
+  void pollFarmBulletinUnread(user);
+  farmBulletinUnreadPollInterval = window.setInterval(() => {
+    void pollFarmBulletinUnread(user);
+  }, 300000);
 }
 
 // A user can have one live post per type (buy + sell at once) -- whichever
@@ -5167,13 +5231,20 @@ function renderFarmBulletin() {
     return posts
       .map(
         (post) => `
-          <article class="farm-bulletin-post farm-bulletin-post-${post.postType} ${post.isMine ? "mine" : ""}">
+          <article
+            class="farm-bulletin-post farm-bulletin-post-${post.postType} ${post.isMine ? "mine" : ""}"
+            data-bulletin-post-id="${post.id}"
+            role="button"
+            tabindex="0"
+            aria-label="${escapeHtml(post.message)} · 댓글 보기"
+          >
             <div class="farm-bulletin-post-paper">
               <p>${escapeHtml(post.message)}</p>
               <div class="farm-bulletin-post-meta">
                 <strong>${escapeHtml(post.displayName || "농부")}</strong>
                 <button type="button" class="farm-bulletin-post-code" data-bulletin-code="${escapeHtml(post.farmCode)}">${escapeHtml(post.farmCode)}</button>
               </div>
+              ${post.commentCount > 0 ? `<span class="farm-bulletin-post-comment-count">💬 ${post.commentCount}</span>` : ""}
             </div>
           </article>
         `,
@@ -5183,6 +5254,74 @@ function renderFarmBulletin() {
 
   buyList.innerHTML = renderList("buy");
   sellList.innerHTML = renderList("sell");
+}
+
+let activeBulletinCommentPostId = null;
+
+function renderFarmBulletinCommentPost(post) {
+  const container = document.querySelector("#farmBulletinCommentPost");
+  if (!container) return;
+  container.innerHTML = `
+    <div class="farm-bulletin-comment-post-card farm-bulletin-post-${post.postType}">
+      <span class="farm-bulletin-comment-post-type">${post.postType === "buy" ? "삽니다" : "팝니다"}</span>
+      <p>${escapeHtml(post.message)}</p>
+      <div class="farm-bulletin-post-meta">
+        <strong>${escapeHtml(post.displayName || "농부")}</strong>
+        <button type="button" class="farm-bulletin-post-code" data-bulletin-code="${escapeHtml(post.farmCode)}">${escapeHtml(post.farmCode)}</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadFarmBulletinComments(postId) {
+  const listEl = document.querySelector("#farmBulletinCommentList");
+  if (!listEl) return;
+  if (!supabaseClient || !activeAuthUser) return;
+  const { data, error } = await supabaseClient.rpc("get_farm_bulletin_comments", {
+    p_post_id: postId,
+  });
+  if (activeBulletinCommentPostId !== postId) return;
+  if (error) {
+    console.error("Farmodoro bulletin comments could not be loaded", error);
+    listEl.innerHTML = '<p class="farm-mail-empty">댓글을 불러오지 못했어</p>';
+    return;
+  }
+  const comments = data ?? [];
+  listEl.innerHTML = comments.length
+    ? comments
+        .map(
+          (comment) => `
+            <div class="farm-bulletin-comment-row ${comment.is_mine ? "mine" : ""}">
+              <div class="farm-bulletin-comment-row-head">
+                <strong>${escapeHtml(comment.display_name || "농부")}</strong>
+                ${comment.is_mine ? `<button type="button" class="farm-bulletin-comment-delete" data-delete-bulletin-comment="${comment.id}">삭제</button>` : ""}
+              </div>
+              <p>${escapeHtml(comment.message)}</p>
+            </div>
+          `,
+        )
+        .join("")
+    : '<p class="farm-mail-empty">아직 댓글이 없어</p>';
+}
+
+async function openFarmBulletinComments(postId) {
+  const post = farmBulletinPosts.find((entry) => entry.id === postId);
+  if (!post) return;
+  activeBulletinCommentPostId = postId;
+  document.querySelector("#farmBulletinCommentModal").classList.remove("hidden");
+  renderFarmBulletinCommentPost(post);
+  const messageInput = document.querySelector("#farmBulletinCommentMessage");
+  if (messageInput) messageInput.value = "";
+  const countLabel = document.querySelector("#farmBulletinCommentMessageCount");
+  if (countLabel) countLabel.textContent = "0 / 80";
+  document.querySelector("#farmBulletinCommentList").innerHTML =
+    '<p class="farm-mail-empty">불러오는 중...</p>';
+  await loadFarmBulletinComments(postId);
+}
+
+function closeFarmBulletinComments() {
+  activeBulletinCommentPostId = null;
+  document.querySelector("#farmBulletinCommentModal").classList.add("hidden");
 }
 
 function renderRecipeIngredientPicker(select) {
@@ -9097,6 +9236,7 @@ document.querySelector("#openFarmBulletin").addEventListener("click", async () =
   farmBulletinModal.classList.remove("hidden");
   renderFarmBulletin();
   await loadFarmBulletinPosts();
+  markFarmBulletinSeen();
 });
 farmBulletinModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-farm-bulletin]")) {
@@ -9119,7 +9259,19 @@ farmBulletinModal.addEventListener("click", (event) => {
     farmMailModal.classList.remove("hidden");
     renderFarmMail();
     showToast(`${code} 코드를 채워넣었어. 보낼 물건을 골라줘`);
+    return;
   }
+  const postCard = event.target.closest("[data-bulletin-post-id]");
+  if (postCard) {
+    void openFarmBulletinComments(postCard.dataset.bulletinPostId);
+  }
+});
+farmBulletinModal.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const postCard = event.target.closest("[data-bulletin-post-id]");
+  if (!postCard) return;
+  event.preventDefault();
+  void openFarmBulletinComments(postCard.dataset.bulletinPostId);
 });
 document.querySelector("#farmBulletinMessage").addEventListener("input", renderFarmBulletin);
 document.querySelector("#farmBulletinForm").addEventListener("submit", async (event) => {
@@ -9164,6 +9316,91 @@ document.querySelector("#deleteFarmBulletinPost").addEventListener("click", asyn
     await loadFarmBulletinPosts();
   } finally {
     deleteButton.disabled = false;
+  }
+});
+
+const farmBulletinCommentModal = document.querySelector("#farmBulletinCommentModal");
+farmBulletinCommentModal.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-close-farm-bulletin-comment]")) {
+    closeFarmBulletinComments();
+    return;
+  }
+  const codeButton = event.target.closest("[data-bulletin-code]");
+  if (codeButton) {
+    const code = codeButton.dataset.bulletinCode;
+    closeFarmBulletinComments();
+    farmBulletinModal.classList.add("hidden");
+    selectedMailFriendCode = code;
+    farmMailView = "send";
+    farmMailModal.classList.remove("hidden");
+    renderFarmMail();
+    showToast(`${code} 코드를 채워넣었어. 보낼 물건을 골라줘`);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-bulletin-comment]");
+  if (deleteButton) {
+    if (!activeBulletinCommentPostId) return;
+    deleteButton.disabled = true;
+    try {
+      const { error } = await supabaseClient.rpc("delete_my_bulletin_comment", {
+        p_comment_id: deleteButton.dataset.deleteBulletinComment,
+      });
+      if (error) {
+        console.error("Farmodoro bulletin comment could not be deleted", error);
+        showToast("댓글을 삭제하지 못했어");
+        return;
+      }
+      const postId = activeBulletinCommentPostId;
+      await loadFarmBulletinComments(postId);
+      const post = farmBulletinPosts.find((entry) => entry.id === postId);
+      if (post) {
+        post.commentCount = Math.max(0, post.commentCount - 1);
+        renderFarmBulletin();
+      }
+    } finally {
+      deleteButton.disabled = false;
+    }
+  }
+});
+document.querySelector("#farmBulletinCommentMessage").addEventListener("input", (event) => {
+  const countLabel = document.querySelector("#farmBulletinCommentMessageCount");
+  if (countLabel) countLabel.textContent = `${event.target.value.trim().length} / 80`;
+});
+document.querySelector("#farmBulletinCommentForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!supabaseClient || !activeAuthUser || !activeBulletinCommentPostId) return;
+  const messageInput = document.querySelector("#farmBulletinCommentMessage");
+  const message = messageInput.value.trim();
+  if (!message || message.length > 80) return;
+  const postId = activeBulletinCommentPostId;
+  const submitButton = document.querySelector("#submitFarmBulletinComment");
+  submitButton.disabled = true;
+  try {
+    const { error } = await supabaseClient.rpc("create_my_bulletin_comment", {
+      p_post_id: postId,
+      p_message: message,
+    });
+    if (error) {
+      console.error("Farmodoro bulletin comment could not be saved", error);
+      showToast(
+        String(error.message ?? "").includes("Post not found")
+          ? "이 글은 자정에 초기화돼서 댓글을 달 수 없어"
+          : "댓글을 달지 못했어",
+      );
+      closeFarmBulletinComments();
+      void loadFarmBulletinPosts();
+      return;
+    }
+    messageInput.value = "";
+    document.querySelector("#farmBulletinCommentMessageCount").textContent = "0 / 80";
+    await loadFarmBulletinComments(postId);
+    const post = farmBulletinPosts.find((entry) => entry.id === postId);
+    if (post) {
+      post.commentCount += 1;
+      renderFarmBulletin();
+    }
+  } finally {
+    submitButton.disabled = false;
   }
 });
 

@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=149" />
+    <link rel="stylesheet" href="./styles.css?v=152" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -688,6 +688,7 @@
                   </button>
                   <button class="open-farm-bulletin" id="openFarmBulletin" type="button">
                     <span>📌 농장 대자보</span>
+                    <small class="farm-mail-header-unread" id="farmBulletinHeaderUnread" hidden>0</small>
                   </button>
                   <div class="farm-wallet">
                     <span>●</span>
@@ -949,6 +950,35 @@
             <div class="farm-bulletin-list" id="farmBulletinSellList"></div>
           </section>
         </div>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="farmBulletinCommentModal" role="dialog" aria-modal="true" aria-labelledby="farmBulletinCommentTitle">
+      <div class="market-modal-backdrop" data-close-farm-bulletin-comment></div>
+      <section class="market-modal-panel farm-bulletin-comment-panel">
+        <header>
+          <div>
+            <span class="section-kicker">FARM BULLETIN</span>
+            <h2 id="farmBulletinCommentTitle">글 보기</h2>
+            <p>댓글로 아직 파는지, 우편 보냈는지 서로 남겨줘</p>
+          </div>
+          <button type="button" data-close-farm-bulletin-comment aria-label="닫기">×</button>
+        </header>
+        <div class="farm-bulletin-comment-post" id="farmBulletinCommentPost"></div>
+        <div class="farm-bulletin-comment-list" id="farmBulletinCommentList"></div>
+        <form class="farm-bulletin-comment-form" id="farmBulletinCommentForm">
+          <textarea
+            id="farmBulletinCommentMessage"
+            rows="2"
+            maxlength="80"
+            placeholder="예) 아직 팔아요? / FARM-0000-0000으로 우편 보냈어요"
+            aria-label="댓글 내용"
+          ></textarea>
+          <div class="farm-bulletin-comment-form-footer">
+            <small id="farmBulletinCommentMessageCount">0 / 80</small>
+            <button type="submit" id="submitFarmBulletinComment">댓글 달기</button>
+          </div>
+        </form>
       </section>
     </div>
 
@@ -1313,7 +1343,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=149"></script>
-    <script src="./pwa-register.js?v=149"></script>
+    <script src="./app.js?v=152"></script>
+    <script src="./pwa-register.js?v=152"></script>
   </body>
 </html>
