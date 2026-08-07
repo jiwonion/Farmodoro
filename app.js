@@ -597,6 +597,7 @@ async function applyAuthSession(session) {
     startAppStateRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
     startFarmBulletinUnreadPolling(session.user);
+    startFarmBulletinRealtime(session.user);
     startFarmMailRealtime(session.user);
     await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
@@ -1942,6 +1943,7 @@ function resetFarmDataDatabaseState() {
   farmBulletinPosts = [];
   if (farmBulletinUnreadPollInterval) clearInterval(farmBulletinUnreadPollInterval);
   farmBulletinUnreadPollInterval = null;
+  stopFarmBulletinRealtime();
   updateFarmBulletinUnreadBadge();
 }
 
@@ -5220,6 +5222,44 @@ function startFarmBulletinUnreadPolling(user) {
   }, 300000);
 }
 
+let farmBulletinRealtimeChannel = null;
+let farmBulletinRealtimeRefreshTimer = null;
+
+function scheduleFarmBulletinRealtimeRefresh(user) {
+  if (farmBulletinRealtimeRefreshTimer) clearTimeout(farmBulletinRealtimeRefreshTimer);
+  farmBulletinRealtimeRefreshTimer = window.setTimeout(() => {
+    farmBulletinRealtimeRefreshTimer = null;
+    void pollFarmBulletinUnread(user);
+  }, 600);
+}
+
+function stopFarmBulletinRealtime() {
+  if (farmBulletinRealtimeRefreshTimer) clearTimeout(farmBulletinRealtimeRefreshTimer);
+  farmBulletinRealtimeRefreshTimer = null;
+  if (farmBulletinRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(farmBulletinRealtimeChannel);
+  }
+  farmBulletinRealtimeChannel = null;
+}
+
+// Unfiltered on purpose -- unlike farm mail (private per-recipient), the
+// bulletin board is public, so this needs to hear about everyone's new
+// posts/comments, not just this user's own rows.
+function startFarmBulletinRealtime(user) {
+  stopFarmBulletinRealtime();
+  if (!supabaseClient || !user) return;
+  const handleChange = () => scheduleFarmBulletinRealtimeRefresh(user);
+  farmBulletinRealtimeChannel = supabaseClient
+    .channel(`farm-bulletin:${user.id}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "farm_bulletin_posts" }, handleChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "farm_bulletin_comments" }, handleChange);
+  farmBulletinRealtimeChannel.subscribe((status) => {
+    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      console.warn(`Farmodoro farm bulletin realtime subscription: ${status}`);
+    }
+  });
+}
+
 // A user can have one live post per type (buy + sell at once) -- whichever
 // tab is selected shows/edits that type's own post, if any, instead of a
 // single post shared across both tabs.
@@ -5252,7 +5292,7 @@ function renderFarmBulletin() {
   const myPost = farmBulletinPosts.find(
     (post) => post.isMine && post.postType === selectedBulletinType,
   );
-  deleteButton.hidden = !myPost;
+  deleteButton.classList.toggle("hidden", !myPost);
 
   const renderList = (type) => {
     const posts = farmBulletinPosts.filter((post) => post.postType === type);

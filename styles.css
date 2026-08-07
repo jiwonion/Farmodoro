@@ -3968,6 +3968,14 @@ button {
   gap: 8px;
 }
 
+/* Scoped .hidden class instead of the bare [hidden] attribute -- matches
+   every other show/hide toggle in this file (.market-modal.hidden etc.).
+   Some iOS Safari versions don't reliably repaint a plain [hidden] toggle
+   on an element inside a flex container. */
+#deleteFarmBulletinPost.hidden {
+  display: none;
+}
+
 #submitFarmBulletinPost {
   min-height: 38px;
   padding: 0 16px;
