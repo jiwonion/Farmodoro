@@ -1849,6 +1849,16 @@ let selectedBulletinType = "buy";
 // lightweight per-browser marker is enough for "is there something new"
 // without a migration.
 let farmBulletinLastSeenAt = Number(localStorage.getItem("farmodoro-bulletin-last-seen") || 0);
+// { [postId]: commentCount as of the last time I opened that post's thread }
+// -- lets the badge count new comments on MY posts too, without counting
+// comments I added myself or ones I've already opened the thread to read.
+let farmBulletinSeenCommentCounts = (() => {
+  try {
+    return JSON.parse(localStorage.getItem("farmodoro-bulletin-seen-comments") || "{}");
+  } catch {
+    return {};
+  }
+})();
 let farmBulletinUnreadPollInterval = null;
 let farmMailContacts = [];
 let farmMailServerUnreadCount = null;
@@ -5148,9 +5158,16 @@ async function loadFarmBulletinPosts() {
 }
 
 function getFarmBulletinUnreadCount() {
-  return farmBulletinPosts.filter(
+  const newPostCount = farmBulletinPosts.filter(
     (post) => !post.isMine && post.createdAt > farmBulletinLastSeenAt,
   ).length;
+  const newCommentCount = farmBulletinPosts
+    .filter((post) => post.isMine)
+    .reduce((sum, post) => {
+      const seenCount = farmBulletinSeenCommentCounts[post.id] ?? 0;
+      return sum + Math.max(0, post.commentCount - seenCount);
+    }, 0);
+  return newPostCount + newCommentCount;
 }
 
 function updateFarmBulletinUnreadBadge() {
@@ -5163,13 +5180,25 @@ function updateFarmBulletinUnreadBadge() {
   button.classList.toggle("has-unread", unreadCount > 0);
   button.setAttribute(
     "aria-label",
-    unreadCount ? `농장 대자보 · 새 글 ${unreadCount}개` : "농장 대자보",
+    unreadCount ? `농장 대자보 · 새 소식 ${unreadCount}개` : "농장 대자보",
   );
 }
 
 function markFarmBulletinSeen() {
   farmBulletinLastSeenAt = Date.now();
   localStorage.setItem("farmodoro-bulletin-last-seen", String(farmBulletinLastSeenAt));
+  updateFarmBulletinUnreadBadge();
+}
+
+// Records "I've seen this post's comments up to N" so new replies on my own
+// posts count toward the badge, but re-opening a thread (or posting my own
+// reply, which bumps commentCount too) doesn't keep re-flagging itself.
+function markFarmBulletinCommentsSeen(postId, commentCount) {
+  farmBulletinSeenCommentCounts[postId] = commentCount;
+  localStorage.setItem(
+    "farmodoro-bulletin-seen-comments",
+    JSON.stringify(farmBulletinSeenCommentCounts),
+  );
   updateFarmBulletinUnreadBadge();
 }
 
@@ -5317,6 +5346,7 @@ async function openFarmBulletinComments(postId) {
   document.querySelector("#farmBulletinCommentList").innerHTML =
     '<p class="farm-mail-empty">불러오는 중...</p>';
   await loadFarmBulletinComments(postId);
+  if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
 }
 
 function closeFarmBulletinComments() {
@@ -9355,6 +9385,7 @@ farmBulletinCommentModal.addEventListener("click", async (event) => {
       const post = farmBulletinPosts.find((entry) => entry.id === postId);
       if (post) {
         post.commentCount = Math.max(0, post.commentCount - 1);
+        if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
         renderFarmBulletin();
       }
     } finally {
@@ -9397,6 +9428,7 @@ document.querySelector("#farmBulletinCommentForm").addEventListener("submit", as
     const post = farmBulletinPosts.find((entry) => entry.id === postId);
     if (post) {
       post.commentCount += 1;
+      if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
       renderFarmBulletin();
     }
   } finally {
