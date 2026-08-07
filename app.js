@@ -8827,6 +8827,7 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
 
   const previousFoodCount = state.foodInventory[recipeId];
   const previousFarmMoney = state.farmMoney;
+  const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
 
   await runFarmAction({
     rpc: "sell_farm_food",
@@ -8834,11 +8835,14 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
     apply: () => {
       state.foodInventory[recipeId] -= 1;
       state.farmMoney += recipe.sellPrice;
+      ensureWeeklyFarmRanking();
+      state.weeklyFarmMoneyEarned += recipe.sellPrice;
       showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
     },
     revert: () => {
       state.foodInventory[recipeId] = previousFoodCount;
       state.farmMoney = previousFarmMoney;
+      state.weeklyFarmMoneyEarned = previousWeeklyFarmMoneyEarned;
     },
     failureMessage: "음식 판매 저장에 실패해서 되돌렸어.",
   });
@@ -8859,6 +8863,7 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
   const totalPrice = getCropBundlePrice(cropId, bundleSize);
   const previousHarvestCount = state.harvestInventory[cropId];
   const previousFarmMoney = state.farmMoney;
+  const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
 
   await runFarmAction({
     rpc: "sell_farm_crop_bundle",
@@ -8866,11 +8871,14 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
     apply: () => {
       state.harvestInventory[cropId] -= bundleSize;
       state.farmMoney += totalPrice;
+      ensureWeeklyFarmRanking();
+      state.weeklyFarmMoneyEarned += totalPrice;
       showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
     },
     revert: () => {
       state.harvestInventory[cropId] = previousHarvestCount;
       state.farmMoney = previousFarmMoney;
+      state.weeklyFarmMoneyEarned = previousWeeklyFarmMoneyEarned;
     },
     failureMessage: "작물 판매 저장에 실패해서 되돌렸어.",
   });
