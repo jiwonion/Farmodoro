@@ -5801,9 +5801,7 @@ function renderFarm() {
         <article class="recipe-entry ${discovered ? "" : "locked"}">
           <span>${discovered ? recipe.icon : "?"}</span>
           <strong>${discovered ? recipe.name : "알 수 없는 요리"}</strong>
-          <small>${discovered
-            ? recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")
-            : "재료를 조합해 발견해"}</small>
+          <small>${recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")}</small>
         </article>
       `;
     })
