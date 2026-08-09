@@ -6821,6 +6821,32 @@ body.touch-reordering {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--green-700) 13%, transparent);
 }
 
+.task-inline-focus-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green-800);
+}
+
+.task-inline-focus-row input {
+  width: 64px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--paper);
+  font: 700 13px/1.4 "Maplestory", sans-serif;
+  outline: none;
+}
+
+.task-inline-focus-row input:focus {
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green-700) 13%, transparent);
+}
+
 .task-inline-edit-footer {
   display: flex;
   align-items: flex-start;

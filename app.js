@@ -1926,6 +1926,7 @@ let pendingTaskDeleteId = null;
 let editingTaskId = null;
 let editingTaskGroupId = null;
 let editingTaskTitle = "";
+let editingTaskFocusMinutes = "";
 let editingHabitId = null;
 
 function resetFarmDataDatabaseState() {
@@ -3857,6 +3858,19 @@ function renderTasks() {
                         required
                       >${escapeHtml(editingTaskTitle)}</textarea>
                     </div>
+                    <label class="task-inline-focus-row">
+                      <span>집중 시간(분)</span>
+                      <input
+                        type="number"
+                        class="task-inline-focus-minutes"
+                        min="0"
+                        max="9999"
+                        step="1"
+                        inputmode="numeric"
+                        value="${escapeHtml(editingTaskFocusMinutes)}"
+                        aria-label="${escapeHtml(task.title)} 집중 시간(분)"
+                      />
+                    </label>
                     <div class="task-inline-edit-footer">
                       <div class="custom-group-select task-inline-group-select">
                         <button class="custom-group-trigger" type="button" data-inline-group-trigger aria-haspopup="listbox" aria-expanded="false">
@@ -4372,6 +4386,7 @@ function openTaskInlineEdit(task) {
   editingTaskId = task.id;
   editingTaskGroupId = task.groupId || null;
   editingTaskTitle = task.title;
+  editingTaskFocusMinutes = String(Math.floor((task.focusSeconds ?? 0) / 60));
   renderTasks();
   window.setTimeout(() => {
     const input = document.querySelector(`[data-task-id="${task.id}"] .task-inline-title`);
@@ -4385,6 +4400,7 @@ function closeTaskInlineEdit() {
   editingTaskId = null;
   editingTaskGroupId = null;
   editingTaskTitle = "";
+  editingTaskFocusMinutes = "";
   renderTasks();
 }
 
@@ -7972,9 +7988,14 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
 });
 
 document.querySelector("#taskBoard").addEventListener("input", (event) => {
-  if (!event.target.matches(".task-inline-title")) return;
-  editingTaskTitle = event.target.value;
-  autoGrowTextarea(event.target);
+  if (event.target.matches(".task-inline-title")) {
+    editingTaskTitle = event.target.value;
+    autoGrowTextarea(event.target);
+    return;
+  }
+  if (event.target.matches(".task-inline-focus-minutes")) {
+    editingTaskFocusMinutes = event.target.value;
+  }
 });
 
 document.querySelector("#taskBoard").addEventListener("keydown", (event) => {
@@ -7989,11 +8010,14 @@ document.querySelector("#taskBoard").addEventListener("submit", (event) => {
   const task = state.tasks.find((item) => item.id === form.dataset.inlineTaskForm);
   const title = editingTaskTitle.trim();
   if (!task || !title) return;
+  const focusMinutes = Math.min(9999, Math.max(0, Math.floor(Number(editingTaskFocusMinutes) || 0)));
   task.title = title;
   task.groupId = editingTaskGroupId;
+  task.focusSeconds = focusMinutes * 60;
   editingTaskId = null;
   editingTaskGroupId = null;
   editingTaskTitle = "";
+  editingTaskFocusMinutes = "";
   render();
   scheduleTaskDatabaseSync(0);
   showToast("할 일을 수정했어");
