@@ -1,11 +1,11 @@
-const CACHE_VERSION = "farmodoro-v157";
+const CACHE_VERSION = "farmodoro-v158";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=157",
-  "./app.js?v=157",
-  "./pwa-register.js?v=157",
+  "./styles.css?v=158",
+  "./app.js?v=158",
+  "./pwa-register.js?v=158",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
