@@ -14,6 +14,11 @@ const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
 const APP_THEMES = new Set(["white", "classic", "sunset", "sky", "dark"]);
 
+// Public VAPID key for Web Push subscriptions (062_push_subscriptions.sql +
+// supabase/functions/send-push). Not a secret -- pairs with the private key
+// held only in the Edge Function's VAPID_PRIVATE_KEY secret.
+const VAPID_PUBLIC_KEY = "BB4mJFVL6Soa41QJahYE9TB9kJf-h3C4-wwI1uIDk5g2p172kMKcpPd9GlwSt0qSrd7zMSuzKqw47cgRLDe6dY8";
+
 const authGate = document.querySelector("#authGate");
 const authStatus = document.querySelector("#authStatus");
 const googleSignInButton = document.querySelector("#googleSignInButton");
@@ -739,6 +744,146 @@ async function openUserSettings() {
   if (themeRadio) themeRadio.checked = true;
   userSettingsModal.classList.remove("hidden");
   userSettingsModal.querySelector("[data-close-user-settings]")?.focus({ preventScroll: true });
+  void refreshPushNotificationSettingsUI();
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+}
+
+function isFarmPushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window;
+}
+
+async function getFarmPushSubscription() {
+  if (!isFarmPushSupported()) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
+
+async function refreshPushNotificationSettingsUI() {
+  const button = document.querySelector("#togglePushNotifications");
+  const status = document.querySelector("#pushSettingsStatus");
+  if (!button || !status) return;
+
+  if (!isFarmPushSupported()) {
+    button.disabled = true;
+    button.textContent = "이 기기에서는 지원 안 함";
+    status.textContent = "이 브라우저는 휴대폰 알림을 지원하지 않아";
+    return;
+  }
+  if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+    button.disabled = true;
+    button.textContent = "브라우저에서 차단됨";
+    status.textContent = "브라우저/기기 설정에서 알림 권한을 허용해줘";
+    return;
+  }
+
+  button.disabled = false;
+  const subscription = await getFarmPushSubscription();
+  button.textContent = subscription ? "알림 끄기" : "알림 받기";
+  status.textContent = subscription
+    ? "우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려주고 있어"
+    : "우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려줘";
+}
+
+async function enableFarmPushNotifications() {
+  if (!supabaseClient || !activeAuthUser) return;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      showToast("알림 권한을 허용해야 켤 수 있어");
+      return;
+    }
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const json = subscription.toJSON();
+    const { error } = await supabaseClient.rpc("save_my_push_subscription", {
+      p_endpoint: json.endpoint,
+      p_p256dh: json.keys?.p256dh,
+      p_auth: json.keys?.auth,
+    });
+    if (error) throw error;
+    showToast("휴대폰 알림을 켰어");
+  } catch (error) {
+    console.error("Farmodoro push subscribe failed", error);
+    showToast("알림을 켜지 못했어. 잠시 후 다시 시도해줘");
+  }
+  await refreshPushNotificationSettingsUI();
+}
+
+async function disableFarmPushNotifications() {
+  try {
+    const subscription = await getFarmPushSubscription();
+    if (subscription) {
+      if (supabaseClient) {
+        await supabaseClient.rpc("delete_my_push_subscription", { p_endpoint: subscription.endpoint });
+      }
+      await subscription.unsubscribe();
+    }
+    showToast("휴대폰 알림을 껐어");
+  } catch (error) {
+    console.error("Farmodoro push unsubscribe failed", error);
+    showToast("알림을 끄지 못했어");
+  }
+  await refreshPushNotificationSettingsUI();
+}
+
+async function notifyFarmMailSent(mailId) {
+  if (!supabaseClient) return;
+  try {
+    await supabaseClient.functions.invoke("send-push", { body: { event: "farm_mail", mailId } });
+  } catch (error) {
+    console.warn("Farmodoro send-push (farm_mail) failed", error);
+  }
+}
+
+async function notifyFarmBulletinComment(commentId) {
+  if (!supabaseClient) return;
+  try {
+    await supabaseClient.functions.invoke("send-push", { body: { event: "bulletin_comment", commentId } });
+  } catch (error) {
+    console.warn("Farmodoro send-push (bulletin_comment) failed", error);
+  }
+}
+
+// Schedules/cancels a future push (timer end, watering ready) via
+// scheduled_push_notifications (063) + the pg_cron-driven dispatch-scheduled-push
+// function. Best-effort: a failure here should never block the timer/watering
+// action itself, so callers fire these without awaiting.
+async function scheduleFarmPushNotification(kind, subjectKey, fireAtMs, title, body) {
+  if (!supabaseClient || !activeAuthUser) return;
+  try {
+    const { error } = await supabaseClient.rpc("schedule_my_push_notification", {
+      p_kind: kind,
+      p_subject_key: subjectKey,
+      p_fire_at: new Date(fireAtMs).toISOString(),
+      p_title: title,
+      p_body: body,
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn(`Farmodoro schedule_my_push_notification (${kind}) failed`, error);
+  }
+}
+
+async function cancelFarmPushNotification(kind, subjectKey) {
+  if (!supabaseClient || !activeAuthUser) return;
+  try {
+    const { error } = await supabaseClient.rpc("cancel_my_push_notification", {
+      p_kind: kind,
+      p_subject_key: subjectKey,
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn(`Farmodoro cancel_my_push_notification (${kind}) failed`, error);
+  }
 }
 
 function closeUserSettings({ keepTheme = false } = {}) {
@@ -1053,6 +1198,18 @@ profileDisplayNameInput.addEventListener("input", () => {
 
 userSettingsForm.addEventListener("change", (event) => {
   if (event.target.matches('input[name="appTheme"]')) applyTheme(event.target.value);
+});
+
+document.querySelector("#togglePushNotifications").addEventListener("click", async () => {
+  const button = document.querySelector("#togglePushNotifications");
+  button.disabled = true;
+  try {
+    const subscription = await getFarmPushSubscription();
+    if (subscription) await disableFarmPushNotifications();
+    else await enableFarmPushNotifications();
+  } finally {
+    await refreshPushNotificationSettingsUI();
+  }
 });
 
 copyFarmCodeButton.addEventListener("click", async () => {
@@ -1842,8 +1999,10 @@ let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
 let selectedMailQuantity = 1;
 let selectedMailPrice = "";
+let selectedMailMessage = "";
 const FARM_MAIL_MAX_QUANTITY = 5;
 const FARM_MAIL_MAX_PRICE_COINS = 200;
+const FARM_MAIL_MAX_MESSAGE_LENGTH = 80;
 let farmMailView = "send";
 let farmBulletinPosts = [];
 let selectedBulletinType = "buy";
@@ -2207,6 +2366,7 @@ function mapFarmInboxFromDatabase(inbox = []) {
       priceCoins: Number.isFinite(Number(item.priceCoins)) && Number(item.priceCoins) > 0
         ? Number(item.priceCoins)
         : null,
+      message: mail.message || null,
       claimed: Boolean(item.claimedAt),
       receivedDate,
     }));
@@ -2225,6 +2385,7 @@ function mapFarmSentHistoryFromDatabase(sentToday = []) {
       priceCoins: Number.isFinite(Number(item.priceCoins)) && Number(item.priceCoins) > 0
         ? Number(item.priceCoins)
         : null,
+      message: mail.message || null,
       sentTime: new Date(mail.sentAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     })),
   );
@@ -4221,6 +4382,7 @@ function clearFarmPlot(plot) {
   plot.lastCaredAt = 0;
   plot.wilted = false;
   plot.fertilizer = null;
+  cancelFarmPushNotification("plot_water_ready", String(plot.id));
 }
 
 function advanceFarmPlotGrowth(plot) {
@@ -5013,6 +5175,9 @@ function renderFarmMail() {
   const quantityPlusButton = document.querySelector("#farmMailQuantityPlus");
   const priceRow = document.querySelector("#farmMailPriceRow");
   const priceInput = document.querySelector("#farmMailPriceInput");
+  const messageRow = document.querySelector("#farmMailMessageRow");
+  const messageInput = document.querySelector("#farmMailMessageInput");
+  const messageLength = document.querySelector("#farmMailMessageLength");
   if (
     !remaining ||
     !friendCodeInput ||
@@ -5032,7 +5197,10 @@ function renderFarmMail() {
     !quantityMinusButton ||
     !quantityPlusButton ||
     !priceRow ||
-    !priceInput
+    !priceInput ||
+    !messageRow ||
+    !messageInput ||
+    !messageLength
   ) return;
 
   ensureDailyFarmMail();
@@ -5077,6 +5245,7 @@ function renderFarmMail() {
                   <small>${escapeHtml(gift.categoryName)} · ${daysUntilDelete}일 후 삭제${mail.priceCoins ? ` · ${mail.priceCoins} Coin` : ""}</small>
                 </div>
                 <strong>${gift.icon}<span>${escapeHtml(gift.name)}${mail.quantity > 1 ? ` x${mail.quantity}` : ""}</span></strong>
+                ${mail.message ? `<p class="farm-mail-inbox-message">"${escapeHtml(mail.message)}"</p>` : ""}
               </div>
               <button type="button" data-claim-farm-mail="${mail.id}" ${mail.claimed ? "disabled" : ""}>
                 ${mail.claimed
@@ -5138,6 +5307,10 @@ function renderFarmMail() {
 
   priceRow.classList.toggle("hidden", !selectedMailItem);
   if (priceInput.value !== selectedMailPrice) priceInput.value = selectedMailPrice;
+
+  messageRow.classList.toggle("hidden", !selectedMailItem);
+  if (messageInput.value !== selectedMailMessage) messageInput.value = selectedMailMessage;
+  messageLength.textContent = selectedMailMessage.length;
 
   history.innerHTML = state.farmMailHistory.length
     ? state.farmMailHistory
@@ -6848,6 +7021,10 @@ function hideFocusAlertBanner() {
 }
 
 function notifyFocusPhaseComplete(kind) {
+  // The phase just finished while this tab was actually ticking (foreground
+  // or a still-alive background tab), so the in-app banner below already
+  // told the user -- no need for the scheduled push to also fire later.
+  cancelFarmPushNotification("timer_end", "");
   if (kind === "focus") {
     showFocusAlertBanner(
       "집중 시간이 끝났어",
@@ -6960,6 +7137,7 @@ function finishFocusRuntime(mode) {
   runtime.overtime = false;
   runtime.overtimeSeconds = 0;
   hideFocusAlertBanner();
+  cancelFarmPushNotification("timer_end", "");
 
   if (mode === "linked") {
     let completionResult = null;
@@ -7016,6 +7194,13 @@ function finishFocusRuntime(mode) {
       updateFocusTarget();
     }
     startFocusTickInterval(mode);
+    scheduleFarmPushNotification(
+      "timer_end",
+      "",
+      Date.now() + runtime.seconds * 1000,
+      "휴식이 끝났어",
+      "다시 집중을 시작해봐",
+    );
   } else {
     runtime.phase = "focus";
     runtime.seconds = settings.focusMinutes * 60;
@@ -7044,6 +7229,7 @@ function finishBreakRuntime(mode, { skipped = false } = {}) {
   clearInterval(focusInterval);
   focusLastTickAt = 0;
   runningFocusMode = null;
+  cancelFarmPushNotification("timer_end", "");
   runtime.phase = "focus";
   runtime.seconds = settings.focusMinutes * 60;
   runtime.started = false;
@@ -7124,6 +7310,7 @@ function toggleFocus() {
     focusLastTickAt = 0;
     runningFocusMode = null;
     focusRunning = false;
+    cancelFarmPushNotification("timer_end", "");
     updateFocusActionButton();
     updateMiniFocusTimer();
     renderTasks();
@@ -7162,6 +7349,20 @@ function toggleFocus() {
   }
   updateFocusActionButton();
 
+  // A task stopwatch counts up with no target duration, so there's no
+  // fire_at to schedule a push for -- only countdown sessions (plain/habit
+  // focus, quick focus/break) have a real end time.
+  const isTaskStopwatch = Boolean(linkedItem && activeFocus?.type === "task");
+  if (!isTaskStopwatch) {
+    scheduleFarmPushNotification(
+      "timer_end",
+      "",
+      Date.now() + runtime.seconds * 1000,
+      runtime.phase === "focus" ? "집중이 끝났어" : "휴식이 끝났어",
+      runtime.phase === "focus" ? "쉬고 싶으면 앱을 열어줘" : "다시 집중을 시작해봐",
+    );
+  }
+
   const startedMode = focusMode;
   startFocusTickInterval(startedMode);
   updateMiniFocusTimer();
@@ -7171,6 +7372,7 @@ function toggleFocus() {
 function endFocusSession(mode = focusMode) {
   focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   hideFocusAlertBanner();
+  cancelFarmPushNotification("timer_end", "");
   if (focusMode !== mode) setFocusMode(mode);
   stopFocusTimer();
   if (mode === "linked") activeFocus = null;
@@ -8796,7 +8998,7 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     const previousPlotState = { ...plot };
     const plotIndex = plot.id;
 
-    await runFarmAction({
+    const result = await runFarmAction({
       rpc: "water_farm_plot",
       params: { p_plot_index: plotIndex },
       apply: () => {
@@ -8811,6 +9013,17 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       revert: () => Object.assign(plot, previousPlotState),
       failureMessage: "물주기 저장에 실패해서 되돌렸어.",
     });
+    // Only schedule a "ready to water" reminder if there's still growing
+    // left to do -- a plot that just hit max growth has nothing more to water.
+    if (result && plot.growth < maxGrowth) {
+      scheduleFarmPushNotification(
+        "plot_water_ready",
+        String(plotIndex),
+        Date.now() + FARM_WATER_COOLDOWN_MS,
+        "물 줄 시간이 됐어",
+        `${plotIndex + 1}번 밭에 물을 줄 수 있어`,
+      );
+    }
     return;
   }
 
@@ -9265,6 +9478,7 @@ farmMailModal.addEventListener("click", async (event) => {
     selectedMailItemId = null;
     selectedMailQuantity = 1;
     selectedMailPrice = "";
+    selectedMailMessage = "";
     renderFarmMail();
     return;
   }
@@ -9274,6 +9488,7 @@ farmMailModal.addEventListener("click", async (event) => {
     selectedMailItemId = itemButton.dataset.mailItem;
     selectedMailQuantity = 1;
     selectedMailPrice = "";
+    selectedMailMessage = "";
     renderFarmMail();
     return;
   }
@@ -9304,6 +9519,12 @@ document.querySelector("#farmMailPriceInput").addEventListener("input", (event) 
   selectedMailPrice = digitsOnly === "" ? "" : String(Math.min(FARM_MAIL_MAX_PRICE_COINS, Number(digitsOnly)));
   event.target.value = selectedMailPrice;
 });
+document.querySelector("#farmMailMessageInput").addEventListener("input", (event) => {
+  selectedMailMessage = event.target.value.slice(0, FARM_MAIL_MAX_MESSAGE_LENGTH);
+  event.target.value = selectedMailMessage;
+  const lengthLabel = document.querySelector("#farmMailMessageLength");
+  if (lengthLabel) lengthLabel.textContent = selectedMailMessage.length;
+});
 document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   ensureDailyFarmMail();
   if (state.farmMailSentCount >= 3) {
@@ -9326,13 +9547,15 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   const priceCoins = selectedMailPrice === ""
     ? null
     : Math.min(FARM_MAIL_MAX_PRICE_COINS, Math.max(1, Number(selectedMailPrice) || 0));
+  const message = selectedMailMessage.trim() === "" ? null : selectedMailMessage.trim();
 
-  const { error } = await supabaseClient.rpc("send_farm_mail", {
+  const { data: newMailId, error } = await supabaseClient.rpc("send_farm_mail", {
     p_recipient_farm_code: friendCode,
     p_category: selectedMailCategory,
     p_item_id: item.id,
     p_quantity: quantity,
     p_price_coins: priceCoins,
+    p_message: message,
   });
   if (error) {
     console.error("Farmodoro mail could not be sent", error);
@@ -9346,7 +9569,9 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
             ? "보낼 개수는 1~5개까지만 가능해"
             : errorMessage.includes("Invalid gift price")
               ? "가격은 1~200코인 사이로 입력해줘"
-              : "농장 우편을 보내지 못했어",
+              : errorMessage.includes("Invalid gift message")
+                ? "메시지는 80자 이내로 입력해줘"
+                : "농장 우편을 보내지 못했어",
     );
     return;
   }
@@ -9362,6 +9587,7 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     itemName: item.name,
     quantity,
     priceCoins,
+    message,
     sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
   });
   if (!farmMailContacts.some((contact) => contact.code === friendCode)) {
@@ -9370,12 +9596,14 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   selectedMailItemId = null;
   selectedMailQuantity = 1;
   selectedMailPrice = "";
+  selectedMailMessage = "";
   showToast(
     priceCoins
       ? `${friendCode}에 ${item.name} ${quantity}개를 ${priceCoins} Coin에 보냈어`
       : `${friendCode}에 ${item.name} ${quantity}개를 보냈어`,
   );
   render();
+  if (newMailId) notifyFarmMailSent(newMailId);
 });
 
 const farmBulletinModal = document.querySelector("#farmBulletinModal");
@@ -9525,7 +9753,7 @@ document.querySelector("#farmBulletinCommentForm").addEventListener("submit", as
   const submitButton = document.querySelector("#submitFarmBulletinComment");
   submitButton.disabled = true;
   try {
-    const { error } = await supabaseClient.rpc("create_my_bulletin_comment", {
+    const { data: newCommentId, error } = await supabaseClient.rpc("create_my_bulletin_comment", {
       p_post_id: postId,
       p_message: message,
     });
@@ -9549,6 +9777,7 @@ document.querySelector("#farmBulletinCommentForm").addEventListener("submit", as
       if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
       renderFarmBulletin();
     }
+    if (newCommentId) notifyFarmBulletinComment(newCommentId);
   } finally {
     submitButton.disabled = false;
   }

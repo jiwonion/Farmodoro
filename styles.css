@@ -3508,6 +3508,14 @@ button {
   flex: 0 0 31px;
 }
 
+.farm-mail-inbox-message {
+  margin: 0;
+  color: #4c5f52;
+  font-size: 12px;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
 .farm-mail-inbox-row > button {
   min-width: 76px;
   min-height: 36px;
@@ -3833,6 +3841,45 @@ button {
   font-size: 13px;
   font-weight: 700;
   text-align: right;
+}
+
+.farm-mail-message {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cdd5c8;
+  border-radius: 9px;
+  color: #294c3a;
+  background: #fffaf0;
+}
+
+.farm-mail-message.hidden {
+  display: none;
+}
+
+.farm-mail-message label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.farm-mail-message label small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.farm-mail-message input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #294c3a;
+  border-radius: 7px;
+  color: #294c3a;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .farm-mail-send {

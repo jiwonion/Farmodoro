@@ -1,11 +1,11 @@
-const CACHE_VERSION = "farmodoro-v158";
+const CACHE_VERSION = "farmodoro-v159";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=158",
-  "./app.js?v=158",
-  "./pwa-register.js?v=158",
+  "./styles.css?v=159",
+  "./app.js?v=159",
+  "./pwa-register.js?v=159",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
@@ -99,4 +99,36 @@ self.addEventListener("fetch", (event) => {
   if (url.hostname === "cdn.jsdelivr.net") {
     event.respondWith(staleWhileRevalidate(request));
   }
+});
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = data.title || "Farmodoro";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "./assets/icons/icon-192.png",
+      badge: "./assets/icons/icon-192.png",
+      data: { url: data.url || "./" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "./", self.location.href).href;
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      const existing = windowClients.find((client) => client.url === targetUrl);
+      if (existing) return existing.focus();
+      const anyWindow = windowClients[0];
+      if (anyWindow) return anyWindow.focus();
+      return clients.openWindow(targetUrl);
+    })
+  );
 });

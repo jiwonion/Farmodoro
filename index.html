@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=158" />
+    <link rel="stylesheet" href="./styles.css?v=159" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -905,6 +905,19 @@
                   aria-label="받을 코인 (선택)"
                 />
               </div>
+              <div class="farm-mail-message hidden" id="farmMailMessageRow">
+                <label for="farmMailMessageInput">
+                  <span>메시지</span>
+                  <small><span id="farmMailMessageLength">0</span> / 80자</small>
+                </label>
+                <input
+                  id="farmMailMessageInput"
+                  type="text"
+                  maxlength="80"
+                  placeholder="한마디 남겨줘 (선택)"
+                  aria-label="우편 메시지 (선택)"
+                />
+              </div>
             </div>
             <button class="farm-mail-send" id="sendFarmMail" type="button" disabled>선물 보내기</button>
           </section>
@@ -1259,6 +1272,16 @@
             </div>
           </section>
 
+          <section class="settings-section" aria-labelledby="pushSettingsTitle">
+            <div class="settings-section-heading">
+              <div>
+                <strong id="pushSettingsTitle">휴대폰 알림</strong>
+                <small id="pushSettingsStatus">우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려줘</small>
+              </div>
+            </div>
+            <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
+          </section>
+
           <section class="settings-section tutorial-settings-section" aria-labelledby="tutorialSettingsTitle">
             <div class="settings-section-heading">
               <div>
@@ -1354,7 +1377,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=158"></script>
-    <script src="./pwa-register.js?v=158"></script>
+    <script src="./app.js?v=159"></script>
+    <script src="./pwa-register.js?v=159"></script>
   </body>
 </html>
