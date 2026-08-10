@@ -1,11 +1,11 @@
-const CACHE_VERSION = "farmodoro-v159";
+const CACHE_VERSION = "farmodoro-v160";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=159",
-  "./app.js?v=159",
-  "./pwa-register.js?v=159",
+  "./styles.css?v=160",
+  "./app.js?v=160",
+  "./pwa-register.js?v=160",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/crops-sprite.js",
@@ -113,7 +113,11 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body: data.body || "",
       icon: "./assets/icons/icon-192.png",
-      badge: "./assets/icons/icon-192.png",
+      // No `badge` here on purpose -- Android ignores the icon's colors for
+      // this slot and renders only its alpha channel, so a normal full-color
+      // square icon (icon-192.png has no transparent margin) turns into a
+      // solid white square in the status bar. Fix properly later with a
+      // dedicated transparent-background white-silhouette PNG.
       data: { url: data.url || "./" },
     })
   );
