@@ -1841,7 +1841,9 @@ let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
 let selectedMailQuantity = 1;
+let selectedMailPrice = "";
 const FARM_MAIL_MAX_QUANTITY = 5;
+const FARM_MAIL_MAX_PRICE_COINS = 200;
 let farmMailView = "send";
 let farmBulletinPosts = [];
 let selectedBulletinType = "buy";
@@ -2202,6 +2204,9 @@ function mapFarmInboxFromDatabase(inbox = []) {
       category: item.category,
       itemId: item.itemId,
       quantity: Math.max(1, Number(item.quantity) || 1),
+      priceCoins: Number.isFinite(Number(item.priceCoins)) && Number(item.priceCoins) > 0
+        ? Number(item.priceCoins)
+        : null,
       claimed: Boolean(item.claimedAt),
       receivedDate,
     }));
@@ -2217,6 +2222,9 @@ function mapFarmSentHistoryFromDatabase(sentToday = []) {
       itemId: item.itemId,
       itemName: getFarmMailItemName(item.category, item.itemId),
       quantity: Math.max(1, Number(item.quantity) || 1),
+      priceCoins: Number.isFinite(Number(item.priceCoins)) && Number(item.priceCoins) > 0
+        ? Number(item.priceCoins)
+        : null,
       sentTime: new Date(mail.sentAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
     })),
   );
@@ -5003,6 +5011,8 @@ function renderFarmMail() {
   const quantityValue = document.querySelector("#farmMailQuantityValue");
   const quantityMinusButton = document.querySelector("#farmMailQuantityMinus");
   const quantityPlusButton = document.querySelector("#farmMailQuantityPlus");
+  const priceRow = document.querySelector("#farmMailPriceRow");
+  const priceInput = document.querySelector("#farmMailPriceInput");
   if (
     !remaining ||
     !friendCodeInput ||
@@ -5020,7 +5030,9 @@ function renderFarmMail() {
     !quantityRow ||
     !quantityValue ||
     !quantityMinusButton ||
-    !quantityPlusButton
+    !quantityPlusButton ||
+    !priceRow ||
+    !priceInput
   ) return;
 
   ensureDailyFarmMail();
@@ -5062,7 +5074,7 @@ function renderFarmMail() {
               <div class="farm-mail-inbox-copy">
                 <div class="farm-mail-sender">
                   <strong>${escapeHtml(friend.name)}</strong>
-                  <small>${escapeHtml(gift.categoryName)} · ${daysUntilDelete}일 후 삭제</small>
+                  <small>${escapeHtml(gift.categoryName)} · ${daysUntilDelete}일 후 삭제${mail.priceCoins ? ` · ${mail.priceCoins} Coin` : ""}</small>
                 </div>
                 <strong>${gift.icon}<span>${escapeHtml(gift.name)}${mail.quantity > 1 ? ` x${mail.quantity}` : ""}</span></strong>
               </div>
@@ -5071,7 +5083,9 @@ function renderFarmMail() {
                   ? ["rankingBox", "updateBox"].includes(mail.category) ? "개봉 완료" : "수령 완료"
                   : ["rankingBox", "updateBox"].includes(mail.category)
                     ? getOpenedFarmRankingBoxIndexes(mail).length ? "계속 열기" : "상자 열기"
-                    : "받기"}
+                    : mail.priceCoins
+                      ? `${mail.priceCoins} Coin 내고 받기`
+                      : "받기"}
               </button>
             </article>
           `;
@@ -5122,13 +5136,16 @@ function renderFarmMail() {
   quantityMinusButton.disabled = selectedMailQuantity <= 1;
   quantityPlusButton.disabled = selectedMailQuantity >= maxMailQuantity;
 
+  priceRow.classList.toggle("hidden", !selectedMailItem);
+  if (priceInput.value !== selectedMailPrice) priceInput.value = selectedMailPrice;
+
   history.innerHTML = state.farmMailHistory.length
     ? state.farmMailHistory
         .map(
           (mail) => `
             <div class="farm-mail-history-row">
               <span>✓</span>
-              <p><strong>${escapeHtml(mail.itemName)}${mail.quantity > 1 ? ` ${mail.quantity}개` : ""}</strong>${getKoreanObjectParticle(mail.quantity > 1 ? "개" : mail.itemName)} ${escapeHtml(mail.friendName)}에게 보냈어</p>
+              <p><strong>${escapeHtml(mail.itemName)}${mail.quantity > 1 ? ` ${mail.quantity}개` : ""}</strong>${getKoreanObjectParticle(mail.quantity > 1 ? "개" : mail.itemName)} ${escapeHtml(mail.friendName)}에게 ${mail.priceCoins ? `${mail.priceCoins} Coin 받기로 ` : ""}보냈어</p>
               <small>${escapeHtml(mail.sentTime)}</small>
             </div>
           `,
@@ -9204,6 +9221,10 @@ farmMailModal.addEventListener("click", async (event) => {
       openFarmRewardBoxModal(mail);
       return;
     }
+    if (mail.priceCoins && state.coins < mail.priceCoins) {
+      showToast(`코인이 부족해서 받을 수 없어 (필요 ${mail.priceCoins} Coin)`);
+      return;
+    }
     claimButton.disabled = true;
     const claimedQuantity = Math.max(1, Number(mail.quantity) || 1);
     try {
@@ -9213,11 +9234,19 @@ farmMailModal.addEventListener("click", async (event) => {
         });
         if (error) {
           console.error("Farmodoro mail could not be claimed", error);
-          showToast("우편 선물을 받지 못했어");
+          showToast(
+            String(error.message ?? "").includes("Insufficient coin balance")
+              ? `코인이 부족해서 받을 수 없어 (필요 ${mail.priceCoins} Coin)`
+              : "우편 선물을 받지 못했어",
+          );
           return;
         }
         await loadFarmDataFromDatabase(activeAuthUser);
-        showToast(`${gift.name} ${claimedQuantity}개를 보관함에 넣었어.`);
+        showToast(
+          mail.priceCoins
+            ? `${mail.priceCoins} Coin을 내고 ${gift.name} ${claimedQuantity}개를 보관함에 넣었어.`
+            : `${gift.name} ${claimedQuantity}개를 보관함에 넣었어.`,
+        );
         return;
       }
       gift.inventory[mail.itemId] = (gift.inventory[mail.itemId] ?? 0) + claimedQuantity;
@@ -9235,6 +9264,7 @@ farmMailModal.addEventListener("click", async (event) => {
     selectedMailCategory = categoryButton.dataset.mailCategory;
     selectedMailItemId = null;
     selectedMailQuantity = 1;
+    selectedMailPrice = "";
     renderFarmMail();
     return;
   }
@@ -9243,6 +9273,7 @@ farmMailModal.addEventListener("click", async (event) => {
   if (itemButton) {
     selectedMailItemId = itemButton.dataset.mailItem;
     selectedMailQuantity = 1;
+    selectedMailPrice = "";
     renderFarmMail();
     return;
   }
@@ -9268,6 +9299,11 @@ document.querySelector("#farmMailFriendCode").addEventListener("input", (event) 
   event.target.value = selectedMailFriendCode;
   renderFarmMail();
 });
+document.querySelector("#farmMailPriceInput").addEventListener("input", (event) => {
+  const digitsOnly = event.target.value.replace(/[^0-9]/g, "");
+  selectedMailPrice = digitsOnly === "" ? "" : String(Math.min(FARM_MAIL_MAX_PRICE_COINS, Number(digitsOnly)));
+  event.target.value = selectedMailPrice;
+});
 document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   ensureDailyFarmMail();
   if (state.farmMailSentCount >= 3) {
@@ -9287,12 +9323,16 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     renderFarmMail();
     return;
   }
+  const priceCoins = selectedMailPrice === ""
+    ? null
+    : Math.min(FARM_MAIL_MAX_PRICE_COINS, Math.max(1, Number(selectedMailPrice) || 0));
 
   const { error } = await supabaseClient.rpc("send_farm_mail", {
     p_recipient_farm_code: friendCode,
     p_category: selectedMailCategory,
     p_item_id: item.id,
     p_quantity: quantity,
+    p_price_coins: priceCoins,
   });
   if (error) {
     console.error("Farmodoro mail could not be sent", error);
@@ -9304,7 +9344,9 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
           ? "내 농장에는 우편을 보낼 수 없어"
           : errorMessage.includes("Invalid gift quantity")
             ? "보낼 개수는 1~5개까지만 가능해"
-            : "농장 우편을 보내지 못했어",
+            : errorMessage.includes("Invalid gift price")
+              ? "가격은 1~200코인 사이로 입력해줘"
+              : "농장 우편을 보내지 못했어",
     );
     return;
   }
@@ -9319,6 +9361,7 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
     itemId: item.id,
     itemName: item.name,
     quantity,
+    priceCoins,
     sentTime: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
   });
   if (!farmMailContacts.some((contact) => contact.code === friendCode)) {
@@ -9326,7 +9369,12 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
   }
   selectedMailItemId = null;
   selectedMailQuantity = 1;
-  showToast(`${friendCode}에 ${item.name} ${quantity}개를 보냈어`);
+  selectedMailPrice = "";
+  showToast(
+    priceCoins
+      ? `${friendCode}에 ${item.name} ${quantity}개를 ${priceCoins} Coin에 보냈어`
+      : `${friendCode}에 ${item.name} ${quantity}개를 보냈어`,
+  );
   render();
 });
 

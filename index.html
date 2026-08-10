@@ -894,6 +894,17 @@
                   <button type="button" id="farmMailQuantityPlus" aria-label="개수 늘리기">+</button>
                 </div>
               </div>
+              <div class="farm-mail-price hidden" id="farmMailPriceRow">
+                <span>받을 코인 <small>선택 · 최대 200</small></span>
+                <input
+                  id="farmMailPriceInput"
+                  type="number"
+                  min="1"
+                  max="200"
+                  inputmode="numeric"
+                  aria-label="받을 코인 (선택)"
+                />
+              </div>
             </div>
             <button class="farm-mail-send" id="sendFarmMail" type="button" disabled>선물 보내기</button>
           </section>

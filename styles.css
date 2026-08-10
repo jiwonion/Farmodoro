@@ -3797,6 +3797,44 @@ button {
   text-align: center;
 }
 
+.farm-mail-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #cdd5c8;
+  border-radius: 9px;
+  color: #294c3a;
+  background: #fffaf0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.farm-mail-price.hidden {
+  display: none;
+}
+
+.farm-mail-price span small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.farm-mail-price input {
+  width: 72px;
+  padding: 5px 8px;
+  border: 1px solid #294c3a;
+  border-radius: 7px;
+  color: #294c3a;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+}
+
 .farm-mail-send {
   min-height: 44px;
   border: 2px solid #294c3a;
