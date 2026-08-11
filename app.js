@@ -3705,7 +3705,27 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 5000);
 
   const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
-  const taskRows = snapshot.tasks.map((task) => ({ ...task, user_id: userId }));
+  // status/completed_on/completion_reward/completed_with_free_pass/
+  // completion_cycle_id are owned exclusively by complete_my_task /
+  // uncomplete_my_task (moveTaskTo's dedicated RPC path below), never by this
+  // bulk snapshot upsert. If this device's local view of some OTHER task is
+  // stale -- e.g. it hasn't picked up a completion made from another
+  // device/tab yet -- saving an unrelated edit here (title, sort order, ...)
+  // would otherwise re-upload that stale status and silently undo the other
+  // device's completion. Omitting these columns from the upsert payload
+  // leaves them untouched on conflict; new rows still get the correct
+  // "not completed" defaults from the table schema.
+  const taskRows = snapshot.tasks.map((task) => {
+    const {
+      status,
+      completed_on,
+      completion_reward,
+      completed_with_free_pass,
+      completion_cycle_id,
+      ...syncedFields
+    } = task;
+    return { ...syncedFields, user_id: userId };
+  });
   const habitRows = snapshot.habits.map((habit) => ({ ...habit, user_id: userId }));
   // Only upload habit-day rows whose content actually changed since the last
   // successful sync — habit history otherwise grows every day forever, and
