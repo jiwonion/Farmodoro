@@ -3712,9 +3712,19 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   // stale -- e.g. it hasn't picked up a completion made from another
   // device/tab yet -- saving an unrelated edit here (title, sort order, ...)
   // would otherwise re-upload that stale status and silently undo the other
-  // device's completion. Omitting these columns from the upsert payload
-  // leaves them untouched on conflict; new rows still get the correct
-  // "not completed" defaults from the table schema.
+  // device's completion.
+  //
+  // archived_at is excluded for the same reason, from the opposite direction:
+  // tasks_archive_only_when_done requires archived_at is null whenever
+  // status <> 'done', and status is (as of the above) never part of this
+  // payload's column set -- so this bulk upsert can't be trusted to keep
+  // that pairing valid for every row in one shot. It's set instead through
+  // set_my_task_archived (see maintainTaskArchive / the archive & restore
+  // button handlers), which checks the current server-side status itself
+  // before writing.
+  //
+  // Omitting a column from the upsert payload leaves it untouched on
+  // conflict; new rows still get the correct defaults from the table schema.
   const taskRows = snapshot.tasks.map((task) => {
     const {
       status,
@@ -3722,6 +3732,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       completion_reward,
       completed_with_free_pass,
       completion_cycle_id,
+      archived_at,
       ...syncedFields
     } = task;
     return { ...syncedFields, user_id: userId };
@@ -6284,6 +6295,23 @@ function renderHabitUpdates() {
   saveState();
 }
 
+// archived_at lives outside the bulk task snapshot sync (see
+// syncTaskDatabaseSnapshot) because tasks_archive_only_when_done needs it
+// paired with status='done' exactly, which that generic upload can't
+// guarantee for every row in one shot. This RPC re-checks status itself.
+async function syncTaskArchivedFlag(taskId, archived) {
+  if (!supabaseClient || !activeAuthUser) return;
+  try {
+    const { error } = await supabaseClient.rpc("set_my_task_archived", {
+      p_task_id: taskId,
+      p_archived: archived,
+    });
+    if (error) throw error;
+  } catch (error) {
+    console.warn("Farmodoro set_my_task_archived failed", error);
+  }
+}
+
 function maintainTaskArchive() {
   const today = toLocalDateString();
   const now = Date.now();
@@ -6300,6 +6328,7 @@ function maintainTaskArchive() {
       task.archived = true;
       task.archivedAt = new Date().toISOString();
       changed = true;
+      void syncTaskArchivedFlag(task.id, true);
     }
   });
 
@@ -8243,6 +8272,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
       showToast("완료한 할 일을 보관함에 넣었어");
       render();
       scheduleTaskDatabaseSync(0);
+      void syncTaskArchivedFlag(task.id, true);
     }
     return;
   }
@@ -8255,6 +8285,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
       showToast("보관함에서 다시 꺼냈어");
       render();
       scheduleTaskDatabaseSync(0);
+      void syncTaskArchivedFlag(task.id, false);
     }
     return;
   }
