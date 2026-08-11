@@ -4331,6 +4331,12 @@ button {
   background: #eef3e7;
 }
 
+.farm-bulletin-comment-row.reply {
+  margin-left: 20px;
+  border-left: 2px solid #9ca594;
+  border-radius: 0 9px 9px 0;
+}
+
 .farm-bulletin-comment-row-head {
   display: flex;
   align-items: center;
@@ -4355,6 +4361,21 @@ button {
   cursor: pointer;
 }
 
+.farm-bulletin-comment-reply-button {
+  color: #52665a;
+  background: transparent;
+  border: 0;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.farm-bulletin-comment-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .farm-bulletin-comment-row p {
   margin: 0;
   color: #294c3a;
@@ -4367,6 +4388,31 @@ button {
   gap: 8px;
   padding-top: 12px;
   border-top: 1px dashed #9ca594;
+}
+
+.farm-bulletin-reply-target {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #294c3a;
+  background: #eef3e7;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.farm-bulletin-reply-target.hidden {
+  display: none;
+}
+
+.farm-bulletin-reply-target button {
+  color: #52665a;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 #farmBulletinCommentMessage {

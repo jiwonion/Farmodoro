@@ -5552,6 +5552,17 @@ function renderFarmBulletin() {
 }
 
 let activeBulletinCommentPostId = null;
+let activeBulletinReplyTo = null;
+
+function updateFarmBulletinReplyTargetUI() {
+  const row = document.querySelector("#farmBulletinReplyTarget");
+  const label = document.querySelector("#farmBulletinReplyTargetLabel");
+  if (!row || !label) return;
+  row.classList.toggle("hidden", !activeBulletinReplyTo);
+  if (activeBulletinReplyTo) {
+    label.textContent = `${activeBulletinReplyTo.displayName}님에게 답글 남기는 중`;
+  }
+}
 
 function renderFarmBulletinCommentPost(post) {
   const container = document.querySelector("#farmBulletinCommentPost");
@@ -5582,18 +5593,40 @@ async function loadFarmBulletinComments(postId) {
     return;
   }
   const comments = data ?? [];
+  // Server returns a flat, chronologically-ordered list -- group each reply
+  // under its top-level parent here so replies render indented right below
+  // the comment they answer, and only top-level comments get a reply button
+  // (replying to a reply isn't allowed, enforced server-side too).
+  const topLevelComments = comments.filter((comment) => !comment.parent_comment_id);
+  const repliesByParentId = new Map();
+  comments.forEach((comment) => {
+    if (!comment.parent_comment_id) return;
+    if (!repliesByParentId.has(comment.parent_comment_id)) {
+      repliesByParentId.set(comment.parent_comment_id, []);
+    }
+    repliesByParentId.get(comment.parent_comment_id).push(comment);
+  });
+
+  const renderCommentRow = (comment, isReply) => `
+    <div class="farm-bulletin-comment-row ${comment.is_mine ? "mine" : ""} ${isReply ? "reply" : ""}">
+      <div class="farm-bulletin-comment-row-head">
+        <strong>${escapeHtml(comment.display_name || "농부")}</strong>
+        <div class="farm-bulletin-comment-row-actions">
+          ${isReply ? "" : `<button type="button" class="farm-bulletin-comment-reply-button" data-reply-bulletin-comment="${comment.id}" data-reply-bulletin-name="${escapeHtml(comment.display_name || "농부")}">답글</button>`}
+          ${comment.is_mine ? `<button type="button" class="farm-bulletin-comment-delete" data-delete-bulletin-comment="${comment.id}">삭제</button>` : ""}
+        </div>
+      </div>
+      <p>${escapeHtml(comment.message)}</p>
+    </div>
+  `;
+
   listEl.innerHTML = comments.length
-    ? comments
-        .map(
-          (comment) => `
-            <div class="farm-bulletin-comment-row ${comment.is_mine ? "mine" : ""}">
-              <div class="farm-bulletin-comment-row-head">
-                <strong>${escapeHtml(comment.display_name || "농부")}</strong>
-                ${comment.is_mine ? `<button type="button" class="farm-bulletin-comment-delete" data-delete-bulletin-comment="${comment.id}">삭제</button>` : ""}
-              </div>
-              <p>${escapeHtml(comment.message)}</p>
-            </div>
-          `,
+    ? topLevelComments
+        .map((comment) =>
+          renderCommentRow(comment, false) +
+          (repliesByParentId.get(comment.id) ?? [])
+            .map((reply) => renderCommentRow(reply, true))
+            .join(""),
         )
         .join("")
     : '<p class="farm-mail-empty">아직 댓글이 없어</p>';
@@ -5603,6 +5636,8 @@ async function openFarmBulletinComments(postId) {
   const post = farmBulletinPosts.find((entry) => entry.id === postId);
   if (!post) return;
   activeBulletinCommentPostId = postId;
+  activeBulletinReplyTo = null;
+  updateFarmBulletinReplyTargetUI();
   document.querySelector("#farmBulletinCommentModal").classList.remove("hidden");
   renderFarmBulletinCommentPost(post);
   const messageInput = document.querySelector("#farmBulletinCommentMessage");
@@ -5617,6 +5652,7 @@ async function openFarmBulletinComments(postId) {
 
 function closeFarmBulletinComments() {
   activeBulletinCommentPostId = null;
+  activeBulletinReplyTo = null;
   document.querySelector("#farmBulletinCommentModal").classList.add("hidden");
 }
 
@@ -6391,6 +6427,14 @@ function moveTaskTo(id, nextStatus) {
     const returnedReward = task.completionReward ?? 1;
     task.completionReward = 0;
     task.completedDate = "";
+    // A task can only be archived while done (tasks_archive_only_when_done
+    // check constraint) -- undoing completion on an already-archived task
+    // without also clearing these left status="waiting"/"doing" sitting next
+    // to a non-null archived_at, which the next bulk sync of ANY task would
+    // then reject outright (repeating "DB 저장 실패" toast forever since the
+    // failed sync's signature never gets marked as synced).
+    task.archived = false;
+    task.archivedAt = "";
     if (task.completedWithFreePass) {
       state.farmItemInventory.freePass += 1;
       task.completedWithFreePass = false;
@@ -9757,6 +9801,21 @@ farmBulletinCommentModal.addEventListener("click", async (event) => {
     } finally {
       deleteButton.disabled = false;
     }
+    return;
+  }
+  const replyButton = event.target.closest("[data-reply-bulletin-comment]");
+  if (replyButton) {
+    activeBulletinReplyTo = {
+      id: replyButton.dataset.replyBulletinComment,
+      displayName: replyButton.dataset.replyBulletinName,
+    };
+    updateFarmBulletinReplyTargetUI();
+    document.querySelector("#farmBulletinCommentMessage")?.focus();
+    return;
+  }
+  if (event.target.closest("#cancelFarmBulletinReply")) {
+    activeBulletinReplyTo = null;
+    updateFarmBulletinReplyTargetUI();
   }
 });
 document.querySelector("#farmBulletinCommentMessage").addEventListener("input", (event) => {
@@ -9776,6 +9835,7 @@ document.querySelector("#farmBulletinCommentForm").addEventListener("submit", as
     const { data: newCommentId, error } = await supabaseClient.rpc("create_my_bulletin_comment", {
       p_post_id: postId,
       p_message: message,
+      p_parent_comment_id: activeBulletinReplyTo?.id ?? null,
     });
     if (error) {
       console.error("Farmodoro bulletin comment could not be saved", error);
@@ -9790,6 +9850,8 @@ document.querySelector("#farmBulletinCommentForm").addEventListener("submit", as
     }
     messageInput.value = "";
     document.querySelector("#farmBulletinCommentMessageCount").textContent = "0 / 80";
+    activeBulletinReplyTo = null;
+    updateFarmBulletinReplyTargetUI();
     await loadFarmBulletinComments(postId);
     const post = farmBulletinPosts.find((entry) => entry.id === postId);
     if (post) {

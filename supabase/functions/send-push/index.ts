@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     if (body.event === "bulletin_comment") {
       const { data: comment } = await admin
         .from("farm_bulletin_comments")
-        .select("user_id, message, post_id")
+        .select("user_id, message, post_id, parent_comment_id")
         .eq("id", body.commentId)
         .maybeSingle();
       if (!comment || comment.user_id !== callerId) {
@@ -138,18 +138,35 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { data: post } = await admin
-        .from("farm_bulletin_posts")
-        .select("user_id")
-        .eq("id", comment.post_id)
-        .maybeSingle();
-      if (!post || post.user_id === callerId) {
+
+      // A reply notifies the comment it replies to, not the post author --
+      // top-level comments keep notifying the post author as before.
+      let targetUserId: string | null = null;
+      let title = "대자보에 댓글이 달렸어";
+      if (comment.parent_comment_id) {
+        const { data: parentComment } = await admin
+          .from("farm_bulletin_comments")
+          .select("user_id")
+          .eq("id", comment.parent_comment_id)
+          .maybeSingle();
+        targetUserId = parentComment?.user_id ?? null;
+        title = "내 댓글에 답글이 달렸어";
+      } else {
+        const { data: post } = await admin
+          .from("farm_bulletin_posts")
+          .select("user_id")
+          .eq("id", comment.post_id)
+          .maybeSingle();
+        targetUserId = post?.user_id ?? null;
+      }
+
+      if (!targetUserId || targetUserId === callerId) {
         return new Response(JSON.stringify({ sent: 0, failed: 0 }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const result = await sendPushToUser(admin, post.user_id, {
-        title: "대자보에 댓글이 달렸어",
+      const result = await sendPushToUser(admin, targetUserId, {
+        title,
         body: comment.message,
       });
       return new Response(JSON.stringify(result), {
