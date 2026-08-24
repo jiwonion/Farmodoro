@@ -80,6 +80,7 @@ let taskDataUserId = null;
 let taskDataLoadPromise = null;
 let taskSyncTimer = null;
 let taskSyncChain = Promise.resolve();
+const taskStatusSyncChains = new Map();
 let lastTaskSyncSignature = "";
 // Tracks the last-uploaded content per (habit_id, record_date) so a sync only
 // upserts habit-day rows that actually changed, instead of re-uploading a
@@ -3344,6 +3345,7 @@ function resetTaskDatabaseState() {
   habitRecordSyncSignatures = new Map();
   if (taskSyncTimer) clearTimeout(taskSyncTimer);
   taskSyncTimer = null;
+  taskStatusSyncChains.clear();
   pendingTaskDatabaseDeletes.clear();
   pendingHabitDatabaseDeletes.clear();
   pendingGroupDatabaseDeletes.clear();
@@ -3707,7 +3709,8 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
   // status/completed_on/completion_reward/completed_with_free_pass/
   // completion_cycle_id are owned exclusively by complete_my_task /
-  // uncomplete_my_task (moveTaskTo's dedicated RPC path below), never by this
+  // uncomplete_my_task or moveTaskTo's dedicated status update path below,
+  // never by this
   // bulk snapshot upsert. If this device's local view of some OTHER task is
   // stale -- e.g. it hasn't picked up a completion made from another
   // device/tab yet -- saving an unrelated edit here (title, sort order, ...)
@@ -6409,6 +6412,45 @@ function confirmTaskUncompletionWithServer(task, nextStatus, optimisticRefund) {
     });
 }
 
+function confirmTaskStatusWithServer(taskId, nextStatus, previousStatus) {
+  const userId = activeAuthUser?.id;
+  const previousSync = taskStatusSyncChains.get(taskId) ?? Promise.resolve();
+  const sync = previousSync
+    .catch(() => {})
+    .then(async () => {
+      if (!userId || activeAuthUser?.id !== userId) return;
+      await syncTaskDatabaseImmediately();
+      productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 5000);
+      const { data, error } = await supabaseClient
+        .from("tasks")
+        .update({ status: nextStatus })
+        .eq("id", taskId)
+        .eq("user_id", userId)
+        .in("status", ["waiting", "doing"])
+        .select("status")
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("할 일 상태가 이미 다른 곳에서 변경됐어");
+      productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 1500);
+    });
+
+  taskStatusSyncChains.set(taskId, sync);
+  void sync
+    .catch((error) => {
+      console.error("Farmodoro task status could not be saved", error);
+      if (activeAuthUser?.id !== userId) return;
+      const currentTask = state.tasks.find((task) => task.id === taskId);
+      if (currentTask?.status === nextStatus) {
+        currentTask.status = previousStatus;
+        render();
+      }
+      showToast(`상태를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+    })
+    .finally(() => {
+      if (taskStatusSyncChains.get(taskId) === sync) taskStatusSyncChains.delete(taskId);
+    });
+}
+
 function moveTaskTo(id, nextStatus) {
   const task = state.tasks.find((item) => item.id === id);
   if (!task || task.status === nextStatus) return;
@@ -6472,6 +6514,7 @@ function moveTaskTo(id, nextStatus) {
     confirmTaskUncompletionWithServer(task, nextStatus, returnedReward);
     showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
   } else {
+    confirmTaskStatusWithServer(task.id, nextStatus, previousStatus);
     showToast(nextStatus === "doing" ? "진행 중으로 옮겼어" : "대기로 옮겼어");
   }
 
