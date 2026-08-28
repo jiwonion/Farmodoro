@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=165" />
+    <link rel="stylesheet" href="./styles.css?v=166" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -513,6 +513,7 @@
               <h1>습관</h1>
               <p>반복 일정과 오늘의 달성 상태를 관리해</p>
             </div>
+            <button class="habit-reset-button" id="openHabitReset" type="button">습관 초기화</button>
           </header>
           <section class="habit-heatmap">
             <header>
@@ -1137,6 +1138,30 @@
       </section>
     </div>
 
+    <div
+      class="habit-modal hidden"
+      id="habitResetModal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="habitResetTitle"
+      aria-describedby="habitResetDescription"
+    >
+      <div class="habit-modal-backdrop" data-cancel-habit-reset></div>
+      <section class="habit-modal-panel delete-confirm-panel">
+        <span class="delete-confirm-icon" aria-hidden="true">↺</span>
+        <span class="section-kicker">RESET ROUTINES</span>
+        <h2 id="habitResetTitle">습관을 초기화할까?</h2>
+        <p id="habitResetDescription">
+          지난 달성 기록, 진행량, 집중시간을 전부 삭제해.<br>
+          등록한 습관은 유지하고 시작일만 오늘로 바뀌어.
+        </p>
+        <div class="delete-confirm-actions">
+          <button class="secondary-button" type="button" data-cancel-habit-reset>취소</button>
+          <button class="danger-button" id="confirmHabitReset" type="button">전부 초기화</button>
+        </div>
+      </section>
+    </div>
+
     <div class="market-modal hidden" id="freePassTargetModal" role="dialog" aria-modal="true" aria-labelledby="freePassTargetTitle">
       <div class="market-modal-backdrop" data-close-free-pass></div>
       <section class="market-modal-panel free-pass-target-modal">
@@ -1381,7 +1406,7 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=165"></script>
-    <script src="./pwa-register.js?v=165"></script>
+    <script src="./app.js?v=166"></script>
+    <script src="./pwa-register.js?v=166"></script>
   </body>
 </html>

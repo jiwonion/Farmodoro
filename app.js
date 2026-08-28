@@ -2055,6 +2055,9 @@ const openHabitFormButton = document.querySelector("#openHabitForm");
 const habitDeleteModal = document.querySelector("#habitDeleteModal");
 const habitDeleteName = document.querySelector("#habitDeleteName");
 const confirmHabitDelete = document.querySelector("#confirmHabitDelete");
+const openHabitResetButton = document.querySelector("#openHabitReset");
+const habitResetModal = document.querySelector("#habitResetModal");
+const confirmHabitReset = document.querySelector("#confirmHabitReset");
 const taskDeleteModal = document.querySelector("#taskDeleteModal");
 const taskDeleteName = document.querySelector("#taskDeleteName");
 const taskDeleteCoinAmount = document.querySelector("#taskDeleteCoinAmount");
@@ -7908,6 +7911,10 @@ function closeHabitDeleteModal() {
   habitDeleteModal.classList.add("hidden");
 }
 
+function closeHabitResetModal() {
+  habitResetModal.classList.add("hidden");
+}
+
 function resetDeletedFocusTarget(type, id) {
   if (activeFocus?.type !== type || activeFocus.id !== id) return false;
 
@@ -7970,6 +7977,58 @@ habitModal.addEventListener("click", (event) => {
 
 habitDeleteModal.addEventListener("click", (event) => {
   if (event.target.closest("[data-cancel-habit-delete]")) closeHabitDeleteModal();
+});
+
+openHabitResetButton.addEventListener("click", () => {
+  habitResetModal.classList.remove("hidden");
+  window.setTimeout(() => confirmHabitReset.focus(), 0);
+});
+
+habitResetModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-cancel-habit-reset]")) closeHabitResetModal();
+});
+
+confirmHabitReset.addEventListener("click", async () => {
+  if (!taskDataHydrated || !activeAuthUser) {
+    showToast("습관 데이터를 불러오는 중이야");
+    return;
+  }
+
+  confirmHabitReset.disabled = true;
+  try {
+    await syncTaskDatabaseImmediately();
+    if (activeFocus?.type === "habit") {
+      resetDeletedFocusTarget("habit", activeFocus.id);
+      await syncTaskDatabaseImmediately();
+      await flushFocusTime();
+    }
+    const { error } = await supabaseClient.rpc("reset_my_habits");
+    if (error) throw error;
+
+    const today = toLocalDateString();
+    state.habits.forEach((habit) => {
+      habit.startDate = today;
+      if (habit.endDate && habit.endDate < today) habit.endDate = "";
+      habit.complete = false;
+      habit.completedDate = "";
+      habit.completionDates = [];
+      habit.progressByDate = {};
+      habit.focusSecondsByDate = {};
+      habit.recordMetaByDate = {};
+      habit.completionReward = 0;
+      habit.completedWithFreePass = false;
+    });
+    habitRecordSyncSignatures = new Map();
+    closeHabitResetModal();
+    render();
+    await loadTaskDataFromDatabase(activeAuthUser, { force: true });
+    showToast("습관을 오늘부터 다시 시작했어");
+  } catch (error) {
+    console.error("Farmodoro habits could not be reset", error);
+    showToast(`습관 초기화에 실패했어${error.message ? `: ${error.message}` : ""}`);
+  } finally {
+    confirmHabitReset.disabled = false;
+  }
 });
 
 confirmHabitDelete.addEventListener("click", () => {
@@ -10088,6 +10147,7 @@ document.addEventListener("keydown", (event) => {
     if (editingTaskId) closeTaskInlineEdit();
     closeHabitModal();
     closeHabitDeleteModal();
+    closeHabitResetModal();
     closeTaskDeleteModal();
     closeFocusItemMenu();
     closeTaskGroupMenu();

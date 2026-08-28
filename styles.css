@@ -936,6 +936,27 @@ button {
   font-size: 15px;
 }
 
+.habit-reset-button {
+  padding: 9px 12px;
+  border: 2px solid #294c3a;
+  border-radius: 8px;
+  color: #fffaf0;
+  background: #d96f52;
+  box-shadow: 3px 3px 0 #294c3a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.habit-reset-button:hover {
+  background: #c95d44;
+}
+
+.habit-reset-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .page-section-slot {
   width: 100%;
 }
@@ -11673,6 +11694,7 @@ canvas {
   /* Habits page: reduce typography and control density. */
   #habitsPage .page-header h1 { font-size: 21px; }
   #habitsPage .page-header p { font-size: 11px; }
+  #habitsPage .habit-reset-button { padding: 7px 8px; font-size: 10px; }
   #habitsPage .habit-heatmap,
   #habitsPage .habit-section { padding: 10px; }
   #habitsPage .habit-heatmap h2,
