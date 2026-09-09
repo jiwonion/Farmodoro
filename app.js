@@ -103,6 +103,7 @@ let farmDataHydrated = false;
 let farmDataUserId = null;
 let lastFarmRenderSignature = "";
 let farmDataLoadRequest = 0;
+let farmDataLoadPending = null;
 let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
 let productivityRealtimeMutedUntil = 0;
@@ -1978,6 +1979,9 @@ let focusTimerSyncTimer = null;
 let focusTimerPollInterval = null;
 let focusTimerLastUpdatedAt = "";
 let focusTimerLastHeartbeatAt = 0;
+let focusTimerWriteChain = Promise.resolve();
+let focusTimerWritesPending = 0;
+let focusTimerStateGeneration = 0;
 let focusProgressServerSeconds = 0;
 let focusProgressApiUnavailable = false;
 let focusProgressSyncPromise = null;
@@ -2101,6 +2105,7 @@ function resetFarmDataDatabaseState() {
   farmContentRealtimeMutedUntil = 0;
   lastFarmRenderSignature = "";
   farmDataLoadRequest += 1;
+  farmDataLoadPending = null;
   farmActionChain = Promise.resolve();
   farmMailContacts = [];
   farmMailServerUnreadCount = null;
@@ -2469,6 +2474,17 @@ function applyServerMarketRotation(rotation) {
 
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
+  if (farmDataLoadPending?.userId === user.id) return farmDataLoadPending.promise;
+  const pending = { userId: user.id, promise: null };
+  pending.promise = fetchFarmDataFromDatabase(user).finally(() => {
+    if (farmDataLoadPending === pending) farmDataLoadPending = null;
+  });
+  farmDataLoadPending = pending;
+  return pending.promise;
+}
+
+async function fetchFarmDataFromDatabase(user) {
+  if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
   const requestId = ++farmDataLoadRequest;
   const previousRenderSignature = farmDataUserId === requestedUserId && farmDataHydrated
@@ -2480,8 +2496,10 @@ async function loadFarmDataFromDatabase(user) {
         weeklyEarned: state.weeklyFarmMoneyEarned,
       })
     : "";
-  farmDataHydrated = false;
+  farmDataHydrated = farmDataUserId === requestedUserId && farmDataHydrated;
   farmDataUserId = requestedUserId;
+  const actionChain = farmActionChain;
+  await actionChain;
   let { data, error } = await supabaseClient.rpc("get_my_farm_state_v6");
   if (error?.code === "PGRST202" || error?.code === "42883") {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state_v5"));
@@ -2499,7 +2517,7 @@ async function loadFarmDataFromDatabase(user) {
     ({ data, error } = await supabaseClient.rpc("get_my_farm_state"));
   }
   if (
-    requestId !== farmDataLoadRequest ||
+    requestId !== farmDataLoadRequest || actionChain !== farmActionChain ||
     activeAuthUser?.id !== requestedUserId ||
     farmDataUserId !== requestedUserId
   ) return;
@@ -2553,7 +2571,7 @@ async function loadFarmDataFromDatabase(user) {
   state.farmMailDate = toLocalDateString();
   state.farmMailSentCount = (data?.sentToday ?? []).length;
 
-  await loadFarmMailContacts(user);
+  if (!previousRenderSignature) void loadFarmMailContacts(user);
   if (
     requestId !== farmDataLoadRequest ||
     activeAuthUser?.id !== requestedUserId ||
@@ -3012,6 +3030,7 @@ function isFocusTimerOwner() {
 }
 
 function resetFocusTimerDatabaseState() {
+  focusTimerStateGeneration += 1;
   stopFocusRealtime();
   focusModeUserSelected = false;
   focusTimerDatabaseHydrated = false;
@@ -3063,6 +3082,7 @@ function startFocusRealtime(user) {
     refreshFocusProgress,
   );
   focusRealtimeChannel.subscribe((status) => {
+      if (status === "SUBSCRIBED") refreshTimer();
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         console.warn(`Farmodoro focus realtime subscription: ${status}`);
       }
@@ -3081,7 +3101,7 @@ function getFocusTimerDatabasePayload() {
       linked: { ...focusRuntimeByMode.linked },
       quick: { ...focusRuntimeByMode.quick },
     },
-    syncedAt: new Date().toISOString(),
+    syncedAt: new Date(runningFocusMode && focusLastTickAt ? focusLastTickAt : Date.now()).toISOString(),
   };
 }
 
@@ -3091,6 +3111,8 @@ function normalizeFocusTimerRuntime(value, fallback) {
     seconds,
     phase: value?.phase === "break" ? "break" : "focus",
     started: Boolean(value?.started),
+    overtime: Boolean(value?.overtime),
+    overtimeSeconds: Math.max(0, Math.floor(Number(value?.overtimeSeconds) || 0)),
     sessionMinutes: Math.max(
       1,
       Math.floor(
@@ -3104,6 +3126,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
 
 function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   if (!payload || Number(payload.version) !== 1) return;
+  focusTimerStateGeneration += 1;
   clearInterval(focusInterval);
   focusInterval = null;
 
@@ -3117,7 +3140,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   );
   const savedQuickMinutes = focusRuntimeByMode.quick.sessionMinutes;
   const configuredQuickMinutes = getFocusSettings("quick").focusMinutes;
-  const staleQuickRuntime = savedQuickMinutes !== configuredQuickMinutes;
+  const staleQuickRuntime = !focusRuntimeByMode.quick.started && savedQuickMinutes !== configuredQuickMinutes;
   if (staleQuickRuntime) {
     focusRuntimeByMode.quick = {
       seconds: configuredQuickMinutes * 60,
@@ -3145,17 +3168,24 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     const runtime = focusRuntimeByMode[runningFocusMode];
     const ownsTimer = isFocusTimerOwner();
     const syncedAt = Date.parse(payload.syncedAt || updatedAt || "");
-    const elapsedSeconds = ownsTimer && Number.isFinite(syncedAt)
+    const elapsedSeconds = Number.isFinite(syncedAt)
       ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000))
       : 0;
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
-    const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
-    const appliedSeconds = isTaskStopwatch
+    const isTaskStopwatch = runningFocusMode === "linked" && activeFocus?.type === "task";
+    const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
+    const appliedSeconds = isTaskStopwatch || quickFocus
       ? elapsedSeconds
       : Math.min(elapsedSeconds, runtime.seconds);
-    runtime.seconds = isTaskStopwatch
-      ? runtime.seconds + appliedSeconds
-      : Math.max(0, runtime.seconds - appliedSeconds);
+    if (quickFocus && (runtime.overtime || appliedSeconds >= runtime.seconds)) {
+      runtime.overtimeSeconds += runtime.overtime ? appliedSeconds : appliedSeconds - runtime.seconds;
+      runtime.overtime = true;
+      runtime.seconds = 0;
+    } else {
+      runtime.seconds = isTaskStopwatch
+        ? runtime.seconds + appliedSeconds
+        : Math.max(0, runtime.seconds - appliedSeconds);
+    }
 
     let recoveredFocusSeconds = 0;
     if (ownsTimer && runtime.phase === "focus" && appliedSeconds > 0) {
@@ -3183,13 +3213,13 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
         void flushFocusTime();
       }
     }
-    focusLastTickAt = ownsTimer ? Date.now() : 0;
-    if (ownsTimer) startFocusTickInterval(runningFocusMode);
+    focusLastTickAt = Number.isFinite(syncedAt) ? syncedAt + elapsedSeconds * 1000 : Date.now();
+    startFocusTickInterval(runningFocusMode);
   } else {
     focusLastTickAt = 0;
   }
 
-  if (activeFocus?.type === "task") {
+  if (isFocusTimerOwner() && activeFocus?.type === "task") {
     const task = getFocusItem();
     const recoveredSeconds = focusRuntimeByMode.linked.seconds;
     const savedTaskSeconds = Math.max(0, Math.floor(Number(task?.focusSeconds) || 0));
@@ -3216,7 +3246,6 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   updateFocusTarget();
   updateMiniFocusTimer();
   renderSummary();
-  if (staleQuickRuntime) scheduleFocusTimerDatabaseSync(0);
 }
 
 function handleFocusTimerDatabaseError(error) {
@@ -3259,7 +3288,7 @@ async function pollFocusTimerFromDatabase() {
     !supabaseClient ||
     !activeAuthUser ||
     !focusTimerDatabaseHydrated ||
-    focusTimerDatabaseUnavailable
+    focusTimerDatabaseUnavailable || focusTimerWritesPending || focusTimerSyncTimer
   ) return;
   const userId = activeAuthUser.id;
   const { data, error } = await supabaseClient
@@ -3272,43 +3301,47 @@ async function pollFocusTimerFromDatabase() {
     handleFocusTimerDatabaseError(error);
     return;
   }
+  if (focusTimerWritesPending || focusTimerSyncTimer) return;
   if (!data?.state || !data.updated_at || data.updated_at <= focusTimerLastUpdatedAt) return;
   applyFocusTimerDatabaseState(data.state, data.updated_at);
 }
 
 async function syncFocusTimerDatabaseImmediately() {
+  if (focusTimerSyncTimer) clearTimeout(focusTimerSyncTimer);
+  focusTimerSyncTimer = null;
+  const userId = activeAuthUser?.id;
+  const payload = getFocusTimerDatabasePayload();
+  const generation = focusTimerStateGeneration;
+  focusTimerWritesPending += 1;
+  const operation = focusTimerWriteChain.then(() => {
+    if (generation !== focusTimerStateGeneration) return;
+    return writeFocusTimerDatabase(userId, payload);
+  });
+  focusTimerWriteChain = operation.catch(() => {});
+  try {
+    await operation;
+  } finally {
+    focusTimerWritesPending -= 1;
+  }
+}
+
+async function writeFocusTimerDatabase(userId, payload) {
   if (
     !supabaseClient ||
-    !activeAuthUser ||
+    !activeAuthUser || activeAuthUser.id !== userId ||
     !focusTimerDatabaseHydrated ||
     focusTimerDatabaseUnavailable
   ) return;
-  if (focusTimerSyncTimer) clearTimeout(focusTimerSyncTimer);
-  focusTimerSyncTimer = null;
-  const userId = activeAuthUser.id;
-  if (runningFocusMode && isFocusTimerOwner() && focusTimerLastUpdatedAt) {
-    const { data: latest, error: latestError } = await supabaseClient
-      .from("user_focus_timer")
-      .select("state, updated_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (activeAuthUser?.id !== userId) return;
-    if (latestError) {
-      handleFocusTimerDatabaseError(latestError);
-      return;
-    }
-    if (latest?.updated_at && latest.updated_at > focusTimerLastUpdatedAt) {
-      applyFocusTimerDatabaseState(latest.state, latest.updated_at);
-      return;
-    }
-  }
-  const payload = getFocusTimerDatabasePayload();
-  const { data, error } = await supabaseClient
-    .from("user_focus_timer")
-    .upsert({ user_id: userId, state: payload }, { onConflict: "user_id" })
-    .select("updated_at")
-    .single();
+  const table = supabaseClient.from("user_focus_timer");
+  const query = focusTimerLastUpdatedAt
+    ? table.update({ state: payload }).eq("user_id", userId).eq("updated_at", focusTimerLastUpdatedAt)
+    : table.insert({ user_id: userId, state: payload });
+  const { data, error } = await query.select("updated_at").maybeSingle();
   if (activeAuthUser?.id !== userId) return;
+  if ((!error && !data) || error?.code === "23505") {
+    await loadFocusTimerFromDatabase(activeAuthUser);
+    return;
+  }
   if (error) {
     handleFocusTimerDatabaseError(error);
     return;
@@ -3548,6 +3581,22 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
 
   const hadCurrentData = taskDataUserId === user.id && taskDataHydrated;
+  if (hadCurrentData) await taskSyncChain;
+  if (hadCurrentData && serializeTaskDatabaseState() !== lastTaskSyncSignature) {
+    try {
+      await syncTaskDatabaseImmediately();
+    } catch (error) {
+      console.error("Farmodoro pending changes could not be saved", error);
+      showToast("변경 내용을 아직 저장하지 못했어. 연결되면 다시 시도할게");
+      scheduleTaskDatabaseSync(5000);
+      return;
+    }
+    if (activeAuthUser?.id !== user.id) return;
+    if (serializeTaskDatabaseState() !== lastTaskSyncSignature) return;
+  }
+  if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
+  const requestSignature = serializeTaskDatabaseState();
+  const requestSyncChain = taskSyncChain;
   const previousRenderSignature = hadCurrentData ? serializeTaskRenderSignature() : "";
   const liveFocusItem = runningFocusMode === "linked" && isFocusTimerOwner()
     ? getFocusItem()
@@ -3561,7 +3610,7 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
       }
     : null;
   taskDataUserId = user.id;
-  taskDataHydrated = false;
+  taskDataHydrated = hadCurrentData;
   const requestedUserId = user.id;
 
   taskDataLoadPromise = (async () => {
@@ -3572,6 +3621,10 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
     const habitRows = Array.isArray(data?.habits) ? data.habits : [];
     const habitRecordRows = Array.isArray(data?.habitRecords) ? data.habitRecords : [];
     if (activeAuthUser?.id !== requestedUserId || taskDataUserId !== requestedUserId) return;
+    if (hadCurrentData && (requestSignature !== serializeTaskDatabaseState() || requestSyncChain !== taskSyncChain)) {
+      scheduleProductivityRealtimeRefresh(requestedUserId);
+      return;
+    }
 
     state.groups = groupRows.map(mapDatabaseTaskGroup);
     state.tasks = taskRows.map(mapDatabaseTask);
@@ -3698,16 +3751,42 @@ async function syncTaskDatabaseImmediately() {
     await taskSyncChain;
     return;
   }
-  const operation = taskSyncChain.then(() => syncTaskDatabaseSnapshot(userId, snapshot));
+  const operation = taskSyncChain.then(async () => {
+    await syncTaskDatabaseSnapshot(userId, snapshot);
+    if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
+  });
   taskSyncChain = operation.catch(() => {});
   await operation;
-  if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
+}
+
+async function syncChangedProductivityRows(table, rows, previousRows, scope) {
+  const previousById = new Map(previousRows.map((row) => [row.id, row]));
+  const inserts = [];
+  for (const row of rows) {
+    const previous = previousById.get(row.id);
+    if (!previous) {
+      inserts.push(row);
+      continue;
+    }
+    const changes = Object.fromEntries(Object.entries(row).filter(([key, value]) =>
+      key !== "id" && key !== "user_id" && JSON.stringify(value) !== JSON.stringify(previous[key]),
+    ));
+    if (!Object.keys(changes).length) continue;
+    const { error } = await supabaseClient.from(table).update(changes)
+      .eq("user_id", row.user_id).eq("id", row.id);
+    throwTaskSyncError(scope, error);
+  }
+  if (inserts.length) {
+    const { error } = await supabaseClient.from(table).upsert(inserts, { onConflict: "id" });
+    throwTaskSyncError(scope, error);
+  }
 }
 
 async function syncTaskDatabaseSnapshot(userId, snapshot) {
   if (activeAuthUser?.id !== userId || taskDataUserId !== userId) return;
 
   productivityRealtimeMutedUntil = Math.max(productivityRealtimeMutedUntil, Date.now() + 5000);
+  const previous = lastTaskSyncSignature ? JSON.parse(lastTaskSyncSignature) : {};
 
   const groupRows = snapshot.groups.map((group) => ({ ...group, user_id: userId }));
   // status/completed_on/completion_reward/completed_with_free_pass/
@@ -3753,24 +3832,9 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
     return habitRecordSyncSignatures.get(key) !== JSON.stringify(record);
   });
 
-  if (groupRows.length) {
-    const { error } = await supabaseClient
-      .from("task_groups")
-      .upsert(groupRows, { onConflict: "id" });
-    throwTaskSyncError("그룹", error);
-  }
-
-  if (taskRows.length) {
-    const { error } = await supabaseClient.from("tasks").upsert(taskRows, { onConflict: "id" });
-    throwTaskSyncError("할 일", error);
-  }
-
-  if (habitRows.length) {
-    const { error } = await supabaseClient
-      .from("habits")
-      .upsert(habitRows, { onConflict: "id" });
-    throwTaskSyncError("습관", error);
-  }
+  await syncChangedProductivityRows("task_groups", groupRows, previous.groups ?? [], "그룹");
+  await syncChangedProductivityRows("tasks", taskRows, previous.tasks ?? [], "할 일");
+  await syncChangedProductivityRows("habits", habitRows, previous.habits ?? [], "습관");
 
   if (habitRecordRows.length) {
     const { error } = await supabaseClient
@@ -6862,6 +6926,7 @@ function stopFocusTimer() {
 
 function saveCurrentFocusRuntime() {
   focusRuntimeByMode[focusMode] = {
+    ...focusRuntimeByMode[focusMode],
     seconds: focusSeconds,
     phase: timerPhase,
     started: focusSessionStarted,
@@ -6885,14 +6950,12 @@ function scheduleProductivityRealtimeRefresh(userId) {
     productivityRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
     try {
-      // Read-only, same reasoning as scheduleFarmContentRealtimeRefresh:
-      // pushing local state in response to a remote-change notification is
-      // what turns one save into a save -> echo -> save loop.
+      // The loader preserves pending local edits before accepting remote data.
       await loadTaskDataFromDatabase(activeAuthUser, { force: true });
     } catch (error) {
       console.warn("Farmodoro realtime productivity refresh failed", error);
     }
-  }, 500);
+  }, Math.max(500, productivityRealtimeMutedUntil - Date.now()));
 }
 
 function startProductivityRealtime(user) {
@@ -6900,7 +6963,6 @@ function startProductivityRealtime(user) {
   if (!supabaseClient || !user) return;
 
   const handleChange = () => {
-    if (Date.now() < productivityRealtimeMutedUntil) return;
     scheduleProductivityRealtimeRefresh(user.id);
   };
   productivityRealtimeChannel = subscribeToUserTables(
@@ -6911,6 +6973,7 @@ function startProductivityRealtime(user) {
   )
     .on("postgres_changes", { event: "*", schema: "public", table: "habit_daily_records" }, handleChange)
     .subscribe((status) => {
+      if (status === "SUBSCRIBED") scheduleProductivityRealtimeRefresh(user.id);
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         console.warn(`Farmodoro productivity realtime subscription: ${status}`);
       }
@@ -7175,10 +7238,7 @@ function notifyFocusPhaseComplete(kind) {
 }
 
 function advanceRunningFocusTimer(mode) {
-  if (!isFocusTimerOwner()) {
-    focusLastTickAt = 0;
-    return { advanced: false, finished: false };
-  }
+  const ownsTimer = isFocusTimerOwner();
   const runtime = focusRuntimeByMode[mode];
   const now = Date.now();
   if (!focusLastTickAt) {
@@ -7191,13 +7251,14 @@ function advanceRunningFocusTimer(mode) {
   focusLastTickAt += elapsedSeconds * 1000;
 
   const item = mode === "linked" ? getFocusItem() : null;
-  const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
+  const isTaskStopwatch = mode === "linked" && activeFocus?.type === "task";
   // Quick-mode focus that already hit zero keeps counting up (overtime)
   // instead of auto-finishing -- same "don't cap at the target" shape as
   // the task stopwatch case above.
   const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
   const countsUp = isTaskStopwatch || isQuickOvertime;
-  const appliedSeconds = countsUp
+  const remainingSeconds = runtime.seconds;
+  const appliedSeconds = countsUp || (mode === "quick" && runtime.phase === "focus")
     ? elapsedSeconds
     : Math.min(elapsedSeconds, runtime.seconds);
   if (isQuickOvertime) {
@@ -7207,7 +7268,7 @@ function advanceRunningFocusTimer(mode) {
       ? runtime.seconds + appliedSeconds
       : Math.max(0, runtime.seconds - appliedSeconds);
   }
-  if (runtime.phase === "focus") {
+  if (ownsTimer && runtime.phase === "focus") {
     if (item) {
       if (activeFocus?.type === "task") {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
@@ -7236,13 +7297,13 @@ function advanceRunningFocusTimer(mode) {
 
   if (!isTaskStopwatch && !isQuickOvertime && mode === "quick" && runtime.phase === "focus" && runtime.seconds <= 0) {
     runtime.overtime = true;
-    runtime.overtimeSeconds = 0;
-    notifyFocusPhaseComplete("focus");
+    runtime.overtimeSeconds = Math.max(0, elapsedSeconds - remainingSeconds);
+    if (ownsTimer) notifyFocusPhaseComplete("focus");
     if (focusMode === mode) updateFocusActionButton();
     return { advanced: true, finished: false };
   }
 
-  if (!isTaskStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
+  if (ownsTimer && !isTaskStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
     if (runtime.phase === "focus") finishFocusRuntime(mode);
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
@@ -7405,7 +7466,7 @@ function startFocusTickInterval(mode) {
   focusInterval = setInterval(() => {
     const tickResult = advanceRunningFocusTimer(mode);
     if (!tickResult.advanced || tickResult.finished || !isFocusTimerOwner()) return;
-    if (Date.now() - focusTimerLastHeartbeatAt >= 2000) {
+    if (Date.now() - focusTimerLastHeartbeatAt >= 15000) {
       focusTimerLastHeartbeatAt = Date.now();
       saveState();
       renderSummary();
@@ -7424,7 +7485,7 @@ function startFocusTickInterval(mode) {
 // Date.now(), so it's correct regardless of how long the tick was starved)
 // and starts a fresh interval rather than trusting the old one to recover.
 function resumeFocusTimerAfterBackground() {
-  if (!runningFocusMode || !isFocusTimerOwner()) return;
+  if (!runningFocusMode) return;
   const tickResult = advanceRunningFocusTimer(runningFocusMode);
   if (!tickResult.finished) startFocusTickInterval(runningFocusMode);
 }
@@ -10980,21 +11041,27 @@ function closePageModals() {
 }
 
 let pageDataRefreshPromise = null;
+let pageDataRefreshingPage = null;
 let queuedPageDataRefresh = null;
+const pageDataRefreshTimes = new Map();
 
 async function refreshPageData(page = currentPage) {
   if (!activeAuthUser || !supabaseClient) return;
   const requestedPage = APP_PAGES.includes(page) ? page : "today";
 
   if (pageDataRefreshPromise) {
-    queuedPageDataRefresh = requestedPage;
+    if (requestedPage !== pageDataRefreshingPage) queuedPageDataRefresh = requestedPage;
     return pageDataRefreshPromise;
   }
 
   const user = activeAuthUser;
+  const refreshKey = `${user.id}:${requestedPage}`;
+  if (Date.now() - (pageDataRefreshTimes.get(refreshKey) || 0) < 3000) return;
+  pageDataRefreshTimes.set(refreshKey, Date.now());
+  pageDataRefreshingPage = requestedPage;
+  void pollFocusTimerFromDatabase();
   pageDataRefreshPromise = (async () => {
     if (["today", "tasks", "habits"].includes(requestedPage)) {
-      await syncTaskDatabaseImmediately();
       await loadTaskDataFromDatabase(user, { force: true });
     }
 
@@ -11010,10 +11077,7 @@ async function refreshPageData(page = currentPage) {
 
     if (["today", "focus"].includes(requestedPage)) {
       await flushFocusTime();
-      await Promise.all([
-        loadFocusProgress(user),
-        pollFocusTimerFromDatabase(),
-      ]);
+      await loadFocusProgress(user);
     }
   })()
     .catch((error) => {
@@ -11021,6 +11085,7 @@ async function refreshPageData(page = currentPage) {
     })
     .finally(() => {
       pageDataRefreshPromise = null;
+      pageDataRefreshingPage = null;
       if (queuedPageDataRefresh) {
         const nextPage = queuedPageDataRefresh;
         queuedPageDataRefresh = null;
@@ -11107,6 +11172,7 @@ window.addEventListener("focus", () => {
 
 async function flushFarmodoroDataOnExit() {
   if (!activeAuthUser) return;
+  if (runningFocusMode) advanceRunningFocusTimer(runningFocusMode);
   exitFlushKeepAlive = true;
   try {
     saveState();
