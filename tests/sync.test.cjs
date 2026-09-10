@@ -17,6 +17,80 @@ function context(names, globals = {}) {
 const noop = () => {};
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
+function habitDateContext(extra = {}) {
+  return context(["canEditHabitRecord", "isHabitScheduledOn", "getHabitTargetForDate", "savePastHabitRecord"], {
+    toLocalDateString: (date) => date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : "2026-09-10",
+    ...extra,
+  });
+}
+
+const historicalHabit = {
+  id: "habit", startDate: "2026-09-01", endDate: "", weekdays: [1, 2, 3, 4, 5, 6, 7],
+  measureType: "count", targetValue: 3, targetByWeekday: { 3: 5 },
+};
+
+test("past habit records allow yesterday but reject today, future and invalid dates", () => {
+  const ctx = habitDateContext();
+  assert.equal(ctx.canEditHabitRecord(historicalHabit, "2026-09-09"), true);
+  for (const date of ["2026-09-10", "2026-09-11", "2026-08-31", "2026-02-30", "bad"]) {
+    assert.equal(ctx.canEditHabitRecord(historicalHabit, date), false, date);
+  }
+  assert.equal(ctx.canEditHabitRecord({ ...historicalHabit, weekdays: [1] }, "2026-09-09"), false);
+  assert.equal(ctx.canEditHabitRecord({ ...historicalHabit, endDate: "2026-09-08" }, "2026-09-09"), false);
+});
+
+test("historical targets use the selected weekday instead of today's target", () => {
+  const ctx = habitDateContext();
+  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-09"), 5);
+  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-10"), 3);
+});
+
+test("saving a past record rejects invalid dates and values before writing", async () => {
+  const ctx = habitDateContext({ activeAuthUser: { id: "user" } });
+  await assert.rejects(ctx.savePastHabitRecord(historicalHabit, "2026-09-11", 3));
+  for (const value of [-1, 1.5, 6, NaN]) {
+    await assert.rejects(ctx.savePastHabitRecord(historicalHabit, "2026-09-09", value));
+  }
+});
+
+for (const progress of [2, 5]) {
+  test(`saving historical progress ${progress} preserves today's completion and focus time`, async () => {
+    const habit = { ...historicalHabit, completionDates: ["2026-09-10"],
+      complete: true, completedDate: "2026-09-10", completionReward: 2,
+      progressByDate: { "2026-09-10": 3 }, focusSecondsByDate: { "2026-09-09": 120 },
+      recordMetaByDate: { "2026-09-10": { completionReward: 2 } } };
+    const calls = [];
+    const ctx = habitDateContext({
+      activeAuthUser: { id: "user" }, state: { habits: [habit], coins: 10 },
+      syncTaskDatabaseImmediately: async () => {}, taskSyncChain: Promise.resolve(),
+      farmWalletMutationChain: Promise.resolve(), habitRecordEditsInFlight: new Set(),
+      habitRecordSyncSignatures: new Map(), renderHabitUpdates: noop, renderSummary: noop,
+      serializeTaskDatabaseState: () => JSON.stringify({ habitRecords: [{ habit_id: "habit", record_date: "2026-09-09", progress_value: progress }] }),
+      supabaseClient: {
+        rpc: async (name, params) => { calls.push({ name, params }); return { data: { coinBalance: 11 } }; },
+        from: () => ({ upsert: (row) => {
+          assert.deepEqual(plain(row), { habit_id: "habit", record_date: "2026-09-09", progress_value: progress });
+          return { select: () => ({ single: async () => ({ data: {
+            progress_value: progress, completed_at: progress === 5 ? "done" : null,
+            completion_reward: progress === 5 ? 1 : 0,
+          } }) }) };
+        } }),
+      },
+    });
+    await ctx.savePastHabitRecord(habit, "2026-09-09", progress);
+    assert.equal(calls[0].name, progress === 5 ? "complete_my_habit" : "uncomplete_my_habit");
+    assert.equal(calls[0].params.p_record_date, "2026-09-09");
+    assert.equal(habit.completedDate, "2026-09-10");
+    assert.equal(habit.completionReward, 2);
+    assert.equal(habit.progressByDate["2026-09-10"], 3);
+    assert.equal(habit.progressByDate["2026-09-09"], progress);
+    assert.equal(habit.focusSecondsByDate["2026-09-09"], 120);
+    assert.equal(ctx.habitRecordEditsInFlight.size, 0);
+  });
+}
+
 function timerContext(owner = false, mode = "quick") {
   let now = 100000;
   const ctx = context([

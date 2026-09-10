@@ -1123,11 +1123,18 @@ button {
 }
 
 .heatmap-cell {
+  padding: 0;
+  border: 0;
   width: 18px;
   height: 18px;
   border-radius: 4px;
   background: #eeeee8;
 }
+
+.heatmap-cell:not(:disabled) { cursor: pointer; }
+.heatmap-cell:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#habitRecordForm { display: grid; gap: 16px; }
+#habitRecordCount { width: 100px; padding: 8px; }
 
 .heatmap-cell.scheduled {
   border: 1px solid #d8e1d5;

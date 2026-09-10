@@ -34,7 +34,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=167" />
+    <link rel="stylesheet" href="./styles.css?v=168" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -474,6 +474,10 @@
               </fieldset>
               <div class="habit-date-row">
                 <label>
+                  <span>시작일</span>
+                  <input id="habitStartDate" type="date" required />
+                </label>
+                <label>
                   <span>종료일</span>
                   <input id="habitEndDate" type="date" />
                 </label>
@@ -530,6 +534,7 @@
               <div class="heatmap-grid" id="habitHeatmapGrid"></div>
             </div>
             <div class="heatmap-legend">
+              <span>지난 날짜의 칸을 눌러 기록 수정</span>
               <span><i class="scheduled"></i> 예정</span>
               <span><i class="completed"></i> 완료</span>
             </div>
@@ -1406,7 +1411,23 @@
     <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=167"></script>
-    <script src="./pwa-register.js?v=167"></script>
+    <div class="habit-modal hidden" id="habitRecordModal" role="dialog" aria-modal="true" aria-labelledby="habitRecordTitle">
+      <div class="habit-modal-backdrop" data-close-habit-record></div>
+      <section class="habit-modal-panel delete-confirm-panel">
+        <h2 id="habitRecordTitle">지난 습관 기록</h2>
+        <p id="habitRecordDescription"></p>
+        <form id="habitRecordForm">
+          <label id="habitRecordCountLabel">횟수 <input id="habitRecordCount" type="number" min="0" step="1" inputmode="numeric" /></label>
+          <label id="habitRecordCompleteLabel"><input id="habitRecordComplete" type="checkbox" /> 완료했어</label>
+          <p>완료하거나 취소하면 해당 날짜의 코인 보상도 반영돼.</p>
+          <div class="delete-confirm-actions">
+            <button class="secondary-button" type="button" data-close-habit-record>취소</button>
+            <button class="primary-button" id="saveHabitRecord" type="submit">저장</button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <script src="./app.js?v=168"></script>
+    <script src="./pwa-register.js?v=168"></script>
   </body>
 </html>

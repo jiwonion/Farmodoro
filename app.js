@@ -2078,6 +2078,8 @@ const habitWeekdayTargetsEnabled = document.querySelector("#habitWeekdayTargetsE
 const habitWeekdayTargets = document.querySelector("#habitWeekdayTargets");
 const habitUnit = document.querySelector("#habitUnit");
 const habitEndDate = document.querySelector("#habitEndDate");
+const habitStartDate = document.querySelector("#habitStartDate");
+const habitRecordEditsInFlight = new Set();
 const freePassTargetModal = document.querySelector("#freePassTargetModal");
 const freePassTargetList = document.querySelector("#freePassTargetList");
 const confirmFreePassTarget = document.querySelector("#confirmFreePassTarget");
@@ -3829,6 +3831,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   // longer the account has been used.
   const habitRecordRows = snapshot.habitRecords.filter((record) => {
     const key = `${record.habit_id}:${record.record_date}`;
+    if (habitRecordEditsInFlight.has(key)) return false;
     return habitRecordSyncSignatures.get(key) !== JSON.stringify(record);
   });
 
@@ -4803,7 +4806,8 @@ function renderHabitHeatmap() {
               : scheduled
                 ? "예정"
                 : "일정 없음";
-        return `<span class="heatmap-cell ${className}" title="${dateString} · ${escapeHtml(status)}"></span>`;
+        const editable = canEditHabitRecord(habit, dateString);
+        return `<button type="button" class="heatmap-cell ${className}" data-habit-record="${habit.id}" data-record-date="${dateString}" ${editable ? "" : "disabled"} aria-label="${escapeHtml(habit.title)} · ${dateString} · ${escapeHtml(status)}${editable ? " · 기록 수정" : ""}" title="${dateString} · ${escapeHtml(status)}"></button>`;
       }).join("");
 
       return `
@@ -4815,6 +4819,141 @@ function renderHabitHeatmap() {
 
   grid.innerHTML = `<span></span>${dayHeaders}${rows}`;
 }
+
+function canEditHabitRecord(habit, dateString) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString) || dateString >= toLocalDateString()) return false;
+  const date = new Date(`${dateString}T12:00:00`);
+  return toLocalDateString(date) === dateString && isHabitScheduledOn(habit, date);
+}
+
+let editingHabitRecord = null;
+let habitRecordSaving = false;
+let habitRecordReturnFocus = null;
+const habitRecordModal = document.querySelector("#habitRecordModal");
+const habitRecordCount = document.querySelector("#habitRecordCount");
+const habitRecordComplete = document.querySelector("#habitRecordComplete");
+
+function closeHabitRecordModal() {
+  if (habitRecordSaving) return;
+  habitRecordModal.classList.add("hidden");
+  editingHabitRecord = null;
+  if (habitRecordReturnFocus?.isConnected) habitRecordReturnFocus.focus();
+}
+
+document.querySelector("#habitHeatmapGrid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-habit-record]");
+  if (!button || !taskDataHydrated || habitRecordSaving) return;
+  const habit = state.habits.find((item) => item.id === button.dataset.habitRecord);
+  const date = button.dataset.recordDate;
+  if (!habit || !canEditHabitRecord(habit, date)) return;
+  editingHabitRecord = { id: habit.id, date };
+  habitRecordReturnFocus = button;
+  const countMode = habit.measureType === "count";
+  document.querySelector("#habitRecordDescription").textContent = `${date} · ${habit.title} · 목표 ${getHabitTargetForDate(habit, date)}${habit.unit}`;
+  document.querySelector("#habitRecordCountLabel").hidden = !countMode;
+  document.querySelector("#habitRecordCompleteLabel").hidden = countMode;
+  habitRecordCount.value = getHabitProgress(habit, date);
+  habitRecordCount.max = getHabitTargetForDate(habit, date);
+  habitRecordComplete.checked = habit.completionDates.includes(date);
+  habitRecordModal.classList.remove("hidden");
+  (countMode ? habitRecordCount : habitRecordComplete).focus();
+});
+
+document.querySelectorAll("[data-close-habit-record]").forEach((button) => {
+  button.addEventListener("click", closeHabitRecordModal);
+});
+habitRecordModal.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeHabitRecordModal();
+  if (event.key !== "Tab") return;
+  const controls = [...habitRecordModal.querySelectorAll("input, button")]
+    .filter((element) => !element.disabled && element.getClientRects().length);
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+});
+
+async function savePastHabitRecord(habit, date, progress) {
+  if (!activeAuthUser || !canEditHabitRecord(habit, date)) throw new Error("수정할 수 없는 날짜야");
+  const target = getHabitTargetForDate(habit, date);
+  if (!Number.isInteger(progress) || progress < 0 || progress > target) throw new Error("기록값을 확인해");
+  const userId = activeAuthUser.id;
+  await syncTaskDatabaseImmediately();
+  const key = `${habit.id}:${date}`;
+  habitRecordEditsInFlight.add(key);
+  const walletChain = farmWalletMutationChain;
+  const operation = taskSyncChain.then(async () => {
+    await walletChain;
+    if (activeAuthUser?.id !== userId) throw new Error("로그인 정보가 바뀌었어");
+    const complete = progress >= target;
+    const { data, error } = await supabaseClient.rpc(complete ? "complete_my_habit" : "uncomplete_my_habit", {
+      p_habit_id: habit.id,
+      p_record_date: date,
+      ...(complete ? { p_progress_value: progress, p_used_free_pass: false } : {}),
+    });
+    if (error) throw error;
+    const { data: record, error: recordError } = await supabaseClient.from("habit_daily_records")
+      .upsert({ habit_id: habit.id, record_date: date, progress_value: progress }, { onConflict: "habit_id,record_date" })
+      .select("*").single();
+    if (recordError) throw recordError;
+    if (activeAuthUser?.id !== userId) return;
+    const currentHabit = state.habits.find((item) => item.id === habit.id);
+    if (!currentHabit) return;
+    currentHabit.progressByDate ??= {};
+    currentHabit.progressByDate[date] = record.progress_value;
+    currentHabit.completionDates = currentHabit.completionDates.filter((day) => day !== date);
+    if (record.completed_at) currentHabit.completionDates.push(date);
+    currentHabit.recordMetaByDate ??= {};
+    currentHabit.recordMetaByDate[date] = {
+      completedAt: record.completed_at,
+      completionReward: record.completion_reward,
+      completedWithFreePass: record.completed_with_free_pass,
+      completionCycleId: record.completion_cycle_id,
+    };
+    if (data.coinBalance != null) state.coins = Number(data.coinBalance);
+    const serialized = JSON.parse(serializeTaskDatabaseState()).habitRecords
+      .find((entry) => entry.habit_id === habit.id && entry.record_date === date);
+    habitRecordSyncSignatures.set(key, JSON.stringify(serialized));
+    renderHabitUpdates();
+    renderSummary();
+  });
+  taskSyncChain = operation.catch(() => {});
+  farmWalletMutationChain = operation.catch(() => {});
+  try {
+    await operation;
+  } finally {
+    await taskSyncChain;
+    habitRecordEditsInFlight.delete(key);
+  }
+}
+
+document.querySelector("#habitRecordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!editingHabitRecord || habitRecordSaving) return;
+  const { id, date } = editingHabitRecord;
+  const habit = state.habits.find((item) => item.id === id);
+  if (!habit) return;
+  const progress = habit.measureType === "count" ? Number(habitRecordCount.value)
+    : habitRecordComplete.checked ? getHabitTargetForDate(habit, date) : 0;
+  habitRecordSaving = true;
+  document.querySelector("#saveHabitRecord").disabled = true;
+  try {
+    await savePastHabitRecord(habit, date, progress);
+    habitRecordSaving = false;
+    closeHabitRecordModal();
+    showToast("지난 습관 기록을 저장했어");
+  } catch (error) {
+    showToast(`기록 저장 실패 · ${error.message}`);
+  } finally {
+    habitRecordSaving = false;
+    document.querySelector("#saveHabitRecord").disabled = false;
+  }
+});
 
 function getCropNameLengthClass(cropName) {
   const length = [...cropName].length;
@@ -7919,11 +8058,15 @@ function resetHabitForm() {
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
   habitEndDate.value = "";
+  habitStartDate.value = toLocalDateString();
+  habitStartDate.max = toLocalDateString();
+  refreshThemedDateTrigger(habitStartDate);
   refreshThemedDateTrigger(habitEndDate);
   syncHabitMeasureFields();
 }
 
 function openHabitModal(habit = null) {
+  habitStartDate.max = toLocalDateString();
   editingHabitId = habit?.id ?? null;
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
@@ -7944,6 +8087,8 @@ function openHabitModal(habit = null) {
       input.checked = habit.weekdays.includes(Number(input.value));
     });
     habitEndDate.value = habit.endDate || "";
+    habitStartDate.value = habit.startDate || toLocalDateString();
+    refreshThemedDateTrigger(habitStartDate);
     refreshThemedDateTrigger(habitEndDate);
     syncHabitMeasureFields();
   } else {
@@ -8341,6 +8486,11 @@ habitForm.addEventListener("submit", (event) => {
     return;
   }
   const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
+  const startDate = habitStartDate.value;
+  if (!startDate || startDate > toLocalDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
+    showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
+    return;
+  }
   if (editingHabit) {
     const previousMeasureType = editingHabit.measureType;
     Object.assign(editingHabit, {
@@ -8351,6 +8501,7 @@ habitForm.addEventListener("submit", (event) => {
       unit,
       weekdays,
       endDate: habitEndDate.value,
+      startDate,
     });
     if (previousMeasureType !== "count" && editingHabit.measureType === "count") {
       editingHabit.progressByDate ??= {};
@@ -8373,7 +8524,7 @@ habitForm.addEventListener("submit", (event) => {
       targetByWeekday,
       unit,
       weekdays,
-      startDate: toLocalDateString(),
+      startDate,
       endDate: habitEndDate.value,
     });
   }
@@ -11027,6 +11178,7 @@ if ("ResizeObserver" in window) {
 document.fonts?.ready.then(scheduleFocusStageCenterUpdate);
 
 function closePageModals() {
+  closeHabitRecordModal();
   closeUserSettings();
   closeFreePassTargetModal();
   closeHabitModal();
