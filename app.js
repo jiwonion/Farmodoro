@@ -45,20 +45,6 @@ const settingsAppVersion = document.querySelector("#settingsAppVersion");
 if (settingsAppVersion) settingsAppVersion.textContent = `v${APP_VERSION}`;
 const copyFarmCodeButton = document.querySelector("#copyFarmCode");
 const saveUserSettingsButton = document.querySelector("#saveUserSettings");
-const tutorialModal = document.querySelector("#tutorialModal");
-const tutorialPanel = tutorialModal.querySelector(".tutorial-panel");
-const tutorialSpotlight = document.querySelector("#tutorialSpotlight");
-const tutorialKicker = document.querySelector("#tutorialKicker");
-const tutorialStepLabel = document.querySelector("#tutorialStepLabel");
-const tutorialIcon = document.querySelector("#tutorialIcon");
-const tutorialTitle = document.querySelector("#tutorialTitle");
-const tutorialDescription = document.querySelector("#tutorialDescription");
-const tutorialTips = document.querySelector("#tutorialTips");
-const tutorialProgress = document.querySelector("#tutorialProgress");
-const previousTutorialButton = document.querySelector("#previousTutorial");
-const nextTutorialButton = document.querySelector("#nextTutorial");
-const skipTutorialButton = document.querySelector("#skipTutorial");
-const reopenTutorialButton = document.querySelector("#reopenTutorial");
 const profileAvatar = document.querySelector("#profileAvatar");
 const profileName = document.querySelector("#profileName");
 const profileAccountLabel = document.querySelector("#profileAccountLabel");
@@ -106,91 +92,6 @@ let productivityRealtimeChannel = null;
 let productivityRealtimeRefreshTimer = null;
 let productivityRealtimeMutedUntil = 0;
 let farmContentRealtimeMutedUntil = 0;
-let tutorialStep = 0;
-let tutorialShownForUserId = null;
-let tutorialPreviousFocus = null;
-let tutorialTarget = null;
-let tutorialPositionFrame = null;
-let tutorialResizeObserver = null;
-let tutorialReturnPage = "today";
-let tutorialReturnScrollY = 0;
-const TUTORIAL_STEPS = [
-  {
-    page: "today",
-    target: "#openTaskForm",
-    kicker: "STEP 01 · ADD TASK",
-    icon: "+",
-    title: "여기서 할 일을 추가해",
-    description: "버튼을 누르면 바로 아래에 할 일 입력칸이 열려.",
-    tips: ["처음에는 작은 할 일 하나만 등록해봐"],
-  },
-  {
-    page: "today",
-    target: "#taskForm",
-    reveal: "task-form",
-    kicker: "STEP 02 · TASK DETAILS",
-    icon: "✎",
-    title: "이름과 그룹을 정해",
-    description: "할 일 이름을 적고 필요한 경우 그룹을 고른 뒤 추가를 누르면 돼.",
-    tips: ["그룹 관리는 공부, 업무처럼 자주 쓰는 분류를 만들 때 써", "추가한 할 일은 목록에서 바로 확인할 수 있어"],
-  },
-  {
-    page: "today",
-    target: '.board-column[data-status="waiting"] > header',
-    kicker: "STEP 03 · STATUS",
-    icon: "✓",
-    title: "체크해서 완료해",
-    description: "체크박스를 누르면 완료되고, 다시 누르면 완료를 취소할 수 있어.",
-    tips: ["완료하면 Coin 보상이 들어와"],
-  },
-  {
-    page: "habits",
-    target: "#openHabitForm",
-    kicker: "STEP 04 · HABITS",
-    icon: "↻",
-    title: "반복할 일은 습관으로 등록해",
-    description: "추가 버튼을 누르면 습관 이름과 반복 일정을 정하는 창이 열려.",
-    tips: ["매일 반복하는 일은 할 일보다 습관으로 만드는 게 편해"],
-  },
-  {
-    page: "habits",
-    target: "#habitInput",
-    reveal: "habit-form",
-    kicker: "STEP 05 · HABIT NAME",
-    icon: "✎",
-    title: "먼저 습관 이름을 적어",
-    description: "무엇을 반복할지 한눈에 알아볼 수 있게 짧게 적으면 돼.",
-    tips: ["운동, 독서, 물 마시기처럼 행동 중심으로 적어"],
-  },
-  {
-    page: "habits",
-    target: ".weekday-field",
-    reveal: "habit-form",
-    kicker: "STEP 06 · HABIT SCHEDULE",
-    icon: "▦",
-    title: "반복 요일을 골라",
-    description: "실천할 요일과 종료일을 정하고 습관 추가를 누르면 등록돼.",
-    tips: ["선택한 요일에만 오늘의 습관 목록에 나타나"],
-  },
-  {
-    page: "today",
-    target: "#focusButton",
-    kicker: "STEP 07 · FOCUS",
-    icon: "◷",
-    title: "이 버튼으로 집중을 시작해",
-    description: "항목 집중을 선택하면 해당 할 일이나 습관에 시간이 기록돼.",
-    tips: ["집중 누적 60분마다 Coin을 받아"],
-  },
-  {
-    page: "today",
-    target: '[data-page="farm"]',
-    kicker: "STEP 08 · FARM",
-    icon: "🌾",
-    title: "마지막은 내 농장이야",
-    description: "모은 보상으로 씨앗을 심고 물을 주면서 농장을 키워.",
-    tips: ["설정에서 이 안내를 언제든 다시 볼 수 있어"],
-  },
-];
 // Set true only while flushing data on tab-hide/unload, so the last edit's
 // requests survive page teardown (mobile browsers can otherwise cancel
 // in-flight fetches the instant pagehide/visibilitychange returns).
@@ -539,7 +440,6 @@ async function applyAuthSession(session) {
       farmWalletUserId === session.user.id &&
       farmDataUserId === session.user.id
     ) {
-      maybeOpenTutorial(session.user);
       return;
     }
     const needsAppStateLoad = !appStateHydrated || appStateUserId !== session.user.id;
@@ -566,7 +466,6 @@ async function applyAuthSession(session) {
     await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
     startFocusRealtime(session.user);
-    maybeOpenTutorial(session.user);
   } else {
     stopFocusYoutube();
     resetTaskDatabaseState();
@@ -835,211 +734,6 @@ function closeUserSettings() {
   profileAvatarInput.value = "";
 }
 
-function renderTutorialStep() {
-  const step = TUTORIAL_STEPS[tutorialStep];
-  tutorialKicker.textContent = step.kicker;
-  tutorialStepLabel.textContent = `${tutorialStep + 1} / ${TUTORIAL_STEPS.length}`;
-  tutorialIcon.textContent = step.icon;
-  tutorialTitle.textContent = step.title;
-  tutorialDescription.textContent = step.description;
-  tutorialTips.replaceChildren(
-    ...step.tips.map((tip) => {
-      const item = document.createElement("li");
-      item.textContent = tip;
-      return item;
-    }),
-  );
-  tutorialProgress.replaceChildren(
-    ...TUTORIAL_STEPS.map((_, index) => {
-      const dot = document.createElement("i");
-      dot.classList.toggle("active", index === tutorialStep);
-      return dot;
-    }),
-  );
-  previousTutorialButton.disabled = tutorialStep === 0;
-  nextTutorialButton.textContent =
-    tutorialStep === TUTORIAL_STEPS.length - 1 ? "시작하기" : "다음";
-  prepareTutorialTarget();
-}
-
-function openTutorial() {
-  tutorialStep = 0;
-  tutorialReturnPage = currentPage;
-  tutorialReturnScrollY = window.scrollY;
-  tutorialPreviousFocus = document.activeElement;
-  tutorialModal.classList.remove("hidden");
-  document.body.classList.add("tutorial-open");
-  renderTutorialStep();
-  requestAnimationFrame(() => tutorialPanel.focus());
-}
-
-function closeTutorial() {
-  tutorialModal.classList.add("hidden");
-  document.body.classList.remove("tutorial-open");
-  tutorialResizeObserver?.disconnect();
-  tutorialTarget = null;
-  cancelAnimationFrame(tutorialPositionFrame);
-  taskForm.classList.add("hidden");
-  if (!habitModal.classList.contains("hidden")) closeHabitModal();
-  showPage(tutorialReturnPage);
-  window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" });
-  if (!state.tutorialCompleted) {
-    state.tutorialCompleted = true;
-    void completeMyTutorial();
-  }
-  if (
-    tutorialPreviousFocus instanceof HTMLElement &&
-    tutorialPreviousFocus.isConnected &&
-    tutorialPreviousFocus.offsetParent !== null
-  ) {
-    tutorialPreviousFocus.focus();
-  }
-  tutorialPreviousFocus = null;
-}
-
-function scheduleTutorialPosition() {
-  if (tutorialModal.classList.contains("hidden")) return;
-  cancelAnimationFrame(tutorialPositionFrame);
-  tutorialPositionFrame = requestAnimationFrame(positionTutorial);
-}
-
-function prepareTutorialTarget() {
-  const step = TUTORIAL_STEPS[tutorialStep];
-  tutorialModal.classList.add("positioning");
-  if (step.reveal !== "habit-form" && !habitModal.classList.contains("hidden")) {
-    closeHabitModal();
-  }
-  if (currentPage !== step.page) showPage(step.page);
-  taskForm.classList.toggle("hidden", step.reveal !== "task-form");
-  if (step.reveal === "habit-form" && habitModal.classList.contains("hidden")) {
-    openHabitModal();
-  }
-
-  requestAnimationFrame(() => {
-    tutorialTarget = document.querySelector(step.target);
-    if (!tutorialTarget || tutorialTarget.getClientRects().length === 0) {
-      tutorialTarget = document.querySelector(".main-content");
-    }
-    tutorialTarget.scrollIntoView({ block: "center", inline: "center", behavior: "auto" });
-    tutorialResizeObserver ??= new ResizeObserver(scheduleTutorialPosition);
-    tutorialResizeObserver.disconnect();
-    tutorialResizeObserver.observe(tutorialTarget);
-    tutorialResizeObserver.observe(tutorialPanel);
-    requestAnimationFrame(positionTutorial);
-  });
-}
-
-function positionTutorial() {
-  if (!tutorialTarget || tutorialModal.classList.contains("hidden")) return;
-  const targetRect = tutorialTarget.getBoundingClientRect();
-  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-  const spotlightPadding = 7;
-  const edge = 12;
-  const gap = 17;
-  const spotlightTop = Math.max(edge, targetRect.top - spotlightPadding);
-  const spotlightLeft = Math.max(edge, targetRect.left - spotlightPadding);
-  const spotlightRight = Math.min(viewportWidth - edge, targetRect.right + spotlightPadding);
-  const spotlightBottom = Math.min(viewportHeight - edge, targetRect.bottom + spotlightPadding);
-
-  Object.assign(tutorialSpotlight.style, {
-    top: `${spotlightTop}px`,
-    left: `${spotlightLeft}px`,
-    width: `${Math.max(1, spotlightRight - spotlightLeft)}px`,
-    height: `${Math.max(1, spotlightBottom - spotlightTop)}px`,
-  });
-
-  const panelWidth = tutorialPanel.offsetWidth;
-  const panelHeight = tutorialPanel.offsetHeight;
-  const roomBelow = viewportHeight - spotlightBottom;
-  const roomAbove = spotlightTop;
-  const placeBelow = roomBelow >= panelHeight + gap || roomBelow >= roomAbove;
-  const desiredTop = placeBelow
-    ? spotlightBottom + gap
-    : spotlightTop - panelHeight - gap;
-  const panelTop = Math.max(edge, Math.min(desiredTop, viewportHeight - panelHeight - edge));
-  const targetCenter = Math.min(
-    viewportWidth - edge,
-    Math.max(edge, targetRect.left + targetRect.width / 2),
-  );
-  const panelLeft = Math.max(
-    edge,
-    Math.min(targetCenter - panelWidth / 2, viewportWidth - panelWidth - edge),
-  );
-
-  tutorialPanel.dataset.placement = placeBelow ? "below" : "above";
-  tutorialPanel.style.top = `${panelTop}px`;
-  tutorialPanel.style.left = `${panelLeft}px`;
-  tutorialPanel.style.setProperty(
-    "--tutorial-arrow-x",
-    `${Math.max(24, Math.min(targetCenter - panelLeft, panelWidth - 24))}px`,
-  );
-  tutorialModal.classList.remove("positioning");
-}
-
-window.addEventListener("resize", scheduleTutorialPosition);
-window.addEventListener("scroll", scheduleTutorialPosition, true);
-window.visualViewport?.addEventListener("resize", scheduleTutorialPosition);
-window.visualViewport?.addEventListener("scroll", scheduleTutorialPosition);
-
-function maybeOpenTutorial(user) {
-  if (!user || state.tutorialCompleted || tutorialShownForUserId === user.id) return;
-  tutorialShownForUserId = user.id;
-  openTutorial();
-}
-
-previousTutorialButton.addEventListener("click", () => {
-  if (tutorialStep === 0) return;
-  tutorialStep -= 1;
-  renderTutorialStep();
-});
-
-nextTutorialButton.addEventListener("click", () => {
-  if (tutorialStep === TUTORIAL_STEPS.length - 1) {
-    closeTutorial();
-    return;
-  }
-  tutorialStep += 1;
-  renderTutorialStep();
-});
-
-skipTutorialButton.addEventListener("click", closeTutorial);
-reopenTutorialButton.addEventListener("click", () => {
-  closeUserSettings();
-  openTutorial();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (tutorialModal.classList.contains("hidden")) return;
-  if (event.key === "Escape") {
-    closeTutorial();
-    return;
-  }
-  if (event.key === "ArrowLeft" && tutorialStep > 0) {
-    tutorialStep -= 1;
-    renderTutorialStep();
-    return;
-  }
-  if (event.key === "ArrowRight" && tutorialStep < TUTORIAL_STEPS.length - 1) {
-    tutorialStep += 1;
-    renderTutorialStep();
-    return;
-  }
-  if (event.key !== "Tab") return;
-  const focusable = [...tutorialPanel.querySelectorAll("button:not(:disabled)")].filter(
-    (element) => element.offsetParent !== null,
-  );
-  if (!focusable.length) return;
-  const first = focusable[0];
-  const last = focusable.at(-1);
-  if (event.shiftKey && (document.activeElement === first || document.activeElement === tutorialPanel)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
-});
 
 async function uploadProfileAvatar(user, file) {
   const avatarPath = `${user.id}/profile`;
@@ -1756,7 +1450,6 @@ const RECIPES = {
 
 const defaultState = {
   schemaVersion: 46,
-  tutorialCompleted: false,
   coins: 0,
   farmMoney: 0,
   farmRankingWeekStart: "",
@@ -2603,6 +2296,7 @@ function loadState(savedState = null) {
     delete saved.farmRankingDemoRewardSent;
     delete saved.farmRankingBoxExperienceReady;
     delete saved.farmRankingSecondPlaceDemoSent;
+    delete saved.tutorialCompleted;
     const migratedCoins = Number(saved.coins ?? 0);
     const migratedFarmMoney = Number(saved.farmMoney ?? 0);
     const migratedFarmPlots =
@@ -2760,11 +2454,10 @@ function applyLoadedAppStateRuntime(isInitialLoad = true) {
   syncFocusSettingsForm();
 }
 
-// tutorialCompleted/settings/playlists each live in their own row(s) now
-// (migration 050) instead of one shared JSON document, so this only ever
-// reads -- every mutation goes out immediately through its own dedicated
-// RPC (completeMyTutorial / saveMyFocusSettings / upsert|deleteMyFocusPlaylist)
-// at the moment the user does it. There is nothing left to debounce or flush.
+// Settings and playlists each live in their own row(s) now (migration 050)
+// instead of one shared JSON document, so this only ever reads -- every
+// mutation goes out immediately through its own dedicated RPC at the moment
+// the user does it. There is nothing left to debounce or flush.
 async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
@@ -2784,7 +2477,6 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
     const legacy = fallback.data?.state ?? null;
     data = legacy
       ? {
-          tutorialCompleted: legacy.tutorialCompleted,
           settings: legacy.settings,
           playlists: Array.isArray(legacy.focusYoutubePlaylists)
             ? legacy.focusYoutubePlaylists
@@ -2813,10 +2505,7 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
   }
 
   const previousPlaylistsSignature = JSON.stringify(state.focusYoutubePlaylists ?? []);
-  state = loadState({
-    tutorialCompleted: data?.tutorialCompleted ?? false,
-    settings: data?.settings,
-  });
+  state = loadState({ settings: data?.settings });
   state.focusYoutubePlaylists = Array.isArray(data?.playlists) ? data.playlists : [];
   state.coins = previousCoins;
   state.farmMoney = previousFarmMoney;
@@ -2879,12 +2568,6 @@ function startAppStateRealtime(user) {
 async function callPreferencesRpc(rpcName, params) {
   appStateRealtimeMutedUntil = Math.max(appStateRealtimeMutedUntil, Date.now() + 3000);
   return supabaseClient.rpc(rpcName, params);
-}
-
-async function completeMyTutorial() {
-  if (!activeAuthUser) return;
-  const { error } = await callPreferencesRpc("complete_my_tutorial");
-  if (error) console.error("Farmodoro tutorial completion could not be saved", error);
 }
 
 async function saveMyFocusSettings(mode, focusMinutes, breakEnabled, breakMinutes) {
@@ -5218,6 +4901,7 @@ function getOpenedFarmRankingBoxIndexes(mail) {
 
 function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
   const progress = document.querySelector("#farmRewardBoxProgress");
+  const status = document.querySelector("#farmRewardBoxStatus");
   const grid = document.querySelector("#farmRewardBoxGrid");
   const guide = document.querySelector("#farmRewardBoxGuide");
   const closeButton = document.querySelector("#closeFarmRewardBox");
@@ -5227,6 +4911,12 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
   const cropIds = mail.boxCropIds ?? [];
   const completed = openedIndexes.length === cropIds.length;
   progress.textContent = `${openedIndexes.length} / ${cropIds.length}`;
+  status?.setAttribute("aria-valuemax", String(cropIds.length));
+  status?.setAttribute("aria-valuenow", String(openedIndexes.length));
+  status?.style.setProperty(
+    "--reward-progress",
+    `${cropIds.length ? (openedIndexes.length / cropIds.length) * 100 : 0}%`,
+  );
   grid.innerHTML = cropIds
     .map((cropId, index) => {
       const opened = openedSet.has(index);
@@ -5239,9 +4929,10 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
           ${opened ? "disabled" : ""}
           aria-label="${opened ? `${escapeHtml(crop.name)} 획득` : `${index + 1}번째 랜덤 박스 열기`}"
         >
+          <i class="reward-box-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</i>
           ${opened
-            ? `<span>${cropPixel(cropId)}</span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1</small>`
-            : `<span>🎁</span><strong>${index + 1}번째 상자</strong><small>눌러서 열기</small>`}
+            ? `<span class="reward-chest is-open" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i><span class="reward-prize">${cropPixel(cropId)}</span></span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1 GET!</small>`
+            : `<span class="reward-chest" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i></span><strong>미스터리 박스</strong><small>PRESS TO OPEN</small>`}
         </button>
       `;
     })
@@ -5891,6 +5582,7 @@ function renderFarm() {
     .join("");
 
   shop.innerHTML = state.dailySeedOffers
+    .slice(0, 6)
     .map((cropId) => [cropId, CROPS[cropId]])
     .map(([cropId, crop]) => {
       const growthCost = getCropGrowthCost(cropId);
@@ -5942,6 +5634,7 @@ function renderFarm() {
     .join("");
 
   noahCropBundleList.innerHTML = state.dailyCropSellOffers
+    .slice(0, 6)
     .map(({ cropId, bundleSize }) => {
       const crop = CROPS[cropId];
       const owned = state.harvestInventory[cropId] ?? 0;
@@ -9982,12 +9675,9 @@ const MODAL_DIALOG_SELECTOR =
 const FOCUSABLE_SELECTOR =
   'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-// The tutorial modal already implements its own Tab trap (with extra
-// Left/Right step navigation), so this generic trap skips it and covers
-// every other role="dialog"/"alertdialog" modal in the app.
+// Keep keyboard focus inside the currently open dialog.
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") return;
-  if (!tutorialModal.classList.contains("hidden")) return;
   const openDialog = document.querySelector(MODAL_DIALOG_SELECTOR);
   if (!openDialog) return;
   const focusable = [...openDialog.querySelectorAll(FOCUSABLE_SELECTOR)].filter(

@@ -36,8 +36,8 @@
     </script>
     <link rel="stylesheet" href="./styles.css?v=182" />
     <link rel="stylesheet" href="./pixel-theme.css?v=191" />
-    <link rel="stylesheet" href="./farm-pixel.css?v=209" />
-    <link rel="stylesheet" href="./pixel-layout.css?v=209" />
+    <link rel="stylesheet" href="./farm-pixel.css?v=220" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=215" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -569,6 +569,11 @@
           </header>
 
           <section class="farm-layout">
+            <div class="farm-window-chrome" aria-hidden="true">
+              <span class="farm-window-lights"><i></i><i></i><i></i></span>
+              <strong>FARMODORO · FARM DESK</strong>
+              <span class="farm-window-controls">— □ ×</span>
+            </div>
             <div class="farm-panel">
               <header class="farm-panel-header">
                 <div class="farm-name-editor">
@@ -633,7 +638,7 @@
               </nav>
               <div class="npc-market-panels">
                 <section class="npc-panel" data-npc-panel="morrison">
-                  <h3 class="market-section-title">씨앗 판매대</h3>
+                  <h3 class="market-section-title">씨앗 판매대 <small>6종</small></h3>
                   <div class="seed-shop-list" id="seedShop"></div>
                 </section>
 
@@ -643,7 +648,7 @@
                 </section>
 
                 <section class="npc-panel" data-npc-panel="crop" hidden>
-                  <h3 class="market-section-title">🧺 오늘의 작물 대량 매입 <small>7종</small></h3>
+                  <h3 class="market-section-title">🧺 오늘의 작물 대량 매입 <small>6종</small></h3>
                   <div class="noah-crop-bundle-list" id="noahCropBundleList"></div>
                 </section>
 
@@ -848,8 +853,8 @@
           </div>
           <button class="pixel-close-button" type="button" data-close-reward-box aria-label="랜덤 박스 닫기">×</button>
         </header>
-        <div class="farm-reward-box-status">
-          <span>개봉한 상자</span>
+        <div class="farm-reward-box-status" id="farmRewardBoxStatus" role="progressbar" aria-label="랜덤 박스 개봉 진행" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
+          <span>BOX OPENING</span>
           <strong id="farmRewardBoxProgress">0 / 5</strong>
         </div>
         <div class="farm-reward-box-grid" id="farmRewardBoxGrid"></div>
@@ -1050,27 +1055,6 @@
       </section>
     </div>
 
-    <div class="tutorial-modal hidden" id="tutorialModal" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle" aria-describedby="tutorialDescription">
-      <div class="tutorial-spotlight" id="tutorialSpotlight" aria-hidden="true"></div>
-      <section class="tutorial-panel" id="tutorialPanel" tabindex="-1" aria-live="polite">
-        <header class="tutorial-header">
-          <div>
-            <span class="section-kicker" id="tutorialKicker">WELCOME TO FARMODORO</span>
-            <span class="tutorial-step-label" id="tutorialStepLabel">1 / 9</span>
-          </div>
-          <button class="tutorial-skip" id="skipTutorial" type="button">건너뛰기</button>
-        </header>
-        <div class="tutorial-icon" id="tutorialIcon" aria-hidden="true">🌱</div>
-        <h2 id="tutorialTitle">오늘을 키우는 순서</h2>
-        <p id="tutorialDescription"></p>
-        <ul class="tutorial-tips" id="tutorialTips"></ul>
-        <div class="tutorial-progress" id="tutorialProgress" aria-label="튜토리얼 진행 상태"></div>
-        <footer class="tutorial-actions">
-          <button class="tutorial-previous" id="previousTutorial" type="button">이전</button>
-          <button class="tutorial-next" id="nextTutorial" type="button">다음</button>
-        </footer>
-      </section>
-    </div>
 
     <div class="market-modal hidden" id="userSettingsModal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle">
       <div class="market-modal-backdrop" data-close-user-settings></div>
@@ -1123,15 +1107,6 @@
             <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
           </section>
 
-          <section class="settings-section tutorial-settings-section" aria-labelledby="tutorialSettingsTitle">
-            <div class="settings-section-heading">
-              <div>
-                <strong id="tutorialSettingsTitle">사용법 안내</strong>
-                <small>할 일, 집중, 농장 이용 순서를 다시 확인해</small>
-              </div>
-            </div>
-            <button class="reopen-tutorial-button" id="reopenTutorial" type="button">튜토리얼 다시 보기</button>
-          </section>
 
           <section class="settings-section farm-admin-mail-section" id="farmAdminMailSection" aria-labelledby="farmAdminMailTitle" hidden>
             <div class="settings-section-heading">
@@ -1217,7 +1192,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=209"></script>
+    <script src="./app.js?v=220"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

@@ -105,7 +105,7 @@ body :is(.large-progress,.habit-progress-track) > span { background: repeating-l
 body .progress-percent { color: var(--pixel-accent) !important; background: var(--pixel-soft) !important; }
 body .progress-stats { border-color: var(--line); }
 body .progress-stats strong { color: var(--ink); }
-body :is(.primary-button,.add-button,.section-header > button,.task-filter.active,.task-filter-button.active,.tutorial-next) {
+body :is(.primary-button,.add-button,.section-header > button,.task-filter.active,.task-filter-button.active) {
   background: var(--pixel-accent) !important; color: var(--pixel-on-accent) !important;
   border: 2px solid var(--pixel-edge) !important; box-shadow: 2px 2px 0 var(--pixel-shadow) !important;
 }
@@ -158,14 +158,14 @@ body #focusPage .focus-page-stage::after { background: none !important; }
 body #focusPage .focus-card.standalone { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 body #focusPage :is(.focus-item-picker,.focus-stage-actions button,.focus-stage-actions label) { border-radius: 2px; background: #314782; color: #fff; border-color: #8498ce; box-shadow: 2px 2px 0 #121f48; backdrop-filter: none; }
 body #focusPage .focus-item-trigger { border-color: #8498ce; background: #25396f; }
-body :is(.market-modal-panel,.habit-modal-panel,.focus-settings,.custom-group-menu,.themed-date-calendar,.focus-youtube-panel,.tutorial-panel) {
+body :is(.market-modal-panel,.habit-modal-panel,.focus-settings,.custom-group-menu,.themed-date-calendar,.focus-youtube-panel) {
   background: var(--paper) !important; color: var(--ink) !important; border: 2px solid var(--pixel-edge) !important;
   border-radius: 2px !important; box-shadow: 5px 5px 0 var(--pixel-shadow) !important; backdrop-filter: none;
 }
-body :is(.market-modal-panel,.habit-modal-panel,.tutorial-panel) > header { border-bottom: 2px solid var(--line); }
-body :is(.market-modal-panel,.habit-modal-panel,.tutorial-panel,.focus-settings) :is(h2,h3,label,.section-kicker) { color: var(--ink) !important; text-shadow: none !important; }
-body :is(.market-modal-panel,.habit-modal-panel,.tutorial-panel) :is(header p,small) { color: var(--muted); }
-body :is(.settings-section,.auth-benefits,.tutorial-tips,.farm-mail-compose,.recipe-book) { border-radius: 2px; background: var(--pixel-soft); border-color: var(--line); }
+body :is(.market-modal-panel,.habit-modal-panel) > header { border-bottom: 2px solid var(--line); }
+body :is(.market-modal-panel,.habit-modal-panel,.focus-settings) :is(h2,h3,label,.section-kicker) { color: var(--ink) !important; text-shadow: none !important; }
+body :is(.market-modal-panel,.habit-modal-panel) :is(header p,small) { color: var(--muted); }
+body :is(.settings-section,.auth-benefits,.farm-mail-compose,.recipe-book) { border-radius: 2px; background: var(--pixel-soft); border-color: var(--line); }
 body :is(.custom-group-trigger,.custom-group-option,.themed-date-trigger,.themed-date-day) { color: var(--ink); background-color: var(--paper); border-color: var(--line); }
 body :is(.custom-group-option.selected,.themed-date-day.selected) { background: var(--pixel-accent); color: var(--pixel-on-accent); }
 body :is(.auth-gate,.auth-entry,.auth-boot) { background: var(--cream); }

@@ -66,6 +66,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     document.querySelector("#authGate").hidden = true;
     document.querySelector(".auth-boot").remove();
   ` });
+  const tutorialElements = await call("Runtime.evaluate", {
+    expression: 'document.querySelectorAll("#tutorialModal, #reopenTutorial, .tutorial-settings-section").length',
+  });
+  assert.equal(tutorialElements.result.value, 0, "tutorial UI must stay removed");
   for (const width of [1440, 768, 656, 390, 320]) {
     if (process.env.CROP_ATLAS_INSPECT && width === 1440) {
       const atlas = await call('Runtime.evaluate', {awaitPromise:true,returnByValue:true,expression:`(async()=>{
@@ -196,6 +200,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         return {id, crop, growth: id < 4 ? getCropGrowthCost(crop) : id - 4, lastCaredAt: Date.now(), lastWateredAt: 0};
       });
       state.coins = 128; state.farmMoney = 5400;
+      state.dailySeedOffers = Object.keys(CROPS).slice(0, 7);
       state.dailyFoodOffers = Object.keys(RECIPES).slice(0, 6);
       state.dailyCropSellOffers = Object.keys(CROPS).slice(0, 7).map((cropId, index) => ({cropId, bundleSize:index % 2 ? 10 : 5}));
       farmLeaderboard = [
@@ -255,6 +260,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         storageInHeader: document.querySelector('.farm-header-actions > .farm-storage-toolbar')!==null && [...document.querySelector('.farm-header-actions').children].indexOf(document.querySelector('.farm-storage-toolbar')) < [...document.querySelector('.farm-header-actions').children].indexOf(document.querySelector('#openFarmMail')),
         uniformStorageButtons: storageButtons.length===3 && storageButtons.every(item => Math.abs(item.getBoundingClientRect().height-firstHeaderHeight)<1 && getComputedStyle(item).backgroundColor===firstHeaderStyle.backgroundColor && getComputedStyle(item).boxShadow===firstHeaderStyle.boxShadow),
         separateBuyMenus: !!document.querySelector('[data-npc-panel="food"] #noahBuyList') && !!document.querySelector('[data-npc-panel="crop"] #noahCropBundleList'),
+        seedOffers: document.querySelectorAll('#seedShop .seed-shop-card').length,
         foodOffers: document.querySelectorAll('#noahBuyList .noah-buy-card').length,
         cropOffers: document.querySelectorAll('#noahCropBundleList .noah-buy-card').length,
         podium: document.querySelectorAll('#farmRankingPodium .farm-podium-place').length,
@@ -272,7 +278,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         animation: getComputedStyle(document.querySelector('#farmNameLabel')).animationName };
     })()` });
     assert.equal(farmResult.exceptionDetails, undefined, JSON.stringify(farmResult.exceptionDetails));
-    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true, plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,foodOffers:6,cropOffers:7,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
+    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true, plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,seedOffers:6,foodOffers:6,cropOffers:6,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
     assert.deepEqual(exceptions, [], "No farm runtime errors");
     const skinResult = await call('Runtime.evaluate', {returnByValue:true, expression:`(() => {
       const sameIDs = (ids, catalog) => JSON.stringify(ids.slice().sort()) === JSON.stringify(catalog.map(item => item.id).sort());
@@ -306,6 +312,33 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     })()`});
     assert.equal(skinResult.exceptionDetails, undefined, JSON.stringify(skinResult.exceptionDetails));
     assert.deepEqual(skinResult.result.value,{themeIDs:true,plotIDs:true,allThemes:true,defaultTheme:true,owned:true,popup:true,ownedPlotPopup:true,themePreview:true,plotPreview:true,labelPreview:true,noDuplicateIds:true,unchanged:true,svgCount:0});
+    const rewardBoxResult = await call('Runtime.evaluate',{returnByValue:true,expression:`(() => {
+      const mail={id:'reward-ui-test',category:'updateBox',boxCropIds:['carrot','tomato','potato','strawberry','corn'],openedBoxIndexes:[0,2]};
+      openFarmRewardBoxModal(mail);
+      renderFarmRewardBoxes(mail,2);
+      const panel=document.querySelector('.farm-reward-box-panel');
+      const sealed=document.querySelector('.farm-reward-box.sealed');
+      return {
+        boxes:document.querySelectorAll('.farm-reward-box').length,
+        sealed:document.querySelectorAll('.farm-reward-box.sealed .reward-chest:not(.is-open)').length,
+        opened:document.querySelectorAll('.farm-reward-box.opened .reward-chest.is-open .reward-prize .crop-pixel').length,
+        noGiftEmoji:!document.querySelector('#farmRewardBoxGrid').textContent.includes('🎁'),
+        arcade:getComputedStyle(panel).backgroundImage!=='none',
+        headerBg:getComputedStyle(panel.querySelector('header')).backgroundColor,
+        idle:getComputedStyle(sealed).animationName==='reward-chest-idle',
+        progress:document.querySelector('#farmRewardBoxStatus').getAttribute('aria-valuenow')==='2',
+        fits:panel.scrollWidth<=panel.clientWidth
+      };
+    })()`});
+    assert.equal(rewardBoxResult.exceptionDetails,undefined,JSON.stringify(rewardBoxResult.exceptionDetails));
+    assert.deepEqual(rewardBoxResult.result.value,{boxes:5,sealed:3,opened:2,noGiftEmoji:true,arcade:true,headerBg:'rgb(255, 243, 189)',idle:true,progress:true,fits:true});
+    if(process.env.FARM_SCREENSHOTS){
+      await pause(180);
+      const rewardShot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
+      fs.mkdirSync(process.env.FARM_SCREENSHOTS,{recursive:true});
+      fs.writeFileSync(path.join(process.env.FARM_SCREENSHOTS,`farm-reward-box-${width}.png`),Buffer.from(rewardShot.data,'base64'));
+    }
+    await call('Runtime.evaluate',{expression:'closeFarmRewardBoxModal()'});
     const kitchenResult = await call('Runtime.evaluate',{returnByValue:true,expression:`(() => {
       selectedRecipeIngredients.splice(0,3,'carrot','potato','');
       state.discoveredRecipes=Object.keys(RECIPES);
