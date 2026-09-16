@@ -1,5 +1,5 @@
 // Sends an immediate push notification for something that just happened:
-// a gift mail arriving, or a comment landing on the caller's bulletin post.
+// a gift mail arriving.
 // Invoked directly by the client right after the action's own RPC succeeds
 // (supabaseClient.functions.invoke), authenticated with the caller's JWT.
 //
@@ -120,54 +120,6 @@ Deno.serve(async (req) => {
       const result = await sendPushToUser(admin, mail.recipient_user_id, {
         title: "새 농장 우편이 도착했어",
         body: `${mail.sender_name || "농장 친구"}님이 우편을 보냈어`,
-      });
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (body.event === "bulletin_comment") {
-      const { data: comment } = await admin
-        .from("farm_bulletin_comments")
-        .select("user_id, message, post_id, parent_comment_id")
-        .eq("id", body.commentId)
-        .maybeSingle();
-      if (!comment || comment.user_id !== callerId) {
-        return new Response(JSON.stringify({ error: "Comment not found" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // A reply notifies the comment it replies to, not the post author --
-      // top-level comments keep notifying the post author as before.
-      let targetUserId: string | null = null;
-      let title = "대자보에 댓글이 달렸어";
-      if (comment.parent_comment_id) {
-        const { data: parentComment } = await admin
-          .from("farm_bulletin_comments")
-          .select("user_id")
-          .eq("id", comment.parent_comment_id)
-          .maybeSingle();
-        targetUserId = parentComment?.user_id ?? null;
-        title = "내 댓글에 답글이 달렸어";
-      } else {
-        const { data: post } = await admin
-          .from("farm_bulletin_posts")
-          .select("user_id")
-          .eq("id", comment.post_id)
-          .maybeSingle();
-        targetUserId = post?.user_id ?? null;
-      }
-
-      if (!targetUserId || targetUserId === callerId) {
-        return new Response(JSON.stringify({ sent: 0, failed: 0 }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const result = await sendPushToUser(admin, targetUserId, {
-        title,
-        body: comment.message,
       });
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

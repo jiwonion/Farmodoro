@@ -31,6 +31,92 @@ const historicalHabit = {
   measureType: "count", targetValue: 3, targetByWeekday: { 3: 5 },
 };
 
+test("habit card date navigation crosses month boundaries and stops at today", () => {
+  const ctx = context(["getHabitViewDate", "moveHabitDate"], {
+    currentPage: "habits", selectedHabitDate: null,
+    toLocalDateString: (date) => date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : "2026-03-01",
+    renderHabits: noop,
+  });
+  ctx.moveHabitDate(-1);
+  assert.equal(ctx.getHabitViewDate(), "2026-02-28");
+  ctx.moveHabitDate(1);
+  assert.equal(ctx.selectedHabitDate, null);
+  ctx.moveHabitDate(1);
+  assert.equal(ctx.getHabitViewDate(), "2026-03-01");
+  ctx.selectedHabitDate = "2026-02-27";
+  ctx.currentPage = "today";
+  assert.equal(ctx.getHabitViewDate(), "2026-03-01");
+});
+
+test("past habit card displays binary completion, schedule and focus", () => {
+  const elements = new Map();
+  const ctx = context([
+    "renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitTargetForDate",
+    "getHabitProgress", "getHabitProgressRatio", "getHabitStreak", "getHabitDailyFocusSeconds",
+  ], {
+    currentPage: "habits", selectedHabitDate: "2026-09-09", habitRecordSaving: false,
+    activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "매일",
+    formatHabitTargets: () => "", formatFocusTime: String,
+    toLocalDateString: (date) => date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : "2026-09-10",
+    document: { querySelector: (selector) => {
+      if (!elements.has(selector)) elements.set(selector, {});
+      return elements.get(selector);
+    } },
+    state: { habits: [
+      { ...historicalHabit, title: "물", unit: "회", completionDates: ["2026-09-10"], progressByDate: { "2026-09-09": 2, "2026-09-10": 3 } },
+      { ...historicalHabit, id: "new", title: "새 습관", startDate: "2026-09-10", completionDates: [] },
+      { ...historicalHabit, id: "off", title: "쉬는 습관", weekdays: [4], completionDates: [] },
+      { ...historicalHabit, id: "time", title: "독서", measureType: "time", unit: "분", completionDates: [], focusSecondsByDate: { "2026-09-09": 120, "2026-09-10": 600 } },
+    ] },
+  });
+  ctx.renderHabits();
+  const html = elements.get("#habitList").innerHTML;
+  assert.match(html, /미완료 · 매일/);
+  assert.match(html, /집중 120/);
+  assert.doesNotMatch(html, /새 습관|쉬는 습관|data-focus-habit|data-adjust-habit|habit-count-control/);
+  assert.equal((html.match(/data-toggle-habit=/g) ?? []).length, 2);
+  assert.equal(elements.get("#nextHabitDate").disabled, false);
+  ctx.selectedHabitDate = "2026-08-31";
+  ctx.renderHabits();
+  assert.equal(elements.get("#habitList").innerHTML, "");
+});
+
+test("checking a past habit saves the displayed date even if navigation changes during the request", async () => {
+  let handler;
+  let finishSave;
+  const calls = [];
+  const ctx = vm.createContext({
+    document: { querySelector: () => ({ addEventListener: (_event, callback) => { handler = callback; } }) },
+    getHabitViewDate: () => "2026-09-09", toLocalDateString: () => "2026-09-10",
+    taskDataHydrated: true, habitRecordSaving: false,
+    state: { habits: [historicalHabit] }, canEditHabitRecord: () => true,
+    getHabitTargetForDate: () => 1, getHabitProgress: () => 0, getHabitProgressRatio: () => 0,
+    renderHabits: noop, showToast: assert.fail,
+    savePastHabitRecord: (...args) => {
+      calls.push(args);
+      return new Promise((resolve) => { finishSave = resolve; });
+    },
+  });
+  const start = source.indexOf('document.querySelector("#habitList").addEventListener("click",');
+  const end = source.indexOf('\ndocument.querySelector("#seedShop")', start);
+  vm.runInContext(source.slice(start, end), ctx);
+  const button = { dataset: { toggleHabit: "habit" }, disabled: false };
+  const event = { target: { closest: (selector) => selector === "[data-toggle-habit]" ? button : null } };
+  const pending = handler(event);
+  await handler(event);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1], "2026-09-09");
+  assert.equal(calls[0][2], 1);
+  ctx.getHabitViewDate = () => "2026-09-08";
+  finishSave();
+  await pending;
+  assert.equal(ctx.habitRecordSaving, false);
+});
+
 test("past habit records allow yesterday but reject today, future and invalid dates", () => {
   const ctx = habitDateContext();
   assert.equal(ctx.canEditHabitRecord(historicalHabit, "2026-09-09"), true);
@@ -41,22 +127,22 @@ test("past habit records allow yesterday but reject today, future and invalid da
   assert.equal(ctx.canEditHabitRecord({ ...historicalHabit, endDate: "2026-09-08" }, "2026-09-09"), false);
 });
 
-test("historical targets use the selected weekday instead of today's target", () => {
+test("legacy habit targets are normalized to one binary completion", () => {
   const ctx = habitDateContext();
-  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-09"), 5);
-  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-10"), 3);
+  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-09"), 1);
+  assert.equal(ctx.getHabitTargetForDate(historicalHabit, "2026-09-10"), 1);
 });
 
 test("saving a past record rejects invalid dates and values before writing", async () => {
   const ctx = habitDateContext({ activeAuthUser: { id: "user" } });
-  await assert.rejects(ctx.savePastHabitRecord(historicalHabit, "2026-09-11", 3));
-  for (const value of [-1, 1.5, 6, NaN]) {
+  await assert.rejects(ctx.savePastHabitRecord(historicalHabit, "2026-09-11", 1));
+  for (const value of [-1, 0.5, 2, NaN]) {
     await assert.rejects(ctx.savePastHabitRecord(historicalHabit, "2026-09-09", value));
   }
 });
 
-for (const progress of [2, 5]) {
-  test(`saving historical progress ${progress} preserves today's completion and focus time`, async () => {
+for (const progress of [0, 1]) {
+  test(`saving historical binary value ${progress} preserves today's completion and focus time`, async () => {
     const habit = { ...historicalHabit, completionDates: ["2026-09-10"],
       complete: true, completedDate: "2026-09-10", completionReward: 2,
       progressByDate: { "2026-09-10": 3 }, focusSecondsByDate: { "2026-09-09": 120 },
@@ -73,14 +159,14 @@ for (const progress of [2, 5]) {
         from: () => ({ upsert: (row) => {
           assert.deepEqual(plain(row), { habit_id: "habit", record_date: "2026-09-09", progress_value: progress });
           return { select: () => ({ single: async () => ({ data: {
-            progress_value: progress, completed_at: progress === 5 ? "done" : null,
-            completion_reward: progress === 5 ? 1 : 0,
+            progress_value: progress, completed_at: progress === 1 ? "done" : null,
+            completion_reward: progress === 1 ? 1 : 0,
           } }) }) };
         } }),
       },
     });
     await ctx.savePastHabitRecord(habit, "2026-09-09", progress);
-    assert.equal(calls[0].name, progress === 5 ? "complete_my_habit" : "uncomplete_my_habit");
+    assert.equal(calls[0].name, progress === 1 ? "complete_my_habit" : "uncomplete_my_habit");
     assert.equal(calls[0].params.p_record_date, "2026-09-09");
     assert.equal(habit.completedDate, "2026-09-10");
     assert.equal(habit.completionReward, 2);
@@ -96,7 +182,7 @@ function timerContext(owner = false, mode = "quick") {
   const ctx = context([
     "advanceRunningFocusTimer", "getFocusTimerDatabasePayload",
     "normalizeFocusTimerRuntime", "applyFocusTimerDatabaseState",
-    "resumeFocusTimerAfterBackground",
+    "resumeFocusTimerAfterBackground", "getHabitDailyFocusSeconds",
   ], {
     Date: class extends Date { static now() { return now; } },
     isFocusTimerOwner: () => owner,
@@ -115,6 +201,7 @@ function timerContext(owner = false, mode = "quick") {
     focusInterval: null,
     state: { settings: { quick: { focusMinutes: 1 } } },
     activeFocus: mode === "linked" ? { type: "task", id: "task" } : null,
+    toLocalDateString: () => "2026-09-13",
     getFocusItem: () => null,
     getFocusSettings: () => ({ focusMinutes: 1 }),
     updateActiveFocusCard: noop, updateFocusDisplay: noop,
@@ -173,6 +260,18 @@ test("task stopwatch runs on a follower even before task data arrives", () => {
   ctx.advanceRunningFocusTimer("linked");
   assert.equal(ctx.focusRuntimeByMode.linked.seconds, 45);
   assert.equal(ctx.rewarded, 0);
+});
+
+test("binary habit focus remains linked and accumulates as a stopwatch", () => {
+  const habit = { id: "habit", focusSecondsByDate: { "2026-09-13": 30 } };
+  const ctx = timerContext(true, "linked");
+  ctx.activeFocus = { type: "habit", id: "habit" };
+  ctx.getFocusItem = () => habit;
+  ctx.elapse(25);
+  ctx.advanceRunningFocusTimer("linked");
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 45);
+  assert.equal(habit.focusSecondsByDate["2026-09-13"], 55);
+  assert.equal(ctx.rewarded, 25);
 });
 
 test("saving while suspended retains the time corresponding to the saved seconds", () => {

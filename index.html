@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#2f5d45" />
+    <meta name="theme-color" content="#315bf1" />
     <meta name="application-name" content="Farmodoro" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -34,7 +34,10 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=168" />
+    <link rel="stylesheet" href="./styles.css?v=182" />
+    <link rel="stylesheet" href="./pixel-theme.css?v=191" />
+    <link rel="stylesheet" href="./farm-pixel.css?v=208" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=208" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -158,6 +161,7 @@
         </nav>
 
         <div class="sidebar-spacer"></div>
+        <p class="nav-motto">작은 집중이<br />좋은 하루를 키워요.</p>
 
         <button class="profile-button" id="openUserSettings" type="button" aria-label="내 정보 및 사용자 설정 열기" title="사용자 설정">
           <span class="avatar" id="profileAvatar">F</span>
@@ -176,9 +180,12 @@
         <header class="topbar">
           <button class="mobile-menu" type="button" aria-label="메뉴 열기">☰</button>
           <div>
-            <span class="eyebrow">TODAY</span>
             <h1 id="todayLabel"></h1>
-            <p class="today-description">습관이나 할 일을 완료하면 Coin을 받아</p>
+            <p class="today-description">오늘도, 꾸준히 한 걸음씩 <span class="pixel-sprout" aria-hidden="true"></span></p>
+          </div>
+          <div class="today-welcome">
+            <div class="welcome-grow pixel-frame"><p>오늘도<br />좋은 하루가 자라고 있어요.</p><span class="pixel-sprout" aria-hidden="true"></span></div>
+            <blockquote class="welcome-quote pixel-frame">꾸준함이<br />언제나, 좋은 변화를 만들어요.<span>—</span></blockquote>
           </div>
           <div class="topbar-actions">
             <button class="today-mail-alert" id="todayMailAlert" type="button" aria-label="새 농장 우편 열기" hidden>
@@ -186,21 +193,12 @@
               <small>새 우편</small>
               <b id="todayMailAlertCount">0</b>
             </button>
-            <div class="currency coin" id="todayCoinDisplay">
-              <span>●</span>
-              <strong id="coinBalance">12</strong>
-              <small>Coin</small>
-            </div>
-            <div class="currency farm-money">
-              <span>✦</span>
-              <strong id="farmMoneyBalance">0</strong>
-              <small>Farm</small>
-            </div>
           </div>
         </header>
 
         <section class="summary-grid" id="summaryGrid" aria-label="오늘 요약">
           <article class="focus-card" id="focusCard">
+            <div class="focus-strip-heading"><span class="pixel-clock" aria-hidden="true"></span><div><strong>집중 타이머</strong><small>지금, 온전히 한 가지에 집중해요.</small></div></div>
             <div class="focus-copy">
               <span class="section-kicker">빠른 집중</span>
               <div class="focus-mode-row">
@@ -208,10 +206,15 @@
                   <button class="active" type="button" data-focus-mode="linked">항목 집중</button>
                   <button type="button" data-focus-mode="quick">그냥 집중</button>
                 </div>
-                <button class="focus-settings-button" id="toggleFocusSettings" type="button" aria-label="집중 설정" hidden>
+                <button class="focus-settings-button" id="toggleFocusSettings" type="button" aria-label="집중 설정" aria-controls="focusSettings" aria-expanded="false" hidden>
                   ⚙
                 </button>
-                <div class="focus-settings hidden" id="focusSettings">
+                <div class="focus-settings-backdrop hidden" id="focusSettingsBackdrop" data-close-focus-settings></div>
+                <div class="focus-settings hidden" id="focusSettings" role="dialog" aria-modal="true" aria-labelledby="focusSettingsTitle">
+                  <header class="focus-settings-header">
+                    <strong id="focusSettingsTitle">집중 설정</strong>
+                    <button class="pixel-close-button" type="button" data-close-focus-settings aria-label="집중 설정 닫기">×</button>
+                  </header>
                   <label>
                     <span>한 세트 집중</span>
                     <span><input id="focusMinutesInput" type="number" min="5" max="120" />분</span>
@@ -247,8 +250,8 @@
             <div class="focus-visual" aria-hidden="true">
               <div class="timer-ring">
                 <svg class="timer-progress" viewBox="0 0 100 100" aria-hidden="true">
-                  <circle class="timer-progress-track" cx="50" cy="50" r="46"></circle>
-                  <circle class="timer-progress-value" cx="50" cy="50" r="46"></circle>
+                  <path class="timer-progress-track" pathLength="289.0265" d="M12 4H88V8H96V92H88V96H12V92H4V8H12Z"></path>
+                  <path class="timer-progress-value" pathLength="289.0265" d="M12 4H88V8H96V92H88V96H12V92H4V8H12Z"></path>
                 </svg>
                 <div>
                   <strong id="focusTime">25:00</strong>
@@ -276,11 +279,13 @@
                 <span class="stat-dot todo-dot"></span>
                 <p>할 일</p>
                 <strong><span id="todoDone">1</span> / <span id="todoTotal">4</span></strong>
+                <span class="strip-progress" id="stripTaskProgress" aria-hidden="true"></span>
               </div>
               <div>
                 <span class="stat-dot habit-dot"></span>
                 <p>습관</p>
                 <strong><span id="habitDone">2</span> / <span id="habitTotal">3</span></strong>
+                <span class="strip-progress" id="stripHabitProgress" aria-hidden="true"></span>
               </div>
               <div>
                 <span class="stat-dot focus-dot"></span>
@@ -289,6 +294,10 @@
               </div>
             </div>
           </article>
+          <div class="summary-wallet">
+            <div class="currency coin" id="todayCoinDisplay"><span class="pixel-coin" aria-hidden="true">●</span><strong id="coinBalance">0</strong></div>
+            <div class="currency farm-money"><span>✦</span><strong id="farmMoneyBalance">0</strong><small>Farm</small></div>
+          </div>
         </section>
 
         <section class="workspace-grid" id="todayWorkspace">
@@ -297,40 +306,50 @@
               <div>
                 <span class="section-kicker">WORKFLOW</span>
                 <h2>오늘의 할 일</h2>
+                <p class="section-description">오늘도 하나씩, 해내는 하루!</p>
               </div>
               <button class="add-button" id="openTaskForm" type="button">
-                <span>＋</span>
-                할 일 추가
+                <span aria-hidden="true">＋</span><span>할 일 추가</span>
               </button>
             </div>
 
+            <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="오늘의 할 일 그룹 필터"></div>
+
+            <div id="taskCreateModal" class="task-create-modal" role="dialog" aria-modal="true" aria-labelledby="taskCreateTitle">
+            <div class="task-create-backdrop" data-close-task-create></div>
+            <section class="task-create-panel">
+            <header><h2 id="taskCreateTitle">할 일 추가</h2><button class="pixel-close-button" type="button" data-close-task-create aria-label="할 일 추가 닫기">×</button></header>
             <form class="quick-form hidden" id="taskForm">
               <div class="task-input-wrap">
                 <textarea
                   id="taskInput"
                   rows="1"
                   maxlength="60"
-                  placeholder="새 할 일을 입력해 (Shift+Enter로 줄바꿈)"
+                  placeholder="새 할 일을 입력해"
                   aria-label="새 할 일 입력"
                   autocomplete="off"
                 ></textarea>
               </div>
+              <label class="task-modal-focus-row" id="taskModalFocusRow" hidden>
+                <span>집중 시간</span>
+                <span><input id="taskFocusMinutesInput" type="number" min="0" max="9999" step="1" inputmode="numeric" value="0" />분</span>
+              </label>
               <div class="custom-group-select" id="customTaskGroupSelect">
                 <select id="taskGroup" aria-label="그룹 선택" hidden></select>
                 <button
                   class="custom-group-trigger"
                   id="taskGroupTrigger"
                   type="button"
-                  aria-haspopup="listbox"
+                  aria-haspopup="dialog"
                   aria-expanded="false"
                 >
                   <span id="taskGroupLabel">그룹 없음</span>
-                  <span aria-hidden="true">⌄</span>
+                  <span aria-hidden="true">선택</span>
                 </button>
                 <div class="custom-group-menu hidden" id="taskGroupMenu" role="listbox"></div>
               </div>
-              <button class="secondary-button" id="toggleGroupManager" type="button">그룹 관리</button>
-              <button class="primary-button compact" type="submit">추가</button>
+              <button class="secondary-button" id="toggleGroupManager" type="button" aria-haspopup="dialog" aria-controls="taskGroupManagerDialog" aria-expanded="false">그룹 관리</button>
+              <button class="primary-button compact" id="taskFormSubmit" type="submit">추가</button>
             </form>
 
             <div class="group-manager hidden" id="groupManager">
@@ -348,6 +367,8 @@
               </div>
             </div>
 
+            </section>
+            </div>
             <div class="board" id="taskBoard">
               <section class="board-column" data-status="waiting">
                 <header>
@@ -358,17 +379,6 @@
                   <span class="count" data-count="waiting">0</span>
                 </header>
                 <div class="task-list" data-list="waiting"></div>
-              </section>
-
-              <section class="board-column" data-status="doing">
-                <header>
-                  <div>
-                    <span class="column-dot doing"></span>
-                    <h3>진행 중</h3>
-                  </div>
-                  <span class="count" data-count="doing">0</span>
-                </header>
-                <div class="task-list" data-list="doing"></div>
               </section>
 
               <section class="board-column" data-status="done">
@@ -389,8 +399,9 @@
               <div>
                 <span class="section-kicker">ROUTINE</span>
                 <h2>오늘의 습관</h2>
+                <p class="section-description">작은 습관이, 큰 변화를 키워요.</p>
               </div>
-              <button class="text-button" id="openHabitForm" type="button">＋ 추가</button>
+              <button class="text-button" id="openHabitForm" type="button">＋ 습관 추가</button>
             </div>
 
             <div
@@ -406,9 +417,9 @@
                   <div>
                     <span class="section-kicker">NEW ROUTINE</span>
                     <h2 id="habitModalTitle">새 습관 등록</h2>
-                    <p>목표와 반복 일정을 설정해</p>
+                    <p>반복 일정을 설정해</p>
                   </div>
-                  <button type="button" data-close-habit-modal aria-label="습관 등록 닫기">×</button>
+                  <button class="pixel-close-button" type="button" data-close-habit-modal aria-label="습관 등록 닫기">×</button>
                 </header>
 
                 <div id="habitModalFormSlot">
@@ -421,45 +432,6 @@
                 aria-label="습관 이름 입력"
                 autocomplete="off"
               />
-              <div class="habit-measure-row">
-                <div class="habit-measure-select custom-group-select">
-                  <select id="habitMeasureType" aria-label="측정 방식" hidden>
-                    <option value="count">횟수</option>
-                    <option value="time">시간</option>
-                    <option value="amount">양</option>
-                  </select>
-                  <button
-                    class="habit-measure-trigger custom-group-trigger"
-                    id="habitMeasureTrigger"
-                    type="button"
-                    aria-haspopup="listbox"
-                    aria-expanded="false"
-                  >
-                    <span id="habitMeasureLabel">횟수</span>
-                    <span aria-hidden="true"></span>
-                  </button>
-                  <div class="habit-measure-menu custom-group-menu hidden" id="habitMeasureMenu" role="listbox">
-                    <button class="habit-measure-option selected" type="button" role="option" aria-selected="true" data-habit-measure-value="count"><span>횟수</span><b>✓</b></button>
-                    <button class="habit-measure-option" type="button" role="option" aria-selected="false" data-habit-measure-value="time"><span>시간</span><b>✓</b></button>
-                    <button class="habit-measure-option" type="button" role="option" aria-selected="false" data-habit-measure-value="amount"><span>양</span><b>✓</b></button>
-                  </div>
-                </div>
-                <input id="habitTargetValue" type="number" min="1" step="1" value="1" inputmode="numeric" aria-label="목표값" />
-                <input id="habitUnit" type="text" maxlength="8" value="회" aria-label="단위" />
-              </div>
-              <label class="weekday-target-toggle">
-                <input id="habitWeekdayTargetsEnabled" type="checkbox" />
-                <span>요일별 목표 설정</span>
-              </label>
-              <div class="weekday-target-grid hidden" id="habitWeekdayTargets" aria-label="요일별 목표값">
-                <label><span>월</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="1" aria-label="월요일 목표값" /></label>
-                <label><span>화</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="2" aria-label="화요일 목표값" /></label>
-                <label><span>수</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="3" aria-label="수요일 목표값" /></label>
-                <label><span>목</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="4" aria-label="목요일 목표값" /></label>
-                <label><span>금</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="5" aria-label="금요일 목표값" /></label>
-                <label><span>토</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="6" aria-label="토요일 목표값" /></label>
-                <label><span>일</span><input type="number" min="1" step="1" inputmode="numeric" data-habit-weekday-target="7" aria-label="일요일 목표값" /></label>
-              </div>
               <fieldset class="weekday-field">
                 <legend>반복 요일</legend>
                 <div>
@@ -488,20 +460,20 @@
               </section>
             </div>
 
+            <nav class="heatmap-nav habit-date-nav" id="habitDateNav" aria-label="습관 조회 날짜" hidden>
+              <button id="previousHabitDate" type="button" aria-label="이전 날짜">‹</button>
+              <span id="habitDateLabel" aria-live="polite" aria-atomic="true"></span>
+              <button id="nextHabitDate" type="button" aria-label="다음 날짜">›</button>
+              <button id="habitDateToday" type="button">오늘</button>
+            </nav>
             <div class="habit-list" id="habitList"></div>
+            <footer class="habit-encouragement"><span class="pixel-sprout" aria-hidden="true"></span><div><strong>오늘도 잘하고 있어요!</strong><p>꾸준한 습관이 더 좋은 내일을 만들어요.</p></div><a href="#farm" class="growth-link">하루하루,<br />조금씩 자라는 중 <span aria-hidden="true">→</span></a></footer>
 
           </aside>
         </section>
         </section>
 
         <section class="page-view" id="tasksPage" data-view="tasks">
-          <header class="page-header">
-            <div>
-              <span class="section-kicker">TASKS</span>
-              <h1>할 일</h1>
-              <p>할 일을 드래그해서 현재 상태를 정리해</p>
-            </div>
-          </header>
           <div class="task-page-tools">
             <div class="task-filter-list" id="taskGroupFilters"></div>
             <p class="task-archive-policy" id="taskArchivePolicy"></p>
@@ -511,30 +483,24 @@
         </section>
 
         <section class="page-view" id="habitsPage" data-view="habits">
-          <header class="page-header">
-            <div>
-              <span class="section-kicker">HABITS</span>
-              <h1>습관</h1>
-              <p>반복 일정과 오늘의 달성 상태를 관리해</p>
-            </div>
-            <button class="habit-reset-button" id="openHabitReset" type="button">습관 초기화</button>
-          </header>
           <section class="habit-heatmap">
             <header>
               <div>
                 <span class="section-kicker">MONTHLY LOG</span>
                 <h2 id="habitHeatmapMonth"></h2>
               </div>
-              <div class="heatmap-nav">
-                <button id="previousHabitMonth" type="button" aria-label="이전 달">‹</button>
-                <button id="nextHabitMonth" type="button" aria-label="다음 달">›</button>
+              <div class="heatmap-header-actions">
+                <button class="habit-reset-button" id="openHabitReset" type="button">습관 초기화</button>
+                <div class="heatmap-nav">
+                  <button id="previousHabitMonth" type="button" aria-label="이전 달">‹</button>
+                  <button id="nextHabitMonth" type="button" aria-label="다음 달">›</button>
+                </div>
               </div>
             </header>
             <div class="heatmap-scroll">
               <div class="heatmap-grid" id="habitHeatmapGrid"></div>
             </div>
             <div class="heatmap-legend">
-              <span>지난 날짜의 칸을 눌러 기록 수정</span>
               <span><i class="scheduled"></i> 예정</span>
               <span><i class="completed"></i> 완료</span>
             </div>
@@ -543,13 +509,6 @@
         </section>
 
         <section class="page-view" id="focusPage" data-view="focus">
-          <header class="page-header">
-            <div>
-              <span class="section-kicker">POMODORO</span>
-              <h1>집중</h1>
-              <p id="focusDailyQuote">작은 집중이 오늘의 흐름을 바꿔</p>
-            </div>
-          </header>
           <section class="focus-page-stage" id="focusPageStage">
             <div class="focus-stage-toolbar">
               <div class="focus-item-picker custom-group-select">
@@ -561,7 +520,7 @@
                   aria-haspopup="listbox"
                   aria-expanded="false"
                 >
-                  <span id="focusItemLabel">할 일 또는 시간형 습관 선택</span>
+                  <span id="focusItemLabel">할 일 또는 습관 선택</span>
                   <span aria-hidden="true">⌄</span>
                 </button>
                 <div class="focus-item-menu custom-group-menu hidden" id="focusItemMenu" role="listbox"></div>
@@ -580,49 +539,12 @@
                   <span aria-hidden="true">♪</span>
                   기본 음악
                 </button>
-                <button id="toggleFocusYoutube" type="button" aria-expanded="false" aria-controls="focusYoutubePanel">
-                  <span aria-hidden="true">↗</span>
-                  YouTube
-                </button>
                 <button id="toggleFocusFullscreen" type="button">
                   <span aria-hidden="true">⛶</span>
                   전체 화면
                 </button>
               </div>
             </div>
-            <section class="focus-youtube-panel hidden" id="focusYoutubePanel" aria-labelledby="focusYoutubeTitle" tabindex="-1">
-              <header>
-                <div>
-                  <span class="section-kicker">YOUTUBE LINKS</span>
-                  <h2 id="focusYoutubeTitle">YouTube 링크</h2>
-                </div>
-                <button id="closeFocusYoutube" type="button" aria-label="YouTube 링크 창 닫기">× 닫기</button>
-              </header>
-              <div class="focus-youtube-player-wrap hidden" id="focusYoutubePlayerWrap">
-                <div id="focusYoutubePlayer"></div>
-              </div>
-              <form class="focus-youtube-form" id="focusYoutubeForm">
-                <input
-                  id="focusYoutubeName"
-                  type="text"
-                  maxlength="30"
-                  autocomplete="off"
-                  placeholder="플레이리스트 제목"
-                  aria-label="플레이리스트 제목"
-                />
-                <input
-                  id="focusYoutubeUrl"
-                  type="text"
-                  inputmode="url"
-                  autocomplete="off"
-                  placeholder="YouTube 영상 또는 플레이리스트 URL"
-                  aria-label="YouTube 영상 또는 플레이리스트 URL"
-                />
-                <button type="submit">저장하고 열기</button>
-              </form>
-              <div class="focus-youtube-library" id="focusYoutubeLibrary"></div>
-              <p id="focusYoutubeStatus" role="status" aria-live="polite">영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.</p>
-            </section>
             <div class="focus-page-slot" id="focusPageSlot"></div>
             <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
               <div class="focus-alert-icon" aria-hidden="true">⏰</div>
@@ -639,37 +561,15 @@
         </section>
 
         <section class="page-view" id="farmPage" data-view="farm">
-          <div class="farm-festival-effects" aria-hidden="true">
-            <div class="farm-festival-garland">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-            </div>
-            <div class="farm-festival-confetti">
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-            </div>
-          </div>
-          <header class="page-header">
-            <div>
-              <span class="section-kicker">MY FARM</span>
-              <h1>내 농장</h1>
-              <p>현실에서 모은 Coin으로 씨앗을 심고 작물을 키워</p>
-            </div>
+          <header class="page-header page-action-header">
             <div class="farm-wallet farm-page-wallet" id="farmPageCoinDisplay" aria-label="보유 코인">
               <span>●</span>
               <strong id="farmHeaderCoinBalance">0</strong>
-              <small>Coin</small>
             </div>
           </header>
 
           <section class="farm-layout">
             <div class="farm-panel">
-              <div class="farm-theme-decor" aria-hidden="true">
-                <div class="farm-theme-decor-ground"></div>
-                <div class="farm-theme-decor-particles">
-                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-                </div>
-              </div>
               <header class="farm-panel-header">
                 <div class="farm-name-editor">
                   <div class="farm-name-display" id="farmNameDisplay">
@@ -685,31 +585,32 @@
                   </form>
                 </div>
                 <div class="farm-header-actions">
-                  <button class="open-farm-mail" id="openFarmMail" type="button">
+                  <nav class="farm-storage-toolbar" aria-label="농장 보관함">
+                    <button class="farm-storage-button" type="button" data-open-storage="harvest">🧺 수확물 <small id="harvestStorageCount">0</small></button>
+                    <button class="farm-storage-button" type="button" data-open-storage="seed">🌱 씨앗 <small id="seedStorageCount">0</small></button>
+                    <button class="farm-storage-button" type="button" data-open-storage="supply">🎒 농장 용품 <small id="supplyStorageCount">0</small></button>
+                  </nav>
+                  <button class="farm-utility-button open-farm-mail" id="openFarmMail" type="button">
                     <span>📮 농장 우편소</span>
                     <small class="farm-mail-header-unread" id="farmMailHeaderUnread" hidden>0</small>
                   </button>
-                  <button class="open-farm-kitchen" id="openFarmKitchen" type="button">
+                  <button class="farm-utility-button open-farm-kitchen" id="openFarmKitchen" type="button">
                     <span>🍳 농장 주방</span>
                   </button>
-                  <button class="open-farm-bulletin" id="openFarmBulletin" type="button">
-                    <span>📌 농장 대자보</span>
-                    <small class="farm-mail-header-unread" id="farmBulletinHeaderUnread" hidden>0</small>
+                  <button class="farm-utility-button farm-weekly-ranking-button farm-header-ranking" id="openFarmRanking" type="button">
+                    <span>🏆 농장 주간보</span>
                   </button>
+                  <div class="market-balance farm-header-money" aria-label="보유 Farm Money">
+                    <span><i aria-hidden="true">✦</i><strong id="marketFarmMoneyBalance">0</strong><b>Farm</b></span>
+                  </div>
                   <div class="farm-wallet">
                     <span>●</span>
                     <strong id="farmCoinBalance">0</strong>
-                    <small>Coin</small>
                   </div>
                 </div>
               </header>
 
-              <nav class="farm-storage-toolbar" aria-label="농장 보관함">
-                <button type="button" data-open-storage="harvest">🧺 수확물 <small id="harvestStorageCount">0</small></button>
-                <button type="button" data-open-storage="seed">🌱 씨앗 <small id="seedStorageCount">0</small></button>
-                <button type="button" data-open-storage="supply">🎒 농장 용품 <small id="supplyStorageCount">0</small></button>
-              </nav>
-
+              <p class="farm-protection-status" id="farmProtectionStatus" hidden>작물 보호 중 · 시들지 않아요</p>
               <section class="farm-scene">
                 <div class="farm-scene-grid">
                   <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
@@ -719,65 +620,35 @@
             </div>
 
             <aside class="seed-shop npc-market" id="npcMarket" data-active-npc="morrison">
-              <div class="market-utility-row">
-                <button class="farm-weekly-ranking-button" id="openFarmRanking" type="button">
-                  <span>농장 주간보</span>
-                  <strong>🏆 랭킹 보기</strong>
-                </button>
-                <div class="market-balance">
-                  <span>보유 Farm Money</span>
-                  <strong>✦ <span id="marketFarmMoneyBalance">0</span></strong>
-                </div>
-              </div>
               <button class="open-permanent-market" id="openPermanentMarket" type="button">
                 <span>농장 상시 시장</span>
                 <small>비료·티켓·특별 용품 구매</small>
               </button>
 
+              <nav class="npc-market-dots market-category-tabs" aria-label="판매대 선택">
+                <button type="button" data-npc-dot="morrison">씨앗 판매대</button>
+                <button type="button" data-npc-dot="food">음식 매입</button>
+                <button type="button" data-npc-dot="crop">작물 매입</button>
+                <button type="button" data-npc-dot="rachel">스킨 판매대</button>
+              </nav>
               <div class="npc-market-panels">
                 <section class="npc-panel" data-npc-panel="morrison">
-                  <header class="npc-profile">
-                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
-                    <span class="npc-avatar"><img src="./assets/npc-morrison.png" alt="" /></span>
-                    <div class="npc-profile-info">
-                      <span class="section-kicker">MORRISON'S MARKET</span>
-                      <h2>Morrison</h2>
-                      <p>오늘의 씨앗을 팔게</p>
-                    </div>
-                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
-                  </header>
                   <h3 class="market-section-title">씨앗 판매대</h3>
                   <div class="seed-shop-list" id="seedShop"></div>
                 </section>
 
-                <section class="npc-panel" data-npc-panel="noah" hidden>
-                  <header class="npc-profile">
-                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
-                    <span class="npc-avatar"><img src="./assets/npc-noah.png" alt="" /></span>
-                    <div class="npc-profile-info">
-                      <span class="section-kicker">NOAH'S PANTRY</span>
-                      <h2>Noah</h2>
-                      <p>완성한 음식과 수확한 작물을 사줄게</p>
-                    </div>
-                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
-                  </header>
-                  <h3 class="market-section-title">오늘의 음식 매입</h3>
+                <section class="npc-panel" data-npc-panel="food" hidden>
+                  <h3 class="market-section-title">🍳 오늘의 음식 매입 <small>6종</small></h3>
                   <div class="noah-buy-list" id="noahBuyList"></div>
-                  <h3 class="market-section-title">오늘의 작물 대량 매입</h3>
+                </section>
+
+                <section class="npc-panel" data-npc-panel="crop" hidden>
+                  <h3 class="market-section-title">🧺 오늘의 작물 대량 매입 <small>7종</small></h3>
                   <div class="noah-crop-bundle-list" id="noahCropBundleList"></div>
                 </section>
 
                 <section class="npc-panel" data-npc-panel="rachel" hidden>
-                  <header class="npc-profile">
-                    <button class="npc-carousel-arrow npc-carousel-prev" type="button" aria-label="이전 상인">‹</button>
-                    <span class="npc-avatar"><img src="./assets/npc-rachel.png" alt="" /></span>
-                    <div class="npc-profile-info">
-                      <span class="section-kicker">RACHEL'S ATELIER</span>
-                      <h2>Rachel</h2>
-                      <p>농장을 꾸밀 특별한 소품을 팔게</p>
-                    </div>
-                    <button class="npc-carousel-arrow npc-carousel-next" type="button" aria-label="다음 상인">›</button>
-                  </header>
+                  <h3 class="market-section-title">스킨 판매대</h3>
                   <div class="rachel-tabs" role="tablist">
                     <button type="button" data-rachel-tab="offers" aria-selected="true">오늘의 진열</button>
                     <button type="button" data-rachel-tab="owned" aria-selected="false">보유함</button>
@@ -787,9 +658,6 @@
                   <div class="rachel-cosmetic-list hidden" id="rachelOwnedList"></div>
                 </section>
               </div>
-              <div class="npc-market-dots" aria-hidden="true">
-                <span data-npc-dot="morrison"></span><span data-npc-dot="noah"></span><span data-npc-dot="rachel"></span>
-              </div>
             </aside>
           </section>
         </section>
@@ -798,14 +666,14 @@
 
     <div class="market-modal hidden" id="permanentMarketModal" role="dialog" aria-modal="true" aria-labelledby="permanentMarketTitle">
       <div class="market-modal-backdrop" data-close-market></div>
-      <section class="market-modal-panel">
+      <section class="market-modal-panel farm-supply-modal-panel permanent-market-modal-panel">
         <header>
           <div>
             <span class="section-kicker">FARM'S PERMANENT MARKET</span>
             <h2 id="permanentMarketTitle">농장 상시 시장</h2>
             <p>Farm Money로 비료, 티켓, 특별 농장 용품을 구매해</p>
           </div>
-          <button type="button" data-close-market aria-label="시장 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-market aria-label="시장 닫기">×</button>
         </header>
         <div class="modal-market-balance">보유 Farm Money <strong>✦ <span id="modalFarmMoneyBalance">0</span></strong></div>
         <div class="farm-item-shop" id="farmItemShop"></div>
@@ -821,13 +689,14 @@
             <h2 id="farmRankingTitle">농장 주간보</h2>
             <p>월요일부터 일요일까지 얻은 Farm Money로 순위를 매겨</p>
           </div>
-          <button type="button" data-close-farm-ranking aria-label="농장 주간보 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-farm-ranking aria-label="농장 주간보 닫기">×</button>
         </header>
         <div class="farm-ranking-period">
           <span id="farmRankingWeekLabel">이번 주</span>
           <small>매주 월요일 00:00에 새 시즌이 시작돼</small>
         </div>
         <div class="farm-ranking-my-score">
+          <strong class="farm-ranking-my-rank" id="farmRankingMyRank">현재 -위</strong>
           <span>이번 주 내가 얻은 Farm Money</span>
           <strong>✦ <span id="weeklyFarmMoneyEarned">0</span></strong>
         </div>
@@ -838,7 +707,27 @@
           <span>🥉 1개</span>
           <small>월요일 00:00에 시스템 우편으로 도착해</small>
         </div>
-        <ol class="farm-ranking-list" id="farmRankingList"></ol>
+        <section class="farm-ranking-podium" id="farmRankingPodium" aria-label="상위 3개 농장"></section>
+        <section class="farm-ranking-table">
+          <header><strong>전체 순위</strong><span>농장</span><span>주간 Farm Money</span></header>
+          <ol class="farm-ranking-list" id="farmRankingList"></ol>
+        </section>
+      </section>
+    </div>
+
+    <div class="market-modal hidden" id="cosmeticPreviewModal" role="dialog" aria-modal="true" aria-labelledby="cosmeticPreviewTitle">
+      <div class="market-modal-backdrop" data-close-cosmetic-preview></div>
+      <section class="market-modal-panel cosmetic-preview-modal-panel">
+        <header>
+          <div>
+            <span class="section-kicker">SKIN PREVIEW</span>
+            <h2 id="cosmeticPreviewTitle">스킨 미리보기</h2>
+            <p id="cosmeticPreviewDescription">현재 농장에 적용한 모습이야</p>
+          </div>
+          <button class="pixel-close-button" type="button" data-close-cosmetic-preview aria-label="스킨 미리보기 닫기">×</button>
+        </header>
+        <div class="cosmetic-tryon-stage" id="cosmeticTryonStage"></div>
+        <p class="cosmetic-preview-guide">미리보기에서는 실제 장착 상태가 변경되지 않아.</p>
       </section>
     </div>
 
@@ -851,8 +740,17 @@
             <h2 id="farmMailTitle">농장 우편소</h2>
             <p>친구와 농장 선물을 주고받고, 보낸 물건과 받은 선물을 관리해</p>
           </div>
-          <button type="button" data-close-farm-mail aria-label="농장 우편소 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-farm-mail aria-label="농장 우편소 닫기">×</button>
         </header>
+        <div class="pixel-post-office-sign" aria-hidden="true">
+          <div class="pixel-post-awning"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="pixel-post-window"><span>POST</span><b></b></div>
+          <div class="pixel-post-mailbox"><i></i><span>✉</span></div>
+          <div class="pixel-post-envelope envelope-one">✉</div>
+          <div class="pixel-post-envelope envelope-two">✉</div>
+          <div class="pixel-post-dispatch" id="farmMailDispatch">✉</div>
+          <p>FARMODORO EXPRESS · 오늘의 마음을 배달해요</p>
+        </div>
         <div class="farm-mail-tabs" role="tablist" aria-label="농장 우편함">
           <button class="active" type="button" role="tab" data-mail-view="send">보내기</button>
           <button type="button" role="tab" data-mail-view="inbox">받은 우편 <small id="farmMailUnreadCount">0</small></button>
@@ -939,83 +837,6 @@
       </section>
     </div>
 
-    <div class="market-modal hidden" id="farmBulletinModal" role="dialog" aria-modal="true" aria-labelledby="farmBulletinTitle">
-      <div class="market-modal-backdrop" data-close-farm-bulletin></div>
-      <section class="market-modal-panel farm-bulletin-modal-panel">
-        <header>
-          <div>
-            <span class="section-kicker">FARM BULLETIN</span>
-            <h2 id="farmBulletinTitle">농장 대자보</h2>
-            <p>사고 싶은 것, 팔고 싶은 것을 적고 친구 코드로 우편을 받아. 매일 00:00에 전부 초기화돼</p>
-          </div>
-          <button type="button" data-close-farm-bulletin aria-label="농장 대자보 닫기">×</button>
-        </header>
-        <form class="farm-bulletin-compose" id="farmBulletinForm">
-          <div class="farm-bulletin-type" role="radiogroup" aria-label="글 종류">
-            <button class="active" type="button" data-bulletin-type="buy">삽니다</button>
-            <button type="button" data-bulletin-type="sell">팝니다</button>
-          </div>
-          <textarea
-            id="farmBulletinMessage"
-            rows="2"
-            maxlength="60"
-            placeholder="예) 고구마 3개 삽니다! 감자랑 교환도 좋아요"
-            aria-label="게시글 내용"
-          ></textarea>
-          <div class="farm-bulletin-compose-footer">
-            <small id="farmBulletinMessageCount">0 / 60</small>
-            <div class="farm-bulletin-compose-actions">
-              <button type="button" id="deleteFarmBulletinPost" class="secondary-button hidden">내 글 내리기</button>
-              <button type="submit" id="submitFarmBulletinPost">대자보에 붙이기</button>
-            </div>
-          </div>
-        </form>
-        <div class="farm-bulletin-board">
-          <section class="farm-bulletin-group">
-            <h3>🙋 삽니다</h3>
-            <div class="farm-bulletin-list" id="farmBulletinBuyList"></div>
-          </section>
-          <section class="farm-bulletin-group">
-            <h3>🏷 팝니다</h3>
-            <div class="farm-bulletin-list" id="farmBulletinSellList"></div>
-          </section>
-        </div>
-      </section>
-    </div>
-
-    <div class="market-modal hidden" id="farmBulletinCommentModal" role="dialog" aria-modal="true" aria-labelledby="farmBulletinCommentTitle">
-      <div class="market-modal-backdrop" data-close-farm-bulletin-comment></div>
-      <section class="market-modal-panel farm-bulletin-comment-panel">
-        <header>
-          <div>
-            <span class="section-kicker">FARM BULLETIN</span>
-            <h2 id="farmBulletinCommentTitle">글 보기</h2>
-            <p>댓글로 아직 파는지, 우편 보냈는지 서로 남겨줘</p>
-          </div>
-          <button type="button" data-close-farm-bulletin-comment aria-label="닫기">×</button>
-        </header>
-        <div class="farm-bulletin-comment-post" id="farmBulletinCommentPost"></div>
-        <div class="farm-bulletin-comment-list" id="farmBulletinCommentList"></div>
-        <form class="farm-bulletin-comment-form" id="farmBulletinCommentForm">
-          <div class="farm-bulletin-reply-target hidden" id="farmBulletinReplyTarget">
-            <span id="farmBulletinReplyTargetLabel"></span>
-            <button type="button" id="cancelFarmBulletinReply" aria-label="답글 취소">✕</button>
-          </div>
-          <textarea
-            id="farmBulletinCommentMessage"
-            rows="2"
-            maxlength="80"
-            placeholder="예) 아직 팔아요? / FARM-0000-0000으로 우편 보냈어요"
-            aria-label="댓글 내용"
-          ></textarea>
-          <div class="farm-bulletin-comment-form-footer">
-            <small id="farmBulletinCommentMessageCount">0 / 80</small>
-            <button type="submit" id="submitFarmBulletinComment">댓글 달기</button>
-          </div>
-        </form>
-      </section>
-    </div>
-
     <div class="market-modal farm-reward-box-modal hidden" id="farmRewardBoxModal" role="dialog" aria-modal="true" aria-labelledby="farmRewardBoxTitle">
       <div class="market-modal-backdrop" data-close-reward-box></div>
       <section class="market-modal-panel farm-reward-box-panel">
@@ -1025,7 +846,7 @@
             <h2 id="farmRewardBoxTitle">작물 랜덤 박스</h2>
             <p>상자를 하나씩 눌러 이번 주의 행운을 확인해</p>
           </div>
-          <button type="button" data-close-reward-box aria-label="랜덤 박스 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-reward-box aria-label="랜덤 박스 닫기">×</button>
         </header>
         <div class="farm-reward-box-status">
           <span>개봉한 상자</span>
@@ -1046,34 +867,56 @@
             <h2 id="farmKitchenTitle">농장 주방</h2>
             <p>수확한 재료를 두 가지 이상 조합해 음식을 만들고 레시피 도감을 채워</p>
           </div>
-          <button type="button" data-close-kitchen aria-label="주방 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-kitchen aria-label="주방 닫기">×</button>
         </header>
         <section class="farm-kitchen">
-          <div class="recipe-lab">
-            <div class="recipe-ingredient-select custom-group-select">
-              <select id="recipeIngredient1" aria-label="첫 번째 요리 재료" hidden></select>
-              <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span data-recipe-ingredient-label>재료 선택</span><span aria-hidden="true">⌄</span>
-              </button>
-              <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
+          <div class="witch-kitchen-scene">
+            <div class="witch-kitchen-shelf" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i>
             </div>
-            <div class="recipe-ingredient-select custom-group-select">
-              <select id="recipeIngredient2" aria-label="두 번째 요리 재료" hidden></select>
-              <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span data-recipe-ingredient-label>재료 선택</span><span aria-hidden="true">⌄</span>
-              </button>
-              <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
+            <p class="witch-kitchen-guide">재료를 고르면 마법 가마솥에 차례로 들어가요</p>
+            <div class="recipe-lab">
+              <div class="witch-ingredient-rack" aria-label="가마솥 재료 선택">
+                <div class="recipe-ingredient-select custom-group-select">
+                  <span class="ingredient-slot-number">1</span>
+                  <select id="recipeIngredient1" aria-label="첫 번째 요리 재료" hidden></select>
+                  <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-recipe-ingredient-label>재료 선택</span><span class="recipe-picker-arrow" aria-hidden="true"></span>
+                  </button>
+                  <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
+                </div>
+                <div class="recipe-ingredient-select custom-group-select">
+                  <span class="ingredient-slot-number">2</span>
+                  <select id="recipeIngredient2" aria-label="두 번째 요리 재료" hidden></select>
+                  <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-recipe-ingredient-label>재료 선택</span><span class="recipe-picker-arrow" aria-hidden="true"></span>
+                  </button>
+                  <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
+                </div>
+                <div class="recipe-ingredient-select custom-group-select">
+                  <span class="ingredient-slot-number">3</span>
+                  <select id="recipeIngredient3" aria-label="세 번째 요리 재료" hidden></select>
+                  <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                    <span data-recipe-ingredient-label>재료 선택</span><span class="recipe-picker-arrow" aria-hidden="true"></span>
+                  </button>
+                  <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
+                </div>
+              </div>
+              <div class="witch-cauldron-station">
+                <div class="witch-cauldron-smoke" aria-hidden="true"><i></i><i></i><i></i></div>
+                <div class="witch-cauldron" id="recipeCauldron" aria-live="polite">
+                  <div class="witch-cauldron-liquid"></div>
+                  <div class="witch-cauldron-ingredients" id="recipeCauldronIngredients"></div>
+                </div>
+                <p id="recipeCauldronStatus">빈 가마솥 · 재료를 2개 이상 골라주세요</p>
+                <button id="cookRecipeButton" type="button"><span aria-hidden="true">✦</span> 마법 요리 시작</button>
+              </div>
             </div>
-            <div class="recipe-ingredient-select custom-group-select">
-              <select id="recipeIngredient3" aria-label="세 번째 요리 재료" hidden></select>
-              <button class="recipe-ingredient-trigger custom-group-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
-                <span data-recipe-ingredient-label>재료 선택</span><span aria-hidden="true">⌄</span>
-              </button>
-              <div class="recipe-ingredient-menu custom-group-menu hidden" role="listbox"></div>
-            </div>
-            <button id="cookRecipeButton" type="button">조합하기</button>
           </div>
-          <div class="food-inventory" id="foodInventory"></div>
+          <section class="kitchen-food-storage">
+            <h3>완성된 요리</h3>
+            <div class="food-inventory" id="foodInventory"></div>
+          </section>
           <section class="recipe-book" id="recipeBookPanel">
             <div class="recipe-book-heading">
               <span>레시피 도감 <strong id="recipeBookProgress">0 / 0</strong></span>
@@ -1090,7 +933,7 @@
       <section class="market-modal-panel storage-modal-panel">
         <header>
           <div><span class="section-kicker">FARM STORAGE</span><h2 id="harvestStorageTitle">수확물 보관함</h2><p>수확한 작물을 요리 재료로 사용해</p></div>
-          <button type="button" data-close-storage aria-label="수확물 보관함 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-storage aria-label="수확물 보관함 닫기">×</button>
         </header>
         <div class="crop-storage-list storage-grid-44" id="harvestInventory"></div>
       </section>
@@ -1101,7 +944,7 @@
       <section class="market-modal-panel storage-modal-panel">
         <header>
           <div><span class="section-kicker">FARM STORAGE</span><h2 id="seedStorageTitle">씨앗 보관함</h2><p>씨앗을 선택한 뒤 빈 밭을 눌러 심어</p></div>
-          <button type="button" data-close-storage aria-label="씨앗 보관함 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-storage aria-label="씨앗 보관함 닫기">×</button>
         </header>
         <div class="seed-inventory-list storage-grid-44" id="seedInventory"></div>
       </section>
@@ -1109,10 +952,10 @@
 
     <div class="market-modal hidden" id="supplyStorageModal" role="dialog" aria-modal="true" aria-labelledby="supplyStorageTitle">
       <div class="market-modal-backdrop" data-close-storage></div>
-      <section class="market-modal-panel supply-storage-modal">
+      <section class="market-modal-panel farm-supply-modal-panel supply-storage-modal">
         <header>
           <div><span class="section-kicker">FARM STORAGE</span><h2 id="supplyStorageTitle">농장 용품 보관함</h2><p>보유한 용품의 효과를 확인하고 바로 사용해</p></div>
-          <button type="button" data-close-storage aria-label="농장 용품 보관함 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-storage aria-label="농장 용품 보관함 닫기">×</button>
         </header>
         <div class="modal-market-balance">보유 농장 용품 <strong>🎒 <span id="supplyModalCount">0</span>개</strong></div>
         <div class="farm-item-shop farm-supply-list" id="farmItemInventory"></div>
@@ -1176,7 +1019,7 @@
             <h2 id="freePassTargetTitle">완료할 항목 선택</h2>
             <p>프리패스로 완료 처리할 할 일 또는 오늘의 습관을 골라</p>
           </div>
-          <button type="button" data-close-free-pass aria-label="프리패스 대상 선택 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-free-pass aria-label="프리패스 대상 선택 닫기">×</button>
         </header>
         <div class="free-pass-target-list" id="freePassTargetList"></div>
         <button class="free-pass-confirm" id="confirmFreePassTarget" type="button" disabled>선택한 항목 완료하기</button>
@@ -1236,9 +1079,9 @@
           <div>
             <span class="section-kicker">FARMER SETTINGS</span>
             <h2 id="userSettingsTitle">사용자 설정</h2>
-            <p>프로필과 Farmodoro 화면을 내 취향에 맞게 바꿔</p>
+            <p>프로필과 계정 정보를 관리해</p>
           </div>
-          <button type="button" data-close-user-settings aria-label="사용자 설정 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-user-settings aria-label="사용자 설정 닫기">×</button>
         </header>
 
         <form class="user-settings-form" id="userSettingsForm">
@@ -1270,47 +1113,11 @@
             </label>
           </section>
 
-          <section class="settings-section" aria-labelledby="themeSettingsTitle">
-            <div class="settings-section-heading">
-              <div>
-                <strong id="themeSettingsTitle">화면 테마</strong>
-                <small>선택한 테마는 계정에 저장돼 어디서든 이어져</small>
-              </div>
-            </div>
-            <div class="theme-options" role="radiogroup" aria-label="화면 테마">
-              <label class="theme-option">
-                <input type="radio" name="appTheme" value="white" />
-                <span class="theme-preview theme-preview-white" aria-hidden="true"><i></i><i></i><i></i></span>
-                <strong>화이트</strong>
-              </label>
-              <label class="theme-option">
-                <input type="radio" name="appTheme" value="classic" />
-                <span class="theme-preview theme-preview-classic" aria-hidden="true"><i></i><i></i><i></i></span>
-                <strong>초록 농장</strong>
-              </label>
-              <label class="theme-option">
-                <input type="radio" name="appTheme" value="sunset" />
-                <span class="theme-preview theme-preview-sunset" aria-hidden="true"><i></i><i></i><i></i></span>
-                <strong>노을 농장</strong>
-              </label>
-              <label class="theme-option">
-                <input type="radio" name="appTheme" value="sky" />
-                <span class="theme-preview theme-preview-sky" aria-hidden="true"><i></i><i></i><i></i></span>
-                <strong>맑은 하늘</strong>
-              </label>
-              <label class="theme-option">
-                <input type="radio" name="appTheme" value="dark" />
-                <span class="theme-preview theme-preview-dark" aria-hidden="true"><i></i><i></i><i></i></span>
-                <strong>블랙</strong>
-              </label>
-            </div>
-          </section>
-
           <section class="settings-section" aria-labelledby="pushSettingsTitle">
             <div class="settings-section-heading">
               <div>
                 <strong id="pushSettingsTitle">휴대폰 알림</strong>
-                <small id="pushSettingsStatus">우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려줘</small>
+                <small id="pushSettingsStatus">우편, 타이머 종료, 물주기 시간을 알려줘</small>
               </div>
             </div>
             <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
@@ -1408,26 +1215,9 @@
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./assets/crops-sprite.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <div class="habit-modal hidden" id="habitRecordModal" role="dialog" aria-modal="true" aria-labelledby="habitRecordTitle">
-      <div class="habit-modal-backdrop" data-close-habit-record></div>
-      <section class="habit-modal-panel delete-confirm-panel">
-        <h2 id="habitRecordTitle">지난 습관 기록</h2>
-        <p id="habitRecordDescription"></p>
-        <form id="habitRecordForm">
-          <label id="habitRecordCountLabel">횟수 <input id="habitRecordCount" type="number" min="0" step="1" inputmode="numeric" /></label>
-          <label id="habitRecordCompleteLabel"><input id="habitRecordComplete" type="checkbox" /> 완료했어</label>
-          <p>완료하거나 취소하면 해당 날짜의 코인 보상도 반영돼.</p>
-          <div class="delete-confirm-actions">
-            <button class="secondary-button" type="button" data-close-habit-record>취소</button>
-            <button class="primary-button" id="saveHabitRecord" type="submit">저장</button>
-          </div>
-        </form>
-      </section>
-    </div>
-    <script src="./app.js?v=168"></script>
-    <script src="./pwa-register.js?v=168"></script>
+    <script src="./app.js?v=208"></script>
+    <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

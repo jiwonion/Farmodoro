@@ -1,17 +1,25 @@
-const CACHE_VERSION = "farmodoro-v168";
+const CACHE_VERSION = "farmodoro-v208";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=168",
-  "./app.js?v=168",
-  "./pwa-register.js?v=168",
+  "./styles.css?v=182",
+  "./pixel-theme.css?v=191",
+  "./farm-pixel.css?v=208",
+  "./pixel-layout.css?v=208",
+  "./app.js?v=208",
+  "./pwa-register.js?v=176",
+  "./assets/fonts/Mulmaru.woff2",
   "./supabase-config.js",
   "./manifest.webmanifest",
-  "./assets/crops-sprite.js",
-  "./assets/crops.svg",
+  "./assets/pixel/crops-atlas.png",
+  "./assets/pixel/themes-atlas.png",
+  "./assets/pixel/plots-atlas.png",
+  "./assets/pixel/farm-supplies-atlas.png",
+  "./assets/pixel/food-atlas.png",
   "./assets/farmodoro-logo-v2.png",
   "./assets/focus-farm-background.png",
+  "./assets/focus/default-focus-room.png",
   "./assets/npc-morrison.png",
   "./assets/npc-noah.png",
   "./assets/npc-rachel.png",

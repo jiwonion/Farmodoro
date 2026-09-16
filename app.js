@@ -12,7 +12,6 @@ const APP_VERSION = new URL(document.currentScript?.src ?? "", location.href)
 
 const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
-const APP_THEMES = new Set(["white", "classic", "sunset", "sky", "dark"]);
 
 // Public VAPID key for Web Push subscriptions (062_push_subscriptions.sql +
 // supabase/functions/send-push). Not a secret -- pairs with the private key
@@ -73,7 +72,6 @@ let currentProfile = null;
 let pendingAvatarFile = null;
 let pendingAvatarReset = false;
 let profilePreviewObjectUrl = null;
-let themeBeforeSettings = "classic";
 let farmAdminPermissionUserId = null;
 let taskDataHydrated = false;
 let taskDataUserId = null;
@@ -134,15 +132,15 @@ const TUTORIAL_STEPS = [
     icon: "✎",
     title: "이름과 그룹을 정해",
     description: "할 일 이름을 적고 필요한 경우 그룹을 고른 뒤 추가를 누르면 돼.",
-    tips: ["그룹 관리는 공부, 업무처럼 자주 쓰는 분류를 만들 때 써", "추가한 할 일은 대기 칸으로 들어가"],
+    tips: ["그룹 관리는 공부, 업무처럼 자주 쓰는 분류를 만들 때 써", "추가한 할 일은 목록에서 바로 확인할 수 있어"],
   },
   {
     page: "today",
     target: '.board-column[data-status="waiting"] > header',
     kicker: "STEP 03 · STATUS",
     icon: "✓",
-    title: "상태별로 할 일을 정리해",
-    description: "카드 아래 버튼으로 대기, 진행 중, 완료 상태를 바로 바꿀 수 있어.",
+    title: "체크해서 완료해",
+    description: "체크박스를 누르면 완료되고, 다시 누르면 완료를 취소할 수 있어.",
     tips: ["완료하면 Coin 보상이 들어와"],
   },
   {
@@ -151,7 +149,7 @@ const TUTORIAL_STEPS = [
     kicker: "STEP 04 · HABITS",
     icon: "↻",
     title: "반복할 일은 습관으로 등록해",
-    description: "추가 버튼을 누르면 습관의 목표와 일정을 정하는 창이 열려.",
+    description: "추가 버튼을 누르면 습관 이름과 반복 일정을 정하는 창이 열려.",
     tips: ["매일 반복하는 일은 할 일보다 습관으로 만드는 게 편해"],
   },
   {
@@ -166,19 +164,9 @@ const TUTORIAL_STEPS = [
   },
   {
     page: "habits",
-    target: ".habit-measure-row",
-    reveal: "habit-form",
-    kicker: "STEP 06 · HABIT GOAL",
-    icon: "◎",
-    title: "목표량을 정해",
-    description: "횟수, 시간, 양 중 측정 방식을 고른 다음 목표값과 단위를 입력해.",
-    tips: ["운동 3회, 독서 30분, 물 2L처럼 기록할 수 있어"],
-  },
-  {
-    page: "habits",
     target: ".weekday-field",
     reveal: "habit-form",
-    kicker: "STEP 07 · HABIT SCHEDULE",
+    kicker: "STEP 06 · HABIT SCHEDULE",
     icon: "▦",
     title: "반복 요일을 골라",
     description: "실천할 요일과 종료일을 정하고 습관 추가를 누르면 등록돼.",
@@ -187,7 +175,7 @@ const TUTORIAL_STEPS = [
   {
     page: "today",
     target: "#focusButton",
-    kicker: "STEP 08 · FOCUS",
+    kicker: "STEP 07 · FOCUS",
     icon: "◷",
     title: "이 버튼으로 집중을 시작해",
     description: "항목 집중을 선택하면 해당 할 일이나 습관에 시간이 기록돼.",
@@ -196,7 +184,7 @@ const TUTORIAL_STEPS = [
   {
     page: "today",
     target: '[data-page="farm"]',
-    kicker: "STEP 09 · FARM",
+    kicker: "STEP 08 · FARM",
     icon: "🌾",
     title: "마지막은 내 농장이야",
     description: "모은 보상으로 씨앗을 심고 물을 주면서 농장을 키워.",
@@ -237,33 +225,6 @@ function subscribeToUserTables(channel, tables, userId, callback) {
     channel,
   );
 }
-
-function normalizeTheme(theme) {
-  return APP_THEMES.has(theme) ? theme : "classic";
-}
-
-function getActiveTheme() {
-  return normalizeTheme(document.documentElement.dataset.theme);
-}
-
-function applyTheme(theme) {
-  const normalizedTheme = normalizeTheme(theme);
-  document.documentElement.dataset.theme = normalizedTheme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute(
-    "content",
-    normalizedTheme === "sunset"
-      ? "#79503d"
-      : normalizedTheme === "sky"
-        ? "#315f6d"
-        : normalizedTheme === "dark"
-          ? "#121a16"
-          : normalizedTheme === "white"
-            ? "#ffffff"
-            : "#2f5d45",
-  );
-}
-
-applyTheme("classic");
 
 function setAuthStatus(message, isNotice = false) {
   authStatus.textContent = message;
@@ -411,7 +372,6 @@ function getProfileFallback(user) {
       metadata.display_name || metadata.full_name || metadata.name || user.email?.split("@")[0] || "Farmodoro",
     avatar_url: metadata.avatar_url || metadata.picture || "",
     farm_code: "",
-    theme: getActiveTheme(),
     focus_background_path: null,
   };
 }
@@ -430,7 +390,7 @@ async function loadUserProfile(user) {
   if (!supabaseClient || !user) return null;
   const { data, error } = await supabaseClient
     .from("profiles")
-    .select("display_name, avatar_url, farm_code, theme, focus_background_path")
+    .select("display_name, avatar_url, farm_code, focus_background_path")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -439,7 +399,6 @@ async function loadUserProfile(user) {
     currentProfile = getProfileFallback(user);
   } else {
     currentProfile = data ?? getProfileFallback(user);
-    applyTheme(currentProfile.theme);
   }
 
   if (activeAuthUser?.id === user.id) updateProfileFromUser(user, currentProfile);
@@ -603,8 +562,6 @@ async function applyAuthSession(session) {
     startProductivityRealtime(session.user);
     startAppStateRealtime(session.user);
     startFarmMailUnreadPolling(session.user);
-    startFarmBulletinUnreadPolling(session.user);
-    startFarmBulletinRealtime(session.user);
     startFarmMailRealtime(session.user);
     await loadFocusProgress(session.user);
     await loadFocusTimerFromDatabase(session.user);
@@ -619,7 +576,6 @@ async function applyAuthSession(session) {
     resetFarmDataDatabaseState();
     state = loadState();
     applyLoadedAppStateRuntime();
-    applyTheme("classic");
     currentProfile = null;
     farmAdminPermissionUserId = null;
     farmAdminMailSection.hidden = true;
@@ -691,10 +647,6 @@ function setSettingsAvatarPreview(avatarUrl) {
 
 function getProfileSettingsErrorMessage(error) {
   const message = String(error?.message ?? "");
-  if (message.includes("profiles_theme_value")) {
-    console.warn("Farmodoro: 004 migration not applied (profiles_theme_value)");
-    return "테마 설정을 저장하지 못했어. 잠시 후 다시 시도해줘";
-  }
   if (message.includes("Bucket not found") || message.includes("avatars")) {
     console.warn("Farmodoro: 002 migration not applied (avatars bucket missing)");
     return "프로필 사진을 저장하지 못했어. 잠시 후 다시 시도해줘";
@@ -732,7 +684,6 @@ async function openUserSettings() {
   pendingAvatarFile = null;
   pendingAvatarReset = false;
   clearProfilePreviewObjectUrl();
-  themeBeforeSettings = getActiveTheme();
 
   if (!currentProfile?.farm_code) await loadUserProfile(activeAuthUser);
   if (farmAdminPermissionUserId !== activeAuthUser.id) {
@@ -740,10 +691,6 @@ async function openUserSettings() {
   }
   refreshSettingsProfileFields();
 
-  const themeRadio = userSettingsForm.querySelector(
-    `input[name="appTheme"][value="${normalizeTheme(currentProfile?.theme)}"]`,
-  );
-  if (themeRadio) themeRadio.checked = true;
   userSettingsModal.classList.remove("hidden");
   userSettingsModal.querySelector("[data-close-user-settings]")?.focus({ preventScroll: true });
   void refreshPushNotificationSettingsUI();
@@ -788,8 +735,8 @@ async function refreshPushNotificationSettingsUI() {
   const subscription = await getFarmPushSubscription();
   button.textContent = subscription ? "알림 끄기" : "알림 받기";
   status.textContent = subscription
-    ? "우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려주고 있어"
-    : "우편, 대자보 댓글, 타이머 종료, 물주기 시간을 알려줘";
+    ? "우편, 타이머 종료, 물주기 시간을 알려주고 있어"
+    : "우편, 타이머 종료, 물주기 시간을 알려줘";
 }
 
 async function enableFarmPushNotifications() {
@@ -846,15 +793,6 @@ async function notifyFarmMailSent(mailId) {
   }
 }
 
-async function notifyFarmBulletinComment(commentId) {
-  if (!supabaseClient) return;
-  try {
-    await supabaseClient.functions.invoke("send-push", { body: { event: "bulletin_comment", commentId } });
-  } catch (error) {
-    console.warn("Farmodoro send-push (bulletin_comment) failed", error);
-  }
-}
-
 // Schedules/cancels a future push (timer end, watering ready) via
 // scheduled_push_notifications (063) + the pg_cron-driven dispatch-scheduled-push
 // function. Best-effort: a failure here should never block the timer/watering
@@ -888,14 +826,13 @@ async function cancelFarmPushNotification(kind, subjectKey) {
   }
 }
 
-function closeUserSettings({ keepTheme = false } = {}) {
+function closeUserSettings() {
   if (userSettingsModal.classList.contains("hidden")) return;
   userSettingsModal.classList.add("hidden");
   clearProfilePreviewObjectUrl();
   pendingAvatarFile = null;
   pendingAvatarReset = false;
   profileAvatarInput.value = "";
-  if (!keepTheme) applyTheme(themeBeforeSettings);
 }
 
 function renderTutorialStep() {
@@ -1198,10 +1135,6 @@ profileDisplayNameInput.addEventListener("input", () => {
   if (!previewImage) setSettingsAvatarPreview("");
 });
 
-userSettingsForm.addEventListener("change", (event) => {
-  if (event.target.matches('input[name="appTheme"]')) applyTheme(event.target.value);
-});
-
 document.querySelector("#togglePushNotifications").addEventListener("click", async () => {
   const button = document.querySelector("#togglePushNotifications");
   button.disabled = true;
@@ -1248,14 +1181,11 @@ userSettingsForm.addEventListener("submit", async (event) => {
     if (pendingAvatarReset) avatarUrl = getGoogleAvatarUrl(activeAuthUser);
     if (pendingAvatarFile) avatarUrl = await uploadProfileAvatar(activeAuthUser, pendingAvatarFile);
 
-    const selectedTheme = normalizeTheme(
-      userSettingsForm.querySelector('input[name="appTheme"]:checked')?.value,
-    );
     const { data, error } = await supabaseClient
       .from("profiles")
-      .update({ display_name: displayName, avatar_url: avatarUrl || null, theme: selectedTheme })
+      .update({ display_name: displayName, avatar_url: avatarUrl || null })
       .eq("id", activeAuthUser.id)
-      .select("display_name, avatar_url, farm_code, theme, focus_background_path")
+      .select("display_name, avatar_url, farm_code, focus_background_path")
       .single();
     if (error) throw error;
 
@@ -1265,9 +1195,8 @@ userSettingsForm.addEventListener("submit", async (event) => {
     });
     if (authUpdateError) console.warn("Auth profile metadata could not be updated", authUpdateError);
 
-    applyTheme(selectedTheme);
     updateProfileFromUser(activeAuthUser, currentProfile);
-    closeUserSettings({ keepTheme: true });
+    closeUserSettings();
     showToast("사용자 설정을 저장했어");
   } catch (error) {
     console.error("Farmodoro user settings could not be saved", error);
@@ -1287,7 +1216,7 @@ signOutButton.addEventListener("click", async () => {
   if (error) {
     showToast("로그아웃하지 못했어. 다시 시도해줘");
   } else {
-    closeUserSettings({ keepTheme: true });
+    closeUserSettings();
     applyAuthSession(null);
     try {
       await prepareGoogleSignIn();
@@ -1644,20 +1573,6 @@ const CROPS = {
   },
 };
 
-const CROP_GROWTH_TYPES = Object.fromEntries(
-  [
-    ["root", "carrot potato sweetPotato onion garlic beet radish turnip peanut bellFlower"],
-    ["leafy", "cabbage broccoli lettuce spinach kale celery daikon bokchoy"],
-    ["grain", "corn rice wheat barley oat sweetCorn"],
-    ["vine", "tomato strawberry eggplant pepper cucumber pumpkin watermelon melon chili pea bean grape pumpkinSquash edamame"],
-    ["berry", "blueberry raspberry"],
-    ["tree", "apple pear peach cherry lemon orange kiwi chestnut fig plum"],
-    ["tropical", "pineapple mango passionFruit"],
-    ["fungus", "mushroom truffle"],
-    ["flower", "sunflower lavender"],
-  ].flatMap(([type, cropIds]) => cropIds.split(" ").map((cropId) => [cropId, type])),
-);
-
 const CROP_GROWTH_COSTS = Object.fromEntries(
   [
     [2, "radish lettuce spinach mushroom pea daikon bokchoy"],
@@ -1772,16 +1687,16 @@ const PLOT_SKINS = [
 ];
 
 const LABEL_EFFECTS = [
-  { id: "goldenSparkle", name: "금빛 반짝임", price: 1200 },
-  { id: "confetti", name: "색종이 컨페티", price: 1200 },
-  { id: "cherryDrift", name: "벚꽃 흩날림", price: 1200 },
-  { id: "snowSparkle", name: "눈송이 반짝임", price: 1200 },
-  { id: "rainbowGradient", name: "무지개 그라데이션", price: 1200 },
-  { id: "starAurora", name: "별빛 오로라", price: 1200 },
-  { id: "heartPop", name: "하트 뿅뿅", price: 1200 },
-  { id: "flameBorder", name: "불꽃 테두리", price: 1200 },
-  { id: "butterflyFlutter", name: "나비 팔랑임", price: 1200 },
-  { id: "galaxySparkle", name: "은하수 반짝임", price: 1200 },
+  { id: "goldenSparkle", name: "황금 도트 명패", price: 1200 },
+  { id: "confetti", name: "컬러 블록 명패", price: 1200 },
+  { id: "cherryDrift", name: "벚꽃 도트 명패", price: 1200 },
+  { id: "snowSparkle", name: "설원 도트 명패", price: 1200 },
+  { id: "rainbowGradient", name: "무지개 블록 명패", price: 1200 },
+  { id: "starAurora", name: "오로라 도트 명패", price: 1200 },
+  { id: "heartPop", name: "하트 도트 명패", price: 1200 },
+  { id: "flameBorder", name: "테라코타 명패", price: 1200 },
+  { id: "butterflyFlutter", name: "나비 정원 명패", price: 1200 },
+  { id: "galaxySparkle", name: "밤하늘 도트 명패", price: 1200 },
 ];
 
 const COSMETIC_CATALOGS = {
@@ -1994,9 +1909,10 @@ let currentPage = "today";
 let taskGroupFilter = "all";
 let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let selectedHabitDate = null;
 let selectedSeed = null;
 let selectedFarmItem = null;
-const NPC_PANELS = ["morrison", "noah", "rachel"];
+const NPC_PANELS = ["morrison", "food", "crop", "rachel"];
 let activeNpcPanel = "morrison";
 let rachelActiveTab = "offers";
 let selectedMailFriendCode = "";
@@ -2009,24 +1925,6 @@ const FARM_MAIL_MAX_QUANTITY = 5;
 const FARM_MAIL_MAX_PRICE_COINS = 200;
 const FARM_MAIL_MAX_MESSAGE_LENGTH = 80;
 let farmMailView = "send";
-let farmBulletinPosts = [];
-let selectedBulletinType = "buy";
-// "Seen" is tracked per-device (localStorage), not synced server-side --
-// the bulletin board is closer to a public noticeboard than to mail, so a
-// lightweight per-browser marker is enough for "is there something new"
-// without a migration.
-let farmBulletinLastSeenAt = Number(localStorage.getItem("farmodoro-bulletin-last-seen") || 0);
-// { [postId]: commentCount as of the last time I opened that post's thread }
-// -- lets the badge count new comments on MY posts too, without counting
-// comments I added myself or ones I've already opened the thread to read.
-let farmBulletinSeenCommentCounts = (() => {
-  try {
-    return JSON.parse(localStorage.getItem("farmodoro-bulletin-seen-comments") || "{}");
-  } catch {
-    return {};
-  }
-})();
-let farmBulletinUnreadPollInterval = null;
 let farmMailContacts = [];
 let farmMailServerUnreadCount = null;
 let farmMailUnreadPollInterval = null;
@@ -2047,6 +1945,10 @@ const customTaskGroupSelect = document.querySelector("#customTaskGroupSelect");
 const taskGroupTrigger = document.querySelector("#taskGroupTrigger");
 const taskGroupLabel = document.querySelector("#taskGroupLabel");
 const taskGroupMenu = document.querySelector("#taskGroupMenu");
+const taskModalTitle = document.querySelector("#taskCreateTitle");
+const taskModalFocusRow = document.querySelector("#taskModalFocusRow");
+const taskFocusMinutesInput = document.querySelector("#taskFocusMinutesInput");
+const taskFormSubmit = document.querySelector("#taskFormSubmit");
 const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
@@ -2068,15 +1970,6 @@ const taskDeleteCoinAmount = document.querySelector("#taskDeleteCoinAmount");
 const confirmTaskDelete = document.querySelector("#confirmTaskDelete");
 const habitModalFormSlot = document.querySelector("#habitModalFormSlot");
 const habitInput = document.querySelector("#habitInput");
-const habitMeasureType = document.querySelector("#habitMeasureType");
-const habitMeasureSelect = document.querySelector(".habit-measure-select");
-const habitMeasureTrigger = document.querySelector("#habitMeasureTrigger");
-const habitMeasureLabel = document.querySelector("#habitMeasureLabel");
-const habitMeasureMenu = document.querySelector("#habitMeasureMenu");
-const habitTargetValue = document.querySelector("#habitTargetValue");
-const habitWeekdayTargetsEnabled = document.querySelector("#habitWeekdayTargetsEnabled");
-const habitWeekdayTargets = document.querySelector("#habitWeekdayTargets");
-const habitUnit = document.querySelector("#habitUnit");
 const habitEndDate = document.querySelector("#habitEndDate");
 const habitStartDate = document.querySelector("#habitStartDate");
 const habitRecordEditsInFlight = new Set();
@@ -2091,7 +1984,10 @@ const miniFocusStatus = document.querySelector("#miniFocusStatus");
 const miniFocusTitle = document.querySelector("#miniFocusTitle");
 const miniFocusTime = document.querySelector("#miniFocusTime");
 const miniFocusPause = document.querySelector("#miniFocusPause");
+const focusFloatingStatus = miniFocusTimer.closest(".focus-floating-status");
 let miniFocusMode = null;
+let miniFocusDrag = null;
+let suppressMiniFocusOpen = false;
 let pendingHabitDeleteId = null;
 let pendingTaskDeleteId = null;
 let editingTaskId = null;
@@ -2113,11 +2009,6 @@ function resetFarmDataDatabaseState() {
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
   farmMailUnreadPollInterval = null;
-  farmBulletinPosts = [];
-  if (farmBulletinUnreadPollInterval) clearInterval(farmBulletinUnreadPollInterval);
-  farmBulletinUnreadPollInterval = null;
-  stopFarmBulletinRealtime();
-  updateFarmBulletinUnreadBadge();
 }
 
 function captureFarmState() {
@@ -3174,9 +3065,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000))
       : 0;
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
-    const isTaskStopwatch = runningFocusMode === "linked" && activeFocus?.type === "task";
+    const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus);
     const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
-    const appliedSeconds = isTaskStopwatch || quickFocus
+    const appliedSeconds = isLinkedStopwatch || quickFocus
       ? elapsedSeconds
       : Math.min(elapsedSeconds, runtime.seconds);
     if (quickFocus && (runtime.overtime || appliedSeconds >= runtime.seconds)) {
@@ -3184,7 +3075,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       runtime.overtime = true;
       runtime.seconds = 0;
     } else {
-      runtime.seconds = isTaskStopwatch
+      runtime.seconds = isLinkedStopwatch
         ? runtime.seconds + appliedSeconds
         : Math.max(0, runtime.seconds - appliedSeconds);
     }
@@ -3241,7 +3132,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     button.classList.toggle("active", button.dataset.focusMode === focusMode);
   });
   focusSettingsButton.hidden = focusMode === "linked";
-  if (focusMode === "linked") focusSettings.classList.add("hidden");
+  if (focusMode === "linked") {
+    closeFocusSettings();
+  }
   renderFocusPicker();
   updateFocusActionButton();
   updateFocusDisplay();
@@ -3399,14 +3292,8 @@ function serializeTaskDatabaseState() {
     ]);
     return [...recordDates].map((recordDate) => {
       const targetValue = getHabitTargetForDate(habit, recordDate);
-      const progressValue = habit.measureType === "count"
-        ? Math.max(0, Number(habit.progressByDate?.[recordDate] ?? 0))
-        : habit.completionDates.includes(recordDate)
-          ? targetValue
-          : 0;
-      const completed =
-        habit.completionDates.includes(recordDate) ||
-        (habit.measureType === "count" && progressValue >= targetValue);
+      const progressValue = habit.completionDates.includes(recordDate) ? targetValue : 0;
+      const completed = habit.completionDates.includes(recordDate);
       const recordMeta = habit.recordMetaByDate?.[recordDate] ?? {};
       const isToday = recordDate === toLocalDateString();
       return {
@@ -3461,10 +3348,10 @@ function serializeTaskDatabaseState() {
     habits: state.habits.map((habit, sortOrder) => ({
       id: habit.id,
       title: habit.title,
-      measure_type: habit.measureType,
-      target_value: Number(habit.targetValue),
-      target_by_weekday: habit.targetByWeekday ?? {},
-      unit: habit.unit,
+      measure_type: "amount",
+      target_value: 1,
+      target_by_weekday: {},
+      unit: "완료",
       weekdays: habit.weekdays,
       start_date: habit.startDate || null,
       end_date: habit.endDate || null,
@@ -3955,15 +3842,14 @@ function getFocusSettings(mode = focusMode) {
 }
 
 function getHabitDailyFocusSeconds(habit, dateString = toLocalDateString()) {
-  if (!habit || habit.measureType !== "time") return 0;
+  if (!habit) return 0;
   return Math.max(0, Math.floor(Number(habit.focusSecondsByDate?.[dateString] ?? 0)));
 }
 
 function getLinkedFocusSeconds(item = getFocusItem()) {
   if (!item) return 0;
   if (activeFocus?.type === "task") return Math.max(0, Math.floor(item.focusSeconds ?? 0));
-  const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
-  return Math.max(0, targetSeconds - getHabitDailyFocusSeconds(item));
+  return getHabitDailyFocusSeconds(item);
 }
 
 function prepareLinkedFocusRuntime(item = getFocusItem()) {
@@ -4042,10 +3928,10 @@ function renderGroups() {
 }
 
 function renderTaskFilters() {
-  const filters = document.querySelector("#taskGroupFilters");
+  const filters = document.querySelectorAll("#taskGroupFilters, #todayTaskGroupFilters");
   const archiveButton = document.querySelector("#toggleArchiveView");
   const archivePolicy = document.querySelector("#taskArchivePolicy");
-  if (!filters || !archiveButton || !archivePolicy) return;
+  if (!archiveButton || !archivePolicy) return;
 
   const options = [
     { id: "all", name: "전체" },
@@ -4055,18 +3941,20 @@ function renderTaskFilters() {
 
   const archiveActive = currentPage === "tasks" && taskArchiveView;
 
-  filters.innerHTML = options
+  const filterMarkup = options
     .map(
       (option) => `
         <button
           class="${taskGroupFilter === option.id ? "active" : ""}"
           type="button"
           data-task-group-filter="${option.id}"
+          aria-pressed="${taskGroupFilter === option.id}"
         >${escapeHtml(option.name)}</button>
       `,
     )
     .join("");
 
+  filters.forEach((container) => { container.innerHTML = filterMarkup; });
   archiveButton.classList.toggle("active", archiveActive);
   archiveButton.textContent = archiveActive ? "← 할 일로 돌아가기" : "보관함";
   archivePolicy.textContent = archiveActive
@@ -4079,30 +3967,27 @@ function renderTaskFilters() {
 
 function getVisibleTasks(status) {
   return state.tasks.filter((task) => {
-    if (task.status !== status) return false;
+    if (status === "waiting" ? task.status === "done" : task.status !== "done") return false;
 
-    if (currentPage === "tasks") {
-      if (taskArchiveView !== Boolean(task.archived)) return false;
-      if (taskGroupFilter === "all") return true;
-      if (taskGroupFilter === "none") return !task.groupId;
-      return task.groupId === taskGroupFilter;
-    }
-
-    return !task.archived;
+    const archiveActive = currentPage === "tasks" && taskArchiveView;
+    if (archiveActive !== Boolean(task.archived)) return false;
+    if (taskGroupFilter === "all") return true;
+    if (taskGroupFilter === "none") return !task.groupId;
+    return task.groupId === taskGroupFilter;
   });
 }
 
 function renderTasks() {
   renderTaskFilters();
 
-  ["waiting", "doing", "done"].forEach((status) => {
+  ["waiting", "done"].forEach((status) => {
     const list = document.querySelector(`[data-list="${status}"]`);
     const tasks = getVisibleTasks(status);
 
     list.innerHTML = tasks
       .map((task) => {
         const group = getGroup(task.groupId);
-        const isEditing = editingTaskId === task.id;
+        const isEditing = false;
         const editingGroup = isEditing ? getGroup(editingTaskGroupId) : null;
         const inlineGroupOptions = isEditing
           ? [
@@ -4115,7 +4000,7 @@ function renderTasks() {
         return `
           <article
             class="task-card ${status === "done" ? "done" : ""} ${task.archived ? "archived" : ""} ${isEditing ? "editing" : ""}"
-            draggable="${task.archived || isEditing ? "false" : "true"}"
+            draggable="false"
             data-task-id="${task.id}"
           >
             ${
@@ -4160,6 +4045,7 @@ function renderTasks() {
                   </form>
                 `
                 : `
+                  <button class="today-task-check" type="button" data-task-status="${task.status === "done" ? "waiting" : "done"}" aria-label="${escapeHtml(task.title)} ${task.status === "done" ? "완료 취소" : "완료"}" aria-pressed="${task.status === "done"}" ${task.archived ? "disabled" : ""}>${task.status === "done" ? "✓" : ""}</button>
                   <div class="task-top">
                     <h4>${escapeHtml(task.title)}</h4>
                   </div>
@@ -4190,40 +4076,11 @@ function renderTasks() {
                         `
                     }
                   </div>
-                  ${
-                    task.archived
-                      ? ""
-                      : `<div class="task-status-actions" aria-label="${escapeHtml(task.title)} 상태 변경">
-                          ${[
-                            ["waiting", "대기"],
-                            ["doing", "진행 중"],
-                            ["done", "완료"],
-                          ]
-                            .filter(([nextStatus]) => nextStatus !== task.status)
-                            .map(
-                              ([nextStatus, label]) => `
-                                <button
-                                  class="task-status-button ${nextStatus}"
-                                  type="button"
-                                  data-task-status="${nextStatus}"
-                                  aria-label="${escapeHtml(task.title)} 상태를 ${label}(으)로 변경"
-                                >${label}</button>
-                              `,
-                            )
-                            .join("")}
-                        </div>`
-                  }
                 `
             }
             ${
-              !isEditing && currentPage === "tasks" && status === "done"
-                ? `
-                  <button
-                    class="task-archive-button"
-                    type="button"
-                    ${task.archived ? `data-restore-task="${task.id}"` : `data-archive-task="${task.id}"`}
-                  >${task.archived ? "↩ 보관 해제" : "▣ 보관하기"}</button>
-                `
+              !isEditing && currentPage === "tasks" && task.archived
+                ? `<button class="task-archive-button" type="button" data-restore-task="${task.id}">↩ 보관 해제</button>`
                 : ""
             }
             ${
@@ -4319,7 +4176,10 @@ function formatFarmRankingWeek() {
 }
 
 function getPlotWaterRemaining(plot, now = Date.now()) {
-  return Math.max(0, Number(plot.lastFreeWaterAt ?? 0) + FARM_WATER_COOLDOWN_MS - now);
+  return Math.min(
+    FARM_WATER_COOLDOWN_MS,
+    Math.max(0, Number(plot.lastFreeWaterAt ?? 0) + FARM_WATER_COOLDOWN_MS - now),
+  );
 }
 
 function formatPlotWaterCooldown(milliseconds) {
@@ -4398,9 +4258,8 @@ function updateFarmItemEffects() {
   document
     .querySelector("#todayCoinDisplay")
     ?.classList.toggle("golden-festival-active", isProductionBoostActive());
-  document
-    .querySelector("#farmPage")
-    ?.classList.toggle("farm-festival-active", isWiltProtectionActive());
+  const protectionStatus = document.querySelector("#farmProtectionStatus");
+  if (protectionStatus) protectionStatus.hidden = !isWiltProtectionActive();
 }
 
 function getCropBundlePrice(cropId, bundleSize) {
@@ -4514,21 +4373,12 @@ function isHabitScheduledToday(habit) {
   return isHabitScheduledOn(habit, new Date());
 }
 
-function getHabitTargetForDate(habit, date = new Date()) {
-  const targetDate = typeof date === "string" ? new Date(`${date}T12:00:00`) : date;
-  const weekday = targetDate.getDay() === 0 ? 7 : targetDate.getDay();
-  const weekdayTarget = Number(habit.targetByWeekday?.[weekday]);
-  return Number.isInteger(weekdayTarget) && weekdayTarget > 0
-    ? weekdayTarget
-    : Math.max(1, Number(habit.targetValue) || 1);
+function getHabitTargetForDate() {
+  return 1;
 }
 
 function getHabitProgress(habit, dateString = toLocalDateString()) {
-  const targetValue = getHabitTargetForDate(habit, dateString);
-  if (habit.measureType !== "count") {
-    return habit.completionDates.includes(dateString) ? targetValue : 0;
-  }
-  return Math.max(0, Number(habit.progressByDate?.[dateString] ?? 0));
+  return habit.completionDates.includes(dateString) ? 1 : 0;
 }
 
 function getHabitProgressRatio(habit, dateString = toLocalDateString()) {
@@ -4539,9 +4389,9 @@ function isHabitCompleteToday(habit) {
   return getHabitProgressRatio(habit) >= 1;
 }
 
-function getHabitStreak(habit) {
+function getHabitStreak(habit, dateString = toLocalDateString()) {
   const completedDates = new Set(habit.completionDates ?? []);
-  const cursor = new Date();
+  const cursor = new Date(`${dateString}T12:00:00`);
   cursor.setHours(12, 0, 0, 0);
   if (isHabitScheduledOn(habit, cursor) && !completedDates.has(toLocalDateString(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
@@ -4623,7 +4473,7 @@ const focusDailyQuotes = [
 ];
 
 function updateDailyFocusQuote() {
-  const quote = document.querySelector("#focusDailyQuote");
+  const quote = document.querySelector(".welcome-quote");
   if (!quote) return;
   const today = new Date();
   const dayNumber = Math.floor(
@@ -4631,6 +4481,128 @@ function updateDailyFocusQuote() {
   );
   quote.textContent = focusDailyQuotes[dayNumber % focusDailyQuotes.length];
 }
+
+updateDailyFocusQuote();
+
+const taskGroupDialog = document.createElement("div");
+taskGroupDialog.className = "task-group-dialog";
+taskGroupDialog.setAttribute("role", "dialog");
+taskGroupDialog.setAttribute("aria-modal", "true");
+taskGroupDialog.setAttribute("aria-labelledby", "taskGroupDialogTitle");
+taskGroupDialog.innerHTML = '<div class="task-create-backdrop" data-close-group-dialog></div><section class="task-create-panel"><header><h2 id="taskGroupDialogTitle">그룹 선택</h2><button class="pixel-close-button" type="button" data-close-group-dialog aria-label="그룹 선택 닫기">×</button></header></section>';
+taskGroupDialog.querySelector("section").append(taskGroupMenu);
+document.body.append(taskGroupDialog);
+taskGroupDialog.querySelectorAll("[data-close-group-dialog]").forEach(button => {
+  button.addEventListener("click", () => { closeTaskGroupMenu(); taskGroupTrigger.focus(); });
+});
+taskGroupDialog.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeTaskGroupMenu();
+    taskGroupTrigger.focus();
+  }
+  if (event.key !== "Tab") return;
+  const controls = [...taskGroupDialog.querySelectorAll("button")].filter(el => !el.disabled && el.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
+
+const taskGroupManagerDialog = document.createElement("div");
+taskGroupManagerDialog.id = "taskGroupManagerDialog";
+taskGroupManagerDialog.className = "task-group-dialog group-manager-dialog";
+taskGroupManagerDialog.setAttribute("role", "dialog");
+taskGroupManagerDialog.setAttribute("aria-modal", "true");
+taskGroupManagerDialog.setAttribute("aria-labelledby", "taskGroupManagerDialogTitle");
+taskGroupManagerDialog.innerHTML = '<div class="task-create-backdrop" data-close-group-manager></div><section class="task-create-panel"><header><h2 id="taskGroupManagerDialogTitle">그룹 관리</h2><button class="pixel-close-button" type="button" data-close-group-manager aria-label="그룹 관리 닫기">×</button></header></section>';
+taskGroupManagerDialog.querySelector("section").append(groupManager);
+document.body.append(taskGroupManagerDialog);
+
+function closeGroupManager() {
+  groupManager.classList.add("hidden");
+  document.querySelector("#toggleGroupManager").setAttribute("aria-expanded", "false");
+}
+
+taskGroupManagerDialog.querySelectorAll("[data-close-group-manager]").forEach((button) => {
+  button.addEventListener("click", () => {
+    closeGroupManager();
+    document.querySelector("#toggleGroupManager").focus();
+  });
+});
+
+taskGroupManagerDialog.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeGroupManager();
+    document.querySelector("#toggleGroupManager").focus();
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const controls = [...taskGroupManagerDialog.querySelectorAll("button, input")]
+    .filter((element) => !element.disabled && element.getClientRects().length);
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
+});
+
+const groupDeleteDialog = document.createElement("div");
+groupDeleteDialog.className = "task-group-dialog group-delete-dialog hidden";
+groupDeleteDialog.setAttribute("role", "alertdialog");
+groupDeleteDialog.setAttribute("aria-modal", "true");
+groupDeleteDialog.setAttribute("aria-labelledby", "groupDeleteDialogTitle");
+groupDeleteDialog.setAttribute("aria-describedby", "groupDeleteDialogMessage");
+groupDeleteDialog.innerHTML = `
+  <div class="task-create-backdrop" data-cancel-group-delete></div>
+  <section class="task-create-panel">
+    <header><h2 id="groupDeleteDialogTitle">그룹 삭제</h2></header>
+    <p id="groupDeleteDialogMessage"></p>
+    <div class="group-delete-actions">
+      <button type="button" data-cancel-group-delete>취소</button>
+      <button class="danger-button" id="confirmGroupDelete" type="button">삭제</button>
+    </div>
+  </section>
+`;
+document.body.append(groupDeleteDialog);
+const groupDeleteDialogMessage = groupDeleteDialog.querySelector("#groupDeleteDialogMessage");
+const confirmGroupDelete = groupDeleteDialog.querySelector("#confirmGroupDelete");
+let pendingGroupDeleteId = null;
+
+function closeGroupDeleteDialog() {
+  groupDeleteDialog.classList.add("hidden");
+  pendingGroupDeleteId = null;
+}
+
+function openGroupDeleteDialog(groupId) {
+  const group = getGroup(groupId);
+  if (!group) return;
+  pendingGroupDeleteId = groupId;
+  groupDeleteDialogMessage.textContent = `‘${group.name}’ 그룹을 정말 삭제할까? 이 그룹의 할 일은 그룹 없음으로 이동해.`;
+  groupDeleteDialog.classList.remove("hidden");
+  confirmGroupDelete.focus();
+}
+
+groupDeleteDialog.querySelectorAll("[data-cancel-group-delete]").forEach((button) => {
+  button.addEventListener("click", () => {
+    closeGroupDeleteDialog();
+    groupInput.focus();
+  });
+});
+
+groupDeleteDialog.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeGroupDeleteDialog();
+  groupInput.focus();
+});
 
 function closeTaskGroupMenu() {
   taskGroupMenu.classList.add("hidden");
@@ -4641,6 +4613,7 @@ taskGroupTrigger.addEventListener("click", () => {
   const willOpen = taskGroupMenu.classList.contains("hidden");
   taskGroupMenu.classList.toggle("hidden", !willOpen);
   taskGroupTrigger.setAttribute("aria-expanded", String(willOpen));
+  if (willOpen) taskGroupMenu.querySelector('.selected, button')?.focus();
 });
 
 taskGroupMenu.addEventListener("click", (event) => {
@@ -4652,21 +4625,24 @@ taskGroupMenu.addEventListener("click", (event) => {
   taskGroupTrigger.focus();
 });
 
-document.addEventListener("click", (event) => {
-  if (!customTaskGroupSelect.contains(event.target)) closeTaskGroupMenu();
-});
 
 function openTaskInlineEdit(task) {
   editingTaskId = task.id;
   editingTaskGroupId = task.groupId || null;
   editingTaskTitle = task.title;
   editingTaskFocusMinutes = String(Math.floor((task.focusSeconds ?? 0) / 60));
-  renderTasks();
+  taskModalTitle.textContent = "할 일 수정";
+  taskFormSubmit.textContent = "수정 저장";
+  taskModalFocusRow.hidden = false;
+  taskInput.value = editingTaskTitle;
+  taskFocusMinutesInput.value = editingTaskFocusMinutes;
+  taskGroup.value = editingTaskGroupId || "";
+  renderGroups();
+  taskForm.classList.remove("hidden");
   window.setTimeout(() => {
-    const input = document.querySelector(`[data-task-id="${task.id}"] .task-inline-title`);
-    autoGrowTextarea(input);
-    input?.focus();
-    input?.select();
+    autoGrowTextarea(taskInput);
+    taskInput.focus();
+    taskInput.select();
   }, 0);
 }
 
@@ -4675,53 +4651,68 @@ function closeTaskInlineEdit() {
   editingTaskGroupId = null;
   editingTaskTitle = "";
   editingTaskFocusMinutes = "";
-  renderTasks();
+  taskModalTitle.textContent = "할 일 추가";
+  taskFormSubmit.textContent = "추가";
+  taskModalFocusRow.hidden = true;
+  taskFocusMinutesInput.value = "0";
+  taskInput.value = "";
+  taskGroup.value = "";
+  renderGroups();
+  taskForm.classList.add("hidden");
+  closeTaskGroupMenu();
+  closeGroupManager();
 }
+
+function getHabitViewDate() {
+  return currentPage === "habits" && selectedHabitDate ? selectedHabitDate : toLocalDateString();
+}
+
+function moveHabitDate(delta) {
+  const date = new Date(`${getHabitViewDate()}T12:00:00`);
+  date.setDate(date.getDate() + delta);
+  const nextDate = toLocalDateString(date);
+  if (nextDate > toLocalDateString()) return;
+  selectedHabitDate = nextDate === toLocalDateString() ? null : nextDate;
+  renderHabits();
+}
+
+document.querySelector("#previousHabitDate").addEventListener("click", () => moveHabitDate(-1));
+document.querySelector("#nextHabitDate").addEventListener("click", () => moveHabitDate(1));
+document.querySelector("#habitDateToday").addEventListener("click", () => {
+  selectedHabitDate = null;
+  renderHabits();
+});
 
 function renderHabits() {
   const habitList = document.querySelector("#habitList");
-  const visibleHabits = currentPage === "today"
-    ? state.habits.filter(isHabitScheduledToday)
+  const dateString = getHabitViewDate();
+  const viewDate = new Date(`${dateString}T12:00:00`);
+  const isPast = dateString < toLocalDateString();
+  document.querySelector("#habitDateNav").hidden = currentPage !== "habits";
+  document.querySelector("#habitDateLabel").textContent = `${dateString.replaceAll("-", ".")} (${["일", "월", "화", "수", "목", "금", "토"][viewDate.getDay()]})${isPast ? "" : " · 오늘"}`;
+  document.querySelector("#nextHabitDate").disabled = !isPast;
+  document.querySelector("#habitDateToday").disabled = !isPast;
+  const visibleHabits = currentPage === "today" || isPast
+    ? state.habits.filter((habit) => isHabitScheduledOn(habit, viewDate))
     : state.habits;
 
   habitList.innerHTML = visibleHabits
     .map((habit) => {
-      const scheduledToday = isHabitScheduledToday(habit);
-      const completeToday = isHabitCompleteToday(habit);
-      const countProgress = getHabitProgress(habit);
-      const todayTarget = getHabitTargetForDate(habit);
-      const isCountHabit = habit.measureType === "count";
-      const control = isCountHabit
-        ? `
-          <div class="habit-count-control" aria-label="${escapeHtml(habit.title)} 진행 횟수">
-            <button
-              type="button"
-              data-adjust-habit="${habit.id}"
-              data-delta="1"
-              aria-label="횟수 늘리기"
-              ${!scheduledToday || countProgress >= todayTarget ? "disabled" : ""}
-            >＋</button>
-            <strong>${countProgress}</strong>
-            <button
-              type="button"
-              data-adjust-habit="${habit.id}"
-              data-delta="-1"
-              aria-label="횟수 줄이기"
-              ${!scheduledToday || countProgress <= 0 ? "disabled" : ""}
-            >−</button>
-          </div>
-        `
-        : `
-          <button
-            class="habit-check"
-            type="button"
-            data-toggle-habit="${habit.id}"
-            aria-label="${escapeHtml(habit.title)} ${completeToday ? "완료 취소" : "완료"}"
-            ${scheduledToday ? "" : "disabled"}
-          >✓</button>
-        `;
+      const scheduledToday = isHabitScheduledOn(habit, viewDate);
+      const completeToday = getHabitProgressRatio(habit, dateString) >= 1;
+      const recordBusy = isPast && habitRecordSaving;
+      const control = `
+        <button
+          class="habit-check"
+          type="button"
+          data-toggle-habit="${habit.id}"
+          aria-label="${escapeHtml(habit.title)} ${completeToday ? "완료 취소" : "완료"}"
+          aria-pressed="${completeToday}"
+          ${scheduledToday && !recordBusy ? "" : "disabled"}
+        >✓</button>
+      `;
       const focusAction =
-        habit.measureType === "time" && !completeToday
+        !isPast && !completeToday
           ? `<button
               class="habit-focus-button ${activeFocus?.type === "habit" && activeFocus.id === habit.id ? "active" : ""}"
               type="button"
@@ -4736,18 +4727,17 @@ function renderHabits() {
             }</button>`
           : "";
       return `
-        <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${isCountHabit ? "count-habit" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
+        <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
           ${control}
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
             <small class="habit-summary">
-              <span class="habit-summary-primary">${scheduledToday ? `${todayTarget}${escapeHtml(habit.unit)}` : "오늘은 쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${habit.measureType === "time" ? ` <span data-habit-focus-time>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}</span>` : ""}</span>
-              ${currentPage === "habits" && Object.keys(habit.targetByWeekday ?? {}).length ? `<span class="habit-summary-targets">${escapeHtml(formatHabitTargets(habit))}</span>` : ""}
+              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? "완료" : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))} <span data-habit-focus-time data-focus-date="${dateString}">· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
             </small>
             ${focusAction}
           </span>
-          <span>
-            <span class="streak">${getHabitStreak(habit)}일</span>
+          <span class="habit-actions">
+            <span class="streak">${getHabitStreak(habit, dateString)}일</span>
             ${currentPage === "habits" ? `<button class="habit-edit" type="button" data-edit-habit="${habit.id}" aria-label="${escapeHtml(habit.title)} 수정">✎</button>` : ""}
             <button class="habit-delete" type="button" data-delete-habit="${habit.id}" aria-label="삭제">×</button>
           </span>
@@ -4778,36 +4768,23 @@ function renderHabitHeatmap() {
       const cells = Array.from({ length: daysInMonth }, (_, index) => {
         const date = new Date(year, month, index + 1);
         const dateString = toLocalDateString(date);
-        const progress = getHabitProgress(habit, dateString);
-        const targetValue = getHabitTargetForDate(habit, dateString);
         const progressRatio = getHabitProgressRatio(habit, dateString);
         const completed = progressRatio >= 1;
         const beforeRegistration = Boolean(habit.startDate && dateString < habit.startDate);
         const scheduled = isHabitScheduledOn(habit, date);
-        const progressClass =
-          habit.measureType === "count" && progressRatio > 0
-            ? progressRatio >= 0.75
-              ? "progress-3"
-              : progressRatio >= 0.5
-                ? "progress-2"
-                : "progress-1"
-            : "";
         const className = beforeRegistration
           ? "inactive"
           : completed
             ? "completed"
-            : progressClass || (scheduled ? "scheduled" : "inactive");
+            : scheduled ? "scheduled" : "inactive";
         const status = beforeRegistration
           ? "등록 전"
-          : habit.measureType === "count" && scheduled
-            ? `${progress} / ${targetValue}${habit.unit}`
-            : completed
-              ? "완료"
-              : scheduled
-                ? "예정"
-                : "일정 없음";
-        const editable = canEditHabitRecord(habit, dateString);
-        return `<button type="button" class="heatmap-cell ${className}" data-habit-record="${habit.id}" data-record-date="${dateString}" ${editable ? "" : "disabled"} aria-label="${escapeHtml(habit.title)} · ${dateString} · ${escapeHtml(status)}${editable ? " · 기록 수정" : ""}" title="${dateString} · ${escapeHtml(status)}"></button>`;
+          : completed
+            ? "완료"
+            : scheduled
+              ? "예정"
+              : "일정 없음";
+        return `<span class="heatmap-cell ${className}" role="img" aria-label="${escapeHtml(habit.title)} · ${dateString} · ${escapeHtml(status)}" title="${dateString} · ${escapeHtml(status)}"></span>`;
       }).join("");
 
       return `
@@ -4826,57 +4803,7 @@ function canEditHabitRecord(habit, dateString) {
   return toLocalDateString(date) === dateString && isHabitScheduledOn(habit, date);
 }
 
-let editingHabitRecord = null;
 let habitRecordSaving = false;
-let habitRecordReturnFocus = null;
-const habitRecordModal = document.querySelector("#habitRecordModal");
-const habitRecordCount = document.querySelector("#habitRecordCount");
-const habitRecordComplete = document.querySelector("#habitRecordComplete");
-
-function closeHabitRecordModal() {
-  if (habitRecordSaving) return;
-  habitRecordModal.classList.add("hidden");
-  editingHabitRecord = null;
-  if (habitRecordReturnFocus?.isConnected) habitRecordReturnFocus.focus();
-}
-
-document.querySelector("#habitHeatmapGrid").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-habit-record]");
-  if (!button || !taskDataHydrated || habitRecordSaving) return;
-  const habit = state.habits.find((item) => item.id === button.dataset.habitRecord);
-  const date = button.dataset.recordDate;
-  if (!habit || !canEditHabitRecord(habit, date)) return;
-  editingHabitRecord = { id: habit.id, date };
-  habitRecordReturnFocus = button;
-  const countMode = habit.measureType === "count";
-  document.querySelector("#habitRecordDescription").textContent = `${date} · ${habit.title} · 목표 ${getHabitTargetForDate(habit, date)}${habit.unit}`;
-  document.querySelector("#habitRecordCountLabel").hidden = !countMode;
-  document.querySelector("#habitRecordCompleteLabel").hidden = countMode;
-  habitRecordCount.value = getHabitProgress(habit, date);
-  habitRecordCount.max = getHabitTargetForDate(habit, date);
-  habitRecordComplete.checked = habit.completionDates.includes(date);
-  habitRecordModal.classList.remove("hidden");
-  (countMode ? habitRecordCount : habitRecordComplete).focus();
-});
-
-document.querySelectorAll("[data-close-habit-record]").forEach((button) => {
-  button.addEventListener("click", closeHabitRecordModal);
-});
-habitRecordModal.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeHabitRecordModal();
-  if (event.key !== "Tab") return;
-  const controls = [...habitRecordModal.querySelectorAll("input, button")]
-    .filter((element) => !element.disabled && element.getClientRects().length);
-  const first = controls[0];
-  const last = controls.at(-1);
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last?.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first?.focus();
-  }
-});
 
 async function savePastHabitRecord(habit, date, progress) {
   if (!activeAuthUser || !canEditHabitRecord(habit, date)) throw new Error("수정할 수 없는 날짜야");
@@ -4932,29 +4859,6 @@ async function savePastHabitRecord(habit, date, progress) {
   }
 }
 
-document.querySelector("#habitRecordForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!editingHabitRecord || habitRecordSaving) return;
-  const { id, date } = editingHabitRecord;
-  const habit = state.habits.find((item) => item.id === id);
-  if (!habit) return;
-  const progress = habit.measureType === "count" ? Number(habitRecordCount.value)
-    : habitRecordComplete.checked ? getHabitTargetForDate(habit, date) : 0;
-  habitRecordSaving = true;
-  document.querySelector("#saveHabitRecord").disabled = true;
-  try {
-    await savePastHabitRecord(habit, date, progress);
-    habitRecordSaving = false;
-    closeHabitRecordModal();
-    showToast("지난 습관 기록을 저장했어");
-  } catch (error) {
-    showToast(`기록 저장 실패 · ${error.message}`);
-  } finally {
-    habitRecordSaving = false;
-    document.querySelector("#saveHabitRecord").disabled = false;
-  }
-});
-
 function getCropNameLengthClass(cropName) {
   const length = [...cropName].length;
   if (length >= 5) return "very-long-name";
@@ -4962,19 +4866,53 @@ function getCropNameLengthClass(cropName) {
   return "";
 }
 
-function cropSvg(cropId, stage = "mature") {
-  const growthType = CROP_GROWTH_TYPES[cropId] ?? "vine";
-  const symbolId =
-    stage === "mature"
-      ? `crop-${cropId}`
-      : stage === "seed"
-        ? "stage-seed"
-        : `stage-${growthType}-${stage}`;
-  return `
-    <svg class="crop-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-      <use href="#${symbolId}"></use>
-    </svg>
-  `;
+function cropPixel(cropId, stage = "mature") {
+  // Fixed atlas contract, independent of crop catalog ordering.
+  const index = stage === "mature" ? PIXEL_CROP_IDS.indexOf(cropId) : PIXEL_GROWTH_STAGES[stage];
+  if (!Number.isInteger(index) || index < 0) return "";
+  return `<span class="crop-pixel" aria-hidden="true" style="${pixelCropStyle(index)}"></span>`;
+}
+
+const PIXEL_FOOD_IDS = Object.keys(RECIPES);
+
+function foodPixel(recipeId) {
+  const index = PIXEL_FOOD_IDS.indexOf(recipeId);
+  if (index < 0) return "";
+  const column = index % 8;
+  const row = Math.floor(index / 8);
+  return `<span class="food-pixel" aria-hidden="true" style="--food-position:${column / 7 * 100}% ${row / 4 * 100}%"></span>`;
+}
+
+const PIXEL_CROP_IDS = "carrot tomato corn potato sweetPotato strawberry eggplant pepper cucumber pumpkin onion garlic cabbage broccoli watermelon melon rice mushroom sunflower beet radish turnip chili lettuce spinach kale celery pea bean peanut wheat barley oat grape blueberry raspberry apple pear peach cherry lemon orange pineapple kiwi pumpkinSquash daikon edamame bokchoy chestnut fig plum mango passionFruit bellFlower sweetCorn truffle lavender".split(" ");
+const PIXEL_GROWTH_STAGES = { seed: 57, sprout: 58, growing: 59, flower: 60, wilted: 61 };
+
+// The generated sheet is NOT an evenly spaced grid. These boundaries fall in
+// transparent gutters, measured independently for each column. Never replace
+// them with index / 8: lower rows otherwise include pixels from the row above.
+const PIXEL_CROP_COLUMNS = [0, 166, 319, 473, 627, 784, 943, 1094, 1254];
+const PIXEL_CROP_ROWS = [
+  [0, 174, 333, 496, 652, 805, 965, 1095, 1254],
+  [0, 176, 339, 490, 655, 812, 954, 1115, 1254],
+  [0, 180, 330, 493, 664, 798, 960, 1113, 1254],
+  [0, 178, 325, 502, 658, 816, 961, 1102, 1254],
+  [0, 172, 332, 507, 650, 812, 964, 1104, 1254],
+  [0, 175, 334, 505, 653, 808, 960, 1110, 1254],
+  [0, 175, 332, 492, 662, 806, 958, 1110, 1254],
+  [0, 175, 342, 491, 653, 806, 967, 1110, 1254],
+];
+
+function pixelCropRegion(index) {
+  const col = index % 8;
+  const row = Math.floor(index / 8);
+  const x = PIXEL_CROP_COLUMNS[col];
+  const y = PIXEL_CROP_ROWS[col][row];
+  return { x, y, width: PIXEL_CROP_COLUMNS[col + 1] - x, height: PIXEL_CROP_ROWS[col][row + 1] - y };
+}
+
+function pixelCropStyle(index) {
+  const { x, y, width, height } = pixelCropRegion(index);
+  const edge = Math.max(width, height);
+  return `--crop-width:${width / edge * 100}%;--crop-height:${height / edge * 100}%;--crop-size:${1254 / width * 100}% ${1254 / height * 100}%;--crop-position:${x / (1254 - width) * 100}% ${y / (1254 - height) * 100}%;`;
 }
 
 function getCropStage(cropId, growth) {
@@ -5167,21 +5105,54 @@ async function useFreePassOnTarget(targetValue) {
 function renderFarmRanking() {
   const weekLabel = document.querySelector("#farmRankingWeekLabel");
   const weeklyEarned = document.querySelector("#weeklyFarmMoneyEarned");
+  const myRankLabel = document.querySelector("#farmRankingMyRank");
+  const rankingPodium = document.querySelector("#farmRankingPodium");
   const rankingList = document.querySelector("#farmRankingList");
-  if (!weekLabel || !weeklyEarned || !rankingList) return;
+  if (!weekLabel || !weeklyEarned || !myRankLabel || !rankingPodium || !rankingList) return;
 
   ensureWeeklyFarmRanking();
   const rankings = getFarmRankings();
 
   weekLabel.textContent = formatFarmRankingWeek();
   weeklyEarned.textContent = state.weeklyFarmMoneyEarned.toLocaleString("ko-KR");
-  rankingList.innerHTML = rankings
+  const myRank = rankings.findIndex((farmer) => farmer.isMe);
+  myRankLabel.textContent = myRank >= 0 ? `현재 ${myRank + 1}위` : "순위 집계 중";
+
+  rankingPodium.innerHTML = [2, 1, 3]
+    .map((rank) => {
+      const farmer = rankings[rank - 1];
+      if (!farmer) {
+        return `
+          <article class="farm-podium-place is-empty" data-rank="${rank}">
+            <span class="farm-podium-medal">${rank}</span>
+            <div class="farm-podium-farmer"><strong>도전자 대기</strong><small>아직 자리가 비어 있어</small></div>
+            <strong class="farm-podium-score">-</strong>
+            <i aria-hidden="true">${rank}</i>
+          </article>
+        `;
+      }
+      return `
+        <article class="farm-podium-place ${farmer.isMe ? "is-me" : ""}" data-rank="${rank}">
+          <span class="farm-podium-medal">${rank === 1 ? "🏆" : rank === 2 ? "🥈" : "🥉"}</span>
+          <div class="farm-podium-farmer">
+            <strong class="farm-ranking-farm-name" data-label-effect="${farmer.labelEffect ?? ""}">${escapeHtml(farmer.farmName)}</strong>
+            <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
+          </div>
+          <strong class="farm-podium-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
+          <i aria-hidden="true">${rank}</i>
+        </article>
+      `;
+    })
+    .join("");
+
+  const remainingRankings = rankings.slice(3);
+  rankingList.innerHTML = remainingRankings.length
+    ? remainingRankings
     .map((farmer, index) => {
-      const rank = index + 1;
-      const rankLabel = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+      const rank = index + 4;
       return `
         <li class="farm-ranking-row ${farmer.isMe ? "is-me" : ""}">
-          <span class="farm-ranking-rank">${rankLabel}</span>
+          <span class="farm-ranking-rank">${rank}</span>
           <span class="farm-ranking-name">
             <strong class="farm-ranking-farm-name" data-label-effect="${farmer.labelEffect ?? ""}">${escapeHtml(farmer.farmName)}</strong>
             <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
@@ -5190,7 +5161,8 @@ function renderFarmRanking() {
         </li>
       `;
     })
-    .join("");
+    .join("")
+    : '<li class="farm-ranking-row farm-ranking-empty">4위 이하의 농장이 아직 없어</li>';
 }
 
 function getFarmMailSender(friendId, mail = null) {
@@ -5220,14 +5192,14 @@ function getFarmGiftDetails(category, itemId, mail = null) {
   if (category === "food") {
     const recipe = RECIPES[itemId];
     return recipe
-      ? { name: recipe.name, icon: recipe.icon, inventory: state.foodInventory, categoryName: "만든 음식" }
+      ? { name: recipe.name, icon: foodPixel(itemId), inventory: state.foodInventory, categoryName: "만든 음식" }
       : null;
   }
   const crop = CROPS[itemId];
   if (!crop) return null;
   return {
     name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
-    icon: cropSvg(itemId),
+    icon: cropPixel(itemId),
     inventory: category === "seed" ? state.seedInventory : state.harvestInventory,
     categoryName: category === "seed" ? "씨앗" : "수확물",
   };
@@ -5268,7 +5240,7 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
           aria-label="${opened ? `${escapeHtml(crop.name)} 획득` : `${index + 1}번째 랜덤 박스 열기`}"
         >
           ${opened
-            ? `<span>${cropSvg(cropId)}</span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1</small>`
+            ? `<span>${cropPixel(cropId)}</span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1</small>`
             : `<span>🎁</span><strong>${index + 1}번째 상자</strong><small>눌러서 열기</small>`}
         </button>
       `;
@@ -5375,7 +5347,7 @@ function getFarmMailItems(category = selectedMailCategory) {
       .map(([recipeId, recipe]) => ({
         id: recipeId,
         name: recipe.name,
-        icon: recipe.icon,
+        icon: foodPixel(recipeId),
         count: state.foodInventory[recipeId],
         inventory: state.foodInventory,
       }));
@@ -5387,7 +5359,7 @@ function getFarmMailItems(category = selectedMailCategory) {
     .map(([cropId, crop]) => ({
       id: cropId,
       name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
-      icon: cropSvg(cropId),
+      icon: cropPixel(cropId),
       count: inventory[cropId],
       inventory,
     }));
@@ -5573,309 +5545,6 @@ function renderFarmMail() {
   sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
 }
 
-async function fetchFarmBulletinPosts(user = activeAuthUser) {
-  if (!supabaseClient || !user) return null;
-  const requestedUserId = user.id;
-  const { data, error } = await supabaseClient.rpc("get_farm_bulletin_posts");
-  if (activeAuthUser?.id !== requestedUserId) return null;
-  if (error) {
-    if (!["42883", "PGRST202"].includes(error.code)) {
-      console.warn("Farmodoro bulletin posts could not be loaded", error);
-    }
-    return null;
-  }
-  return (data ?? []).map((post) => ({
-    id: post.id,
-    postType: post.post_type,
-    message: post.message,
-    farmCode: post.farm_code,
-    displayName: post.display_name,
-    isMine: Boolean(post.is_mine),
-    createdAt: Date.parse(post.created_at) || 0,
-    commentCount: Math.max(0, Number(post.comment_count) || 0),
-  }));
-}
-
-async function loadFarmBulletinPosts() {
-  const posts = await fetchFarmBulletinPosts();
-  if (!posts) return;
-  farmBulletinPosts = posts;
-  syncFarmBulletinMessageInput();
-  renderFarmBulletin();
-  updateFarmBulletinUnreadBadge();
-}
-
-function getFarmBulletinUnreadCount() {
-  const newPostCount = farmBulletinPosts.filter(
-    (post) => !post.isMine && post.createdAt > farmBulletinLastSeenAt,
-  ).length;
-  const newCommentCount = farmBulletinPosts
-    .filter((post) => post.isMine)
-    .reduce((sum, post) => {
-      const seenCount = farmBulletinSeenCommentCounts[post.id] ?? 0;
-      return sum + Math.max(0, post.commentCount - seenCount);
-    }, 0);
-  return newPostCount + newCommentCount;
-}
-
-function updateFarmBulletinUnreadBadge() {
-  const button = document.querySelector("#openFarmBulletin");
-  const badge = document.querySelector("#farmBulletinHeaderUnread");
-  if (!button || !badge) return;
-  const unreadCount = getFarmBulletinUnreadCount();
-  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
-  badge.hidden = unreadCount === 0;
-  button.classList.toggle("has-unread", unreadCount > 0);
-  button.setAttribute(
-    "aria-label",
-    unreadCount ? `농장 대자보 · 새 소식 ${unreadCount}개` : "농장 대자보",
-  );
-}
-
-function markFarmBulletinSeen() {
-  farmBulletinLastSeenAt = Date.now();
-  localStorage.setItem("farmodoro-bulletin-last-seen", String(farmBulletinLastSeenAt));
-  updateFarmBulletinUnreadBadge();
-}
-
-// Records "I've seen this post's comments up to N" so new replies on my own
-// posts count toward the badge, but re-opening a thread (or posting my own
-// reply, which bumps commentCount too) doesn't keep re-flagging itself.
-function markFarmBulletinCommentsSeen(postId, commentCount) {
-  farmBulletinSeenCommentCounts[postId] = commentCount;
-  localStorage.setItem(
-    "farmodoro-bulletin-seen-comments",
-    JSON.stringify(farmBulletinSeenCommentCounts),
-  );
-  updateFarmBulletinUnreadBadge();
-}
-
-// Background check only -- unlike loadFarmBulletinPosts(), this must not
-// touch the compose form or re-render the list while a user could have the
-// modal open and be mid-edit; it only refreshes the header badge count.
-async function pollFarmBulletinUnread(user = activeAuthUser) {
-  const posts = await fetchFarmBulletinPosts(user);
-  if (!posts) return;
-  farmBulletinPosts = posts;
-  updateFarmBulletinUnreadBadge();
-}
-
-function startFarmBulletinUnreadPolling(user) {
-  if (farmBulletinUnreadPollInterval) clearInterval(farmBulletinUnreadPollInterval);
-  void pollFarmBulletinUnread(user);
-  farmBulletinUnreadPollInterval = window.setInterval(() => {
-    void pollFarmBulletinUnread(user);
-  }, 300000);
-}
-
-let farmBulletinRealtimeChannel = null;
-let farmBulletinRealtimeRefreshTimer = null;
-
-function scheduleFarmBulletinRealtimeRefresh(user) {
-  if (farmBulletinRealtimeRefreshTimer) clearTimeout(farmBulletinRealtimeRefreshTimer);
-  farmBulletinRealtimeRefreshTimer = window.setTimeout(() => {
-    farmBulletinRealtimeRefreshTimer = null;
-    void pollFarmBulletinUnread(user);
-  }, 600);
-}
-
-function stopFarmBulletinRealtime() {
-  if (farmBulletinRealtimeRefreshTimer) clearTimeout(farmBulletinRealtimeRefreshTimer);
-  farmBulletinRealtimeRefreshTimer = null;
-  if (farmBulletinRealtimeChannel && supabaseClient) {
-    void supabaseClient.removeChannel(farmBulletinRealtimeChannel);
-  }
-  farmBulletinRealtimeChannel = null;
-}
-
-// Unfiltered on purpose -- unlike farm mail (private per-recipient), the
-// bulletin board is public, so this needs to hear about everyone's new
-// posts/comments, not just this user's own rows.
-function startFarmBulletinRealtime(user) {
-  stopFarmBulletinRealtime();
-  if (!supabaseClient || !user) return;
-  const handleChange = () => scheduleFarmBulletinRealtimeRefresh(user);
-  farmBulletinRealtimeChannel = supabaseClient
-    .channel(`farm-bulletin:${user.id}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "farm_bulletin_posts" }, handleChange)
-    .on("postgres_changes", { event: "*", schema: "public", table: "farm_bulletin_comments" }, handleChange);
-  farmBulletinRealtimeChannel.subscribe((status) => {
-    if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-      console.warn(`Farmodoro farm bulletin realtime subscription: ${status}`);
-    }
-  });
-}
-
-// A user can have one live post per type (buy + sell at once) -- whichever
-// tab is selected shows/edits that type's own post, if any, instead of a
-// single post shared across both tabs.
-function syncFarmBulletinMessageInput() {
-  const messageInput = document.querySelector("#farmBulletinMessage");
-  if (!messageInput || document.activeElement === messageInput) return;
-  const myPost = farmBulletinPosts.find(
-    (post) => post.isMine && post.postType === selectedBulletinType,
-  );
-  messageInput.value = myPost ? myPost.message : "";
-}
-
-function renderFarmBulletin() {
-  const messageInput = document.querySelector("#farmBulletinMessage");
-  const messageCount = document.querySelector("#farmBulletinMessageCount");
-  const submitButton = document.querySelector("#submitFarmBulletinPost");
-  const deleteButton = document.querySelector("#deleteFarmBulletinPost");
-  const buyList = document.querySelector("#farmBulletinBuyList");
-  const sellList = document.querySelector("#farmBulletinSellList");
-  if (!messageInput || !messageCount || !submitButton || !deleteButton || !buyList || !sellList) return;
-
-  document.querySelectorAll("[data-bulletin-type]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.bulletinType === selectedBulletinType);
-  });
-
-  const messageLength = messageInput.value.trim().length;
-  messageCount.textContent = `${messageLength} / 60`;
-  submitButton.disabled = messageLength < 1 || messageLength > 60;
-
-  const myPost = farmBulletinPosts.find(
-    (post) => post.isMine && post.postType === selectedBulletinType,
-  );
-  deleteButton.classList.toggle("hidden", !myPost);
-
-  const renderList = (type) => {
-    const posts = farmBulletinPosts.filter((post) => post.postType === type);
-    if (!posts.length) return '<p class="farm-mail-empty">아직 글이 없어</p>';
-    return posts
-      .map(
-        (post) => `
-          <article
-            class="farm-bulletin-post farm-bulletin-post-${post.postType} ${post.isMine ? "mine" : ""}"
-            data-bulletin-post-id="${post.id}"
-            role="button"
-            tabindex="0"
-            aria-label="${escapeHtml(post.message)} · 댓글 보기"
-          >
-            <div class="farm-bulletin-post-paper">
-              <p>${escapeHtml(post.message)}</p>
-              <div class="farm-bulletin-post-meta">
-                <strong>${escapeHtml(post.displayName || "농부")}</strong>
-                <button type="button" class="farm-bulletin-post-code" data-bulletin-code="${escapeHtml(post.farmCode)}">${escapeHtml(post.farmCode)}</button>
-              </div>
-              ${post.commentCount > 0 ? `<span class="farm-bulletin-post-comment-count">💬 ${post.commentCount}</span>` : ""}
-            </div>
-          </article>
-        `,
-      )
-      .join("");
-  };
-
-  buyList.innerHTML = renderList("buy");
-  sellList.innerHTML = renderList("sell");
-}
-
-let activeBulletinCommentPostId = null;
-let activeBulletinReplyTo = null;
-
-function updateFarmBulletinReplyTargetUI() {
-  const row = document.querySelector("#farmBulletinReplyTarget");
-  const label = document.querySelector("#farmBulletinReplyTargetLabel");
-  if (!row || !label) return;
-  row.classList.toggle("hidden", !activeBulletinReplyTo);
-  if (activeBulletinReplyTo) {
-    label.textContent = `${activeBulletinReplyTo.displayName}님에게 답글 남기는 중`;
-  }
-}
-
-function renderFarmBulletinCommentPost(post) {
-  const container = document.querySelector("#farmBulletinCommentPost");
-  if (!container) return;
-  container.innerHTML = `
-    <div class="farm-bulletin-comment-post-card farm-bulletin-post-${post.postType}">
-      <span class="farm-bulletin-comment-post-type">${post.postType === "buy" ? "삽니다" : "팝니다"}</span>
-      <p>${escapeHtml(post.message)}</p>
-      <div class="farm-bulletin-post-meta">
-        <strong>${escapeHtml(post.displayName || "농부")}</strong>
-        <button type="button" class="farm-bulletin-post-code" data-bulletin-code="${escapeHtml(post.farmCode)}">${escapeHtml(post.farmCode)}</button>
-      </div>
-    </div>
-  `;
-}
-
-async function loadFarmBulletinComments(postId) {
-  const listEl = document.querySelector("#farmBulletinCommentList");
-  if (!listEl) return;
-  if (!supabaseClient || !activeAuthUser) return;
-  const { data, error } = await supabaseClient.rpc("get_farm_bulletin_comments", {
-    p_post_id: postId,
-  });
-  if (activeBulletinCommentPostId !== postId) return;
-  if (error) {
-    console.error("Farmodoro bulletin comments could not be loaded", error);
-    listEl.innerHTML = '<p class="farm-mail-empty">댓글을 불러오지 못했어</p>';
-    return;
-  }
-  const comments = data ?? [];
-  // Server returns a flat, chronologically-ordered list -- group each reply
-  // under its top-level parent here so replies render indented right below
-  // the comment they answer, and only top-level comments get a reply button
-  // (replying to a reply isn't allowed, enforced server-side too).
-  const topLevelComments = comments.filter((comment) => !comment.parent_comment_id);
-  const repliesByParentId = new Map();
-  comments.forEach((comment) => {
-    if (!comment.parent_comment_id) return;
-    if (!repliesByParentId.has(comment.parent_comment_id)) {
-      repliesByParentId.set(comment.parent_comment_id, []);
-    }
-    repliesByParentId.get(comment.parent_comment_id).push(comment);
-  });
-
-  const renderCommentRow = (comment, isReply) => `
-    <div class="farm-bulletin-comment-row ${comment.is_mine ? "mine" : ""} ${isReply ? "reply" : ""}">
-      <div class="farm-bulletin-comment-row-head">
-        <strong>${escapeHtml(comment.display_name || "농부")}</strong>
-        <div class="farm-bulletin-comment-row-actions">
-          ${isReply ? "" : `<button type="button" class="farm-bulletin-comment-reply-button" data-reply-bulletin-comment="${comment.id}" data-reply-bulletin-name="${escapeHtml(comment.display_name || "농부")}">답글</button>`}
-          ${comment.is_mine ? `<button type="button" class="farm-bulletin-comment-delete" data-delete-bulletin-comment="${comment.id}">삭제</button>` : ""}
-        </div>
-      </div>
-      <p>${escapeHtml(comment.message)}</p>
-    </div>
-  `;
-
-  listEl.innerHTML = comments.length
-    ? topLevelComments
-        .map((comment) =>
-          renderCommentRow(comment, false) +
-          (repliesByParentId.get(comment.id) ?? [])
-            .map((reply) => renderCommentRow(reply, true))
-            .join(""),
-        )
-        .join("")
-    : '<p class="farm-mail-empty">아직 댓글이 없어</p>';
-}
-
-async function openFarmBulletinComments(postId) {
-  const post = farmBulletinPosts.find((entry) => entry.id === postId);
-  if (!post) return;
-  activeBulletinCommentPostId = postId;
-  activeBulletinReplyTo = null;
-  updateFarmBulletinReplyTargetUI();
-  document.querySelector("#farmBulletinCommentModal").classList.remove("hidden");
-  renderFarmBulletinCommentPost(post);
-  const messageInput = document.querySelector("#farmBulletinCommentMessage");
-  if (messageInput) messageInput.value = "";
-  const countLabel = document.querySelector("#farmBulletinCommentMessageCount");
-  if (countLabel) countLabel.textContent = "0 / 80";
-  document.querySelector("#farmBulletinCommentList").innerHTML =
-    '<p class="farm-mail-empty">불러오는 중...</p>';
-  await loadFarmBulletinComments(postId);
-  if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
-}
-
-function closeFarmBulletinComments() {
-  activeBulletinCommentPostId = null;
-  activeBulletinReplyTo = null;
-  document.querySelector("#farmBulletinCommentModal").classList.add("hidden");
-}
-
 function renderRecipeIngredientPicker(select) {
   const picker = select.closest(".recipe-ingredient-select");
   const label = picker?.querySelector("[data-recipe-ingredient-label]");
@@ -5893,13 +5562,39 @@ function renderRecipeIngredientPicker(select) {
     ...getSortedKitchenCropEntries().map(
       ([cropId, crop]) => `
         <button class="recipe-ingredient-option custom-group-option ${select.value === cropId ? "selected" : ""}" type="button" role="option" aria-selected="${select.value === cropId}" data-recipe-ingredient-value="${cropId}">
-          <i aria-hidden="true">${cropSvg(cropId)}</i>
+          <i aria-hidden="true">${cropPixel(cropId)}</i>
           <span><strong>${escapeHtml(crop.name)}</strong><small>${state.harvestInventory[cropId] ?? 0}개 보유</small></span>
           <b>✓</b>
         </button>
       `,
     ),
   ].join("");
+}
+
+function renderKitchenCauldron() {
+  const cauldron = document.querySelector("#recipeCauldron");
+  const ingredientStage = document.querySelector("#recipeCauldronIngredients");
+  const status = document.querySelector("#recipeCauldronStatus");
+  if (!cauldron || !ingredientStage || !status) return;
+
+  const ingredientIds = selectedRecipeIngredients.filter((cropId) => CROPS[cropId]);
+  cauldron.classList.toggle("has-ingredients", ingredientIds.length > 0);
+  ingredientStage.innerHTML = ingredientIds.length
+    ? ingredientIds
+        .map(
+          (cropId, index) => `
+            <span class="cauldron-ingredient" style="animation-delay:${index * 70}ms" title="${escapeHtml(CROPS[cropId].name)}">
+              ${cropPixel(cropId)}
+            </span>
+          `,
+        )
+        .join("")
+    : '<span class="cauldron-empty-mark" aria-hidden="true">?</span>';
+  status.textContent = ingredientIds.length >= 2
+    ? `${ingredientIds.map((cropId) => CROPS[cropId].name).join(" + ")} · 조합 준비 완료!`
+    : ingredientIds.length === 1
+      ? `${CROPS[ingredientIds[0]].name} 투입 완료 · 재료를 하나 더 골라주세요`
+      : "빈 가마솥 · 재료를 2개 이상 골라주세요";
 }
 
 function getSortedKitchenCropEntries() {
@@ -5921,7 +5616,7 @@ function closeRecipeIngredientMenus(exceptPicker = null) {
 const COSMETIC_TYPE_LABELS = {
   farm_theme: "농장 테마",
   plot_skin: "밭 스킨",
-  label_effect: "이름표 효과",
+  label_effect: "도트 명패",
 };
 
 function getCosmeticEntry(type, id) {
@@ -5936,6 +5631,20 @@ function isCosmeticEquipped(type, id) {
   if (type === "farm_theme") return state.equippedFarmTheme === id;
   if (type === "plot_skin") return state.equippedPlotSkin === id;
   return state.equippedLabelEffect === id;
+}
+
+const PIXEL_THEME_IDS = "cherryBlossom valentine halloween christmas whiteDay springMeadow galaxyNight ocean bubbleField".split(" ");
+const PIXEL_PLOT_IDS = "cherryPetalFall frostbite chocolate candy starCandy mapleLeaf snowField sandDune lava rainbow golden lavenderField".split(" ");
+
+function pixelAtlasPosition(ids, id, columns, rows, prefix) {
+  const index = ids.indexOf(id);
+  return index < 0 ? "" : `--${prefix}-x:${(index % columns) * 100 / (columns - 1)}%;--${prefix}-y:${Math.floor(index / columns) * 100 / (rows - 1)}%;`;
+}
+
+function cosmeticPixelPreview(type, id) {
+  if (type === "farm_theme") return `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="${pixelAtlasPosition(PIXEL_THEME_IDS, id, 3, 3, "theme")}"></span>`;
+  if (type === "plot_skin") return `<span aria-hidden="true" class="cosmetic-preview plot-preview" style="${pixelAtlasPosition(PIXEL_PLOT_IDS, id, 4, 3, "plot")}"></span>`;
+  return `<span aria-hidden="true" class="cosmetic-preview label-preview" data-label-effect="${id}">FARM</span>`;
 }
 
 function renderRachelPanel() {
@@ -5957,10 +5666,14 @@ function renderRachelPanel() {
           const owned = isCosmeticOwned(type, id);
           return `
             <article class="rachel-cosmetic-card">
-              <div>
-                <strong>${entry.name}</strong>
-                <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
-              </div>
+              <button class="rachel-preview-button" type="button" data-preview-cosmetic="${type}:${id}" aria-label="${entry.name} 미리보기">
+                ${cosmeticPixelPreview(type, id)}
+                <span class="rachel-preview-copy">
+                  <strong>${entry.name}</strong>
+                  <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
+                  <small class="rachel-preview-hint">눌러서 미리보기</small>
+                </span>
+              </button>
               <button
                 type="button"
                 data-purchase-cosmetic="${type}:${id}"
@@ -5993,10 +5706,14 @@ function renderRachelPanel() {
             : `<button type="button" data-equip-cosmetic="${type}:${id}">장착</button>`;
           return `
             <article class="rachel-cosmetic-card${equipped ? " equipped" : ""}">
-              <div>
-                <strong>${name}</strong>
-                <small>${COSMETIC_TYPE_LABELS[type]}</small>
-              </div>
+              <button class="rachel-preview-button" type="button" data-preview-cosmetic="${type}:${id}" aria-label="${name} 미리보기">
+                ${cosmeticPixelPreview(type, id)}
+                <span class="rachel-preview-copy">
+                  <strong>${name}</strong>
+                  <small>${COSMETIC_TYPE_LABELS[type]}</small>
+                  <small class="rachel-preview-hint">눌러서 미리보기</small>
+                </span>
+              </button>
               <div class="rachel-cosmetic-actions">${action}</div>
             </article>
           `;
@@ -6010,6 +5727,9 @@ function applyFarmTheme(themeId) {
   if (!farmPage) return;
   if (themeId) farmPage.dataset.farmTheme = themeId;
   else delete farmPage.dataset.farmTheme;
+  const index = PIXEL_THEME_IDS.indexOf(themeId);
+  farmPage.style.setProperty("--theme-x", `${Math.max(0, index % 3) * 50}%`);
+  farmPage.style.setProperty("--theme-y", `${Math.max(0, Math.floor(index / 3)) * 50}%`);
 }
 
 function renderNpcMarketCarousel() {
@@ -6109,7 +5829,7 @@ function renderFarm() {
     .map(
       ([itemId, item]) => `
         <article class="farm-item-card">
-          <span>${item.icon}</span>
+          <span class="farm-supply-pixel-icon" data-farm-item-icon="${itemId}" aria-hidden="true"></span>
           <div>
             <strong>${item.name}</strong>
             <small>${item.description}</small>
@@ -6131,9 +5851,9 @@ function renderFarm() {
           : "";
       return `
         <article
-          class="farm-item-card farm-supply-item ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""}"
+          class="farm-item-card farm-supply-item ${getCropNameLengthClass(item.name)} ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""}"
         >
-          <span class="supply-card-icon">${item.icon}</span>
+          <span class="supply-card-icon farm-supply-pixel-icon" data-farm-item-icon="${itemId}" aria-hidden="true"></span>
           <div class="supply-card-copy">
             <strong>${item.name}</strong>
             <small>${item.description}</small>
@@ -6162,7 +5882,7 @@ function renderFarm() {
           type="button"
           data-select-seed="${cropId}"
         >
-          <span>${cropSvg(cropId)}</span>
+          <span>${cropPixel(cropId)}</span>
           <strong>${crop.name}</strong>
           <small>${count}개</small>
         </button>
@@ -6176,7 +5896,7 @@ function renderFarm() {
       const growthCost = getCropGrowthCost(cropId);
       return `
         <article class="seed-shop-card">
-          <span class="seed-shop-emoji">${cropSvg(cropId)}</span>
+          <span class="seed-shop-emoji">${cropPixel(cropId)}</span>
           <div>
             <strong>${crop.name} 씨앗</strong>
             <small>완전 성장 ${growthCost} Coin</small>
@@ -6193,7 +5913,7 @@ function renderFarm() {
     .map(
       ([cropId, crop]) => `
         <span class="harvest-item ${getCropNameLengthClass(crop.name)} ${state.harvestInventory[cropId] ? "" : "empty"}">
-          <i>${cropSvg(cropId)}</i>
+          <i>${cropPixel(cropId)}</i>
           <strong>${crop.name}</strong>
           <small>${state.harvestInventory[cropId] ?? 0}개</small>
         </span>
@@ -6207,7 +5927,7 @@ function renderFarm() {
         const recipe = RECIPES[recipeId];
         return `
         <article class="noah-buy-card">
-          <span>${recipe.icon}</span>
+          <span>${foodPixel(recipeId)}</span>
           <div>
             <strong>${recipe.name}</strong>
             <small>보유 ${state.foodInventory[recipeId] ?? 0}개</small>
@@ -6227,7 +5947,7 @@ function renderFarm() {
       const owned = state.harvestInventory[cropId] ?? 0;
       return `
         <article class="noah-buy-card">
-          <span>${cropSvg(cropId)}</span>
+          <span>${cropPixel(cropId)}</span>
           <div>
             <strong>${crop.name} ${bundleSize}개 묶음</strong>
             <small>보유 ${owned}개</small>
@@ -6260,13 +5980,14 @@ function renderFarm() {
     select.value = CROPS[selectedRecipeIngredients[index]] ? selectedRecipeIngredients[index] : "";
     renderRecipeIngredientPicker(select);
   });
+  renderKitchenCauldron();
 
   const storedFoods = Object.entries(RECIPES)
     .filter(([recipeId]) => state.foodInventory[recipeId])
     .map(
       ([recipeId, recipe]) => `
         <span class="food-item">
-          <i>${recipe.icon}</i><strong>${recipe.name}</strong><small>${state.foodInventory[recipeId]}개</small>
+          <i>${foodPixel(recipeId)}</i><strong>${recipe.name}</strong><small>${state.foodInventory[recipeId]}개</small>
         </span>
       `,
     )
@@ -6281,7 +6002,7 @@ function renderFarm() {
       const discovered = state.discoveredRecipes.includes(recipeId);
       return `
         <article class="recipe-entry ${discovered ? "" : "locked"}">
-          <span>${discovered ? recipe.icon : "?"}</span>
+          <span>${discovered ? foodPixel(recipeId) : "?"}</span>
           <strong>${discovered ? recipe.name : "알 수 없는 요리"}</strong>
           <small>${recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")}</small>
         </article>
@@ -6319,7 +6040,7 @@ function renderFarm() {
           <article class="farm-plot crop-plot wilted" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
-              <span>${cropSvg(plot.crop, "wilted")}</span>
+              <span>${cropPixel(plot.crop, "wilted")}</span>
             </div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
@@ -6340,7 +6061,7 @@ function renderFarm() {
           >
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
-              <span>${cropSvg(plot.crop, stage)}</span>
+              <span>${cropPixel(plot.crop, stage)}</span>
             </div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
@@ -6355,7 +6076,7 @@ function renderFarm() {
                 data-water-plot="${plot.id}"
                 aria-label="${waterRemaining ? `다음 무료 물주기까지 ${formatPlotWaterCooldown(waterRemaining)}` : `${crop.name}에 무료로 물 주기`}"
                 ${waterRemaining ? "disabled" : ""}
-              ><i class="plot-action-icon watering-can-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 9h9v9H7z"/><path d="m7 11-3.5-2.5L2 10.5 7 14"/><path d="M16 11c1.2-2 3.1-2.7 4.3-1.5 1.5 1.5.4 5.3-4.3 5.5"/><path d="M8.5 7h6"/></svg></i><span>${formatPlotWaterCooldown(waterRemaining)}</span></button>
+              ><i class="plot-action-icon pixel-water-icon" aria-hidden="true"></i><span>${formatPlotWaterCooldown(waterRemaining)}</span></button>
             </div>
           </article>
         `;
@@ -6365,7 +6086,7 @@ function renderFarm() {
         <article class="farm-plot crop-plot mature" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
           ${fertilizerBadge}
           <div class="crop-visual stage-${plot.growth}">
-            <span>${cropSvg(plot.crop)}</span>
+            <span>${cropPixel(plot.crop)}</span>
           </div>
           <div class="crop-info">
             <strong>${crop.name}</strong>
@@ -6377,6 +6098,9 @@ function renderFarm() {
       `;
     })
     .join("");
+  grid.querySelectorAll("[data-plot-skin]").forEach((tile) => {
+    tile.style.cssText = pixelAtlasPosition(PIXEL_PLOT_IDS, tile.dataset.plotSkin, 4, 3, "plot");
+  });
 }
 
 function renderFocusPicker() {
@@ -6391,12 +6115,7 @@ function renderFocusPicker() {
       label: task.title,
     }));
   const habitOptions = state.habits
-    .filter(
-      (habit) =>
-        habit.measureType === "time" &&
-        isHabitScheduledToday(habit) &&
-        !isHabitCompleteToday(habit),
-    )
+    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
     .map((habit) => ({
       value: `habit:${habit.id}`,
       label: habit.title,
@@ -6408,7 +6127,7 @@ function renderFocusPicker() {
   );
   label.textContent = selectedOption
     ? `${activeFocus.type === "task" ? "할 일" : "습관"} · ${selectedOption.label}`
-    : "할 일 또는 시간형 습관 선택";
+    : "할 일 또는 습관 선택";
 
   const renderGroup = (title, options) =>
     options.length
@@ -6443,13 +6162,32 @@ function renderFocusPicker() {
       <i></i><span>선택 안 함</span><b>✓</b>
     </button>
     ${renderGroup("할 일", taskOptions)}
-    ${renderGroup("시간형 습관", habitOptions)}
+    ${renderGroup("습관", habitOptions)}
     ${
       !taskOptions.length && !habitOptions.length
         ? '<p class="focus-item-empty">선택할 항목이 없어</p>'
         : ""
     }
   `;
+}
+
+const SUMMARY_PROGRESS_SEGMENTS = 10;
+
+function renderSummaryProgress(selector, ratio) {
+  const progress = document.querySelector(selector);
+  if (progress.children.length !== SUMMARY_PROGRESS_SEGMENTS) {
+    progress.innerHTML = Array.from(
+      { length: SUMMARY_PROGRESS_SEGMENTS },
+      () => "<i></i>",
+    ).join("");
+  }
+  const completedSegments = Math.round(
+    Math.min(1, Math.max(0, Number(ratio) || 0)) * SUMMARY_PROGRESS_SEGMENTS,
+  );
+  [...progress.children].forEach((segment, index) => {
+    segment.classList.toggle("complete", index < completedSegments);
+  });
+  progress.dataset.completedSegments = String(completedSegments);
 }
 
 function renderSummary() {
@@ -6475,6 +6213,8 @@ function renderSummary() {
   document.querySelector("#todoTotal").textContent = activeTasks.length;
   document.querySelector("#habitDone").textContent = habitDone;
   document.querySelector("#habitTotal").textContent = scheduledHabits.length;
+  renderSummaryProgress("#stripTaskProgress", activeTasks.length ? todoDone / activeTasks.length : 0);
+  renderSummaryProgress("#stripHabitProgress", scheduledHabits.length ? habitProgress / scheduledHabits.length : 0);
   const rewardProgressMinutes = Math.floor(state.focusRewardSeconds / 60);
   const rewardRemainingMinutes = Math.ceil((3600 - state.focusRewardSeconds) / 60);
   document.querySelector("#rewardFocusMinutes").textContent = rewardRemainingMinutes;
@@ -6863,36 +6603,6 @@ function toggleHabit(id) {
   scheduleTaskDatabaseSync(0);
 }
 
-function adjustHabitCount(id, delta) {
-  const habit = state.habits.find((item) => item.id === id);
-  if (!habit || habit.measureType !== "count") return;
-  if (!isHabitScheduledToday(habit)) {
-    showToast("오늘 일정에 없는 습관이야");
-    return;
-  }
-
-  const today = toLocalDateString();
-  const wasComplete = isHabitCompleteToday(habit);
-  const nextProgress = Math.min(
-    getHabitTargetForDate(habit),
-    Math.max(0, getHabitProgress(habit) + delta),
-  );
-  habit.progressByDate ??= {};
-  habit.progressByDate[today] = nextProgress;
-  const complete = getHabitProgressRatio(habit) >= 1;
-  const result = applyHabitCompletionChange(habit, wasComplete, complete);
-
-  if (result?.complete) {
-    showToast(`습관 완료 ${result.reward} Coin 획득`);
-  } else if (result && !result.complete) {
-    showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
-  } else {
-    showToast(`${nextProgress} / ${getHabitTargetForDate(habit)}${habit.unit}`);
-  }
-  renderHabitUpdates();
-  scheduleTaskDatabaseSync(0);
-}
-
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add("show");
@@ -6908,14 +6618,14 @@ function updateFocusDisplay() {
   const seconds = String(displaySeconds % 60).padStart(2, "0");
   const settings = getFocusSettings();
   const item = focusMode === "linked" ? getFocusItem() : null;
-  const isTaskStopwatch = Boolean(item && activeFocus?.type === "task");
+  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus);
   const totalSeconds = Math.max(
     1,
     focusMode === "linked" && activeFocus?.type === "habit" && item
       ? getHabitTargetForDate(item) * 60
       : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
-  const remainingRatio = isTaskStopwatch || inOvertime
+  const remainingRatio = isLinkedStopwatch || inOvertime
     ? 1
     : Math.max(0, Math.min(1, focusSeconds / totalSeconds));
   const timerCircumference = 2 * Math.PI * 46;
@@ -6929,7 +6639,7 @@ function updateFocusDisplay() {
     "--timer-ring-color",
     inOvertime ? "#e8895f" : timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
   );
-  timerRing.querySelector("span").textContent = isTaskStopwatch
+  timerRing.querySelector("span").textContent = isLinkedStopwatch
     ? "STOPWATCH"
     : inOvertime
       ? "OVERTIME"
@@ -6963,6 +6673,7 @@ function updateMiniFocusTimer() {
   miniFocusMode = visibleMode;
   miniFocusTimer.hidden = !runtime?.started || fullTimerVisible;
   if (miniFocusTimer.hidden) return;
+  requestAnimationFrame(clampMiniFocusPosition);
 
   const item = visibleMode === "linked" ? getFocusItem() : null;
   const inOvertime = visibleMode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
@@ -6988,6 +6699,93 @@ function updateMiniFocusTimer() {
   miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
 }
+
+const MINI_FOCUS_POSITION_KEY = "farmodoro-mini-focus-position";
+
+function clampMiniFocusPosition() {
+  if (!focusFloatingStatus.style.left || miniFocusTimer.hidden) return;
+  const rect = focusFloatingStatus.getBoundingClientRect();
+  const left = Math.min(Math.max(8, rect.left), Math.max(8, innerWidth - rect.width - 8));
+  const top = Math.min(Math.max(8, rect.top), Math.max(8, innerHeight - rect.height - 8));
+  focusFloatingStatus.style.left = `${left}px`;
+  focusFloatingStatus.style.top = `${top}px`;
+  focusFloatingStatus.style.right = "auto";
+  focusFloatingStatus.style.bottom = "auto";
+}
+
+function saveMiniFocusPosition() {
+  if (!focusFloatingStatus.style.left) return;
+  localStorage.setItem(MINI_FOCUS_POSITION_KEY, JSON.stringify({
+    left: Number.parseFloat(focusFloatingStatus.style.left),
+    top: Number.parseFloat(focusFloatingStatus.style.top),
+  }));
+}
+
+try {
+  const savedMiniFocusPosition = JSON.parse(localStorage.getItem(MINI_FOCUS_POSITION_KEY) || "null");
+  if (Number.isFinite(savedMiniFocusPosition?.left) && Number.isFinite(savedMiniFocusPosition?.top)) {
+    focusFloatingStatus.style.left = `${savedMiniFocusPosition.left}px`;
+    focusFloatingStatus.style.top = `${savedMiniFocusPosition.top}px`;
+    focusFloatingStatus.style.right = "auto";
+    focusFloatingStatus.style.bottom = "auto";
+  }
+} catch {
+  localStorage.removeItem(MINI_FOCUS_POSITION_KEY);
+}
+
+miniFocusTimer.querySelector(".mini-focus-main").addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  const rect = focusFloatingStatus.getBoundingClientRect();
+  focusFloatingStatus.style.left = `${rect.left}px`;
+  focusFloatingStatus.style.top = `${rect.top}px`;
+  focusFloatingStatus.style.right = "auto";
+  focusFloatingStatus.style.bottom = "auto";
+  miniFocusDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    left: rect.left,
+    top: rect.top,
+    moved: false,
+  };
+  miniFocusTimer.setPointerCapture(event.pointerId);
+});
+
+miniFocusTimer.addEventListener("pointermove", (event) => {
+  if (!miniFocusDrag || event.pointerId !== miniFocusDrag.pointerId) return;
+  const deltaX = event.clientX - miniFocusDrag.startX;
+  const deltaY = event.clientY - miniFocusDrag.startY;
+  if (!miniFocusDrag.moved && Math.hypot(deltaX, deltaY) < 4) return;
+  miniFocusDrag.moved = true;
+  event.preventDefault();
+  const rect = focusFloatingStatus.getBoundingClientRect();
+  const left = Math.min(Math.max(8, miniFocusDrag.left + deltaX), Math.max(8, innerWidth - rect.width - 8));
+  const top = Math.min(Math.max(8, miniFocusDrag.top + deltaY), Math.max(8, innerHeight - rect.height - 8));
+  focusFloatingStatus.style.left = `${left}px`;
+  focusFloatingStatus.style.top = `${top}px`;
+  miniFocusTimer.classList.add("dragging");
+});
+
+function finishMiniFocusDrag(event) {
+  if (!miniFocusDrag || event.pointerId !== miniFocusDrag.pointerId) return;
+  const moved = miniFocusDrag.moved;
+  miniFocusDrag = null;
+  miniFocusTimer.classList.remove("dragging");
+  if (moved) {
+    suppressMiniFocusOpen = true;
+    saveMiniFocusPosition();
+  }
+}
+
+miniFocusTimer.addEventListener("pointerup", finishMiniFocusDrag);
+miniFocusTimer.addEventListener("pointercancel", finishMiniFocusDrag);
+miniFocusTimer.addEventListener("click", (event) => {
+  if (!suppressMiniFocusOpen) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  suppressMiniFocusOpen = false;
+}, true);
+window.addEventListener("resize", clampMiniFocusPosition);
 
 // Shrinks #focusTarget's font instead of letting a long linked-task title
 // wrap past the CSS max-height (3 lines) and get clipped by the stage.
@@ -7240,7 +7038,7 @@ function updateProductivityFocusLabels() {
     const habit = state.habits.find((item) => item.id === card.dataset.habitId);
     const label = card.querySelector("[data-habit-focus-time]");
     if (habit && label) {
-      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit))}`;
+      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, label.dataset.focusDate))}`;
     }
   });
 }
@@ -7260,7 +7058,7 @@ function updateActiveFocusCard() {
   document
     .querySelectorAll(`[data-habit-id="${item.id}"] [data-habit-focus-time]`)
     .forEach((label) => {
-      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(item))}`;
+      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(item, label.dataset.focusDate))}`;
     });
 }
 
@@ -7390,12 +7188,12 @@ function advanceRunningFocusTimer(mode) {
   focusLastTickAt += elapsedSeconds * 1000;
 
   const item = mode === "linked" ? getFocusItem() : null;
-  const isTaskStopwatch = mode === "linked" && activeFocus?.type === "task";
+  const isLinkedStopwatch = mode === "linked" && Boolean(activeFocus);
   // Quick-mode focus that already hit zero keeps counting up (overtime)
-  // instead of auto-finishing -- same "don't cap at the target" shape as
-  // the task stopwatch case above.
+  // instead of auto-finishing -- the same uncapped behavior as linked
+  // task and habit stopwatches.
   const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
-  const countsUp = isTaskStopwatch || isQuickOvertime;
+  const countsUp = isLinkedStopwatch || isQuickOvertime;
   const remainingSeconds = runtime.seconds;
   const appliedSeconds = countsUp || (mode === "quick" && runtime.phase === "focus")
     ? elapsedSeconds
@@ -7403,7 +7201,7 @@ function advanceRunningFocusTimer(mode) {
   if (isQuickOvertime) {
     runtime.overtimeSeconds = (runtime.overtimeSeconds ?? 0) + appliedSeconds;
   } else {
-    runtime.seconds = isTaskStopwatch
+    runtime.seconds = isLinkedStopwatch
       ? runtime.seconds + appliedSeconds
       : Math.max(0, runtime.seconds - appliedSeconds);
   }
@@ -7413,13 +7211,8 @@ function advanceRunningFocusTimer(mode) {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
       } else if (activeFocus?.type === "habit") {
         const today = toLocalDateString();
-        const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
-        const focusedSeconds = Math.min(
-          targetSeconds,
-          getHabitDailyFocusSeconds(item, today) + appliedSeconds,
-        );
         item.focusSecondsByDate ??= {};
-        item.focusSecondsByDate[today] = focusedSeconds;
+        item.focusSecondsByDate[today] = getHabitDailyFocusSeconds(item, today) + appliedSeconds;
       }
     }
     addFocusSecond(appliedSeconds, mode);
@@ -7434,7 +7227,7 @@ function advanceRunningFocusTimer(mode) {
     updateMiniFocusTimer();
   }
 
-  if (!isTaskStopwatch && !isQuickOvertime && mode === "quick" && runtime.phase === "focus" && runtime.seconds <= 0) {
+  if (!isLinkedStopwatch && !isQuickOvertime && mode === "quick" && runtime.phase === "focus" && runtime.seconds <= 0) {
     runtime.overtime = true;
     runtime.overtimeSeconds = Math.max(0, elapsedSeconds - remainingSeconds);
     if (ownsTimer) notifyFocusPhaseComplete("focus");
@@ -7442,7 +7235,7 @@ function advanceRunningFocusTimer(mode) {
     return { advanced: true, finished: false };
   }
 
-  if (ownsTimer && !isTaskStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
+  if (ownsTimer && !isLinkedStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
     if (runtime.phase === "focus") finishFocusRuntime(mode);
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
@@ -7679,20 +7472,12 @@ function toggleFocus() {
   runtime.seconds = focusSeconds;
   focusLastTickAt = Date.now();
 
-  const linkedItem = focusMode === "linked" ? getFocusItem() : null;
-  if (activeFocus?.type === "task" && linkedItem?.status === "waiting") {
-    linkedItem.status = "doing";
-    renderTasks();
-    saveState();
-    scheduleTaskDatabaseSync(0);
-  }
   updateFocusActionButton();
 
-  // A task stopwatch counts up with no target duration, so there's no
-  // fire_at to schedule a push for -- only countdown sessions (plain/habit
-  // focus, quick focus/break) have a real end time.
-  const isTaskStopwatch = Boolean(linkedItem && activeFocus?.type === "task");
-  if (!isTaskStopwatch) {
+  // Linked task and habit sessions count up with no target duration, so
+  // only quick focus/break countdowns have a real notification end time.
+  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus);
+  if (!isLinkedStopwatch) {
     scheduleFarmPushNotification(
       "timer_end",
       "",
@@ -7742,7 +7527,9 @@ function setFocusMode(mode) {
   });
 
   focusSettingsButton.hidden = mode === "linked";
-  if (mode === "linked") focusSettings.classList.add("hidden");
+  if (mode === "linked") {
+    closeFocusSettings();
+  }
   updateFocusActionButton();
   updateFocusDisplay();
   updateFocusTarget();
@@ -7773,9 +7560,8 @@ function startItemFocus(type, id) {
   timerPhase = "focus";
   activeFocus = { type, id };
   focusSettingsButton.hidden = true;
-  focusSettings.classList.add("hidden");
+  closeFocusSettings();
 
-  if (type === "task" && item.status === "waiting") item.status = "doing";
   prepareLinkedFocusRuntime(item);
   document.querySelectorAll("[data-focus-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.focusMode === "linked");
@@ -8016,44 +7802,45 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("resize", positionThemedDateCalendar);
 window.addEventListener("scroll", positionThemedDateCalendar, true);
 
+const taskCreateModal = document.querySelector("#taskCreateModal");
+document.body.append(taskCreateModal);
+function closeTaskCreate() {
+  closeTaskInlineEdit();
+}
+document.querySelectorAll("[data-close-task-create]").forEach(button => {
+  button.addEventListener("click", () => {
+    closeTaskCreate();
+    document.querySelector("#openTaskForm").focus();
+  });
+});
+taskCreateModal.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    event.stopPropagation();
+    closeTaskCreate();
+    document.querySelector("#openTaskForm").focus();
+  }
+  if (event.key !== "Tab") return;
+  const controls = [...taskCreateModal.querySelectorAll('button, input, textarea, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
+  const first = controls[0], last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
 document.querySelector("#openTaskForm").addEventListener("click", () => {
-  taskForm.classList.toggle("hidden");
-  if (!taskForm.classList.contains("hidden")) taskInput.focus();
+  closeTaskInlineEdit();
+  taskForm.classList.remove("hidden");
+  taskInput.focus();
 });
 
 function closeHabitModal() {
   editingHabitId = null;
-  closeHabitMeasureMenu();
   closeThemedDateCalendar();
   habitModal.classList.add("hidden");
   habitForm.classList.add("hidden");
 }
 
-function syncHabitMeasurePicker() {
-  const selectedOption = habitMeasureType.selectedOptions[0];
-  habitMeasureLabel.textContent = selectedOption?.textContent ?? "횟수";
-  habitMeasureMenu.querySelectorAll("[data-habit-measure-value]").forEach((option) => {
-    const selected = option.dataset.habitMeasureValue === habitMeasureType.value;
-    option.classList.toggle("selected", selected);
-    option.setAttribute("aria-selected", String(selected));
-  });
-}
-
-function closeHabitMeasureMenu() {
-  habitMeasureMenu.classList.add("hidden");
-  habitMeasureTrigger.setAttribute("aria-expanded", "false");
-}
-
 function resetHabitForm() {
   habitInput.value = "";
-  habitMeasureType.value = "count";
-  habitTargetValue.value = 1;
-  habitWeekdayTargetsEnabled.checked = false;
-  habitWeekdayTargets.classList.add("hidden");
-  habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
-    input.value = 1;
-  });
-  habitUnit.value = "회";
   document
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
@@ -8062,7 +7849,6 @@ function resetHabitForm() {
   habitStartDate.max = toLocalDateString();
   refreshThemedDateTrigger(habitStartDate);
   refreshThemedDateTrigger(habitEndDate);
-  syncHabitMeasureFields();
 }
 
 function openHabitModal(habit = null) {
@@ -8071,18 +7857,9 @@ function openHabitModal(habit = null) {
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
     habitModalTitle.textContent = "습관 수정";
-    habitModalDescription.textContent = "목표와 반복 일정을 다시 설정해";
+    habitModalDescription.textContent = "반복 일정을 다시 설정해";
     habitSubmitButton.textContent = "변경사항 저장";
     habitInput.value = habit.title;
-    habitMeasureType.value = habit.measureType;
-    habitTargetValue.value = habit.targetValue;
-    const hasWeekdayTargets = Object.keys(habit.targetByWeekday ?? {}).length > 0;
-    habitWeekdayTargetsEnabled.checked = hasWeekdayTargets;
-    habitWeekdayTargets.classList.toggle("hidden", !hasWeekdayTargets);
-    habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
-      input.value = habit.targetByWeekday?.[input.dataset.habitWeekdayTarget] ?? habit.targetValue;
-    });
-    habitUnit.value = habit.unit;
     document.querySelectorAll('[name="habitWeekday"]').forEach((input) => {
       input.checked = habit.weekdays.includes(Number(input.value));
     });
@@ -8090,11 +7867,10 @@ function openHabitModal(habit = null) {
     habitStartDate.value = habit.startDate || toLocalDateString();
     refreshThemedDateTrigger(habitStartDate);
     refreshThemedDateTrigger(habitEndDate);
-    syncHabitMeasureFields();
   } else {
     habitModalKicker.textContent = "NEW ROUTINE";
     habitModalTitle.textContent = "새 습관 등록";
-    habitModalDescription.textContent = "목표와 반복 일정을 설정해";
+    habitModalDescription.textContent = "반복 일정을 설정해";
     habitSubmitButton.textContent = "습관 추가";
     resetHabitForm();
   }
@@ -8248,76 +8024,10 @@ confirmHabitDelete.addEventListener("click", () => {
   scheduleTaskDatabaseSync(0);
 });
 
-function syncHabitMeasureFields() {
-  const units = { count: "회", time: "분" };
-  const isAmount = habitMeasureType.value === "amount";
-  habitUnit.readOnly = !isAmount;
-  habitTargetValue.min = "1";
-  habitTargetValue.step = "1";
-  if (!Number.isInteger(Number(habitTargetValue.value))) {
-    habitTargetValue.value = Math.max(1, Math.round(Number(habitTargetValue.value) || 1));
-  }
-  if (!isAmount) habitUnit.value = units[habitMeasureType.value];
-  if (isAmount && ["회", "분"].includes(habitUnit.value)) habitUnit.value = "";
-  habitUnit.placeholder = isAmount ? "단위" : "";
-  syncHabitMeasurePicker();
-}
-
-function syncHabitWeekdayTargetVisibility() {
-  habitWeekdayTargets.classList.toggle("hidden", !habitWeekdayTargetsEnabled.checked);
-  if (!habitWeekdayTargetsEnabled.checked) return;
-  habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]").forEach((input) => {
-    if (!input.value) input.value = habitTargetValue.value || "1";
-  });
-}
-
-habitWeekdayTargetsEnabled.addEventListener("change", syncHabitWeekdayTargetVisibility);
-
-habitWeekdayTargets.addEventListener("keydown", (event) => {
-  if ([".", ",", "e", "E", "-", "+"].includes(event.key)) event.preventDefault();
-});
-
-habitWeekdayTargets.addEventListener("input", (event) => {
-  const input = event.target.closest("[data-habit-weekday-target]");
-  if (!input || !input.value) return;
-  input.value = String(Math.max(1, Math.trunc(Number(input.value) || 1)));
-});
-
-habitMeasureType.addEventListener("change", syncHabitMeasureFields);
-
-habitMeasureTrigger.addEventListener("click", () => {
-  const willOpen = habitMeasureMenu.classList.contains("hidden");
-  habitMeasureMenu.classList.toggle("hidden", !willOpen);
-  habitMeasureTrigger.setAttribute("aria-expanded", String(willOpen));
-});
-
-habitMeasureMenu.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-habit-measure-value]");
-  if (!option) return;
-  habitMeasureType.value = option.dataset.habitMeasureValue;
-  habitMeasureType.dispatchEvent(new Event("change", { bubbles: true }));
-  closeHabitMeasureMenu();
-  habitMeasureTrigger.focus();
-});
-
-document.addEventListener("click", (event) => {
-  if (!habitMeasureSelect.contains(event.target)) closeHabitMeasureMenu();
-});
-
-habitTargetValue.addEventListener("keydown", (event) => {
-  if ([".", ",", "e", "E", "-", "+"].includes(event.key)) event.preventDefault();
-});
-
-habitTargetValue.addEventListener("input", () => {
-  if (!habitTargetValue.value) return;
-  habitTargetValue.value = String(
-    Math.max(1, Math.trunc(Number(habitTargetValue.value) || 1)),
-  );
-});
-
 document.querySelector("#toggleGroupManager").addEventListener("click", () => {
-  groupManager.classList.toggle("hidden");
-  if (!groupManager.classList.contains("hidden")) groupInput.focus();
+  groupManager.classList.remove("hidden");
+  document.querySelector("#toggleGroupManager").setAttribute("aria-expanded", "true");
+  groupInput.focus();
 });
 
 document.querySelector("#addGroupButton").addEventListener("click", () => {
@@ -8353,12 +8063,20 @@ groupInput.addEventListener("keydown", (event) => {
   }
 });
 
-document.querySelector("#groupList").addEventListener("click", async (event) => {
+document.querySelector("#groupList").addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-delete-group]");
   if (!deleteButton) return;
+  openGroupDeleteDialog(deleteButton.dataset.deleteGroup);
+});
 
-  const groupId = deleteButton.dataset.deleteGroup;
+confirmGroupDelete.addEventListener("click", async () => {
+  const groupId = pendingGroupDeleteId;
   const group = getGroup(groupId);
+  if (!group) {
+    closeGroupDeleteDialog();
+    return;
+  }
+  confirmGroupDelete.disabled = true;
   pendingGroupDatabaseDeletes.add(groupId);
   state.groups = state.groups.filter((item) => item.id !== groupId);
   if (taskGroupFilter === groupId) taskGroupFilter = "all";
@@ -8368,6 +8086,7 @@ document.querySelector("#groupList").addEventListener("click", async (event) => 
   render();
   try {
     await syncTaskDatabaseImmediately();
+    closeGroupDeleteDialog();
     showToast(`‘${group?.name ?? "그룹"}’을 삭제하고 할 일은 그룹 없음으로 옮겼어`);
   } catch (error) {
     console.error("Farmodoro task group could not be deleted", error);
@@ -8375,6 +8094,8 @@ document.querySelector("#groupList").addEventListener("click", async (event) => 
     showToast(`그룹 삭제를 DB에 반영하지 못했어${reason}`);
     taskDataHydrated = false;
     await loadTaskDataFromDatabase(activeAuthUser);
+  } finally {
+    confirmGroupDelete.disabled = false;
   }
 });
 
@@ -8423,6 +8144,21 @@ taskForm.addEventListener("submit", (event) => {
   const title = taskInput.value.trim();
   if (!title) return;
 
+  const editingTask = state.tasks.find((task) => task.id === editingTaskId);
+  if (editingTask) {
+    editingTask.title = title;
+    editingTask.groupId = taskGroup.value || null;
+    editingTask.focusSeconds = Math.min(
+      9999,
+      Math.max(0, Math.floor(Number(taskFocusMinutesInput.value) || 0)),
+    ) * 60;
+    closeTaskCreate();
+    render();
+    scheduleTaskDatabaseSync(0);
+    showToast("할 일을 수정했어");
+    return;
+  }
+
   state.tasks.unshift({
     id: createUuid(),
     title,
@@ -8433,9 +8169,7 @@ taskForm.addEventListener("submit", (event) => {
     archivedAt: "",
     completedDate: "",
   });
-  taskInput.value = "";
-  autoGrowTextarea(taskInput);
-  taskForm.classList.add("hidden");
+  closeTaskCreate();
   showToast("대기 목록에 추가했어");
   render();
   scheduleTaskDatabaseSync(0);
@@ -8455,34 +8189,9 @@ habitForm.addEventListener("submit", (event) => {
   const weekdays = [...document.querySelectorAll('[name="habitWeekday"]:checked')].map(
     (input) => Number(input.value),
   );
-  const targetValue = Number(habitTargetValue.value);
-  const targetByWeekday = habitWeekdayTargetsEnabled.checked
-    ? Object.fromEntries(
-        [...habitWeekdayTargets.querySelectorAll("[data-habit-weekday-target]")]
-          .filter((input) => weekdays.includes(Number(input.dataset.habitWeekdayTarget)))
-          .map((input) => [input.dataset.habitWeekdayTarget, Number(input.value)]),
-      )
-    : {};
-  const unit = habitUnit.value.trim();
 
   if (!weekdays.length) {
     showToast("반복할 요일을 하나 이상 선택해");
-    return;
-  }
-  if (!targetValue || targetValue <= 0) {
-    showToast("목표값을 확인해");
-    return;
-  }
-  if (!Number.isInteger(targetValue)) {
-    showToast("목표값은 정수로 입력해");
-    return;
-  }
-  if (Object.values(targetByWeekday).some((value) => !Number.isInteger(value) || value <= 0)) {
-    showToast("요일별 목표값을 확인해");
-    return;
-  }
-  if (!unit) {
-    showToast("목표 단위를 입력해");
     return;
   }
   const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
@@ -8492,23 +8201,16 @@ habitForm.addEventListener("submit", (event) => {
     return;
   }
   if (editingHabit) {
-    const previousMeasureType = editingHabit.measureType;
     Object.assign(editingHabit, {
       title,
-      measureType: habitMeasureType.value,
-      targetValue,
-      targetByWeekday,
-      unit,
+      measureType: "amount",
+      targetValue: 1,
+      targetByWeekday: {},
+      unit: "완료",
       weekdays,
       endDate: habitEndDate.value,
       startDate,
     });
-    if (previousMeasureType !== "count" && editingHabit.measureType === "count") {
-      editingHabit.progressByDate ??= {};
-      editingHabit.completionDates.forEach((date) => {
-        editingHabit.progressByDate[date] = targetValue;
-      });
-    }
   } else {
     state.habits.push({
       id: createUuid(),
@@ -8519,10 +8221,10 @@ habitForm.addEventListener("submit", (event) => {
       progressByDate: {},
       focusSecondsByDate: {},
       recordMetaByDate: {},
-      measureType: habitMeasureType.value,
-      targetValue,
-      targetByWeekday,
-      unit,
+      measureType: "amount",
+      targetValue: 1,
+      targetByWeekday: {},
+      unit: "완료",
       weekdays,
       startDate,
       endDate: habitEndDate.value,
@@ -8660,14 +8362,14 @@ document.addEventListener("click", (event) => {
   });
 });
 
-document.querySelector("#taskGroupFilters").addEventListener("click", (event) => {
+document.querySelectorAll("#taskGroupFilters, #todayTaskGroupFilters").forEach((container) => container.addEventListener("click", (event) => {
   const button = event.target.closest("[data-task-group-filter]");
   if (!button) return;
   const nextFilter = button.dataset.taskGroupFilter;
   if (nextFilter === taskGroupFilter) return;
   taskGroupFilter = nextFilter;
   renderTasks();
-});
+}));
 
 document.querySelector("#toggleArchiveView").addEventListener("click", () => {
   taskArchiveView = !taskArchiveView;
@@ -9011,21 +8713,35 @@ function installTouchReorder(container, type) {
 installTouchReorder(document.querySelector("#taskBoard"), "task");
 installTouchReorder(document.querySelector("#habitList"), "habit");
 
-document.querySelector("#habitList").addEventListener("click", (event) => {
+document.querySelector("#habitList").addEventListener("click", async (event) => {
   const focusButton = event.target.closest("[data-focus-habit]");
   const toggleButton = event.target.closest("[data-toggle-habit]");
-  const adjustButton = event.target.closest("[data-adjust-habit]");
   const editButton = event.target.closest("[data-edit-habit]");
   const deleteButton = event.target.closest("[data-delete-habit]");
 
+  const date = getHabitViewDate();
+  if (toggleButton && date < toLocalDateString()) {
+    const button = toggleButton;
+    if (button.disabled || !taskDataHydrated || habitRecordSaving) return;
+    const habit = state.habits.find((item) => item.id === button.dataset.toggleHabit);
+    if (!habit || !canEditHabitRecord(habit, date)) return;
+    const target = getHabitTargetForDate(habit, date);
+    const progress = getHabitProgressRatio(habit, date) >= 1 ? 0 : target;
+    habitRecordSaving = true;
+    renderHabits();
+    try {
+      await savePastHabitRecord(habit, date, progress);
+    } catch (error) {
+      showToast(`기록 저장 실패 · ${error.message}`);
+    } finally {
+      habitRecordSaving = false;
+      renderHabits();
+    }
+    return;
+  }
+
   if (focusButton) startItemFocus("habit", focusButton.dataset.focusHabit);
   if (toggleButton) toggleHabit(toggleButton.dataset.toggleHabit);
-  if (adjustButton) {
-    adjustHabitCount(
-      adjustButton.dataset.adjustHabit,
-      Number(adjustButton.dataset.delta),
-    );
-  }
   if (editButton) {
     const habit = state.habits.find((item) => item.id === editButton.dataset.editHabit);
     if (habit) openHabitModal(habit);
@@ -9565,9 +9281,15 @@ document.querySelector("#cookRecipeButton").addEventListener("click", async (eve
   }
 
   const cookButton = event.currentTarget;
+  const cauldron = document.querySelector("#recipeCauldron");
   cookButton.classList.remove("mixing");
+  cauldron?.classList.remove("mixing");
   void cookButton.offsetWidth;
   cookButton.classList.add("mixing");
+  if (cauldron) {
+    void cauldron.offsetWidth;
+    cauldron.classList.add("mixing");
+  }
 
   const previousHarvestCounts = Object.fromEntries(
     Object.keys(requiredCounts).map((cropId) => [cropId, state.harvestInventory[cropId]]),
@@ -9623,9 +9345,81 @@ function stepNpcPanel(step) {
   renderNpcMarketCarousel();
 }
 
+const cosmeticPreviewModal = document.querySelector("#cosmeticPreviewModal");
+const cosmeticTryonStage = document.querySelector("#cosmeticTryonStage");
+
+function closeCosmeticPreview() {
+  cosmeticPreviewModal?.classList.add("hidden");
+}
+
+function openCosmeticPreview(type, id) {
+  const entry = getCosmeticEntry(type, id);
+  const sourceScene = document.querySelector("#farmPage .farm-scene");
+  if (!entry || !sourceScene || !cosmeticPreviewModal || !cosmeticTryonStage) return;
+
+  const previewTheme = type === "farm_theme" ? id : state.equippedFarmTheme;
+  const previewPlot = type === "plot_skin" ? id : state.equippedPlotSkin;
+  const previewLabel = type === "label_effect" ? id : state.equippedLabelEffect;
+  const scene = sourceScene.cloneNode(true);
+  scene.classList.add("cosmetic-preview-farm-scene");
+  scene.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  scene.querySelectorAll("button").forEach((button) => {
+    button.disabled = true;
+    button.tabIndex = -1;
+  });
+
+  cosmeticTryonStage.replaceChildren();
+  cosmeticTryonStage.className = "cosmetic-tryon-stage";
+  cosmeticTryonStage.style.removeProperty("--preview-theme-x");
+  cosmeticTryonStage.style.removeProperty("--preview-theme-y");
+  if (previewTheme && PIXEL_THEME_IDS.includes(previewTheme)) {
+    cosmeticTryonStage.classList.add("has-preview-theme");
+    const themeIndex = PIXEL_THEME_IDS.indexOf(previewTheme);
+    cosmeticTryonStage.style.setProperty("--preview-theme-x", `${(themeIndex % 3) * 50}%`);
+    cosmeticTryonStage.style.setProperty("--preview-theme-y", `${Math.floor(themeIndex / 3) * 50}%`);
+  }
+
+  scene.querySelectorAll(".farm-plot").forEach((plot) => {
+    plot.removeAttribute("data-plot-skin");
+    plot.style.removeProperty("--plot-x");
+    plot.style.removeProperty("--plot-y");
+    if (!previewPlot || !PIXEL_PLOT_IDS.includes(previewPlot)) return;
+    plot.dataset.previewPlot = previewPlot;
+    const plotIndex = PIXEL_PLOT_IDS.indexOf(previewPlot);
+    plot.style.setProperty("--preview-plot-x", `${(plotIndex % 4) * 100 / 3}%`);
+    plot.style.setProperty("--preview-plot-y", `${Math.floor(plotIndex / 4) * 50}%`);
+  });
+
+  const nameplate = document.createElement("strong");
+  nameplate.className = "cosmetic-preview-nameplate";
+  nameplate.textContent = state.farmName || "내 농장";
+  if (previewLabel) nameplate.dataset.labelEffect = previewLabel;
+  cosmeticTryonStage.append(nameplate, scene);
+
+  document.querySelector("#cosmeticPreviewTitle").textContent = entry.name;
+  document.querySelector("#cosmeticPreviewDescription").textContent =
+    `${COSMETIC_TYPE_LABELS[type]}을 현재 농장에 적용한 모습이야`;
+  cosmeticPreviewModal.classList.remove("hidden");
+  cosmeticPreviewModal.querySelector("[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
+}
+
 document.querySelector("#npcMarket").addEventListener("click", (event) => {
+  const previewCard = event.target.closest("[data-preview-cosmetic]");
+  if (previewCard) {
+    const [type, id] = previewCard.dataset.previewCosmetic.split(":");
+    openCosmeticPreview(type, id);
+    return;
+  }
   if (event.target.closest(".npc-carousel-prev")) stepNpcPanel(-1);
   else if (event.target.closest(".npc-carousel-next")) stepNpcPanel(1);
+});
+cosmeticPreviewModal.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-cosmetic-preview]")) closeCosmeticPreview();
+});
+cosmeticPreviewModal.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeCosmeticPreview();
 });
 document.querySelector(".npc-market-dots").addEventListener("click", (event) => {
   const dot = event.target.closest("[data-npc-dot]");
@@ -9744,9 +9538,24 @@ farmRankingModal.addEventListener("click", (event) => {
   }
 });
 const farmMailModal = document.querySelector("#farmMailModal");
+function launchFarmMailDispatch() {
+  const envelope = document.querySelector("#farmMailDispatch");
+  if (!envelope) return;
+  envelope.classList.remove("dispatching");
+  void envelope.offsetWidth;
+  envelope.classList.add("dispatching");
+  window.setTimeout(() => envelope.classList.remove("dispatching"), 1000);
+}
 document.querySelector("#openFarmMail").addEventListener("click", async () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
+  const panel = farmMailModal.querySelector(".farm-mail-modal-panel");
+  panel?.classList.remove("mail-opening");
+  if (panel) {
+    void panel.offsetWidth;
+    panel.classList.add("mail-opening");
+    window.setTimeout(() => panel.classList.remove("mail-opening"), 450);
+  }
   if (!activeAuthUser) return;
   try {
     await farmActionChain;
@@ -9796,7 +9605,7 @@ deleteAccountButton.addEventListener("click", async () => {
     ]);
     const { error } = await supabaseClient.rpc("delete_my_account");
     if (error) throw error;
-    closeUserSettings({ keepTheme: true });
+    closeUserSettings();
     await supabaseClient.auth.signOut({ scope: "local" });
     await applyAuthSession(null);
     await prepareGoogleSignIn();
@@ -10012,202 +9821,8 @@ document.querySelector("#sendFarmMail").addEventListener("click", async () => {
       : `${friendCode}에 ${item.name} ${quantity}개를 보냈어`,
   );
   render();
+  launchFarmMailDispatch();
   if (newMailId) notifyFarmMailSent(newMailId);
-});
-
-const farmBulletinModal = document.querySelector("#farmBulletinModal");
-document.querySelector("#openFarmBulletin").addEventListener("click", async () => {
-  if (!supabaseClient || !activeAuthUser) return;
-  farmBulletinModal.classList.remove("hidden");
-  renderFarmBulletin();
-  await loadFarmBulletinPosts();
-  markFarmBulletinSeen();
-});
-farmBulletinModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-close-farm-bulletin]")) {
-    farmBulletinModal.classList.add("hidden");
-    return;
-  }
-  const typeButton = event.target.closest("[data-bulletin-type]");
-  if (typeButton) {
-    selectedBulletinType = typeButton.dataset.bulletinType;
-    syncFarmBulletinMessageInput();
-    renderFarmBulletin();
-    return;
-  }
-  const codeButton = event.target.closest("[data-bulletin-code]");
-  if (codeButton) {
-    const code = codeButton.dataset.bulletinCode;
-    farmBulletinModal.classList.add("hidden");
-    selectedMailFriendCode = code;
-    farmMailView = "send";
-    farmMailModal.classList.remove("hidden");
-    renderFarmMail();
-    showToast(`${code} 코드를 채워넣었어. 보낼 물건을 골라줘`);
-    return;
-  }
-  const postCard = event.target.closest("[data-bulletin-post-id]");
-  if (postCard) {
-    void openFarmBulletinComments(postCard.dataset.bulletinPostId);
-  }
-});
-farmBulletinModal.addEventListener("keydown", (event) => {
-  if (event.key !== "Enter" && event.key !== " ") return;
-  const postCard = event.target.closest("[data-bulletin-post-id]");
-  if (!postCard) return;
-  event.preventDefault();
-  void openFarmBulletinComments(postCard.dataset.bulletinPostId);
-});
-document.querySelector("#farmBulletinMessage").addEventListener("input", renderFarmBulletin);
-document.querySelector("#farmBulletinForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!supabaseClient || !activeAuthUser) return;
-  const messageInput = document.querySelector("#farmBulletinMessage");
-  const message = messageInput.value.trim();
-  if (!message || message.length > 60) return;
-  const submitButton = document.querySelector("#submitFarmBulletinPost");
-  submitButton.disabled = true;
-  try {
-    const { error } = await supabaseClient.rpc("create_my_bulletin_post", {
-      p_post_type: selectedBulletinType,
-      p_message: message,
-    });
-    if (error) {
-      console.error("Farmodoro bulletin post could not be saved", error);
-      showToast("게시글을 올리지 못했어");
-      return;
-    }
-    showToast("대자보에 글을 붙였어");
-    await loadFarmBulletinPosts();
-  } finally {
-    submitButton.disabled = false;
-  }
-});
-document.querySelector("#deleteFarmBulletinPost").addEventListener("click", async () => {
-  if (!supabaseClient || !activeAuthUser) return;
-  const deleteButton = document.querySelector("#deleteFarmBulletinPost");
-  deleteButton.disabled = true;
-  try {
-    const { error } = await supabaseClient.rpc("delete_my_bulletin_post", {
-      p_post_type: selectedBulletinType,
-    });
-    if (error) {
-      console.error("Farmodoro bulletin post could not be deleted", error);
-      showToast("글을 내리지 못했어");
-      return;
-    }
-    document.querySelector("#farmBulletinMessage").value = "";
-    showToast("대자보에서 글을 내렸어");
-    await loadFarmBulletinPosts();
-  } finally {
-    deleteButton.disabled = false;
-  }
-});
-
-const farmBulletinCommentModal = document.querySelector("#farmBulletinCommentModal");
-farmBulletinCommentModal.addEventListener("click", async (event) => {
-  if (event.target.closest("[data-close-farm-bulletin-comment]")) {
-    closeFarmBulletinComments();
-    return;
-  }
-  const codeButton = event.target.closest("[data-bulletin-code]");
-  if (codeButton) {
-    const code = codeButton.dataset.bulletinCode;
-    closeFarmBulletinComments();
-    farmBulletinModal.classList.add("hidden");
-    selectedMailFriendCode = code;
-    farmMailView = "send";
-    farmMailModal.classList.remove("hidden");
-    renderFarmMail();
-    showToast(`${code} 코드를 채워넣었어. 보낼 물건을 골라줘`);
-    return;
-  }
-  const deleteButton = event.target.closest("[data-delete-bulletin-comment]");
-  if (deleteButton) {
-    if (!activeBulletinCommentPostId) return;
-    deleteButton.disabled = true;
-    try {
-      const { error } = await supabaseClient.rpc("delete_my_bulletin_comment", {
-        p_comment_id: deleteButton.dataset.deleteBulletinComment,
-      });
-      if (error) {
-        console.error("Farmodoro bulletin comment could not be deleted", error);
-        showToast("댓글을 삭제하지 못했어");
-        return;
-      }
-      const postId = activeBulletinCommentPostId;
-      await loadFarmBulletinComments(postId);
-      const post = farmBulletinPosts.find((entry) => entry.id === postId);
-      if (post) {
-        post.commentCount = Math.max(0, post.commentCount - 1);
-        if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
-        renderFarmBulletin();
-      }
-    } finally {
-      deleteButton.disabled = false;
-    }
-    return;
-  }
-  const replyButton = event.target.closest("[data-reply-bulletin-comment]");
-  if (replyButton) {
-    activeBulletinReplyTo = {
-      id: replyButton.dataset.replyBulletinComment,
-      displayName: replyButton.dataset.replyBulletinName,
-    };
-    updateFarmBulletinReplyTargetUI();
-    document.querySelector("#farmBulletinCommentMessage")?.focus();
-    return;
-  }
-  if (event.target.closest("#cancelFarmBulletinReply")) {
-    activeBulletinReplyTo = null;
-    updateFarmBulletinReplyTargetUI();
-  }
-});
-document.querySelector("#farmBulletinCommentMessage").addEventListener("input", (event) => {
-  const countLabel = document.querySelector("#farmBulletinCommentMessageCount");
-  if (countLabel) countLabel.textContent = `${event.target.value.trim().length} / 80`;
-});
-document.querySelector("#farmBulletinCommentForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  if (!supabaseClient || !activeAuthUser || !activeBulletinCommentPostId) return;
-  const messageInput = document.querySelector("#farmBulletinCommentMessage");
-  const message = messageInput.value.trim();
-  if (!message || message.length > 80) return;
-  const postId = activeBulletinCommentPostId;
-  const submitButton = document.querySelector("#submitFarmBulletinComment");
-  submitButton.disabled = true;
-  try {
-    const { data: newCommentId, error } = await supabaseClient.rpc("create_my_bulletin_comment", {
-      p_post_id: postId,
-      p_message: message,
-      p_parent_comment_id: activeBulletinReplyTo?.id ?? null,
-    });
-    if (error) {
-      console.error("Farmodoro bulletin comment could not be saved", error);
-      showToast(
-        String(error.message ?? "").includes("Post not found")
-          ? "이 글은 자정에 초기화돼서 댓글을 달 수 없어"
-          : "댓글을 달지 못했어",
-      );
-      closeFarmBulletinComments();
-      void loadFarmBulletinPosts();
-      return;
-    }
-    messageInput.value = "";
-    document.querySelector("#farmBulletinCommentMessageCount").textContent = "0 / 80";
-    activeBulletinReplyTo = null;
-    updateFarmBulletinReplyTargetUI();
-    await loadFarmBulletinComments(postId);
-    const post = farmBulletinPosts.find((entry) => entry.id === postId);
-    if (post) {
-      post.commentCount += 1;
-      if (post.isMine) markFarmBulletinCommentsSeen(postId, post.commentCount);
-      renderFarmBulletin();
-    }
-    if (newCommentId) notifyFarmBulletinComment(newCommentId);
-  } finally {
-    submitButton.disabled = false;
-  }
 });
 
 const farmRewardBoxModal = document.querySelector("#farmRewardBoxModal");
@@ -10265,6 +9880,7 @@ farmKitchenModal.addEventListener("click", (event) => {
     select.value = option.dataset.recipeIngredientValue;
     selectedRecipeIngredients[Number(select.id.at(-1)) - 1] = select.value;
     renderRecipeIngredientPicker(select);
+    renderKitchenCauldron();
     closeRecipeIngredientMenus();
     triggerButton.focus();
     if (select.value) {
@@ -10344,11 +9960,6 @@ document.querySelector("#cancelFarmName").addEventListener("click", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (closeThemedDateCalendar()) return;
-    if (!habitMeasureMenu.classList.contains("hidden")) {
-      closeHabitMeasureMenu();
-      habitMeasureTrigger.focus();
-      return;
-    }
     closeUserSettings();
     closeFreePassTargetModal();
     permanentMarketModal.classList.add("hidden");
@@ -10525,25 +10136,17 @@ async function syncFocusWakeLock() {
 }
 
 function isFocusYoutubePlaying() {
-  return Boolean(
-    currentFocusYoutubeTitle &&
-      focusYoutubePlayer &&
-      typeof focusYoutubePlayer.getPlayerState === "function" &&
-      focusYoutubePlayer.getPlayerState() === 1,
-  );
+  return false;
 }
 
 function updateFocusMusicIndicator() {
   const defaultMusicPlaying = Boolean(
     focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
   );
-  const youtubePlaying = isFocusYoutubePlaying();
-  const showIndicator = currentPage !== "focus" && (defaultMusicPlaying || youtubePlaying);
+  const showIndicator = currentPage !== "focus" && defaultMusicPlaying;
   miniFocusMusic.hidden = !showIndicator;
   if (!showIndicator) return;
-  miniFocusMusicTitle.textContent = youtubePlaying
-    ? currentFocusYoutubeTitle
-    : currentFocusTrack?.title || "기본 집중 음악";
+  miniFocusMusicTitle.textContent = currentFocusTrack?.title || "기본 집중 음악";
 }
 
 function applyFocusBackground(file) {
@@ -10681,7 +10284,6 @@ document.addEventListener("fullscreenchange", () => {
     ? '<span aria-hidden="true">×</span> 전체 화면 종료'
     : '<span aria-hidden="true">⛶</span> 전체 화면';
   scheduleFocusStageCenterUpdate();
-  requestAnimationFrame(updateFocusYoutubePanelPosition);
   void syncFocusWakeLock();
 });
 
@@ -10748,7 +10350,6 @@ async function playNextFocusTrack() {
 }
 
 async function startFocusAudio() {
-  stopFocusYoutube();
   if (focusAudioPlayer && focusAudioPlayer.paused && !focusAudioPlayer.ended) {
     try {
       await focusAudioPlayer.play();
@@ -10941,16 +10542,16 @@ async function openFocusYoutubeLink(source, title) {
 
 function stopFocusYoutube() {
   focusYoutubePlayer?.stopVideo?.();
-  focusYoutubePlayerWrap.classList.add("hidden");
-  focusYoutubePanel.classList.add("hidden");
-  focusYoutubeButton.classList.remove("active");
-  focusYoutubeButton.setAttribute("aria-expanded", "false");
+  focusYoutubePlayerWrap?.classList.add("hidden");
+  focusYoutubePanel?.classList.add("hidden");
+  focusYoutubeButton?.classList.remove("active");
+  focusYoutubeButton?.setAttribute("aria-expanded", "false");
   currentFocusYoutubeTitle = null;
-  focusYoutubeStatus.textContent = "영상이나 플레이리스트 주소를 저장하고 YouTube에서 열어.";
   updateFocusMusicIndicator();
 }
 
 function updateFocusYoutubePanelPosition() {
+  if (!focusYoutubePanel) return;
   if (
     focusYoutubePanel.classList.contains("hidden")
   ) {
@@ -10988,14 +10589,14 @@ function minimizeFocusYoutube() {
   focusYoutubeButton.setAttribute("aria-expanded", "false");
 }
 
-focusYoutubeButton.addEventListener("click", () => {
+focusYoutubeButton?.addEventListener("click", () => {
   if (focusYoutubePanel.classList.contains("hidden")) openFocusYoutube();
   else minimizeFocusYoutube();
 });
 
-closeFocusYoutubeButton.addEventListener("click", minimizeFocusYoutube);
+closeFocusYoutubeButton?.addEventListener("click", minimizeFocusYoutube);
 
-focusYoutubeLibrary.addEventListener("click", async (event) => {
+focusYoutubeLibrary?.addEventListener("click", async (event) => {
   const button = event.target.closest("button[data-action][data-id]");
   if (!button) return;
   const playlists = getFocusYoutubePlaylists();
@@ -11040,7 +10641,7 @@ focusYoutubeLibrary.addEventListener("click", async (event) => {
   }
 });
 
-focusYoutubeForm.addEventListener("submit", async (event) => {
+focusYoutubeForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const source = parseFocusYoutubeUrl(focusYoutubeUrlInput.value);
   if (!source) {
@@ -11074,10 +10675,15 @@ focusYoutubeForm.addEventListener("submit", async (event) => {
 });
 
 const focusSettings = document.querySelector("#focusSettings");
+const focusSettingsBackdrop = document.querySelector("#focusSettingsBackdrop");
 const focusSettingsButton = document.querySelector("#toggleFocusSettings");
 const focusMinutesInput = document.querySelector("#focusMinutesInput");
 const breakEnabledInput = document.querySelector("#breakEnabledInput");
 const breakMinutesInput = document.querySelector("#breakMinutesInput");
+
+// Keep the settings dialog at the document root so its fixed backdrop and
+// centered panel are relative to the viewport, not the compact focus card.
+document.body.append(focusSettingsBackdrop, focusSettings);
 
 function syncFocusSettingsForm() {
   const settings = getFocusSettings("quick");
@@ -11087,15 +10693,49 @@ function syncFocusSettingsForm() {
   breakMinutesInput.disabled = !settings.breakEnabled;
 }
 
-focusSettingsButton.addEventListener("click", () => {
-  focusSettings.classList.toggle("hidden");
+function closeFocusSettings({ restoreFocus = false } = {}) {
+  const wasOpen = !focusSettings.classList.contains("hidden");
+  focusSettings.classList.add("hidden");
+  focusSettingsBackdrop.classList.add("hidden");
+  focusSettingsButton.setAttribute("aria-expanded", "false");
+  if (restoreFocus && wasOpen && !focusSettingsButton.hidden) focusSettingsButton.focus();
+}
+
+function openFocusSettings() {
   syncFocusSettingsForm();
+  focusSettingsBackdrop.classList.remove("hidden");
+  focusSettings.classList.remove("hidden");
+  focusSettingsButton.setAttribute("aria-expanded", "true");
+  requestAnimationFrame(() => focusMinutesInput.focus());
+}
+
+focusSettingsButton.addEventListener("click", () => {
+  const willOpen = focusSettings.classList.contains("hidden");
+  if (willOpen) openFocusSettings();
+  else closeFocusSettings({ restoreFocus: true });
 });
 
-document.addEventListener("click", (event) => {
-  if (focusSettings.classList.contains("hidden")) return;
-  if (focusSettings.contains(event.target) || focusSettingsButton.contains(event.target)) return;
-  focusSettings.classList.add("hidden");
+document.querySelectorAll("[data-close-focus-settings]").forEach((element) => {
+  element.addEventListener("click", () => closeFocusSettings({ restoreFocus: true }));
+});
+
+focusSettings.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeFocusSettings({ restoreFocus: true });
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const controls = [...focusSettings.querySelectorAll("button:not(:disabled), input:not(:disabled)")];
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last?.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first?.focus();
+  }
 });
 
 breakEnabledInput.addEventListener("change", () => {
@@ -11122,7 +10762,7 @@ document.querySelector("#saveFocusSettings").addEventListener("click", async (ev
       syncFocusTimerDatabaseImmediately(),
       flushFocusTime(),
     ]);
-    focusSettings.classList.add("hidden");
+    closeFocusSettings({ restoreFocus: true });
     showToast("집중 설정을 저장했어");
   } catch (error) {
     console.error("Farmodoro focus settings could not be saved", error);
@@ -11165,12 +10805,10 @@ function scheduleFocusStageCenterUpdate() {
 }
 
 window.addEventListener("resize", scheduleFocusStageCenterUpdate);
-window.addEventListener("resize", () => requestAnimationFrame(updateFocusYoutubePanelPosition));
 window.visualViewport?.addEventListener("resize", scheduleFocusStageCenterUpdate);
 if ("ResizeObserver" in window) {
   const focusStageResizeObserver = new ResizeObserver(() => {
     scheduleFocusStageCenterUpdate();
-    requestAnimationFrame(updateFocusYoutubePanelPosition);
   });
   focusStageResizeObserver.observe(focusPageStage);
   focusStageResizeObserver.observe(focusPageStage.querySelector(".focus-stage-toolbar"));
@@ -11178,7 +10816,6 @@ if ("ResizeObserver" in window) {
 document.fonts?.ready.then(scheduleFocusStageCenterUpdate);
 
 function closePageModals() {
-  closeHabitRecordModal();
   closeUserSettings();
   closeFreePassTargetModal();
   closeHabitModal();
@@ -11255,7 +10892,7 @@ function showPage(page) {
   if (pageChanged) {
     closePageModals();
     taskForm.classList.add("hidden");
-    groupManager.classList.add("hidden");
+    closeGroupManager();
   }
 
   if (validPage !== "habits" && !habitModal.classList.contains("hidden")) {
@@ -11404,12 +11041,7 @@ document.querySelector("#openMiniFocusMusic").addEventListener("click", () => {
 });
 
 document.querySelector("#stopMiniFocusMusic").addEventListener("click", () => {
-  if (isFocusYoutubePlaying()) {
-    focusYoutubePlayer?.pauseVideo?.();
-    updateFocusMusicIndicator();
-  } else {
-    stopFocusAudio();
-  }
+  stopFocusAudio();
 });
 
 miniFocusPause.addEventListener("click", () => {
@@ -11476,7 +11108,6 @@ setInterval(() => {
 
 render();
 syncFocusSettingsForm();
-syncHabitMeasureFields();
 resetToFocus();
 const hashPage = location.hash.slice(1);
 const initialPage = APP_PAGES.includes(hashPage) ? hashPage : "today";

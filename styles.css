@@ -1131,10 +1131,6 @@ button {
   background: #eeeee8;
 }
 
-.heatmap-cell:not(:disabled) { cursor: pointer; }
-.heatmap-cell:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-#habitRecordForm { display: grid; gap: 16px; }
-#habitRecordCount { width: 100px; padding: 8px; }
 
 .heatmap-cell.scheduled {
   border: 1px solid #d8e1d5;
@@ -2079,8 +2075,7 @@ button {
   background: #fffaf0;
 }
 
-.open-farm-kitchen,
-.open-farm-bulletin {
+.open-farm-kitchen{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2091,14 +2086,6 @@ button {
   color: var(--ink);
   background: #f7faf5;
   cursor: pointer;
-}
-
-.open-farm-bulletin {
-  position: relative;
-}
-
-.open-farm-bulletin.has-unread {
-  background: #fff3bf;
 }
 
 .open-farm-mail {
@@ -2149,8 +2136,7 @@ button {
   white-space: nowrap;
 }
 
-.open-farm-kitchen span,
-.open-farm-bulletin span {
+.open-farm-kitchen span{
   display: inline-flex;
   align-items: center;
   font-size: 13px;
@@ -2991,93 +2977,6 @@ button {
   font-size: 11px;
 }
 
-.theme-options {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.theme-option {
-  position: relative;
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid #d6ddd6;
-  border-radius: 11px;
-  background: var(--paper);
-  cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
-}
-
-.theme-option:has(input:checked) {
-  border-color: #e7bd4d;
-  box-shadow:
-    0 0 0 2px #e7bd4d,
-    0 5px 12px rgba(19, 35, 26, 0.18);
-  transform: translateY(-2px);
-}
-
-.theme-option:has(input:checked)::after {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  display: grid;
-  width: 21px;
-  height: 21px;
-  place-items: center;
-  border: 1px solid #294c3a;
-  border-radius: 50%;
-  color: #203e2f;
-  background: #f3cf63;
-  box-shadow: 1px 1px 0 #294c3a;
-  content: "✓";
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.theme-option input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.theme-option > strong {
-  text-align: center;
-  font-size: 13px;
-}
-
-.theme-preview {
-  display: grid;
-  grid-template-columns: 1.1fr 0.8fr 0.65fr;
-  height: 35px;
-  overflow: hidden;
-  border-radius: 7px;
-}
-
-.theme-preview i {
-  display: block;
-}
-
-.theme-preview-white i:nth-child(1) { background: #ffffff; }
-.theme-preview-white i:nth-child(2) { background: #e5ebe7; }
-.theme-preview-white i:nth-child(3) { background: #4f705d; }
-.theme-preview-classic i:nth-child(1) { background: #356b4d; }
-.theme-preview-classic i:nth-child(2) { background: #f6f4ed; }
-.theme-preview-classic i:nth-child(3) { background: #e7b84c; }
-.theme-preview-sunset i:nth-child(1) { background: #a66748; }
-.theme-preview-sunset i:nth-child(2) { background: #f7e2d2; }
-.theme-preview-sunset i:nth-child(3) { background: #efa267; }
-.theme-preview-sky i:nth-child(1) { background: #4c7e8b; }
-.theme-preview-sky i:nth-child(2) { background: #dceff4; }
-.theme-preview-sky i:nth-child(3) { background: #75c2d0; }
-.theme-preview-dark i:nth-child(1) { background: #101713; }
-.theme-preview-dark i:nth-child(2) { background: #1a241f; }
-.theme-preview-dark i:nth-child(3) { background: #d8b650; }
-
 .account-info-list {
   display: grid;
   gap: 9px;
@@ -3176,19 +3075,6 @@ button {
 }
 
   @media (max-width: 620px) {
-  .theme-options {
-    grid-template-columns: 1fr;
-  }
-
-  .theme-option {
-    grid-template-columns: 74px 1fr;
-    align-items: center;
-  }
-
-  .theme-option > strong {
-    text-align: left;
-  }
-
   .account-info-list > div {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -3376,7 +3262,6 @@ button {
 }
 
 .farm-mail-modal-panel .section-kicker,
-.farm-bulletin-modal-panel .section-kicker,
 .farm-ranking-modal-panel .section-kicker,
 .kitchen-modal-panel .section-kicker,
 .farm-reward-box-panel .section-kicker,
@@ -3977,509 +3862,6 @@ button {
   text-align: center;
 }
 
-.farm-bulletin-modal-panel {
-  width: min(720px, 100%);
-  overflow: hidden;
-  padding: 16px 14px 14px;
-  border: 9px solid #7a5233;
-  border-radius: 16px;
-  background-color: #c98f57;
-  background-image:
-    radial-gradient(circle at 12% 22%, rgba(74, 43, 20, 0.32) 0, rgba(74, 43, 20, 0.32) 2px, transparent 2px),
-    radial-gradient(circle at 46% 68%, rgba(74, 43, 20, 0.26) 0, rgba(74, 43, 20, 0.26) 1.6px, transparent 1.6px),
-    radial-gradient(circle at 78% 18%, rgba(255, 224, 181, 0.28) 0, rgba(255, 224, 181, 0.28) 1.6px, transparent 1.6px),
-    radial-gradient(circle at 28% 88%, rgba(74, 43, 20, 0.3) 0, rgba(74, 43, 20, 0.3) 1.8px, transparent 1.8px),
-    radial-gradient(circle at 92% 78%, rgba(255, 224, 181, 0.22) 0, rgba(255, 224, 181, 0.22) 1.4px, transparent 1.4px),
-    radial-gradient(circle at 62% 40%, rgba(74, 43, 20, 0.22) 0, rgba(74, 43, 20, 0.22) 1.4px, transparent 1.4px);
-  background-size: 36px 36px, 30px 30px, 42px 42px, 24px 24px, 32px 32px, 26px 26px;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.07),
-    0 30px 90px rgba(22, 39, 29, 0.3);
-}
-
-.farm-bulletin-modal-panel .section-kicker {
-  color: #ffe27a;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.farm-bulletin-modal-panel h2 {
-  color: #fffdf5;
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.55);
-}
-
-.farm-bulletin-modal-panel header p {
-  color: #fff3d8;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-.farm-bulletin-modal-panel header button[data-close-farm-bulletin] {
-  color: #fff8ea;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.farm-bulletin-compose {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 10px;
-  background: #fffaf0;
-  box-shadow: 0 8px 18px rgba(41, 27, 12, 0.3);
-}
-
-.farm-bulletin-type {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 10px;
-  background: #f1efe3;
-}
-
-.farm-bulletin-type button {
-  min-height: 32px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 7px;
-  color: #52665a;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.farm-bulletin-type button.active {
-  color: #294c3a;
-  background: #fffaf0;
-  box-shadow: 2px 2px 0 #d4b95f;
-}
-
-#farmBulletinMessage {
-  min-height: 56px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  color: var(--ink);
-  background: var(--paper);
-  font: inherit;
-  font-size: 13px;
-  resize: none;
-}
-
-.farm-bulletin-compose-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.farm-bulletin-compose-footer small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.farm-bulletin-compose-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Scoped .hidden class instead of the bare [hidden] attribute -- matches
-   every other show/hide toggle in this file (.market-modal.hidden etc.).
-   Some iOS Safari versions don't reliably repaint a plain [hidden] toggle
-   on an element inside a flex container. */
-#deleteFarmBulletinPost.hidden {
-  display: none;
-}
-
-#submitFarmBulletinPost {
-  min-height: 38px;
-  padding: 0 16px;
-  border: 2px solid #294c3a;
-  border-radius: 8px;
-  color: #fffaf0;
-  background: #315f46;
-  box-shadow: 3px 3px 0 #d4b95f;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-#submitFarmBulletinPost:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.farm-bulletin-board {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 14px;
-  max-height: 360px;
-}
-
-.farm-bulletin-group {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  min-height: 0;
-}
-
-.farm-bulletin-group h3 {
-  display: inline-block;
-  justify-self: start;
-  margin: 0;
-  padding: 4px 12px;
-  border-radius: 5px;
-  color: #fff8ea;
-  background: #5b3a22;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.28);
-  font-size: 12px;
-  transform: rotate(-1.2deg);
-}
-
-.farm-bulletin-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 10px 8px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 12px 6px 6px;
-}
-
-.farm-bulletin-list .farm-mail-empty {
-  margin: 4px 2px 2px;
-  border-color: rgba(255, 250, 240, 0.55);
-  color: #fff3d8;
-  background: rgba(0, 0, 0, 0.16);
-}
-
-.farm-bulletin-post {
-  position: relative;
-  margin-top: 12px;
-  transition: transform 150ms ease;
-  cursor: pointer;
-}
-
-.farm-bulletin-post:focus-visible .farm-bulletin-post-paper {
-  outline: 2px solid #294c3a;
-  outline-offset: 2px;
-}
-
-.farm-bulletin-post::before {
-  content: "";
-  position: absolute;
-  top: -9px;
-  left: 50%;
-  z-index: 2;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  transform: translateX(-50%);
-  background: radial-gradient(circle at 35% 30%, #ffe27a, #d99a1f 65%, #a6690f);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.45);
-}
-
-/* Ripped-off-a-notepad silhouette -- three variants cycled by position so
-   neighboring notes don't share the exact same torn edge. */
-.farm-bulletin-post-paper {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-  padding: 14px 10px 11px;
-  background: #fff3b0;
-  filter: drop-shadow(2px 5px 7px rgba(35, 22, 8, 0.4));
-  transition: filter 150ms ease;
-}
-
-.farm-bulletin-post:nth-child(3n+1) {
-  transform: rotate(-1.6deg);
-}
-.farm-bulletin-post:nth-child(3n+1) .farm-bulletin-post-paper {
-  clip-path: polygon(
-    0% 6%, 6% 0%, 18% 4%, 30% 0%, 44% 5%, 58% 1%, 72% 4%, 86% 0%, 100% 5%,
-    100% 94%, 90% 100%, 76% 95%, 62% 100%, 48% 96%, 34% 100%, 20% 95%, 8% 100%, 0% 95%
-  );
-}
-
-.farm-bulletin-post:nth-child(3n+2) {
-  transform: rotate(1.3deg);
-}
-.farm-bulletin-post:nth-child(3n+2) .farm-bulletin-post-paper {
-  clip-path: polygon(
-    0% 3%, 10% 0%, 22% 5%, 36% 1%, 50% 4%, 64% 0%, 78% 5%, 92% 1%, 100% 4%,
-    100% 97%, 88% 100%, 74% 95%, 60% 100%, 46% 96%, 32% 100%, 18% 95%, 4% 100%, 0% 96%
-  );
-}
-
-.farm-bulletin-post:nth-child(3n+3) {
-  transform: rotate(-0.7deg);
-}
-.farm-bulletin-post:nth-child(3n+3) .farm-bulletin-post-paper {
-  clip-path: polygon(
-    0% 5%, 14% 1%, 26% 6%, 40% 2%, 54% 5%, 68% 0%, 82% 4%, 96% 1%, 100% 6%,
-    100% 95%, 84% 99%, 70% 94%, 56% 99%, 42% 95%, 28% 99%, 14% 94%, 2% 99%, 0% 94%
-  );
-}
-
-.farm-bulletin-post:hover {
-  transform: rotate(0deg) translateY(-2px);
-}
-
-.farm-bulletin-post:hover .farm-bulletin-post-paper {
-  filter: drop-shadow(3px 7px 11px rgba(35, 22, 8, 0.45));
-}
-
-.farm-bulletin-post-sell .farm-bulletin-post-paper {
-  background: #d7f0e6;
-}
-
-.farm-bulletin-post-sell::before {
-  background: radial-gradient(circle at 35% 30%, #9be3c4, #3fa87d 65%, #276e51);
-}
-
-/* A border would follow the rectangular box, not the torn clip-path
-   silhouette, so it'd look broken at the jagged edge -- a solid fill
-   doesn't have that problem and reads clearly at a glance either way. */
-.farm-bulletin-post.mine .farm-bulletin-post-paper {
-  background: #a9dd9e;
-}
-
-.farm-bulletin-post.mine::before {
-  background: radial-gradient(circle at 35% 30%, #ff9c8a, #d9432a 65%, #8f2412);
-}
-
-.farm-bulletin-post p {
-  margin: 0;
-  min-width: 0;
-  color: #294c3a;
-  font-size: 11px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.farm-bulletin-post-meta {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.farm-bulletin-post-meta strong {
-  overflow: hidden;
-  color: #52665a;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.farm-bulletin-post-code {
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border: 1px solid rgba(41, 76, 58, 0.35);
-  border-radius: 6px;
-  color: #294c3a;
-  background: rgba(255, 255, 255, 0.55);
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.farm-bulletin-post-comment-count {
-  justify-self: start;
-  padding: 2px 7px;
-  border-radius: 20px;
-  color: #294c3a;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.farm-bulletin-comment-panel {
-  z-index: 1;
-  width: min(520px, 100%);
-  overflow: hidden;
-}
-
-.farm-bulletin-comment-post {
-  margin-bottom: 12px;
-}
-
-.farm-bulletin-comment-post-card {
-  display: grid;
-  gap: 6px;
-  padding: 12px 13px;
-  border-radius: 10px;
-  background: #fff3b0;
-}
-
-.farm-bulletin-comment-post-card.farm-bulletin-post-sell {
-  background: #d7f0e6;
-}
-
-.farm-bulletin-comment-post-type {
-  justify-self: start;
-  padding: 2px 8px;
-  border-radius: 20px;
-  color: #294c3a;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.farm-bulletin-comment-post-card p {
-  margin: 0;
-  color: #294c3a;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-.farm-bulletin-comment-list {
-  display: grid;
-  gap: 8px;
-  max-height: 260px;
-  margin-bottom: 12px;
-  overflow-y: auto;
-  padding: 2px 2px 4px;
-}
-
-.farm-bulletin-comment-row {
-  display: grid;
-  gap: 3px;
-  padding: 9px 11px;
-  border: 1px solid #e4e4db;
-  border-radius: 9px;
-  background: var(--paper);
-}
-
-.farm-bulletin-comment-row.mine {
-  border-color: #294c3a;
-  background: #eef3e7;
-}
-
-.farm-bulletin-comment-row.reply {
-  margin-left: 20px;
-  border-left: 2px solid #9ca594;
-  border-radius: 0 9px 9px 0;
-}
-
-.farm-bulletin-comment-row-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.farm-bulletin-comment-row-head strong {
-  overflow: hidden;
-  color: #52665a;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.farm-bulletin-comment-delete {
-  color: #9c4f3e;
-  background: transparent;
-  border: 0;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.farm-bulletin-comment-reply-button {
-  color: #52665a;
-  background: transparent;
-  border: 0;
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.farm-bulletin-comment-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.farm-bulletin-comment-row p {
-  margin: 0;
-  color: #294c3a;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.farm-bulletin-comment-form {
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px dashed #9ca594;
-}
-
-.farm-bulletin-reply-target {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: #294c3a;
-  background: #eef3e7;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.farm-bulletin-reply-target.hidden {
-  display: none;
-}
-
-.farm-bulletin-reply-target button {
-  color: #52665a;
-  background: transparent;
-  border: 0;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-#farmBulletinCommentMessage {
-  min-height: 48px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  color: var(--ink);
-  background: var(--paper);
-  font: inherit;
-  font-size: 13px;
-  resize: none;
-}
-
-.farm-bulletin-comment-form-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.farm-bulletin-comment-form-footer small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-#submitFarmBulletinComment {
-  min-height: 36px;
-  padding: 0 16px;
-  border: 2px solid #294c3a;
-  border-radius: 8px;
-  color: #fffaf0;
-  background: #315f46;
-  box-shadow: 3px 3px 0 #d4b95f;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .farm-reward-box-modal {
   z-index: 980;
 }
@@ -4713,14 +4095,17 @@ button {
 }
 
 .storage-grid-44 .long-name strong {
-  font-size: 12px;
-  letter-spacing: -0.05em;
+  font-size: 9px;
+  letter-spacing: -0.06em;
 }
 
 .storage-grid-44 .very-long-name strong {
-  font-size: 8px;
-  letter-spacing: -0.04em;
+  font-size: 7px;
+  letter-spacing: -0.06em;
 }
+
+.supply-storage-modal .farm-supply-item.long-name strong { font-size: 11px; letter-spacing: -0.04em; }
+.supply-storage-modal .farm-supply-item.very-long-name strong { font-size: 9px; letter-spacing: -0.05em; }
 
 .storage-grid-44 .inventory-seed > span,
 .storage-grid-44 .harvest-item i {
@@ -6674,6 +6059,13 @@ button {
   overflow-y: auto;
   line-height: 1.4;
   font-family: "Maplestory", sans-serif;
+  scrollbar-width: none;
+}
+
+#taskInput::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .secondary-button {
@@ -7415,6 +6807,25 @@ body.touch-reordering {
 .habit-section {
   min-width: 0;
 }
+
+#todayTaskGroupFilters { margin-bottom: 16px; }
+#tasksPage #todayTaskGroupFilters { display: none; }
+
+.habit-date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  color: var(--green-700);
+}
+
+.habit-date-nav[hidden] { display: none; }
+
+.habit-date-nav button:disabled { opacity: 0.35; cursor: default; }
+.habit-date-nav button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#habitDateLabel { font-size: 12px; text-align: center; }
+#habitsPage #habitDateToday { width: auto; padding: 0 10px; font-family: inherit; font-size: 11px; }
 
 .habit-form {
   grid-template-columns: 1fr;
@@ -8337,88 +7748,10 @@ input.themed-date-native {
   isolation: isolate;
 }
 
-.farm-festival-effects {
-  position: absolute;
-  inset: -10px 0 0;
-  z-index: 20;
-  display: none;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-#farmPage.farm-festival-active .farm-festival-effects {
-  display: block;
-}
-
-.farm-festival-confetti {
-  position: absolute;
-  inset: 20px 0 auto;
-  height: 520px;
-}
-
-.farm-festival-confetti i {
-  --confetti-color: #f3c853;
-  --confetti-left: 5%;
-  --confetti-delay: 0s;
-  position: absolute;
-  top: -26px;
-  left: var(--confetti-left);
-  width: 7px;
-  height: 15px;
-  border-radius: 2px;
-  opacity: 0;
-  background: var(--confetti-color);
-  animation: farm-festival-confetti 5.5s var(--confetti-delay) linear infinite;
-}
-
-.farm-festival-confetti i:nth-child(1) { --confetti-left: 3%; --confetti-delay: -1.2s; }
-.farm-festival-confetti i:nth-child(2) { --confetti-left: 9%; --confetti-delay: -4.1s; --confetti-color: #79b78d; }
-.farm-festival-confetti i:nth-child(3) { --confetti-left: 15%; --confetti-delay: -2.7s; --confetti-color: #ed8b62; }
-.farm-festival-confetti i:nth-child(4) { --confetti-left: 21%; --confetti-delay: -0.4s; --confetti-color: #8cc8d1; }
-.farm-festival-confetti i:nth-child(5) { --confetti-left: 28%; --confetti-delay: -3.6s; }
-.farm-festival-confetti i:nth-child(6) { --confetti-left: 34%; --confetti-delay: -1.8s; --confetti-color: #ed8b62; }
-.farm-festival-confetti i:nth-child(7) { --confetti-left: 40%; --confetti-delay: -4.8s; --confetti-color: #79b78d; }
-.farm-festival-confetti i:nth-child(8) { --confetti-left: 46%; --confetti-delay: -2.2s; --confetti-color: #8cc8d1; }
-.farm-festival-confetti i:nth-child(9) { --confetti-left: 52%; --confetti-delay: -0.9s; }
-.farm-festival-confetti i:nth-child(10) { --confetti-left: 58%; --confetti-delay: -3.1s; --confetti-color: #ed8b62; }
-.farm-festival-confetti i:nth-child(11) { --confetti-left: 64%; --confetti-delay: -1.5s; --confetti-color: #79b78d; }
-.farm-festival-confetti i:nth-child(12) { --confetti-left: 69%; --confetti-delay: -4.5s; --confetti-color: #8cc8d1; }
-.farm-festival-confetti i:nth-child(13) { --confetti-left: 74%; --confetti-delay: -2.5s; }
-.farm-festival-confetti i:nth-child(14) { --confetti-left: 80%; --confetti-delay: -0.1s; --confetti-color: #79b78d; }
-.farm-festival-confetti i:nth-child(15) { --confetti-left: 85%; --confetti-delay: -3.8s; --confetti-color: #ed8b62; }
-.farm-festival-confetti i:nth-child(16) { --confetti-left: 90%; --confetti-delay: -1.9s; --confetti-color: #8cc8d1; }
-.farm-festival-confetti i:nth-child(17) { --confetti-left: 95%; --confetti-delay: -4.9s; }
-.farm-festival-confetti i:nth-child(18) { --confetti-left: 98%; --confetti-delay: -2.9s; --confetti-color: #ed8b62; }
-
-@keyframes farm-festival-flag {
-  from { transform: skewX(-4deg) rotate(-2deg); }
-  to { transform: skewX(4deg) rotate(2deg); }
-}
-
-@keyframes farm-festival-confetti {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, -18px, 0) rotate(0deg);
-  }
-  10%, 78% { opacity: 0.9; }
-  100% {
-    opacity: 0;
-    transform: translate3d(34px, 520px, 0) rotate(620deg);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   #todayCoinDisplay.golden-festival-active,
   #todayCoinDisplay.golden-festival-active::before,
-  #todayCoinDisplay.golden-festival-active::after,
-  .farm-festival-confetti i {
-    animation: none;
-  }
-
-  .farm-festival-confetti i { display: none; }
-
-  .farm-theme-decor-particles i,
-  .farm-theme-decor-ground {
+  #todayCoinDisplay.golden-festival-active::after {
     animation: none;
   }
 }
@@ -8470,6 +7803,7 @@ input.themed-date-native {
 }
 
 #tasksPage .task-filter-list button,
+#todayPage .task-filter-list button,
 #tasksPage .archive-toggle {
   border: 1px solid #768677;
   border-radius: 6px;
@@ -8478,6 +7812,7 @@ input.themed-date-native {
 }
 
 #tasksPage .task-filter-list button.active,
+#todayPage .task-filter-list button.active,
 #tasksPage .archive-toggle.active {
   border: 2px solid #294c3a;
   color: #294c3a;
@@ -8789,16 +8124,14 @@ input.themed-date-native {
 #farmPage .farm-name-display > button,
 #farmPage .farm-wallet,
 #farmPage .open-farm-mail,
-#farmPage .open-farm-kitchen,
-#farmPage .open-farm-bulletin {
+#farmPage .open-farm-kitchen{
   border: 2px solid #294c3a;
   border-radius: 7px;
   color: #294c3a;
   box-shadow: 2px 2px 0 #294c3a;
 }
 
-#farmPage .open-farm-kitchen,
-#farmPage .open-farm-bulletin {
+#farmPage .open-farm-kitchen{
   background: #e8eddc;
 }
 
@@ -9906,15 +9239,6 @@ input.themed-date-native {
   .farm-mail-items,
   .farm-mail-categories {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .farm-bulletin-board {
-    grid-template-columns: 1fr;
-    max-height: none;
-  }
-
-  .farm-bulletin-list {
-    max-height: 220px;
   }
 
   .farm-mail-history-row {
@@ -11501,12 +10825,10 @@ canvas {
 
   #farmPage .open-farm-kitchen { order: 1; }
   #farmPage .open-farm-mail { order: 2; }
-  #farmPage .open-farm-bulletin { order: 3; }
 
   #farmPage .farm-wallet,
   #farmPage .open-farm-kitchen,
-  #farmPage .open-farm-mail,
-  #farmPage .open-farm-bulletin {
+  #farmPage .open-farm-mail{
     width: 100%;
     min-width: 0;
     min-height: 34px;
@@ -11538,8 +10860,7 @@ canvas {
   #farmPage .farm-wallet strong,
   #farmPage .farm-wallet small,
   #farmPage .open-farm-kitchen span,
-  #farmPage .open-farm-mail span,
-  #farmPage .open-farm-bulletin span {
+  #farmPage .open-farm-mail span{
     font-size: 10px;
     white-space: nowrap;
   }
@@ -11655,8 +10976,10 @@ canvas {
 
   /* Tasks page: compact groups, filters, and archive controls. */
   #tasksPage .task-page-tools { gap: 7px; padding: 8px; }
-  #tasksPage .task-filter-list { gap: 4px; }
+  #tasksPage .task-filter-list,
+  #todayPage .task-filter-list { gap: 4px; }
   #tasksPage .task-filter-list button,
+  #todayPage .task-filter-list button,
   #tasksPage .archive-toggle {
     min-height: 31px;
     padding: 0 7px;
@@ -11750,14 +11073,6 @@ canvas {
   #userSettingsModal .settings-field { gap: 4px; }
   #userSettingsModal .settings-field > span { font-size: 11px; }
   #userSettingsModal .settings-field input { min-height: 38px; }
-  #userSettingsModal .theme-options { gap: 6px; }
-  #userSettingsModal .theme-option {
-    grid-template-columns: 52px minmax(0, 1fr);
-    gap: 6px;
-    padding: 6px;
-  }
-  #userSettingsModal .theme-option > strong { font-size: 10px; }
-  #userSettingsModal .theme-preview { height: 27px; }
   #userSettingsModal .account-info-list { gap: 5px; }
   #userSettingsModal .account-info-list > div { min-height: 27px; gap: 2px; }
   #userSettingsModal .account-info-list dt,
@@ -12204,605 +11519,5 @@ canvas {
     min-height: 28px;
     padding: 0 3px;
     font-size: 10px;
-  }
-}
-
-/* ---------------------------------------------------------------------
- * Rachel's cosmetics: farm themes, plot skins, farm-name label effects.
- *
- * Art direction: a small, warm 2D farm on a spring afternoon. One palette
- * across every cosmetic -- cream, pale sage, warm soil, soft blossom pink --
- * one line weight, one illustration style. Decoration is deliberately sparse:
- * five drifting motifs, six swaying blades, one slow band of sunlight. No
- * neon, no glass, no rainbow ramps, nothing that pulses or twinkles.
- *
- * Motion budget: petals ~14s, grass sway 4-6s, sunlight 18s. Everything is
- * meant to be noticed only if you stop and look for it.
- * --------------------------------------------------------------------- */
-
-:root {
-  /* Shared palette. Every cosmetic below draws from these only. */
-  --farm-cream: #f7f2e6;
-  --farm-cream-deep: #ede4d1;
-  --farm-sage-pale: #dde6d0;
-  --farm-sage: #b7c9a0;
-  --farm-sage-deep: #8ba874;
-  --farm-soil-light: #bb8b5c;
-  --farm-soil: #a4744b;
-  --farm-soil-deep: #7f5734;
-  --farm-blossom: #ecc3ce;
-  --farm-blossom-deep: #dda3b4;
-  --farm-sky: #e6eef0;
-
-  /* Flat 2D motifs. Single fill, no stroke, no gradient -- so every theme,
-   * skin, and label effect reads as one illustration set. */
-  --motif-petal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2c6 3.4 8.4 9.4 5.4 15.4-2.2 4.4-9 4.4-11-.6C4.2 11.4 6.6 5.4 12 2Z'/%3E%3C/svg%3E");
-  --motif-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21 3C10 3 3 9 3 17c0 2 .6 3.4 1.4 4C10 15 14 12 20 10c-4 3.4-7.6 6-11.6 11.4C15 22.6 21 16.6 21 3Z'/%3E%3C/svg%3E");
-  --motif-blossom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg%3E%3Ccircle cx='12' cy='5.6' r='4.2'/%3E%3Ccircle cx='18.4' cy='10.2' r='4.2'/%3E%3Ccircle cx='16' cy='17.8' r='4.2'/%3E%3Ccircle cx='8' cy='17.8' r='4.2'/%3E%3Ccircle cx='5.6' cy='10.2' r='4.2'/%3E%3C/g%3E%3C/svg%3E");
-  --motif-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 22'%3E%3Cpath d='M12 21 2.6 11.4C-.6 8.2 1.6 3 6.4 3 8.8 3 11 4.6 12 6.8 13 4.6 15.2 3 17.6 3c4.8 0 7 5.2 3.8 8.4Z'/%3E%3C/svg%3E");
-  --motif-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg%3E%3Crect x='10.6' y='1' width='2.8' height='22' rx='1.4'/%3E%3Crect x='10.6' y='1' width='2.8' height='22' rx='1.4' transform='rotate(60 12 12)'/%3E%3Crect x='10.6' y='1' width='2.8' height='22' rx='1.4' transform='rotate(120 12 12)'/%3E%3C/g%3E%3C/svg%3E");
-  --motif-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5c1.1 6.4 2.2 9 10.5 10.5C14.2 13.5 13.1 16.1 12 22.5 10.9 16.1 9.8 13.5 1.5 12 9.8 10.5 10.9 8 12 1.5Z'/%3E%3C/svg%3E");
-  --motif-blade: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 40'%3E%3Cpath d='M4 40C1.2 28 1.6 11 4 0c2.4 11 2.8 28 0 40Z'/%3E%3C/svg%3E");
-  --motif-bubble: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5A10.5 10.5 0 1 0 12 22.5 10.5 10.5 0 1 0 12 1.5Zm0 3.4a7.1 7.1 0 0 1 7.1 7.1 1.5 1.5 0 0 1-3 0 4.1 4.1 0 0 0-4.1-4.1 1.5 1.5 0 0 1 0-3Z'/%3E%3C/svg%3E");
-
-  /* One grass hill, shared by every theme, so the horizon never changes
-   * shape when you swap cosmetics -- only the sky tint above it does.
-   * Three bands: a pale far ridge, the mid hill, and the near grass, which
-   * is what gives the strip its sense of distance. */
-  --farm-hill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 44' preserveAspectRatio='none'%3E%3Cpath d='M0 18c30-9 54-6 78 1s44 8 66 1 46-8 76 2v22H0Z' fill='%23dde6d0'/%3E%3Cpath d='M0 26c24-11 46-11 68-3s46 10 68 2 46-9 84 1v18H0Z' fill='%23b7c9a0'/%3E%3Cpath d='M0 34c26-8 48-8 70-2s44 8 66 1 44-7 84 3v8H0Z' fill='%238ba874'/%3E%3C/svg%3E");
-  /* Two small flowers that sit still on the hill -- the only purely
-   * decorative, non-moving pieces in the scene. */
-  --farm-hill-flower: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 30'%3E%3Cpath d='M12 30V13' stroke='%236f8f4a' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M12 21c-4 0-6-2-6-4' stroke='%236f8f4a' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cg fill='%23f2e2b8'%3E%3Ccircle cx='12' cy='5.4' r='4'/%3E%3Ccircle cx='18' cy='9.8' r='4'/%3E%3Ccircle cx='15.7' cy='16.6' r='4'/%3E%3Ccircle cx='8.3' cy='16.6' r='4'/%3E%3Ccircle cx='6' cy='9.8' r='4'/%3E%3C/g%3E%3Ccircle cx='12' cy='11.2' r='2.2' fill='%23e0a86a'/%3E%3C/svg%3E");
-}
-
-/* Decoration layer. Fades in only while a theme is equipped; the markup is
- * the same 18 <i> elements for every theme (index.html), so swapping a theme
- * never adds or removes a node. */
-/* No z-index here on purpose: without a stacking context of its own, the
- * ground can sit behind the field (z-index 0) while the drifting motifs pass
- * in front of it (z-index 2), from one wrapper. */
-.farm-theme-decor {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.6s ease;
-}
-
-#farmPage[data-farm-theme] .farm-theme-decor {
-  opacity: 1;
-}
-
-/* The one band of afternoon sun, drifting across in 18s. */
-.farm-theme-decor::before {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  top: -35%;
-  left: -25%;
-  width: 62%;
-  height: 170%;
-  background: radial-gradient(ellipse at center, rgba(255, 248, 228, 0.55), rgba(255, 248, 228, 0) 68%);
-  animation: farm-sunlight-drift 18s ease-in-out infinite alternate;
-}
-
-@keyframes farm-sunlight-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(64%, 3%, 0); }
-}
-
-.farm-theme-decor-ground {
-  display: none;
-  position: absolute;
-  z-index: 0;
-  inset: auto 0 0;
-  height: 40px;
-  background-image: var(--farm-hill);
-  background-repeat: repeat-x;
-  background-size: 220px 100%;
-  background-position: bottom;
-}
-
-#farmPage[data-farm-theme] .farm-theme-decor-ground {
-  display: block;
-}
-
-.farm-theme-decor-particles i {
-  display: none;
-  position: absolute;
-  background-color: var(--farm-blossom);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
-}
-
-/* Five drifting motifs -- never more on screen at once. They pass in front of
- * the field, which is the only place they are actually visible; the inherited
- * --px values bunch to one side, so the spread is set here instead. */
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  display: block;
-  z-index: 2;
-  top: -26px;
-  width: 15px;
-  height: 15px;
-  opacity: 0;
-  -webkit-mask-image: var(--motif-petal);
-  mask-image: var(--motif-petal);
-  animation: farm-motif-drift var(--pdur, 14s) linear var(--pdelay, 0s) infinite;
-}
-
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(1) { left: 9%; animation-duration: 15s; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(2) { left: 28%; animation-duration: 18s; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(3) { left: 49%; animation-duration: 14s; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(4) { left: 69%; animation-duration: 17s; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(5) { left: 88%; animation-duration: 16s; }
-
-/* Six blades standing on the near edge of the hill, swaying 4-6s. They sit in
- * front of the field's bottom rail so the grass reads as growing toward you. */
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(n + 6):nth-child(-n + 11) {
-  display: block;
-  z-index: 2;
-  bottom: 4px;
-  width: 11px;
-  height: 24px;
-  background-color: #78975f;
-  opacity: 0.9;
-  transform-origin: bottom center;
-  -webkit-mask-image: var(--motif-blade);
-  mask-image: var(--motif-blade);
-  animation: farm-blade-sway 5.2s ease-in-out var(--pdelay, 0s) infinite alternate;
-}
-
-/* Two still flowers on the hill. Static on purpose -- they are the anchor the
- * moving pieces read against. */
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(12),
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(13) {
-  display: block;
-  z-index: 2;
-  bottom: 3px;
-  width: 17px;
-  height: 22px;
-  background-color: transparent;
-  background-image: var(--farm-hill-flower);
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: bottom center;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(12) { left: 15%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(13) { left: 66%; }
-
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(6) { left: 7%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(7) { left: 23%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(8) { left: 40%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(9) { left: 57%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(10) { left: 74%; }
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(11) { left: 91%; }
-
-/* Slower, shorter sway on alternating blades so the row never moves in unison. */
-#farmPage[data-farm-theme] .farm-theme-decor-particles i:nth-child(2n + 6) {
-  width: 9px;
-  height: 20px;
-  animation-duration: 4.4s;
-}
-
-@keyframes farm-motif-drift {
-  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0deg); }
-  10%, 80% { opacity: 0.75; }
-  100% { opacity: 0; transform: translate3d(26px, 340px, 0) rotate(140deg); }
-}
-
-@keyframes farm-blade-sway {
-  from { transform: rotate(-3deg); }
-  to { transform: rotate(3deg); }
-}
-
-/* Per-theme: a sky tint on the panel, a matching grid frame, and the motif
- * shape/colour. Nothing floods the panel with saturated colour. */
-/* The extra bottom padding is what reserves room for the hill and the grass
- * in front of it. Without it the blades land inside the last row of plots on
- * narrow screens, where the panel's own padding drops to 10px. */
-#farmPage[data-farm-theme] .farm-panel {
-  padding-bottom: 46px;
-  background: linear-gradient(178deg, var(--theme-sky, var(--farm-sky)) 0%, var(--farm-cream) 62%);
-  border-color: var(--theme-line, #cdd6c0);
-  /* Keeps the page's hard offset shadow, adds a warm vignette so the scene
-   * has some depth at its edges instead of reading as a flat card. */
-  box-shadow:
-    6px 6px 0 #294c3a,
-    inset 0 0 70px rgba(146, 112, 68, 0.14);
-}
-
-#farmPage[data-farm-theme] .farm-grid {
-  border-color: var(--theme-line, #cdd6c0);
-  background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)), var(--theme-field, #9db884);
-}
-
-#farmPage[data-farm-theme="cherryBlossom"] {
-  --theme-sky: #f6e7ec;
-  --theme-line: #dfc3cd;
-  --theme-field: #a3bb88;
-}
-#farmPage[data-farm-theme="cherryBlossom"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  background-color: var(--farm-blossom);
-  -webkit-mask-image: var(--motif-petal);
-  mask-image: var(--motif-petal);
-}
-
-#farmPage[data-farm-theme="springMeadow"] {
-  --theme-sky: #eaf1e0;
-  --theme-line: #c3d2ae;
-  --theme-field: #9db884;
-}
-#farmPage[data-farm-theme="springMeadow"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  width: 15px;
-  height: 15px;
-  background-color: #f2e2b8;
-  -webkit-mask-image: var(--motif-blossom);
-  mask-image: var(--motif-blossom);
-}
-
-#farmPage[data-farm-theme="valentine"] {
-  --theme-sky: #f6e5e7;
-  --theme-line: #ddbcc0;
-  --theme-field: #a8bb8a;
-}
-#farmPage[data-farm-theme="valentine"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  background-color: var(--farm-blossom-deep);
-  -webkit-mask-image: var(--motif-heart);
-  mask-image: var(--motif-heart);
-}
-
-#farmPage[data-farm-theme="whiteDay"] {
-  --theme-sky: #f4eef2;
-  --theme-line: #d8cbd4;
-  --theme-field: #a6bb8c;
-}
-#farmPage[data-farm-theme="whiteDay"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  width: 15px;
-  height: 15px;
-  background-color: #f4e8ee;
-  -webkit-mask-image: var(--motif-blossom);
-  mask-image: var(--motif-blossom);
-}
-
-#farmPage[data-farm-theme="christmas"] {
-  --theme-sky: #e8eeea;
-  --theme-line: #c4d2c6;
-  --theme-field: #93ab7d;
-}
-#farmPage[data-farm-theme="christmas"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  background-color: #f4f6f2;
-  -webkit-mask-image: var(--motif-snow);
-  mask-image: var(--motif-snow);
-}
-
-#farmPage[data-farm-theme="halloween"] {
-  --theme-sky: #efe3d2;
-  --theme-line: #d3bd9d;
-  --theme-field: #a08a5e;
-}
-#farmPage[data-farm-theme="halloween"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  width: 15px;
-  height: 15px;
-  background-color: #cf9a5c;
-  -webkit-mask-image: var(--motif-leaf);
-  mask-image: var(--motif-leaf);
-}
-
-#farmPage[data-farm-theme="galaxyNight"] {
-  --theme-sky: #dfe3e6;
-  --theme-line: #c2c8cd;
-  --theme-field: #94a98a;
-}
-#farmPage[data-farm-theme="galaxyNight"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  width: 11px;
-  height: 11px;
-  background-color: #e4d9b4;
-  -webkit-mask-image: var(--motif-star);
-  mask-image: var(--motif-star);
-}
-
-#farmPage[data-farm-theme="ocean"] {
-  --theme-sky: #e2edee;
-  --theme-line: #bfd0cf;
-  --theme-field: #9cb891;
-}
-#farmPage[data-farm-theme="ocean"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  background-color: #cfe0dd;
-  -webkit-mask-image: var(--motif-bubble);
-  mask-image: var(--motif-bubble);
-}
-
-#farmPage[data-farm-theme="bubbleField"] {
-  --theme-sky: #f3ecf0;
-  --theme-line: #d7cbd3;
-  --theme-field: #a3ba8b;
-}
-#farmPage[data-farm-theme="bubbleField"] .farm-theme-decor-particles i:nth-child(-n + 5) {
-  background-color: #eddbe4;
-  -webkit-mask-image: var(--motif-bubble);
-  mask-image: var(--motif-bubble);
-}
-
-/* -----------------------------------------------------------------
- * Plot skins
- *
- * Every skin keeps the same warm soil body, shallow furrows, and soft inner
- * shadow -- a skin is a tint and a sparse motif on top of that soil, not a
- * different material. Static by design: no gradient rolls inside the field.
- * ----------------------------------------------------------------- */
-.farm-plot[data-plot-skin]:not([data-plot-skin=""]) {
-  background:
-    var(--skin-motif, none),
-    linear-gradient(var(--skin-tint, transparent), var(--skin-tint, transparent)),
-    repeating-linear-gradient(0deg, rgba(84, 50, 26, 0.12) 0 2px, transparent 2px 13px),
-    linear-gradient(168deg, var(--skin-soil-top, var(--farm-soil-light)), var(--skin-soil-bottom, var(--farm-soil)));
-  background-size: var(--skin-motif-size, 78px 78px), auto, auto, auto;
-  background-repeat: repeat, repeat, repeat, no-repeat;
-  border-color: #9c7248;
-  box-shadow:
-    inset 0 5px 10px rgba(89, 51, 25, 0.16),
-    inset 0 -6px 12px rgba(89, 51, 25, 0.1);
-}
-
-.farm-plot[data-plot-skin="cherryPetalFall"] {
-  --skin-motif: var(--sprinkle-petal);
-  --skin-tint: rgba(236, 195, 206, 0.16);
-}
-.farm-plot[data-plot-skin="frostbite"] {
-  --skin-motif: var(--sprinkle-frost);
-  --skin-tint: rgba(214, 228, 230, 0.34);
-  --skin-soil-top: #9d8a80;
-  --skin-soil-bottom: #7f6f68;
-}
-.farm-plot[data-plot-skin="chocolate"] {
-  --skin-soil-top: #8a5c39;
-  --skin-soil-bottom: #64402a;
-}
-.farm-plot[data-plot-skin="candy"] {
-  --skin-motif: var(--sprinkle-dot-pink);
-  --skin-tint: rgba(236, 195, 206, 0.24);
-}
-.farm-plot[data-plot-skin="starCandy"] {
-  --skin-motif: var(--sprinkle-star);
-  --skin-tint: rgba(247, 242, 230, 0.12);
-}
-.farm-plot[data-plot-skin="mapleLeaf"] {
-  --skin-motif: var(--sprinkle-leaf);
-  --skin-soil-top: #b17f4e;
-  --skin-soil-bottom: #8d603a;
-}
-.farm-plot[data-plot-skin="snowField"] {
-  --skin-motif: var(--sprinkle-snow);
-  --skin-tint: rgba(250, 248, 241, 0.5);
-  --skin-soil-top: #c3ae95;
-  --skin-soil-bottom: #ab9479;
-}
-.farm-plot[data-plot-skin="sandDune"] {
-  --skin-soil-top: #d8b884;
-  --skin-soil-bottom: #bd9a66;
-}
-.farm-plot[data-plot-skin="lava"] {
-  --skin-motif: var(--sprinkle-ember);
-  --skin-soil-top: #7a4a30;
-  --skin-soil-bottom: #573221;
-}
-.farm-plot[data-plot-skin="rainbow"] {
-  --skin-motif: var(--sprinkle-blossom-mixed);
-  --skin-tint: rgba(247, 242, 230, 0.14);
-}
-.farm-plot[data-plot-skin="golden"] {
-  --skin-motif: var(--sprinkle-wheat);
-  --skin-tint: rgba(230, 196, 122, 0.26);
-  --skin-soil-top: #c19858;
-  --skin-soil-bottom: #a37b41;
-}
-.farm-plot[data-plot-skin="lavenderField"] {
-  --skin-motif: var(--sprinkle-floret);
-  --skin-tint: rgba(219, 208, 228, 0.2);
-}
-
-/* Sparse sprinkle tiles for the skins: two or three marks per 52px tile,
- * one flat fill each, drawn in the shared palette. */
-:root {
-  --sprinkle-petal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23ecc3ce'%3E%3Cg transform='translate(13 13) rotate(-20)'%3E%3Cpath d='M0-7c4 2.3 5.6 6.3 3.6 10.3-1.5 2.9-6 2.9-7.4-.4C-5.2-1-3.6-4.9 0-7Z'/%3E%3C/g%3E%3Cg transform='translate(36 34) rotate(26) scale(.82)'%3E%3Cpath d='M0-7c4 2.3 5.6 6.3 3.6 10.3-1.5 2.9-6 2.9-7.4-.4C-5.2-1-3.6-4.9 0-7Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23f2f0e8'%3E%3Ccircle cx='13' cy='14' r='2.6'/%3E%3Ccircle cx='36' cy='33' r='2.1'/%3E%3Ccircle cx='42' cy='11' r='1.6'/%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-frost: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg stroke='%23dcebec' stroke-width='2' stroke-linecap='round' fill='none'%3E%3Cg transform='translate(14 15)'%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5'/%3E%3C/g%3E%3Cg transform='translate(37 34) scale(.76)'%3E%3Cpath d='M0-5V5M-4.3-2.5 4.3 2.5M-4.3 2.5 4.3-2.5'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-dot-pink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23e5b3c1'%3E%3Ccircle cx='14' cy='15' r='3'/%3E%3Ccircle cx='37' cy='34' r='2.4'/%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23f0e6c8'%3E%3Cg transform='translate(14 14) scale(.5)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3Cg transform='translate(37 34) scale(.4)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23c2853f'%3E%3Cg transform='translate(13 14) rotate(-18) scale(.5)'%3E%3Cpath d='M9-9C-2-9-9-3-9 5c0 2 .6 3.4 1.4 4C-2 3 2 0 8-2 4 1.4.4 4-3.6 9.4 3-8.6 9-2.6 9-9Z'/%3E%3C/g%3E%3Cg transform='translate(37 34) rotate(22) scale(.42)'%3E%3Cpath d='M9-9C-2-9-9-3-9 5c0 2 .6 3.4 1.4 4C-2 3 2 0 8-2 4 1.4.4 4-3.6 9.4 3-8.6 9-2.6 9-9Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-ember: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23cc8248'%3E%3Ccircle cx='14' cy='15' r='2.4'/%3E%3Ccircle cx='37' cy='33' r='1.9'/%3E%3Ccircle cx='27' cy='45' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-blossom-mixed: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg%3E%3Cg fill='%23ecc3ce' transform='translate(13 14) scale(.34)'%3E%3Ccircle cx='0' cy='-8' r='4.6'/%3E%3Ccircle cx='7.6' cy='-2.5' r='4.6'/%3E%3Ccircle cx='4.7' cy='6.5' r='4.6'/%3E%3Ccircle cx='-4.7' cy='6.5' r='4.6'/%3E%3Ccircle cx='-7.6' cy='-2.5' r='4.6'/%3E%3C/g%3E%3Cg fill='%23d6c9a8' transform='translate(37 34) scale(.28)'%3E%3Ccircle cx='0' cy='-8' r='4.6'/%3E%3Ccircle cx='7.6' cy='-2.5' r='4.6'/%3E%3Ccircle cx='4.7' cy='6.5' r='4.6'/%3E%3Ccircle cx='-4.7' cy='6.5' r='4.6'/%3E%3Ccircle cx='-7.6' cy='-2.5' r='4.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-wheat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23e0bb6e'%3E%3Cellipse cx='14' cy='15' rx='1.8' ry='4' transform='rotate(-22 14 15)'/%3E%3Cellipse cx='37' cy='34' rx='1.5' ry='3.4' transform='rotate(18 37 34)'/%3E%3C/g%3E%3C/svg%3E");
-  --sprinkle-floret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Cg fill='%23cfc2e0'%3E%3Ccircle cx='14' cy='14' r='2.4'/%3E%3Ccircle cx='11.6' cy='18' r='1.8'/%3E%3Ccircle cx='16.4' cy='18.4' r='1.8'/%3E%3Ccircle cx='37' cy='33' r='2'/%3E%3Ccircle cx='35' cy='36.4' r='1.5'/%3E%3C/g%3E%3C/svg%3E");
-}
-
-/* -----------------------------------------------------------------
- * Farm-name label effects
- *
- * Same restraint: a soft tint or a couple of drifting motifs, nothing that
- * pulses, glows hard, or scales. Used on the farm-name heading and on the
- * ranking board rows, so legibility comes first.
- * ----------------------------------------------------------------- */
-[data-label-effect]:not([data-label-effect=""]) {
-  position: relative;
-  display: inline-block;
-  isolation: isolate;
-}
-
-/* A warm lift so a decorated name looks lit by the same afternoon sun as the
- * farm. Listed per effect rather than on the rule above on purpose: that rule
- * carries a :not() and so outranks the single-attribute per-effect rules,
- * which would make the shadow impossible to switch off for the effects that
- * fill their letters with a gradient (a text-shadow under transparent glyphs
- * paints a cream ghost and washes the whole name out). */
-[data-label-effect="confetti"],
-[data-label-effect="cherryDrift"],
-[data-label-effect="snowSparkle"],
-[data-label-effect="starAurora"],
-[data-label-effect="heartPop"],
-[data-label-effect="butterflyFlutter"] {
-  text-shadow: 0 1px 0 rgba(255, 252, 243, 0.75);
-}
-
-/* Kept at one attribute selector of specificity so the per-effect rules
- * below can override inset/repeat purely by source order. */
-[data-label-effect]::before,
-[data-label-effect]::after {
-  content: "";
-  position: absolute;
-  inset: -8px -18px;
-  z-index: -1;
-  pointer-events: none;
-}
-
-[data-label-effect=""]::before,
-[data-label-effect=""]::after {
-  content: none;
-}
-
-/* Shared motion: one slow fall, one slow rise. Travel equals the tile size,
- * so each loop restarts on an identical frame. */
-@keyframes label-drift-fall {
-  from { background-position: 0 0; }
-  to { background-position: -44px 44px; }
-}
-@keyframes label-drift-rise {
-  from { background-position: 14px 0; }
-  to { background-position: 14px -44px; }
-}
-@keyframes label-tint-shift {
-  from { background-position: 0% 50%; }
-  to { background-position: 200% 50%; }
-}
-
-/* Sparse label motif tiles -- two marks per 44px tile. */
-:root {
-  --label-petal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cg fill='%23e6b6c5'%3E%3Cg transform='translate(11 11) rotate(-20)'%3E%3Cpath d='M0-6c3.4 2 4.8 5.4 3 8.8-1.2 2.5-5.1 2.5-6.3-.3C-4.4-.9-3.1-4.2 0-6Z'/%3E%3C/g%3E%3Cg transform='translate(31 30) rotate(24) scale(.8)'%3E%3Cpath d='M0-6c3.4 2 4.8 5.4 3 8.8-1.2 2.5-5.1 2.5-6.3-.3C-4.4-.9-3.1-4.2 0-6Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --label-heart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cg fill='%23dda3b4'%3E%3Cg transform='translate(11 11) scale(.5)'%3E%3Cpath d='M0 9-9.4-.6C-12.6-3.8-10.4-9-5.6-9-3.2-9-1 -7.4 0-5.2 1-7.4 3.2-9 5.6-9c4.8 0 7 5.2 3.8 8.4Z'/%3E%3C/g%3E%3Cg transform='translate(31 31) scale(.4)'%3E%3Cpath d='M0 9-9.4-.6C-12.6-3.8-10.4-9-5.6-9-3.2-9-1 -7.4 0-5.2 1-7.4 3.2-9 5.6-9c4.8 0 7 5.2 3.8 8.4Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --label-snow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cg fill='%23c3d2cd'%3E%3Ccircle cx='11' cy='12' r='2.4'/%3E%3Ccircle cx='31' cy='29' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
-  --label-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cg fill='%23d9c893'%3E%3Cg transform='translate(11 11) scale(.42)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3Cg transform='translate(31 30) scale(.32)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --label-star-lilac: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Cg fill='%23c2b4d4'%3E%3Cg transform='translate(11 11) scale(.42)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3Cg transform='translate(31 30) scale(.32)'%3E%3Cpath d='M0-12c1.1 6.4 2.2 9 10.5 10.5C2.2 0 1.1 2.6 0 9c-1.1-6.4-2.2-9-10.5-10.5C-2.2-3-1.1-5.6 0-12Z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  --label-confetti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 44'%3E%3Crect x='9' y='8' width='3.4' height='5.6' rx='1.2' fill='%23e6b6c5' transform='rotate(24 10.7 10.8)'/%3E%3Crect x='29' y='28' width='3' height='5' rx='1' fill='%23b7c9a0' transform='rotate(-28 30.5 30.5)'/%3E%3C/svg%3E");
-  --label-butterfly: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 20'%3E%3Cpath d='M12 10C9.2 4 4.6 2.2 2.6 4.2S2.4 11 6.2 12c-2.8 1-3.8 3.8-1.8 5.6S11 15.6 12 10Z' fill='%23e0c08a'/%3E%3Cpath d='M12 10c2.8-6 7.4-7.8 9.4-5.8S21.6 11 17.8 12c2.8 1 3.8 3.8 1.8 5.6S13 15.6 12 10Z' fill='%23dda3b4'/%3E%3Crect x='11.4' y='3' width='1.2' height='14' rx='.6' fill='%236f5540'/%3E%3C/svg%3E");
-}
-
-/* Warm honey letters, two small stars sitting still beside them. */
-[data-label-effect="goldenSparkle"] {
-  background: linear-gradient(100deg, #6b4a12, #a8823a 42%, #c9a24a 55%, #8a6520, #6b4a12);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent;
-  animation: label-tint-shift 14s linear infinite;
-}
-[data-label-effect="goldenSparkle"]::before {
-  background-image: var(--label-star);
-  background-size: 44px 44px;
-}
-
-[data-label-effect="confetti"]::before {
-  background-image: var(--label-confetti);
-  background-size: 44px 44px;
-  animation: label-drift-fall 13s linear infinite;
-}
-
-[data-label-effect="cherryDrift"]::before {
-  background-image: var(--label-petal);
-  background-size: 44px 44px;
-  animation: label-drift-fall 15s linear infinite;
-}
-
-[data-label-effect="snowSparkle"]::before {
-  background-image: var(--label-snow);
-  background-size: 44px 44px;
-  animation: label-drift-fall 17s linear infinite;
-}
-
-/* A soft pastel wash instead of a spectrum ramp. */
-[data-label-effect="rainbowGradient"] {
-  background: linear-gradient(100deg, #a8566a, #97743c 32%, #567545 62%, #a8566a);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent;
-  animation: label-tint-shift 16s linear infinite;
-}
-
-/* A single pale band behind the name, breathing very slowly. */
-[data-label-effect="starAurora"]::before {
-  inset: -11px -24px;
-  border-radius: 12px;
-  background-image: linear-gradient(100deg, rgba(183, 201, 160, 0.42), rgba(236, 195, 206, 0.4) 55%, rgba(214, 205, 226, 0.42));
-  background-repeat: no-repeat;
-  background-size: 200% 100%;
-  filter: blur(8px);
-  animation: label-tint-shift 20s linear infinite;
-}
-[data-label-effect="starAurora"]::after {
-  background-image: var(--label-star-lilac);
-  background-size: 44px 44px;
-}
-
-[data-label-effect="heartPop"]::before {
-  background-image: var(--label-heart);
-  background-size: 44px 44px;
-  animation: label-drift-rise 14s linear infinite;
-}
-
-/* Warm terracotta letters -- lit, not burning. */
-[data-label-effect="flameBorder"] {
-  background: linear-gradient(0deg, #6f2c12, #a85528 52%, #c98b45);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent;
-}
-
-/* One butterfly, crossing slowly. Wings open and close via background-size. */
-[data-label-effect="butterflyFlutter"]::before {
-  inset: -15px -20px;
-  background-image: var(--label-butterfly);
-  background-repeat: no-repeat;
-  animation: label-butterfly-cross 15s linear infinite;
-}
-@keyframes label-butterfly-cross {
-  0% { background-position: -6% 70%; background-size: 18px 15px; opacity: 0; }
-  14% { opacity: 0.9; }
-  36% { background-position: 34% 16%; background-size: 11px 15px; }
-  62% { background-position: 62% 76%; background-size: 18px 15px; }
-  86% { background-position: 92% 22%; background-size: 12px 15px; opacity: 0.9; }
-  100% { background-position: 106% 46%; background-size: 18px 15px; opacity: 0; }
-}
-
-/* Dusk lilac letters, a few still stars. */
-[data-label-effect="galaxySparkle"] {
-  background: linear-gradient(100deg, #453d68, #6b5f92 45%, #554a7e, #453d68);
-  background-size: 200% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent !important;
-  -webkit-text-fill-color: transparent;
-  animation: label-tint-shift 18s linear infinite;
-}
-[data-label-effect="galaxySparkle"]::before {
-  background-image: var(--label-star-lilac);
-  background-size: 44px 44px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .farm-theme-decor::before,
-  .farm-theme-decor-particles i,
-  [data-label-effect]:not([data-label-effect=""]),
-  [data-label-effect]:not([data-label-effect=""])::before,
-  [data-label-effect]:not([data-label-effect=""])::after {
-    animation: none;
   }
 }
