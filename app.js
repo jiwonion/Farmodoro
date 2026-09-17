@@ -4439,7 +4439,7 @@ function renderHabitHeatmap() {
   const month = habitCalendarDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   monthLabel.textContent = `${year}년 ${month + 1}월`;
-  grid.style.gridTemplateColumns = `150px repeat(${daysInMonth}, 18px)`;
+  grid.style.gridTemplateColumns = `var(--heatmap-name-column, 150px) repeat(${daysInMonth}, var(--heatmap-cell-size, 18px))`;
 
   const dayHeaders = Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1;
@@ -10590,6 +10590,7 @@ function showPage(page) {
   }
 
   currentPage = validPage;
+  document.body.classList.toggle("farm-page-active", validPage === "farm");
 
   if (validPage === "today") {
     summaryGrid.prepend(focusCard);

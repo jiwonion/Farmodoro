@@ -249,6 +249,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         getComputedStyle(marketBalance).backgroundColor===getComputedStyle(supplyBalance).backgroundColor &&
         getComputedStyle(marketBalance).borderTopLeftRadius===getComputedStyle(supplyBalance).borderTopLeftRadius;
       return { mappingOK: JSON.stringify(expected) === JSON.stringify(mapping), allStages, cosmetics,
+        farmMainExpanded: document.body.classList.contains('farm-page-active') && getComputedStyle(document.querySelector('.main-content')).maxWidth === 'none',
         plots: tiles.length, sprites: document.querySelectorAll('#farmGrid .crop-pixel').length,
         previews: document.querySelectorAll('#rachelOffersList .cosmetic-preview').length,
         bulletin: !!document.querySelector('[id*=Bulletin]'),
@@ -278,7 +279,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         animation: getComputedStyle(document.querySelector('#farmNameLabel')).animationName };
     })()` });
     assert.equal(farmResult.exceptionDetails, undefined, JSON.stringify(farmResult.exceptionDetails));
-    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true, plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,seedOffers:6,foodOffers:6,cropOffers:6,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
+    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true,farmMainExpanded:true,plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,seedOffers:6,foodOffers:6,cropOffers:6,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
     assert.deepEqual(exceptions, [], "No farm runtime errors");
     const skinResult = await call('Runtime.evaluate', {returnByValue:true, expression:`(() => {
       const sameIDs = (ids, catalog) => JSON.stringify(ids.slice().sort()) === JSON.stringify(catalog.map(item => item.id).sort());

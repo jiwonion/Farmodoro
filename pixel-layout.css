@@ -52,7 +52,7 @@ body:has(.task-create-modal #taskForm:not(.hidden)) { overflow: hidden; }
 body, body :is(button,input,textarea,select,h1,h2,h3,h4,strong,small,p,span,a,label) { font-family: 'Mulmaru', monospace !important; font-synthesis: weight; }
 body { background: radial-gradient(circle at 2px 2px,var(--pixel-grid) 1.5px,transparent 1.6px) 12px 12px / 24px 24px, var(--cream); padding-bottom: 0; }
 body .app-shell { display: block; min-height: 100vh; padding: 20px; }
-body .sidebar { position: relative; inset: auto; z-index: 100; display: flex; flex-direction: row; align-items: stretch; width: 100%; height: 76px; min-height: 0; padding: 0; gap: 0; border: 3px solid var(--pixel-edge); background: var(--paper); box-shadow: 0 4px 0 var(--pixel-shadow); }
+body .sidebar { position: relative; inset: auto; z-index: 100; display: flex; flex-direction: row; align-items: stretch; width: 100%; height: 76px; min-height: 0; padding: 0; gap: 0; overflow: hidden; border: 3px solid var(--pixel-edge); background: var(--paper); box-shadow: 0 4px 0 var(--pixel-shadow); }
 body .brand { display: flex; flex-shrink: 0; justify-content: center; gap: 12px; width: auto; min-width: 260px; padding: 0 24px; margin: 0; font-size: 28px; border-right: 3px solid var(--pixel-edge); }
 body .brand-mark { order: 2; width: 38px; height: 42px; border: 0; background: transparent; box-shadow: none; }
 body .brand-mark img { display: none; }
@@ -70,6 +70,7 @@ body .sidebar .brand, body .sidebar .profile-button { display: flex; }
 body .brand > span:last-child { display: block; font-size: inherit; }
 body .profile-button .avatar { flex: 0 0 38px; width: 38px; height: 38px; margin: 0; border: 2px solid var(--pixel-edge); background: #ffdc9b; color: #142b52; }
 body .main-content { width: 100%; max-width: 1700px; margin: 0 auto; padding: 26px 0 36px; }
+body.farm-page-active .main-content { max-width: none; }
 body .page-view :is(.topbar,.page-header) { margin-bottom: 24px; border: 0 !important; padding-bottom: 0; }
 body .page-view .page-action-header { min-height: 0; margin-bottom: 12px; justify-content: flex-end; }
 body #tasksPage > .task-page-tools, body #focusPage > .focus-page-stage { margin-top: 0; }
@@ -911,4 +912,760 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   body #todayPage .task-top h4,body #todayPage .habit-copy strong { font-size: 15px; }
   body .habit-modal .habit-date-row { grid-template-columns: minmax(0,1fr); }
   body .focus-floating-status { left: auto; right: 12px; bottom: 16px; }
+}
+
+/* Keep task cards dense and consistent at every browser zoom level. */
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) {
+  grid-template-columns: 32px minmax(0, 1fr) auto !important;
+  gap: 3px 9px !important;
+  min-height: 0 !important;
+  padding: 8px 9px !important;
+  align-content: center;
+}
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) .today-task-check {
+  width: 32px !important;
+  height: 32px !important;
+}
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top h4 {
+  line-height: 1.35;
+}
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-meta {
+  gap: 5px;
+}
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions {
+  align-self: center !important;
+  flex-direction: row !important;
+  gap: 5px !important;
+}
+body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions button {
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+/* Habit cards share the same compact card rhythm as task cards. */
+body :is(#todayPage, #habitsPage) .habit-item {
+  grid-template-columns: 32px minmax(0, 1fr) auto !important;
+  gap: 3px 9px !important;
+  min-height: 0 !important;
+  padding: 8px 9px !important;
+}
+body :is(#todayPage, #habitsPage) .habit-check {
+  width: 32px !important;
+  height: 32px !important;
+}
+body :is(#todayPage, #habitsPage) .habit-copy strong {
+  grid-column: 1;
+  line-height: 1.35;
+}
+body :is(#todayPage, #habitsPage) .habit-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+}
+body :is(#todayPage, #habitsPage) .habit-summary {
+  grid-column: 1;
+  min-width: 0;
+  margin-top: 1px;
+  overflow: hidden;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body :is(#todayPage, #habitsPage) .habit-summary-primary {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body :is(#todayPage, #habitsPage) .habit-focus-button {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  min-height: 28px;
+  margin: 0;
+  padding: 3px 7px;
+}
+body :is(#todayPage, #habitsPage) .habit-actions {
+  align-self: center;
+  flex-direction: row !important;
+  gap: 5px !important;
+}
+body :is(#todayPage, #habitsPage) .habit-actions button {
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+}
+
+/* Counter oversized controls and type when a desktop browser is zoomed in. */
+@media (max-width: 1600px) and (hover: hover) and (pointer: fine) {
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) {
+    grid-template-columns: clamp(20px, 2vw, 32px) minmax(0, 1fr) auto !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top h4 {
+    font-size: clamp(9px, 1.1vw, 14px) !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) :is(.task-category, .task-focus-pill, .task-archived-label, .task-completed-date) {
+    font-size: clamp(8px, .75vw, 10px) !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .today-task-check {
+    width: clamp(20px, 2vw, 32px) !important;
+    height: clamp(20px, 2vw, 32px) !important;
+    border-width: 2px;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions button {
+    width: clamp(20px, 2.1vw, 34px) !important;
+    height: clamp(20px, 2.1vw, 34px) !important;
+    min-height: clamp(20px, 2.1vw, 34px) !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-edit-button {
+    font-size: clamp(8px, .8vw, 13px) !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions .delete-button::before,
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions .delete-button::after {
+    width: clamp(7px, .75vw, 12px);
+  }
+  body :is(#todayPage, #habitsPage) .habit-item {
+    grid-template-columns: clamp(20px, 2vw, 32px) minmax(0, 1fr) auto !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-copy strong {
+    font-size: clamp(9px, 1.1vw, 14px) !important;
+  }
+  body :is(#todayPage, #habitsPage) :is(.habit-summary, .habit-focus-button) {
+    font-size: clamp(8px, .75vw, 10px) !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-focus-button {
+    min-height: clamp(18px, 1.8vw, 28px);
+    padding: 2px clamp(3px, .5vw, 7px);
+  }
+  body :is(#todayPage, #habitsPage) .habit-check {
+    width: clamp(20px, 2vw, 32px) !important;
+    height: clamp(20px, 2vw, 32px) !important;
+    border-width: 2px;
+  }
+  body :is(#todayPage, #habitsPage) .habit-actions button {
+    width: clamp(20px, 2.1vw, 34px) !important;
+    height: clamp(20px, 2.1vw, 34px) !important;
+    min-height: clamp(20px, 2.1vw, 34px) !important;
+    font-size: clamp(8px, .8vw, 13px) !important;
+  }
+}
+
+/* Phone density: fit substantially more task cards without tiny tap targets. */
+@media (max-width: 700px) and (pointer: coarse) {
+  body :is(#todayPage, #tasksPage) .task-list,
+  body :is(#todayPage, #habitsPage) .habit-list {
+    gap: 5px;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) {
+    grid-template-columns: 30px minmax(0, 1fr) auto !important;
+    gap: 1px 7px !important;
+    padding: 5px 6px !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .today-task-check {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top h4 {
+    font-size: 13px !important;
+    line-height: 1.15;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-meta {
+    gap: 3px;
+    min-height: 0;
+    line-height: 1.1;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) :is(.task-category, .task-focus-pill, .task-archived-label, .task-completed-date) {
+    min-height: 0;
+    padding-block: 1px;
+    font-size: 9px !important;
+    line-height: 1.1;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions {
+    gap: 4px !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions button {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-item {
+    grid-template-columns: 30px minmax(0, 1fr) auto !important;
+    gap: 1px 7px !important;
+    padding: 5px 6px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-check {
+    width: 30px !important;
+    height: 30px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 5px;
+  }
+  body :is(#todayPage, #habitsPage) .habit-copy strong {
+    grid-column: 1;
+    font-size: 13px !important;
+    line-height: 1.15;
+  }
+  body :is(#todayPage, #habitsPage) .habit-summary {
+    grid-column: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: 9px !important;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  body :is(#todayPage, #habitsPage) .habit-summary-primary {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  body :is(#todayPage, #habitsPage) .habit-focus-button {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    min-height: 28px;
+    margin: 0;
+    padding: 3px 5px;
+    font-size: 9px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-actions {
+    gap: 4px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-actions button {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+/* Compact app chrome for tablets and browser-zoomed mobile layouts. */
+@media (max-width: 1100px) {
+  body .sidebar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 0;
+    border-width: 2px;
+    box-shadow: 0 2px 0 var(--pixel-shadow);
+  }
+  body .brand {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 8px;
+    gap: 5px;
+    border-right: 0;
+    font-size: 16px;
+  }
+  body .brand-mark { width: 23px; height: 24px; }
+  body .brand-mark::after { width: 28px; height: 28px; }
+  body .profile-button {
+    flex-basis: 36px;
+    width: 36px;
+    height: 32px;
+    margin: 2px 5px;
+    margin-left: auto;
+    padding: 2px;
+  }
+  body .profile-button .avatar {
+    flex-basis: 27px;
+    width: 27px;
+    height: 27px;
+  }
+  body .main-nav {
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
+    height: 26px;
+    min-height: 26px;
+    max-height: 26px;
+    box-sizing: border-box;
+    border-top: 2px solid var(--pixel-edge);
+  }
+  body .main-nav > .nav-item,
+  body .main-nav > .nav-item:not(.active),
+  body .main-nav > .nav-item.active {
+    height: 26px !important;
+    min-height: 26px !important;
+    max-height: 26px !important;
+    padding: 0 3px !important;
+    box-sizing: border-box;
+    border: 0 !important;
+    border-right: 1px solid var(--pixel-edge) !important;
+    border-radius: 0;
+    font-size: 9px;
+    line-height: 1 !important;
+    transform: none !important;
+  }
+  body .main-nav > .nav-item:last-child { border-right: 0 !important; }
+}
+
+/* Unified compact layout for phones and narrow/zoomed browser viewports. */
+@media (max-width: 700px) {
+  body .app-shell { padding: 6px; }
+  body .main-content { padding: 8px 0 18px; }
+  body .page-view :is(.topbar, .page-header) { margin-bottom: 8px; }
+
+  /* Keep the global app chrome genuinely compact at browser zoom levels that
+     produce a phone-sized CSS viewport. */
+  body .sidebar {
+    height: auto;
+    min-height: 0;
+    border-width: 2px;
+    box-shadow: 0 2px 0 var(--pixel-shadow);
+  }
+  body .brand {
+    min-width: 0;
+    min-height: 34px;
+    padding: 0 7px;
+    gap: 4px;
+    border-right: 0;
+    font-size: 14px;
+  }
+  body .brand-mark { width: 21px; height: 22px; }
+  body .brand-mark::after { width: 25px; height: 25px; }
+  body .profile-button {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 30px;
+    margin: 2px 4px;
+    margin-left: auto;
+    padding: 2px;
+  }
+  body .profile-button .avatar {
+    flex-basis: 25px;
+    width: 25px;
+    height: 25px;
+  }
+  body .main-nav {
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    border-top: 2px solid var(--pixel-edge);
+  }
+  body .main-nav > .nav-item,
+  body .main-nav > .nav-item:not(.active),
+  body .main-nav > .nav-item.active {
+    height: 24px !important;
+    min-height: 24px !important;
+    max-height: 24px !important;
+    padding: 0 2px !important;
+    border-width: 0 1px 0 0 !important;
+    font-size: 8px;
+    line-height: 1 !important;
+  }
+
+  body #todayPage .topbar {
+    min-height: 0;
+    gap: 8px;
+  }
+  body #todayPage .topbar h1 {
+    font-size: 21px;
+    letter-spacing: -1px;
+  }
+  body #todayPage .today-description {
+    margin-top: 3px;
+    font-size: 10px;
+  }
+  body .today-welcome { gap: 6px; }
+  body .welcome-grow,
+  body .welcome-quote {
+    min-height: 54px;
+    padding: 7px;
+    font-size: 8px;
+    line-height: 1.4;
+  }
+  body .welcome-grow .pixel-sprout { width: 30px; height: 30px; }
+
+  body #summaryGrid {
+    grid-template-columns: minmax(0, 1fr) 58px;
+    gap: 3px 0;
+    min-height: 0;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+  body #todayPage #focusCard {
+    grid-column: 1 / -1;
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 5px;
+    min-height: 0;
+    padding: 0 0 4px;
+  }
+  body #todayPage .focus-strip-heading {
+    display: none;
+  }
+  body #todayPage .focus-strip-heading .pixel-clock { display: none; }
+  body #todayPage .focus-strip-heading strong { font-size: 13px; }
+  body #todayPage .focus-visual,
+  body #todayPage #focusCard .focus-visual {
+    grid-column: 1;
+    grid-row: 1;
+    width: 58px;
+    height: 46px;
+    justify-self: center;
+  }
+  body #todayPage .timer-ring strong {
+    font-size: 21px !important;
+    letter-spacing: -1px;
+    text-shadow: 1px 2px #0655ff !important;
+  }
+  body #todayPage .focus-copy {
+    grid-column: 2;
+    grid-row: 1;
+    gap: 3px;
+    align-items: stretch;
+  }
+  body #todayPage .focus-mode-row {
+    --focus-settings-button-size: 18px;
+    gap: 3px;
+  }
+  body #todayPage .focus-mode-switch button {
+    min-height: 18px;
+    padding: 1px 3px;
+    font-size: 7px;
+  }
+  body #todayPage #focusTarget {
+    margin: 0;
+    font-size: 8px !important;
+    text-align: left;
+  }
+  body #todayPage .focus-controls .primary-button {
+    min-height: 23px;
+    padding: 2px;
+    border-width: 2px !important;
+    font-size: 9px;
+  }
+  body #todayPage .progress-card {
+    min-height: 38px;
+    padding: 0 6px 0 0;
+  }
+  body #todayPage .progress-stats {
+    height: 38px;
+    gap: 3px;
+  }
+  body #todayPage .progress-stats p { margin-bottom: 2px; font-size: 8px; }
+  body #todayPage .progress-stats strong { font-size: 10px; }
+  body #todayPage .progress-stats .strip-progress { height: 5px; margin-top: 2px; }
+  body .summary-wallet { gap: 1px; padding-left: 6px; }
+  body .summary-wallet .coin strong { font-size: 14px; }
+  body .summary-wallet .pixel-coin { font-size: 14px; }
+  body .summary-wallet .farm-money { font-size: 7px; }
+
+  body #todayWorkspace { gap: 8px; }
+  body :is(.task-section, .habit-section) { padding: 5px !important; }
+  body .section-header {
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  body .section-header h2 { font-size: 15px; }
+  body .section-description { margin-top: 2px; font-size: 9px; line-height: 1.3; }
+  body .section-header > button {
+    min-height: 24px;
+    padding: 2px 5px;
+    border-width: 2px !important;
+    font-size: 10px;
+  }
+  body :is(#todayPage, #tasksPage) .task-filter-list {
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+  body :is(#todayPage, #tasksPage) .task-filter-list button,
+  body #tasksPage .archive-toggle {
+    min-height: 23px;
+    padding: 1px 5px;
+    font-size: 8px;
+  }
+  body #tasksPage .task-page-tools { gap: 5px; padding: 6px; }
+  body #tasksPage .task-archive-policy { font-size: 8px; }
+
+  body #habitsPage .habit-section { padding: 5px; }
+  body #habitsPage .section-header h2 { font-size: 13px; }
+  body #habitsPage .habit-heatmap {
+    margin-bottom: 6px;
+    padding: 5px;
+  }
+  body #habitsPage .habit-heatmap > header {
+    gap: 5px;
+    margin-bottom: 5px;
+    padding-bottom: 4px;
+  }
+  body #habitsPage .habit-heatmap .section-kicker { font-size: 7px; }
+  body #habitsPage .habit-heatmap h2 {
+    margin-top: 1px;
+    font-size: 11px;
+  }
+  body #habitsPage .heatmap-header-actions { gap: 4px; }
+  body #habitsPage .habit-reset-button {
+    min-height: 22px;
+    padding: 2px 5px;
+    border-width: 2px;
+    font-size: 8px;
+  }
+  body #habitsPage .heatmap-nav,
+  body #habitsPage .habit-date-nav { gap: 3px; }
+  body #habitsPage .habit-date-nav {
+    margin-bottom: 5px;
+    font-size: 8px;
+  }
+  body #habitsPage :is(.heatmap-nav button, .habit-date-nav button) {
+    flex: 0 0 22px;
+    width: 22px;
+    height: 22px;
+    min-height: 22px;
+    padding: 0;
+    border-width: 2px;
+    font-size: 11px;
+  }
+  body #habitsPage .habit-date-nav #habitDateToday {
+    flex-basis: auto;
+    width: auto;
+    min-width: 34px;
+    height: 22px;
+    min-height: 22px;
+    padding: 0 4px;
+    font-size: 8px;
+  }
+  body #habitsPage .habit-date-nav #habitDateLabel { font-size: 8px; }
+  body #habitsPage .heatmap-scroll { padding-bottom: 2px; }
+  body #habitsPage .heatmap-grid {
+    --heatmap-name-column: 76px;
+    --heatmap-cell-size: 12px;
+    gap: 2px;
+  }
+  body #habitsPage .heatmap-habit-name {
+    padding-right: 4px;
+    font-size: 8px;
+    line-height: 12px;
+  }
+  body #habitsPage .heatmap-day-label { font-size: 7px; }
+  body #habitsPage .heatmap-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 1px;
+  }
+  body #habitsPage .heatmap-legend {
+    gap: 6px;
+    margin-top: 4px;
+    font-size: 7px;
+  }
+  body #habitsPage .heatmap-legend span { gap: 3px; }
+  body #habitsPage .heatmap-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 1px;
+  }
+
+  body #focusPage .focus-page-stage,
+  body #focusPage .focus-page-stage:fullscreen {
+    min-height: 320px !important;
+  }
+  body #focusPage .focus-stage-toolbar,
+  body #focusPage .focus-page-stage:fullscreen .focus-stage-toolbar {
+    gap: 5px;
+    padding: 6px;
+  }
+  body #focusPage .focus-item-picker > span { font-size: 8px; }
+  body #focusPage .focus-item-trigger {
+    min-height: 29px;
+    padding: 3px 7px;
+    font-size: 9px;
+  }
+  body #focusPage .focus-stage-actions { gap: 4px; }
+  body #focusPage .focus-stage-actions button,
+  body #focusPage .focus-stage-actions label {
+    min-height: 28px;
+    padding: 3px 4px;
+    font-size: 8px;
+  }
+  body #focusPage .focus-page-slot,
+  body #focusPage .focus-page-stage:fullscreen .focus-page-slot {
+    min-height: 240px !important;
+  }
+  body #focusPage .focus-card.standalone,
+  body #focusPage .focus-page-stage:fullscreen .focus-card.standalone {
+    --focus-stage-visual-size: 92px;
+    --focus-stage-visual-radius: 46px;
+    min-height: 240px !important;
+  }
+  body #focusPage .focus-card.standalone .timer-ring strong { font-size: 24px; }
+  body #focusPage .focus-card.standalone .focus-copy {
+    top: calc(var(--focus-stage-center-y, 50%) + var(--focus-stage-visual-radius) + 6px);
+    width: min(330px, calc(100% - 16px));
+  }
+  body #focusPage .focus-card.standalone .focus-copy h2 { font-size: 15px; }
+  body #focusPage .focus-card.standalone .focus-copy p { font-size: 8px; }
+  body #focusPage .focus-card.standalone .focus-mode-switch button {
+    min-height: 24px;
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+  body #focusPage .focus-card.standalone .primary-button {
+    min-height: 32px;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  body .focus-floating-status .mini-focus-timer { padding: 8px; }
+  body .mini-focus-main { padding: 4px 2px 7px; }
+  body .mini-focus-main span { font-size: 9px; }
+  body .mini-focus-main strong { margin-top: 3px; font-size: 11px; }
+  body .mini-focus-main b { margin-top: 3px; font-size: 20px; }
+  body .mini-focus-actions { gap: 5px; margin-top: 7px; }
+  body .mini-focus-actions button { min-height: 30px; font-size: 10px; }
+
+  body #farmPage .farm-layout { gap: 6px; padding: 6px; }
+  body #farmPage .page-action-header {
+    display: none;
+  }
+  body #farmPage .farm-page-wallet {
+    display: none;
+  }
+  body #farmPage .farm-window-chrome {
+    min-height: 24px;
+    margin: -6px -6px 0;
+    padding: 0 6px;
+  }
+  body #farmPage .farm-panel-header {
+    display: grid;
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+    gap: 5px;
+    padding: 5px 6px 7px;
+  }
+  body #farmPage .farm-name-editor {
+    grid-area: 1 / 1 / auto / span 12;
+    width: 100%;
+    min-height: 24px;
+  }
+  body #farmPage .farm-name-display::before { width: 20px; height: 20px; }
+  body #farmPage .farm-name-display h2 { font-size: 13px; }
+  body #farmPage .farm-name-display > button { width: 22px; height: 22px; }
+  body #farmPage .farm-header-actions {
+    display: contents;
+  }
+  body #farmPage .farm-header-actions > .farm-storage-toolbar { display: contents; }
+  body #farmPage .farm-storage-toolbar button:nth-child(1) { grid-area: 2 / 1 / auto / span 4; order: 1; }
+  body #farmPage .farm-storage-toolbar button:nth-child(2) { grid-area: 2 / 5 / auto / span 4; order: 2; }
+  body #farmPage .farm-storage-toolbar button:nth-child(3) { grid-area: 2 / 9 / auto / span 4; order: 3; }
+  body #farmPage .farm-header-actions .open-farm-mail { grid-area: 2 / 13 / auto / span 4; order: 4; }
+  body #farmPage .farm-header-actions .open-farm-kitchen { grid-area: 3 / 1 / auto / span 4; order: 5; }
+  body #farmPage .farm-header-actions .farm-header-ranking { grid-area: 3 / 5 / auto / span 4; order: 6; }
+  body #farmPage .farm-header-actions .farm-header-money { grid-area: 1 / 13 / auto / span 2; order: 7; }
+  body #farmPage .farm-header-actions > .farm-wallet { grid-area: 1 / 15 / auto / span 2; order: 8; }
+  body #farmPage .farm-storage-toolbar button.farm-storage-button,
+  body #farmPage .farm-header-actions > button.farm-utility-button,
+  body #farmPage .farm-header-actions .farm-header-ranking,
+  body #farmPage .farm-header-actions .farm-header-money {
+    width: 100%;
+    min-width: 0;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0 2px;
+    font-size: 7px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  body #farmPage .farm-header-actions .farm-header-money {
+    justify-content: center;
+  }
+  body #farmPage .farm-header-actions > .farm-wallet {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    height: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0 2px;
+    justify-content: center;
+    gap: 2px;
+  }
+  body #farmPage .farm-header-actions > .farm-wallet > span {
+    flex-basis: 10px;
+    width: 10px;
+    height: 10px;
+  }
+  body #farmPage .farm-header-actions > .farm-wallet > span::before { inset: 1px; }
+  body #farmPage .farm-header-actions > .farm-wallet > span::after { inset: 3px; }
+  body #farmPage .farm-header-actions > .farm-wallet strong { font-size: 7px; }
+  body #farmPage .farm-storage-toolbar small {
+    min-width: 14px;
+    height: 14px;
+    padding: 0 2px;
+    font-size: 7px;
+  }
+  body #farmPage .farm-header-money > span { gap: 2px; font-size: 7px; }
+  body #farmPage .farm-header-money :is(i, b, strong) { font-size: 7px; }
+  body #farmPage .farm-header-actions > button.farm-utility-button span,
+  body #farmPage .farm-header-actions > button.farm-utility-button.farm-header-ranking span {
+    font-size: 7px;
+  }
+  body #farmPage .farm-scene,
+  body #farmPage[data-farm-theme] .farm-scene { padding: 8px 3px 6px; }
+  body #farmPage .farm-scene .farm-grid {
+    width: min(100%, 390px);
+    max-width: 390px;
+    margin-inline: auto;
+    gap: 3px;
+  }
+  body #farmPage .farm-scene .farm-plot {
+    min-height: 94px;
+    padding: 2px;
+  }
+  body #farmPage .farm-scene .crop-plot {
+    grid-template-rows: minmax(32px, 1fr) auto auto auto;
+    gap: 2px;
+  }
+  body #farmPage .farm-scene .crop-visual { min-height: 32px; }
+  body #farmPage .farm-scene .crop-visual .crop-pixel { width: 38px; height: 38px; }
+  body #farmPage .farm-scene .crop-info strong,
+  body #farmPage .farm-scene .crop-info small { padding: 1px 2px; font-size: 7px; }
+  body #farmPage .farm-scene .crop-wilt-countdown { padding: 1px; font-size: 7px; }
+  body #farmPage .farm-scene .plot-growth-actions { gap: 2px; }
+  body #farmPage .farm-scene .crop-plot > button,
+  body #farmPage .farm-scene .plot-growth-actions button {
+    min-height: 20px;
+    padding: 1px 2px;
+    font-size: 7px;
+  }
+  body #farmPage .farm-scene .empty-plot { font-size: 18px; }
+  body #farmPage .npc-market { padding: 6px; }
+  body #farmPage .npc-market > .open-permanent-market {
+    min-height: 54px;
+    margin-bottom: 5px;
+    padding: 17px 7px 6px;
+    overflow: visible;
+  }
+  body #farmPage .open-permanent-market span {
+    display: block;
+    font-size: 11px;
+    line-height: 1.25;
+    white-space: normal;
+  }
+  body #farmPage .open-permanent-market small {
+    display: block;
+    font-size: 7px;
+    line-height: 1.25;
+  }
+  body #farmPage .market-category-tabs { gap: 3px; margin: 5px 0; }
+  body #farmPage .market-category-tabs button { min-height: 28px; padding: 2px; font-size: 8px; }
+  body #farmPage .market-section-title { padding: 4px 5px; font-size: 10px; }
+  body #farmPage .seed-shop-list { gap: 4px; }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card) {
+    min-height: 48px;
+    padding: 5px 6px;
+  }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card) strong { font-size: 10px; }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card) small { font-size: 8px; }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card) button {
+    min-height: 27px;
+    padding: 2px 5px;
+    font-size: 9px;
+  }
 }
