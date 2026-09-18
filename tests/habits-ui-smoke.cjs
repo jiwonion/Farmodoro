@@ -224,7 +224,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const utilityButtons = [...document.querySelectorAll('.farm-header-actions > button.farm-utility-button')].filter(item => getComputedStyle(item).display !== 'none');
       const firstHeaderStyle = getComputedStyle(utilityButtons[0]);
       const firstHeaderHeight = utilityButtons[0].getBoundingClientRect().height;
-      const farmMoney = document.querySelector('.farm-header-money');
+      const farmMoney = document.querySelector('.nav-farm-money');
       const storageButtons = [...document.querySelectorAll('.farm-storage-toolbar > button.farm-storage-button')];
       const overlaps = tiles.some((tile,i) => i > 2 && tile.getBoundingClientRect().top < tiles[i-3].getBoundingClientRect().bottom);
       const supplyModal = document.querySelector('#supplyStorageModal');
@@ -255,9 +255,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         bulletin: !!document.querySelector('[id*=Bulletin]'),
         noNpcProfiles: !document.querySelector('.npc-profile,.npc-avatar'),
         marketTabs: document.querySelectorAll('.market-category-tabs [data-npc-dot]').length,
-        headerUtilities: !!document.querySelector('.farm-header-actions #openFarmRanking') && !!document.querySelector('.farm-header-actions #marketFarmMoneyBalance'),
+        headerUtilities: !!document.querySelector('.farm-header-actions #openFarmRanking') && !document.querySelector('.farm-header-actions #marketFarmMoneyBalance') && !document.querySelector('.farm-header-actions #farmCoinBalance'),
         uniformHeader: utilityButtons.length===3 && utilityButtons.every(item => Math.abs(item.getBoundingClientRect().height-firstHeaderHeight)<1 && getComputedStyle(item).borderTopWidth===firstHeaderStyle.borderTopWidth && getComputedStyle(item).backgroundColor===firstHeaderStyle.backgroundColor && getComputedStyle(item).boxShadow===firstHeaderStyle.boxShadow),
-        farmMoneyCompact: farmMoney.querySelector('b')?.textContent==='Farm' && !farmMoney.textContent.includes('Money') && parseFloat(getComputedStyle(farmMoney.querySelector('strong')).fontSize)<=14,
+        farmMoneyCompact: farmMoney.querySelector('small')?.textContent==='Farm' && document.querySelector('#marketFarmMoneyBalance').textContent==='5400' && document.querySelector('#farmCoinBalance').textContent==='128',
         storageInHeader: document.querySelector('.farm-header-actions > .farm-storage-toolbar')!==null && [...document.querySelector('.farm-header-actions').children].indexOf(document.querySelector('.farm-storage-toolbar')) < [...document.querySelector('.farm-header-actions').children].indexOf(document.querySelector('#openFarmMail')),
         uniformStorageButtons: storageButtons.length===3 && storageButtons.every(item => Math.abs(item.getBoundingClientRect().height-firstHeaderHeight)<1 && getComputedStyle(item).backgroundColor===firstHeaderStyle.backgroundColor && getComputedStyle(item).boxShadow===firstHeaderStyle.boxShadow),
         separateBuyMenus: !!document.querySelector('[data-npc-panel="food"] #noahBuyList') && !!document.querySelector('[data-npc-panel="crop"] #noahCropBundleList'),
@@ -266,7 +266,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         cropOffers: document.querySelectorAll('#noahCropBundleList .noah-buy-card').length,
         podium: document.querySelectorAll('#farmRankingPodium .farm-podium-place').length,
         rankedRows: document.querySelectorAll('#farmRankingList .farm-ranking-row:not(.farm-ranking-empty)').length,
-        pixelCoin: getComputedStyle(document.querySelector('#farmPage .farm-wallet > span'),'::after').content !== 'none',
+        pixelCoin: parseFloat(getComputedStyle(document.querySelector('.nav-coin .pixel-coin')).fontSize)>0,
         waterStartsAtFive: formatPlotWaterCooldown(getPlotWaterRemaining({lastFreeWaterAt:Date.now()+2000})) === '5:00',
         supplyPixelIcons: document.querySelectorAll('#farmItemInventory .farm-supply-pixel-icon[data-farm-item-icon]').length === Object.keys(FARM_ITEMS).length &&
           getComputedStyle(document.querySelector('#farmItemInventory .farm-supply-pixel-icon')).backgroundImage.includes('farm-supplies-atlas.png'),

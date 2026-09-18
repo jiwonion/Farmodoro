@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v249";
+const CACHE_VERSION = "farmodoro-v262";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -6,8 +6,9 @@ const APP_SHELL = [
   "./styles.css?v=182",
   "./pixel-theme.css?v=191",
   "./farm-pixel.css?v=233",
-  "./pixel-layout.css?v=249",
-  "./app.js?v=233",
+  "./pixel-layout.css?v=262",
+  "./farm-theme.css?v=254",
+  "./app.js?v=262",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
   "./supabase-config.js",
@@ -25,10 +26,10 @@ const APP_SHELL = [
   "./assets/npc-rachel.png",
   "./assets/fonts/Maplestory-Light.ttf",
   "./assets/fonts/Maplestory-Bold.ttf",
-  "./assets/icons/icon-192.png",
-  "./assets/icons/icon-512.png",
-  "./assets/icons/icon-maskable-512.png",
-  "./assets/icons/apple-touch-icon.png"
+  "./assets/icons/icon-192.png?v=252",
+  "./assets/icons/icon-512.png?v=252",
+  "./assets/icons/icon-maskable-512.png?v=252",
+  "./assets/icons/apple-touch-icon.png?v=252"
 ];
 const APP_SHELL_URLS = new Set(
   APP_SHELL.map((path) => new URL(path, self.location.href).href),
@@ -120,7 +121,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "./assets/icons/icon-192.png",
+      icon: "./assets/icons/icon-192.png?v=252",
       // No `badge` here on purpose -- Android ignores the icon's colors for
       // this slot and renders only its alpha channel, so a normal full-color
       // square icon (icon-192.png has no transparent margin) turns into a

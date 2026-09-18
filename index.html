@@ -9,8 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Farmodoro" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png?v=252" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=252" />
     <title>Farmodoro</title>
     <script>
       window.setTimeout(() => {
@@ -37,7 +37,8 @@
     <link rel="stylesheet" href="./styles.css?v=182" />
     <link rel="stylesheet" href="./pixel-theme.css?v=191" />
     <link rel="stylesheet" href="./farm-pixel.css?v=233" />
-    <link rel="stylesheet" href="./pixel-layout.css?v=249" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=262" />
+    <link rel="stylesheet" href="./farm-theme.css?v=254" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -161,18 +162,29 @@
         </nav>
 
         <div class="sidebar-spacer"></div>
-        <p class="nav-motto">작은 집중이<br />좋은 하루를 키워요.</p>
-
-        <button class="profile-button" id="openUserSettings" type="button" aria-label="내 정보 및 사용자 설정 열기" title="사용자 설정">
-          <span class="avatar" id="profileAvatar">F</span>
-          <span class="profile-copy">
-            <strong id="profileName">Farmodoro</strong>
-            <small id="profileAccountLabel">Google 계정</small>
-          </span>
-          <span class="profile-settings-button" aria-hidden="true">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.7"/><path d="M10 2.7v1.5m0 11.6v1.5M2.7 10h1.5m11.6 0h1.5M4.8 4.8l1.1 1.1m8.2 8.2 1.1 1.1m0-10.4-1.1 1.1m-8.2 8.2-1.1 1.1"/></svg>
-          </span>
-        </button>
+        <div class="nav-account">
+          <button class="profile-button" id="openUserSettings" type="button" aria-label="내 정보 및 사용자 설정 열기" title="사용자 설정">
+            <span class="avatar" id="profileAvatar">F</span>
+            <span class="profile-copy">
+              <strong id="profileName">Farmodoro</strong>
+              <small id="profileAccountLabel">Google 계정</small>
+            </span>
+            <span class="profile-settings-button" aria-hidden="true">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.7"/><path d="M10 2.7v1.5m0 11.6v1.5M2.7 10h1.5m11.6 0h1.5M4.8 4.8l1.1 1.1m8.2 8.2 1.1 1.1m0-10.4-1.1 1.1m-8.2 8.2-1.1 1.1"/></svg>
+            </span>
+          </button>
+          <div class="nav-wallet" aria-label="농장 재화">
+            <span class="nav-balance nav-farm-money" aria-label="보유 Farm Money">
+              <i aria-hidden="true">✦</i>
+              <strong id="marketFarmMoneyBalance">0</strong>
+              <small>Farm</small>
+            </span>
+            <span class="nav-balance nav-coin" aria-label="보유 코인">
+              <span class="pixel-coin" aria-hidden="true">●</span>
+              <strong id="farmCoinBalance">0</strong>
+            </span>
+          </div>
+        </div>
       </aside>
 
       <main class="main-content">
@@ -294,10 +306,6 @@
               </div>
             </div>
           </article>
-          <div class="summary-wallet">
-            <div class="currency coin" id="todayCoinDisplay"><span class="pixel-coin" aria-hidden="true">●</span><strong id="coinBalance">0</strong></div>
-            <div class="currency farm-money"><span>✦</span><strong id="farmMoneyBalance">0</strong><small>Farm</small></div>
-          </div>
         </section>
 
         <section class="workspace-grid" id="todayWorkspace">
@@ -561,13 +569,6 @@
         </section>
 
         <section class="page-view" id="farmPage" data-view="farm">
-          <header class="page-header page-action-header">
-            <div class="farm-wallet farm-page-wallet" id="farmPageCoinDisplay" aria-label="보유 코인">
-              <span>●</span>
-              <strong id="farmHeaderCoinBalance">0</strong>
-            </div>
-          </header>
-
           <section class="farm-layout">
             <div class="farm-window-chrome" aria-hidden="true">
               <span class="farm-window-lights"><i></i><i></i><i></i></span>
@@ -605,13 +606,6 @@
                   <button class="farm-utility-button farm-weekly-ranking-button farm-header-ranking" id="openFarmRanking" type="button">
                     <span>🏆 농장 주간보</span>
                   </button>
-                  <div class="market-balance farm-header-money" aria-label="보유 Farm Money">
-                    <span><i aria-hidden="true">✦</i><strong id="marketFarmMoneyBalance">0</strong><b>Farm</b></span>
-                  </div>
-                  <div class="farm-wallet">
-                    <span>●</span>
-                    <strong id="farmCoinBalance">0</strong>
-                  </div>
                 </div>
               </header>
 
@@ -1192,7 +1186,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=233"></script>
+    <script src="./app.js?v=262"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

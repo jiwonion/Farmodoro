@@ -50,9 +50,10 @@ body:has(.task-create-modal #taskForm:not(.hidden)) { overflow: hidden; }
 @font-face { font-family: 'Mulmaru'; src: url('./assets/fonts/Mulmaru.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
 :root, :root[data-theme="classic"], :root[data-theme="white"] { --pixel-accent: #0655ff; --pixel-edge: #0a111b; --pixel-shadow: #adc4dc; --ink: #090d14; --muted: #59718d; --pixel-grid: #b7d4f3; --cream: #f5faff; --theme-sidebar: #fff; }
 body, body :is(button,input,textarea,select,h1,h2,h3,h4,strong,small,p,span,a,label) { font-family: 'Mulmaru', monospace !important; font-synthesis: weight; }
-body { background: radial-gradient(circle at 2px 2px,var(--pixel-grid) 1.5px,transparent 1.6px) 12px 12px / 24px 24px, var(--cream); padding-bottom: 0; }
+html { overflow-x: clip; }
+body { background: radial-gradient(circle at 2px 2px,var(--pixel-grid) 1.5px,transparent 1.6px) 12px 12px / 24px 24px, var(--cream); padding-bottom: 0; overflow-x: clip; }
 body .app-shell { display: block; min-height: 100vh; padding: 20px; }
-body .sidebar { position: relative; inset: auto; z-index: 100; display: flex; flex-direction: row; align-items: stretch; width: 100%; height: 76px; min-height: 0; padding: 0; gap: 0; overflow: hidden; border: 3px solid var(--pixel-edge); background: var(--paper); box-shadow: 0 4px 0 var(--pixel-shadow); }
+body .sidebar { position: sticky; inset: 0 auto auto; z-index: 100; display: flex; flex-direction: row; align-items: stretch; width: 100%; height: 76px; min-height: 0; padding: 0; gap: 0; overflow: hidden; border: 3px solid var(--pixel-edge); background: var(--paper); box-shadow: 0 4px 0 var(--pixel-shadow); }
 body .brand { display: flex; flex-shrink: 0; justify-content: center; gap: 12px; width: auto; min-width: 260px; padding: 0 24px; margin: 0; font-size: 28px; border-right: 3px solid var(--pixel-edge); }
 body .brand-mark { order: 2; width: 38px; height: 42px; border: 0; background: transparent; box-shadow: none; }
 body .brand-mark img { display: none; }
@@ -64,6 +65,47 @@ body .nav-item .nav-label { display: block; }
 body .nav-item, body .nav-item:hover, body .nav-item.active { transform: none !important; transition: background-color .12s; }
 body .nav-item.active { border: 0; border-right: 3px solid var(--pixel-edge); border-left: 3px solid var(--pixel-edge); background: var(--pixel-accent); box-shadow: inset 0 4px #5996ff, inset 0 -4px #0035b9; }
 body .nav-motto { order: 3; display: flex; align-items: center; flex-shrink: 0; margin: 12px 18px; padding-left: 18px; border-left: 2px solid #97afc8; color: var(--muted); font-size: 14px; font-weight: 700; line-height: 1.6; }
+body .nav-account {
+  order: 3;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+body .nav-wallet {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 7px;
+  margin: 10px 14px 10px 4px;
+  padding-left: 14px;
+  border-left: 2px solid #97afc8;
+}
+body .nav-balance {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border: 2px solid var(--pixel-edge);
+  background: #f7fbff;
+  box-shadow: inset 0 -3px #d7e2ef, 2px 2px 0 var(--pixel-shadow);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+body .nav-balance i { color: #315bf1; font-style: normal; }
+body .nav-balance small { color: var(--ink); font-size: 12px; }
+body .nav-balance strong { color: #173665; font-size: 16px; }
+body .nav-balance .pixel-coin {
+  color: #ffcb00;
+  font-size: 20px;
+  text-shadow: 2px 0 #141c27, -2px 0 #141c27, 0 2px #141c27, 0 -2px #141c27;
+}
+body .nav-balance.negative strong { color: #b13d3d; }
 body .profile-button { display: flex; flex: 0 0 58px; align-self: center; align-items: center; justify-content: center; width: 58px; height: 48px; min-height: 0; margin: 0 10px; padding: 5px; border: 0; background: transparent; box-shadow: none; }
 body .profile-copy, body .profile-settings-button { display: none; }
 body .sidebar .brand, body .sidebar .profile-button { display: flex; }
@@ -82,7 +124,7 @@ body #todayPage .today-description .pixel-sprout { width: 32px; height: 32px; }
 body .today-welcome { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; min-width: 0; }
 body .welcome-grow, body .welcome-quote { min-height: 138px; margin: 0; padding: 24px; font-size: clamp(12px,1.12vw,17px); line-height: 1.8; font-weight: 700; }
 body .welcome-grow { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #e7f3ff; }
-body .welcome-grow p { margin: 0; }
+body .welcome-grow p { min-width: 0; margin: 0; font-size: inherit; line-height: inherit; word-break: keep-all; overflow-wrap: anywhere; }
 body .welcome-grow .pixel-sprout { flex-shrink: 0; width: 72px; height: 72px; }
 body .welcome-quote { display: flex; flex-direction: column; justify-content: center; background: #fffdf5; }
 body .welcome-quote span { display: block; }
@@ -94,7 +136,7 @@ body :is(.pixel-frame,#summaryGrid,.task-section,.habit-section,.habit-heatmap):
   content: ''; position: absolute; inset: -3px; pointer-events: none; z-index: 1;
   background: linear-gradient(#ffdd42,#ffdd42) 3px 3px / 6px 6px no-repeat,linear-gradient(#ffdd42,#ffdd42) calc(100% - 3px) 3px / 6px 6px no-repeat,linear-gradient(#ffdd42,#ffdd42) 3px calc(100% - 3px) / 6px 6px no-repeat,linear-gradient(#ffdd42,#ffdd42) calc(100% - 3px) calc(100% - 3px) / 6px 6px no-repeat;
 }
-body #summaryGrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px 140px; gap: 0; align-items: center; min-height: 140px; margin-bottom: 24px; background: var(--paper); padding: 18px; }
+body #summaryGrid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 0; align-items: center; min-height: 140px; margin-bottom: 24px; background: var(--paper); padding: 18px; }
 body #todayPage #focusCard { display: grid; grid-template-columns: minmax(145px,1.05fr) minmax(140px,.8fr) minmax(170px,1fr); align-items: center; gap: 14px; min-height: 98px; padding: 0 22px 0 0; border: 0 !important; background: transparent !important; box-shadow: none !important; overflow: visible; }
 .focus-strip-heading { display: none; }
 body #todayPage .focus-strip-heading { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -774,13 +816,16 @@ body .farm-supply-pixel-icon[data-farm-item-icon="growthTonic"] { background-pos
 body .farm-supply-pixel-icon[data-farm-item-icon="seedMarketRefresh"] { background-position: 75% 100% !important; }
 body .farm-supply-pixel-icon[data-farm-item-icon="foodMarketRefresh"] { background-position: 100% 100% !important; }
 
-/* Task-card actions are not modal controls; keep their own red treatment. */
-body :is(#todayPage,#tasksPage) .task-actions .delete-button {
+/* Card delete actions share a centered cross and red treatment. */
+body :is(#todayPage,#tasksPage) .task-actions .delete-button,
+body :is(#todayPage,#habitsPage) .habit-actions .habit-delete {
   position: relative;
   font-size: 0 !important;
 }
 body :is(#todayPage,#tasksPage) .task-actions .delete-button::before,
-body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
+body :is(#todayPage,#tasksPage) .task-actions .delete-button::after,
+body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::before,
+body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::after {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -790,7 +835,8 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   content: '';
   transform: translate(-50%, -50%) rotate(45deg);
 }
-body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
+body :is(#todayPage,#tasksPage) .task-actions .delete-button::after,
+body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::after {
   transform: translate(-50%, -50%) rotate(-45deg);
 }
 
@@ -839,7 +885,10 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   body .brand { min-width: 210px; font-size: 23px; padding: 0 16px; }
   body .nav-item { font-size: 18px; padding: 0 12px; }
   body .nav-motto { display: none; }
-  body #summaryGrid { grid-template-columns: minmax(0,1fr) 230px 110px; }
+  body .nav-wallet { gap: 4px; margin-inline: 4px 8px; padding-left: 8px; }
+  body .nav-balance { min-height: 34px; padding: 4px 6px; }
+  body .nav-farm-money small { display: none; }
+  body #summaryGrid { grid-template-columns: minmax(0,1fr) 230px; }
   body #todayPage #focusCard { grid-template-columns: minmax(130px,1fr) minmax(110px,.8fr) minmax(145px,1fr); gap: 9px; }
   body #todayPage .focus-strip-heading .pixel-clock { display: none; }
   body #todayPage .focus-strip-heading strong { font-size: 18px; }
@@ -853,13 +902,14 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   body .sidebar { height: auto; flex-wrap: wrap; }
   body .brand { min-height: 58px; flex: 1; border-right: 0; justify-content: flex-start; }
   body .main-nav { order: 3; flex-basis: 100%; border-top: 2px solid var(--pixel-edge); min-height: 52px; }
+  body .nav-account { order: 2; }
   body .nav-item { min-width: 0; padding: 10px 6px; }
   body .profile-button { margin-right: 15px; }
   body .main-content { padding-top: 20px; }
   body #todayPage .topbar { grid-template-columns: 1fr; gap: 16px; }
   body .today-welcome { grid-template-columns: 1fr 1fr; }
   body .welcome-grow,body .welcome-quote { min-height: 100px; padding: 14px 20px; font-size: 13px; }
-  body #summaryGrid { grid-template-columns: 1fr 130px; gap: 16px 0; }
+  body #summaryGrid { grid-template-columns: minmax(0,1fr); gap: 16px 0; }
   body #todayPage #focusCard { grid-column: 1 / -1; grid-template-columns: minmax(150px,1fr) minmax(140px,1fr) minmax(160px,1fr); padding: 0 0 14px; border-bottom: 2px solid #b1c6da !important; }
   body #todayPage .focus-strip-heading .pixel-clock { display: block; }
   body #todayPage .progress-card { border-left: 0 !important; min-height: 80px; }
@@ -879,7 +929,7 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   body .today-welcome { gap: 10px; }
   body .welcome-grow,body .welcome-quote { padding: 12px; font-size: 10px; min-height: 92px; }
   body .welcome-grow .pixel-sprout { width: 42px; height: 42px; }
-  body #summaryGrid { padding: 14px; grid-template-columns: minmax(0,1fr) 95px; }
+  body #summaryGrid { padding: 14px; grid-template-columns: minmax(0,1fr); }
   body #todayPage #focusCard { grid-template-columns: 1fr 1fr; gap: 12px; }
   body #todayPage .focus-strip-heading { grid-column: 1; grid-row: 1; }
   body #todayPage .focus-strip-heading .pixel-clock { flex-basis: 30px; width: 30px; height: 38px; }
@@ -912,6 +962,63 @@ body :is(#todayPage,#tasksPage) .task-actions .delete-button::after {
   body #todayPage .task-top h4,body #todayPage .habit-copy strong { font-size: 15px; }
   body .habit-modal .habit-date-row { grid-template-columns: minmax(0,1fr); }
   body .focus-floating-status { left: auto; right: 12px; bottom: 16px; }
+}
+
+@media (min-width: 1101px) {
+  body #farmPage .farm-window-chrome { min-height: 40px; font-size: 13px; }
+  body #farmPage .farm-name-display h2 { font-size: 24px; }
+  body #farmPage .farm-header-actions { gap: 9px; }
+  body #farmPage .farm-storage-toolbar button.farm-storage-button,
+  body #farmPage .farm-header-actions > :is(button.farm-utility-button, .farm-header-money, .farm-wallet) {
+    height: 48px;
+    min-height: 48px;
+    padding-inline: 10px;
+    font-size: 16px;
+  }
+  body #farmPage .farm-header-actions > button.farm-utility-button span,
+  body #farmPage .farm-header-actions > button.farm-utility-button.farm-header-ranking span {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  body #farmPage .farm-storage-toolbar small {
+    min-width: 22px;
+    height: 22px;
+    font-size: 13px;
+  }
+  body #farmPage .farm-header-money > span,
+  body #farmPage .farm-header-money :is(i, b) { font-size: 15px; }
+  body #farmPage .farm-header-money strong,
+  body #farmPage .farm-wallet strong { font-size: 18px; }
+  body #farmPage .open-permanent-market span { font-size: 24px; }
+  body #farmPage .open-permanent-market small { font-size: 14px; line-height: 1.5; }
+  body #farmPage .market-category-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body #farmPage :is(.market-category-tabs, .rachel-tabs) button {
+    min-height: 44px;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  body #farmPage .market-section-title { font-size: 20px; }
+  body #farmPage .npc-panel > .market-section-title small { font-size: 13px; }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) strong {
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) small,
+  body #farmPage :is(.rachel-status, .rachel-equipped-badge, .farm-protection-status) {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) button:not(.rachel-preview-button) {
+    min-height: 40px;
+    font-size: 16px;
+  }
+  body #farmPage .farm-scene .crop-info :is(strong, small) { font-size: 15px; }
+  body #farmPage .farm-scene .crop-wilt-countdown { font-size: 13px; }
+  body #farmPage .farm-scene .crop-plot > button,
+  body #farmPage .farm-scene .plot-growth-actions button {
+    min-height: 36px;
+    font-size: 15px;
+  }
 }
 
 /* Keep task cards dense and consistent at every browser zoom level. */
@@ -997,8 +1104,8 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
   min-height: 34px !important;
 }
 
-/* Counter oversized controls and type when a desktop browser is zoomed in. */
-@media (max-width: 1600px) and (hover: hover) and (pointer: fine) {
+/* Keep the compact layout only for narrow desktop windows. */
+@media (max-width: 700px) and (hover: hover) and (pointer: fine) {
   body :is(#todayPage, #tasksPage) .task-card:not(.editing) {
     grid-template-columns: clamp(20px, 2vw, 32px) minmax(0, 1fr) auto !important;
   }
@@ -1022,7 +1129,9 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     font-size: clamp(8px, .8vw, 13px) !important;
   }
   body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions .delete-button::before,
-  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions .delete-button::after {
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions .delete-button::after,
+  body :is(#todayPage, #habitsPage) .habit-actions .habit-delete::before,
+  body :is(#todayPage, #habitsPage) .habit-actions .habit-delete::after {
     width: clamp(7px, .75vw, 12px);
   }
   body :is(#todayPage, #habitsPage) .habit-item {
@@ -1048,6 +1157,50 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     height: clamp(20px, 2.1vw, 34px) !important;
     min-height: clamp(20px, 2.1vw, 34px) !important;
     font-size: clamp(8px, .8vw, 13px) !important;
+  }
+}
+
+@media (min-width: 701px) {
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing),
+  body :is(#todayPage, #habitsPage) .habit-item {
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 8px 12px !important;
+    min-height: 96px !important;
+    padding: 16px !important;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-top h4,
+  body :is(#todayPage, #habitsPage) .habit-copy strong {
+    font-size: 20px !important;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) :is(.task-category, .task-focus-pill, .task-archived-label, .task-completed-date),
+  body :is(#todayPage, #habitsPage) :is(.habit-summary, .habit-focus-button) {
+    font-size: 14px !important;
+    line-height: 1.5;
+  }
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .today-task-check,
+  body :is(#todayPage, #habitsPage) .habit-check,
+  body :is(#todayPage, #tasksPage) .task-card:not(.editing) .task-actions button,
+  body :is(#todayPage, #habitsPage) .habit-actions button {
+    width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+  body :is(#todayPage, #habitsPage) .habit-copy {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+  body :is(#todayPage, #habitsPage) .habit-summary {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  body :is(#todayPage, #habitsPage) .habit-focus-button {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    min-height: 36px;
+    padding: 5px 10px;
   }
 }
 
@@ -1146,14 +1299,17 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
 /* Compact app chrome for tablets and browser-zoomed mobile layouts. */
 @media (max-width: 1100px) {
   body .sidebar {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'brand account' 'menu menu';
     height: auto;
     min-height: 0;
     border-width: 2px;
-    box-shadow: 0 2px 0 var(--pixel-shadow);
+    box-shadow: none;
   }
   body .brand {
     flex: 1 1 auto;
+    grid-area: brand;
     justify-content: flex-start;
     min-width: 0;
     min-height: 36px;
@@ -1163,6 +1319,10 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     font-size: 16px;
   }
   body .brand-mark { width: 23px; height: 24px; }
+  body .nav-account {
+    grid-area: account;
+    justify-self: end;
+  }
   body .brand-mark::after { width: 28px; height: 28px; }
   body .profile-button {
     flex-basis: 36px;
@@ -1180,33 +1340,125 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
   body .main-nav {
     order: 3;
     flex: 0 0 100%;
+    grid-area: menu;
     width: 100%;
-    height: 26px;
-    min-height: 26px;
-    max-height: 26px;
+    height: auto;
+    min-height: 46px;
+    max-height: none;
     box-sizing: border-box;
     border-top: 2px solid var(--pixel-edge);
+    border-bottom: 0;
   }
   body .main-nav > .nav-item,
   body .main-nav > .nav-item:not(.active),
   body .main-nav > .nav-item.active {
-    height: 26px !important;
-    min-height: 26px !important;
-    max-height: 26px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
     padding: 0 3px !important;
     box-sizing: border-box;
     border: 0 !important;
     border-right: 1px solid var(--pixel-edge) !important;
     border-radius: 0;
-    font-size: 9px;
+    font-size: 14px;
     line-height: 1 !important;
     transform: none !important;
   }
   body .main-nav > .nav-item:last-child { border-right: 0 !important; }
+  body .main-nav .nav-label { flex: 0 1 auto; }
 }
 
 /* Unified compact layout for phones and narrow/zoomed browser viewports. */
 @media (max-width: 700px) {
+  body :is(#taskCreateModal, .task-group-dialog),
+  body #habitModal { padding: 10px; }
+  body :is(#taskCreateModal, .task-group-dialog) .task-create-panel,
+  body #habitModal .habit-modal-panel {
+    width: min(340px, 100%);
+    max-height: calc(100dvh - 20px);
+    padding: 10px;
+    border-width: 2px !important;
+    box-shadow: 3px 3px 0 var(--pixel-shadow) !important;
+  }
+  body #habitModal .habit-modal-panel > .modal-scroll-area {
+    padding: 0;
+    max-height: calc(100dvh - 44px);
+    overflow-y: auto;
+  }
+  body :is(#taskCreateModal, .task-group-dialog) .task-create-panel > header,
+  body #habitModal .habit-modal-panel header {
+    min-height: 0;
+    margin-bottom: 10px;
+    padding: 0 0 6px;
+    gap: 8px;
+  }
+  body :is(#taskCreateModal, .task-group-dialog) .task-create-panel > header h2,
+  body #habitModal .habit-modal-panel h2 { font-size: 16px; line-height: 1.4; }
+  body #habitModal .habit-modal-panel header p { margin-top: 3px; font-size: 10px; }
+  body #habitModal .habit-modal-panel .section-kicker { font-size: 9px; }
+  body :is(#taskCreateModal, .task-group-dialog) .task-create-panel > header button,
+  body #habitModal .habit-modal-panel header > button {
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    flex: 0 0 30px;
+  }
+  body #taskCreateModal #taskForm,
+  body #habitModal #habitForm { gap: 8px; }
+  body .group-manager-dialog #groupManager { gap: 10px; }
+  body .group-manager-dialog .group-list { min-height: 34px; gap: 6px; }
+  body .group-manager-dialog .group-chip {
+    min-height: 34px;
+    max-width: 100%;
+    padding: 4px 5px 4px 8px;
+    gap: 6px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  body .group-manager-dialog .group-chip button {
+    flex-basis: 26px;
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+  }
+  body .group-manager-dialog .group-add { gap: 6px; }
+  body .group-manager-dialog .group-add input,
+  body .group-manager-dialog .group-add button {
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  body .task-group-dialog .custom-group-option { min-height: 34px; padding: 6px 8px; font-size: 12px; }
+  body .group-delete-dialog p { margin-bottom: 10px; font-size: 12px; line-height: 1.5; }
+  body .group-delete-dialog .group-delete-actions { gap: 6px; }
+  body .group-delete-dialog .group-delete-actions button { min-height: 34px; padding: 6px 8px; font-size: 12px; }
+  body #taskCreateModal #taskInput {
+    min-height: 48px;
+    max-height: 96px;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  body #taskCreateModal #taskInput::placeholder { font-size: 12px; }
+  body #taskCreateModal :is(#taskGroupTrigger, #toggleGroupManager) {
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  body #taskCreateModal .task-modal-focus-row { min-height: 32px; gap: 6px; font-size: 11px; }
+  body #taskCreateModal #taskFocusMinutesInput { width: 64px; min-height: 30px; font-size: 12px; }
+  body #taskCreateModal #taskForm > button[type="submit"],
+  body #habitModal #habitForm .habit-submit { min-height: 34px; padding: 6px 10px; font-size: 13px; }
+  body #habitModal #habitInput { min-height: 34px; padding: 6px 8px; font-size: 12px; }
+  body #habitModal #habitForm :is(.weekday-field legend, .habit-date-row label) { font-size: 11px; }
+  body #habitModal #habitForm .weekday-field > div { gap: 4px; }
+  body #habitModal #habitForm .weekday-field span { height: 30px; font-size: 11px; }
+  body #habitModal #habitForm .habit-date-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  body #habitModal #habitForm :is(.habit-date-row input, .themed-date-trigger) {
+    min-height: 32px;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
   body .app-shell { padding: 6px; }
   body .main-content { padding: 8px 0 18px; }
   body .page-view :is(.topbar, .page-header) { margin-bottom: 8px; }
@@ -1217,7 +1469,7 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     height: auto;
     min-height: 0;
     border-width: 2px;
-    box-shadow: 0 2px 0 var(--pixel-shadow);
+    box-shadow: none;
   }
   body .brand {
     min-width: 0;
@@ -1242,21 +1494,35 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     width: 25px;
     height: 25px;
   }
+  body .nav-wallet {
+    gap: 3px;
+    margin: 2px 4px 2px 0;
+    padding-left: 4px;
+    border-left-width: 1px;
+  }
+  body .nav-balance {
+    min-height: 27px;
+    padding: 2px 4px;
+    border-width: 1px;
+    box-shadow: 1px 1px 0 var(--pixel-shadow);
+  }
+  body .nav-balance strong { font-size: 10px; }
+  body .nav-balance .pixel-coin { font-size: 14px; }
   body .main-nav {
-    height: 24px;
-    min-height: 24px;
-    max-height: 24px;
+    height: auto;
+    min-height: 46px;
+    max-height: none;
     border-top: 2px solid var(--pixel-edge);
   }
   body .main-nav > .nav-item,
   body .main-nav > .nav-item:not(.active),
   body .main-nav > .nav-item.active {
-    height: 24px !important;
-    min-height: 24px !important;
-    max-height: 24px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
     padding: 0 2px !important;
     border-width: 0 1px 0 0 !important;
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1 !important;
   }
 
@@ -1283,7 +1549,7 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
   body .welcome-grow .pixel-sprout { width: 30px; height: 30px; }
 
   body #summaryGrid {
-    grid-template-columns: minmax(0, 1fr) 58px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 3px 0;
     min-height: 0;
     margin-bottom: 8px;

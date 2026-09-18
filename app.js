@@ -3939,7 +3939,7 @@ function isWiltProtectionActive() {
 
 function updateFarmItemEffects() {
   document
-    .querySelector("#todayCoinDisplay")
+    .querySelector(".nav-coin")
     ?.classList.toggle("golden-festival-active", isProductionBoostActive());
   const protectionStatus = document.querySelector("#farmProtectionStatus");
   if (protectionStatus) protectionStatus.hidden = !isWiltProtectionActive();
@@ -5440,13 +5440,11 @@ function renderFarm() {
   const shop = document.querySelector("#seedShop");
   const grid = document.querySelector("#farmGrid");
   const farmBalance = document.querySelector("#farmCoinBalance");
-  const farmHeaderBalance = document.querySelector("#farmHeaderCoinBalance");
   const harvestInventory = document.querySelector("#harvestInventory");
   const noahBuyList = document.querySelector("#noahBuyList");
   const noahCropBundleList = document.querySelector("#noahCropBundleList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
   const modalFarmMoney = document.querySelector("#modalFarmMoneyBalance");
-  const topFarmMoney = document.querySelector("#farmMoneyBalance");
   const farmItemShop = document.querySelector("#farmItemShop");
   const farmItemInventory = document.querySelector("#farmItemInventory");
   const foodInventory = document.querySelector("#foodInventory");
@@ -5462,13 +5460,11 @@ function renderFarm() {
     !shop ||
     !grid ||
     !farmBalance ||
-    !farmHeaderBalance ||
     !harvestInventory ||
     !noahBuyList ||
     !noahCropBundleList ||
     !marketFarmMoney ||
     !modalFarmMoney ||
-    !topFarmMoney ||
     !farmItemShop ||
     !farmItemInventory ||
     !foodInventory ||
@@ -5487,12 +5483,9 @@ function renderFarm() {
   renderRachelPanel();
   ensureWeeklyFarmRanking();
   farmBalance.textContent = state.coins;
-  farmHeaderBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
   modalFarmMoney.textContent = state.farmMoney;
-  topFarmMoney.textContent = state.farmMoney;
-  farmBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
-  farmHeaderBalance.closest(".farm-wallet").classList.toggle("negative", state.coins < 0);
+  farmBalance.closest(".nav-balance").classList.toggle("negative", state.coins < 0);
   harvestStorageCount.textContent = Object.values(state.harvestInventory).reduce(
     (total, count) => total + count,
     0,
@@ -5897,8 +5890,8 @@ function renderSummary() {
   const progressScore = todoDone + habitProgress;
   const percent = total ? Math.round((progressScore / total) * 100) : 0;
 
-  document.querySelector("#coinBalance").textContent = state.coins;
-  document.querySelector(".currency.coin").classList.toggle("negative", state.coins < 0);
+  document.querySelector("#farmCoinBalance").textContent = state.coins;
+  document.querySelector(".nav-coin").classList.toggle("negative", state.coins < 0);
   document.querySelector("#completedCount").textContent = completed;
   document.querySelector("#progressPercent").textContent = `${percent}%`;
   document.querySelector("#progressBar").style.width = `${percent}%`;
