@@ -1645,6 +1645,8 @@ const taskFormSubmit = document.querySelector("#taskFormSubmit");
 const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
+const habitFocusMinutes = document.querySelector("#habitFocusMinutes");
+const habitFocusEnabled = document.querySelector("#habitFocusEnabled");
 const habitModal = document.querySelector("#habitModal");
 const habitModalKicker = habitModal.querySelector(".section-kicker");
 const habitModalTitle = document.querySelector("#habitModalTitle");
@@ -2687,6 +2689,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
     seconds,
     phase: value?.phase === "break" ? "break" : "focus",
     started: Boolean(value?.started),
+    countdown: Boolean(value?.countdown),
     overtime: Boolean(value?.overtime),
     overtimeSeconds: Math.max(0, Math.floor(Number(value?.overtimeSeconds) || 0)),
     sessionMinutes: Math.max(
@@ -2748,7 +2751,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       ? Math.max(0, Math.floor((Date.now() - syncedAt) / 1000))
       : 0;
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
-    const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus);
+    const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
     const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
     const appliedSeconds = isLinkedStopwatch || quickFocus
       ? elapsedSeconds
@@ -2772,12 +2775,8 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       } else if (item && activeFocus?.type === "habit") {
         const today = toLocalDateString();
         const previousFocusSeconds = getHabitDailyFocusSeconds(item, today);
-        const targetSeconds = Math.max(0, getHabitTargetForDate(item) * 60);
         item.focusSecondsByDate ??= {};
-        item.focusSecondsByDate[today] = Math.min(
-          targetSeconds,
-          previousFocusSeconds + appliedSeconds,
-        );
+        item.focusSecondsByDate[today] = previousFocusSeconds + appliedSeconds;
         recoveredFocusSeconds = item.focusSecondsByDate[today] - previousFocusSeconds;
       } else {
         recoveredFocusSeconds = appliedSeconds;
@@ -3031,10 +3030,10 @@ function serializeTaskDatabaseState() {
     habits: state.habits.map((habit, sortOrder) => ({
       id: habit.id,
       title: habit.title,
-      measure_type: "amount",
-      target_value: 1,
-      target_by_weekday: {},
-      unit: "완료",
+      measure_type: habit.measureType ?? "amount",
+      target_value: habit.targetValue ?? 1,
+      target_by_weekday: habit.targetByWeekday ?? {},
+      unit: habit.unit ?? "완료",
       weekdays: habit.weekdays,
       start_date: habit.startDate || null,
       end_date: habit.endDate || null,
@@ -3535,14 +3534,26 @@ function getLinkedFocusSeconds(item = getFocusItem()) {
   return getHabitDailyFocusSeconds(item);
 }
 
+function getHabitFocusMinutes(habit, dateString = toLocalDateString()) {
+  if (habit?.measureType !== "time") return 0;
+  const weekday = dateString ? new Date(`${dateString}T12:00:00`).getDay() || 7 : null;
+  const defaultMinutes = habit?.measureType === "time" ? habit.targetValue : habit?.focusMinutes;
+  const weekdayMinutes = habit?.measureType === "time" && weekday ? habit.targetByWeekday?.[weekday] : null;
+  return Math.min(9999, Math.max(1, Math.floor(Number(weekdayMinutes ?? defaultMinutes) || 25)));
+}
+
 function prepareLinkedFocusRuntime(item = getFocusItem()) {
+  const countdown = Boolean(item && activeFocus?.type === "habit");
+  const sessionMinutes = countdown ? getHabitFocusMinutes(item) : undefined;
   const hasProgress = item
     ? activeFocus?.type === "task"
       ? Number(item.focusSeconds) > 0
       : getHabitDailyFocusSeconds(item) > 0
     : false;
   focusRuntimeByMode.linked = {
-    seconds: getLinkedFocusSeconds(item),
+    seconds: countdown ? Math.max(0, sessionMinutes * 60 - getHabitDailyFocusSeconds(item)) : getLinkedFocusSeconds(item),
+    countdown,
+    sessionMinutes,
     phase: "focus",
     started: hasProgress,
   };
@@ -4395,7 +4406,7 @@ function renderHabits() {
         >✓</button>
       `;
       const focusAction =
-        !isPast && !completeToday
+        !isPast && !completeToday && getHabitFocusMinutes(habit) > 0
           ? `<button
               class="habit-focus-button ${activeFocus?.type === "habit" && activeFocus.id === habit.id ? "active" : ""}"
               type="button"
@@ -4415,7 +4426,7 @@ function renderHabits() {
           <span class="habit-copy">
             <strong>${escapeHtml(habit.title)}</strong>
             <small class="habit-summary">
-              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? "완료" : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))} <span data-habit-focus-time data-focus-date="${dateString}">· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
+              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? "완료" : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${getHabitFocusMinutes(habit, dateString) > 0 ? ` · 목표 ${getHabitFocusMinutes(habit, dateString)}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
             </small>
             ${focusAction}
           </span>
@@ -4617,7 +4628,7 @@ function getFreePassTargets() {
       label: `할 일 · ${task.title}`,
     }));
   const habits = state.habits
-    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
+    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit) && getHabitFocusMinutes(habit) > 0)
     .map((habit) => ({
       value: `habit:${habit.id}`,
       type: "habit",
@@ -6304,11 +6315,11 @@ function updateFocusDisplay() {
   const seconds = String(displaySeconds % 60).padStart(2, "0");
   const settings = getFocusSettings();
   const item = focusMode === "linked" ? getFocusItem() : null;
-  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus);
+  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
   const totalSeconds = Math.max(
     1,
     focusMode === "linked" && activeFocus?.type === "habit" && item
-      ? getHabitTargetForDate(item) * 60
+      ? (runtime.sessionMinutes ?? getHabitFocusMinutes(item)) * 60
       : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
   const remainingRatio = isLinkedStopwatch || inOvertime
@@ -6534,8 +6545,10 @@ function updateFocusTarget() {
 
   focusButton.disabled = false;
   target.textContent = item.title;
-  description.textContent = "";
-  description.hidden = true;
+  description.textContent = activeFocus?.type === "habit"
+    ? `오늘 목표 ${focusRuntimeByMode.linked.sessionMinutes ?? getHabitFocusMinutes(item)}분 · 남은 시간만큼 집중해`
+    : "";
+  description.hidden = !description.textContent;
   fitFocusTargetText();
 }
 
@@ -6850,7 +6863,9 @@ function notifyFocusPhaseComplete(kind) {
   // or a still-alive background tab), so the in-app banner below already
   // told the user -- no need for the scheduled push to also fire later.
   cancelFarmPushNotification("timer_end", "");
-  if (kind === "focus") {
+  if (kind === "habit") {
+    showFocusAlertBanner("습관 목표 시간을 채웠어", "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아.");
+  } else if (kind === "focus") {
     showFocusAlertBanner(
       "집중 시간이 끝났어",
       "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘.",
@@ -6874,10 +6889,8 @@ function advanceRunningFocusTimer(mode) {
   focusLastTickAt += elapsedSeconds * 1000;
 
   const item = mode === "linked" ? getFocusItem() : null;
-  const isLinkedStopwatch = mode === "linked" && Boolean(activeFocus);
-  // Quick-mode focus that already hit zero keeps counting up (overtime)
-  // instead of auto-finishing -- the same uncapped behavior as linked
-  // task and habit stopwatches.
+  const isLinkedStopwatch = mode === "linked" && Boolean(activeFocus) && !runtime.countdown;
+  // Quick-mode focus keeps counting overtime; habit countdowns finish at zero.
   const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
   const countsUp = isLinkedStopwatch || isQuickOvertime;
   const remainingSeconds = runtime.seconds;
@@ -6922,7 +6935,10 @@ function advanceRunningFocusTimer(mode) {
   }
 
   if (ownsTimer && !isLinkedStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
-    if (runtime.phase === "focus") finishFocusRuntime(mode);
+    if (runtime.phase === "focus") {
+      finishFocusRuntime(mode);
+      if (mode === "linked") notifyFocusPhaseComplete("habit");
+    }
     else finishBreakRuntime(mode);
     return { advanced: true, finished: true };
   }
@@ -7160,9 +7176,8 @@ function toggleFocus() {
 
   updateFocusActionButton();
 
-  // Linked task and habit sessions count up with no target duration, so
-  // only quick focus/break countdowns have a real notification end time.
-  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus);
+  // Habit countdowns and quick sessions have a notification end time.
+  const isLinkedStopwatch = focusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
   if (!isLinkedStopwatch) {
     scheduleFarmPushNotification(
       "timer_end",
@@ -7226,6 +7241,7 @@ function startItemFocus(type, id) {
   const collection = type === "task" ? state.tasks : state.habits;
   const item = collection.find((entry) => entry.id === id);
   if (!item) return;
+  if (type === "habit" && !getHabitFocusMinutes(item)) return;
   if (type === "task" && item.status === "done") {
     showToast("이미 완료한 할 일이야");
     return;
@@ -7266,7 +7282,7 @@ document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("ko-
   weekday: "long",
 }).format(new Date());
 
-const THEMED_DATE_WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const THEMED_DATE_WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 let themedDateCalendar = null;
 let activeThemedDateInput = null;
 let themedDateView = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 12);
@@ -7354,9 +7370,9 @@ function renderThemedDateCalendar() {
   const selectedValue = activeThemedDateInput.value;
   const todayValue = toLocalDateString();
   const firstDay = new Date(themedDateView.getFullYear(), themedDateView.getMonth(), 1, 12);
-  const mondayOffset = (firstDay.getDay() + 6) % 7;
+  const sundayOffset = firstDay.getDay();
   const gridStart = new Date(firstDay);
-  gridStart.setDate(firstDay.getDate() - mondayOffset);
+  gridStart.setDate(firstDay.getDate() - sundayOffset);
   const dayButtons = Array.from({ length: 42 }, (_, index) => {
     const date = new Date(gridStart);
     date.setDate(gridStart.getDate() + index);
@@ -7540,6 +7556,8 @@ function resetHabitForm() {
 function openHabitModal(habit = null) {
   habitStartDate.max = toLocalDateString();
   editingHabitId = habit?.id ?? null;
+  habitFocusEnabled.checked = habit?.measureType === "time";
+  habitFocusMinutes.value = String(getHabitFocusMinutes(habit, null) || 25);
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
     habitModalTitle.textContent = "습관 수정";
@@ -7561,11 +7579,31 @@ function openHabitModal(habit = null) {
     resetHabitForm();
   }
 
+  document.querySelector("#habitFocusWeekdays").innerHTML = ["월", "화", "수", "목", "금", "토", "일"].map((day, index) => {
+    const weekday = index + 1;
+    const value = habit?.measureType === "time" ? habit.targetByWeekday?.[weekday] : null;
+    return `<label><span>${day}요일 (분)</span><input type="number" data-habit-focus-weekday="${weekday}" min="1" max="9999" step="1" value="${value == null ? "" : Math.min(9999, Math.max(1, Math.floor(Number(value) || 25)))}" /></label>`;
+  }).join("");
+  updateHabitFocusWeekdayInputs();
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
   habitForm.classList.remove("hidden");
   window.setTimeout(() => habitInput.focus(), 0);
 }
+
+function updateHabitFocusWeekdayInputs() {
+  document.querySelector("#habitFocusSettings").hidden = !habitFocusEnabled.checked;
+  habitFocusMinutes.disabled = !habitFocusEnabled.checked;
+  document.querySelectorAll("[data-habit-focus-weekday]").forEach((input) => {
+    input.disabled = !habitFocusEnabled.checked || !habitForm.querySelector(`[name="habitWeekday"][value="${input.dataset.habitFocusWeekday}"]`).checked;
+    input.placeholder = `기본 ${habitFocusMinutes.value || 25}`;
+  });
+}
+
+habitForm.addEventListener("change", (event) => {
+  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitFocusWeekdayInputs();
+});
+habitFocusMinutes.addEventListener("input", updateHabitFocusWeekdayInputs);
 
 function openHabitDeleteModal(habit) {
   pendingHabitDeleteId = habit.id;
@@ -7881,6 +7919,22 @@ habitForm.addEventListener("submit", (event) => {
     return;
   }
   const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
+  const focusMinutes = Number(habitFocusMinutes.value);
+  if (habitFocusEnabled.checked && (habitFocusMinutes.value === "" || !Number.isInteger(focusMinutes) || focusMinutes < 1 || focusMinutes > 9999)) {
+    showToast("목표 집중 시간은 1~9999분 사이의 정수로 입력해");
+    return;
+  }
+  const targetByWeekday = {};
+  for (const input of habitForm.querySelectorAll("[data-habit-focus-weekday]")) {
+    if (!habitFocusEnabled.checked) break;
+    if (input.value === "") continue;
+    const minutes = Number(input.value);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 9999) {
+      showToast("요일별 목표 집중 시간은 1~9999분 사이의 정수로 입력해");
+      return;
+    }
+    targetByWeekday[input.dataset.habitFocusWeekday] = minutes;
+  }
   const startDate = habitStartDate.value;
   if (!startDate || startDate > toLocalDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
     showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
@@ -7889,10 +7943,10 @@ habitForm.addEventListener("submit", (event) => {
   if (editingHabit) {
     Object.assign(editingHabit, {
       title,
-      measureType: "amount",
-      targetValue: 1,
-      targetByWeekday: {},
-      unit: "완료",
+      measureType: habitFocusEnabled.checked ? "time" : "amount",
+      targetValue: habitFocusEnabled.checked ? focusMinutes : 1,
+      targetByWeekday,
+      unit: habitFocusEnabled.checked ? "분" : "완료",
       weekdays,
       endDate: habitEndDate.value,
       startDate,
@@ -7907,16 +7961,19 @@ habitForm.addEventListener("submit", (event) => {
       progressByDate: {},
       focusSecondsByDate: {},
       recordMetaByDate: {},
-      measureType: "amount",
-      targetValue: 1,
-      targetByWeekday: {},
-      unit: "완료",
+      measureType: habitFocusEnabled.checked ? "time" : "amount",
+      targetValue: habitFocusEnabled.checked ? focusMinutes : 1,
+      targetByWeekday,
+      unit: habitFocusEnabled.checked ? "분" : "완료",
       weekdays,
       startDate,
       endDate: habitEndDate.value,
     });
   }
   const wasEditing = Boolean(editingHabit);
+  if (editingHabit && !habitFocusEnabled.checked && activeFocus?.type === "habit" && activeFocus.id === editingHabit.id) {
+    endFocusSession("linked");
+  }
   closeHabitModal();
   render();
   scheduleTaskDatabaseSync(0);

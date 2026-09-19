@@ -54,7 +54,7 @@ test("past habit card displays binary completion, schedule and focus", () => {
   const elements = new Map();
   const ctx = context([
     "renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitTargetForDate",
-    "getHabitProgress", "getHabitProgressRatio", "getHabitStreak", "getHabitDailyFocusSeconds",
+    "getHabitProgress", "getHabitProgressRatio", "getHabitStreak", "getHabitDailyFocusSeconds", "getHabitFocusMinutes",
   ], {
     currentPage: "habits", selectedHabitDate: "2026-09-09", habitRecordSaving: false,
     activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "매일",
@@ -208,6 +208,7 @@ function timerContext(owner = false, mode = "quick") {
     updateMiniFocusTimer: noop, updateFocusActionButton: noop,
     renderFocusPicker: noop, updateFocusTarget: noop, renderSummary: noop,
     clearInterval: noop, startFocusTickInterval: noop,
+    closeFocusSettings: noop,
     scheduleTaskDatabaseSync: noop, scheduleFocusTimerDatabaseSync: noop,
     flushFocusTime: noop,
     focusSettingsButton: {}, focusSettings: { classList: { add: noop } },
@@ -262,7 +263,19 @@ test("task stopwatch runs on a follower even before task data arrives", () => {
   assert.equal(ctx.rewarded, 0);
 });
 
-test("binary habit focus remains linked and accumulates as a stopwatch", () => {
+test("habit focus uses saved weekday minutes with a default fallback, separate from completion", () => {
+  const ctx = context(["getHabitFocusMinutes", "getHabitTargetForDate"], { toLocalDateString: () => "2026-09-14" });
+  const habit = { measureType: "time", targetValue: 25, targetByWeekday: { 1: 40, 3: 15, 7: 60 } };
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-14"), 40);
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-15"), 25);
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-16"), 15);
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-20"), 60);
+  assert.equal(ctx.getHabitFocusMinutes(habit, null), 25);
+  assert.equal(ctx.getHabitTargetForDate(habit, "2026-09-14"), 1);
+  assert.equal(ctx.getHabitFocusMinutes({ measureType: "count", targetValue: 3, targetByWeekday: { 1: 5 } }), 0);
+});
+
+test("existing habit stopwatch sessions can finish without changing timer direction", () => {
   const habit = { id: "habit", focusSecondsByDate: { "2026-09-13": 30 } };
   const ctx = timerContext(true, "linked");
   ctx.activeFocus = { type: "habit", id: "habit" };
@@ -272,6 +285,49 @@ test("binary habit focus remains linked and accumulates as a stopwatch", () => {
   assert.equal(ctx.focusRuntimeByMode.linked.seconds, 45);
   assert.equal(habit.focusSecondsByDate["2026-09-13"], 55);
   assert.equal(ctx.rewarded, 25);
+});
+
+test("habit countdown stops at its target and records only the remaining seconds", () => {
+  const habit = { id: "habit", focusSecondsByDate: { "2026-09-13": 30 } };
+  const ctx = timerContext(true, "linked");
+  ctx.activeFocus = { type: "habit", id: "habit" };
+  ctx.getFocusItem = () => habit;
+  ctx.focusRuntimeByMode.linked = { seconds: 30, countdown: true, sessionMinutes: 1, phase: "focus", started: true };
+  let completed = 0;
+  ctx.finishFocusRuntime = (mode) => { assert.equal(mode, "linked"); completed++; };
+  ctx.elapse(45);
+  assert.equal(ctx.advanceRunningFocusTimer("linked").finished, true);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 0);
+  assert.equal(habit.focusSecondsByDate["2026-09-13"], 60);
+  assert.equal(ctx.rewarded, 30);
+  assert.equal(completed, 1);
+  assert.equal(ctx.alarms, 1);
+});
+
+test("habit countdown is preserved on another device without recording duplicate focus", () => {
+  const ctx = timerContext(false, "linked");
+  ctx.activeFocus = { type: "habit", id: "habit" };
+  ctx.focusRuntimeByMode.linked = { seconds: 120, countdown: true, sessionMinutes: 5, phase: "focus", started: true };
+  const payload = ctx.getFocusTimerDatabasePayload();
+  ctx.elapse(45);
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.focusRuntimeByMode.linked.countdown, true);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 75);
+  assert.equal(ctx.rewarded, 0);
+});
+
+test("reopening a habit countdown recovers elapsed focus without the old one-minute cap", () => {
+  const habit = { id: "habit", focusSecondsByDate: { "2026-09-13": 120 } };
+  const ctx = timerContext(true, "linked");
+  ctx.activeFocus = { type: "habit", id: "habit" };
+  ctx.getFocusItem = () => habit;
+  ctx.focusRuntimeByMode.linked = { seconds: 180, countdown: true, sessionMinutes: 5, phase: "focus", started: true };
+  const payload = ctx.getFocusTimerDatabasePayload();
+  ctx.elapse(60);
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 120);
+  assert.equal(habit.focusSecondsByDate["2026-09-13"], 180);
+  assert.equal(ctx.rewarded, 60);
 });
 
 test("saving while suspended retains the time corresponding to the saved seconds", () => {

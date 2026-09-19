@@ -8210,6 +8210,70 @@ input.themed-date-native {
   font-size: 13px;
 }
 
+.habit-focus-weekday-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.habit-focus-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+body #habitForm #habitFocusEnabled {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+}
+
+#habitFocusSettings:not([hidden]) {
+  display: grid;
+  gap: 14px;
+}
+
+#habitFocusSettings[hidden] { display: none; }
+
+.habit-focus-weekday-field legend {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.habit-focus-weekday-field p {
+  margin: 6px 0 10px;
+  font-size: 12px;
+}
+
+.habit-focus-weekdays {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.habit-focus-weekdays label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.habit-focus-weekdays input {
+  width: 100%;
+  min-width: 0;
+}
+
+.habit-focus-weekdays input:disabled {
+  opacity: 0.45;
+}
+
+@media (max-width: 480px) {
+  .habit-focus-weekdays { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .toast {
   position: fixed;
   top: 22px;

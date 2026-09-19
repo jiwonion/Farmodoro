@@ -34,10 +34,10 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=182" />
+    <link rel="stylesheet" href="./styles.css?v=253" />
     <link rel="stylesheet" href="./pixel-theme.css?v=191" />
     <link rel="stylesheet" href="./farm-pixel.css?v=233" />
-    <link rel="stylesheet" href="./pixel-layout.css?v=262" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=264" />
     <link rel="stylesheet" href="./farm-theme.css?v=254" />
   </head>
   <body class="auth-gated">
@@ -461,6 +461,20 @@
                   <span>종료일</span>
                   <input id="habitEndDate" type="date" />
                 </label>
+              </div>
+              <label class="habit-focus-toggle"><input id="habitFocusEnabled" type="checkbox" /> 목표 집중 시간 사용</label>
+              <div id="habitFocusSettings" hidden>
+              <div class="habit-date-row">
+                <label for="habitFocusMinutes">
+                  <span>기본 목표 집중 시간 (분)</span>
+                  <input id="habitFocusMinutes" type="number" min="1" max="9999" step="1" value="25" required />
+                </label>
+              </div>
+              <fieldset class="habit-focus-weekday-field">
+                <legend>요일별 목표 집중 시간</legend>
+                <p>비워두면 기본 시간을 사용해요. 반복하는 요일만 입력할 수 있어요.</p>
+                <div class="habit-focus-weekdays" id="habitFocusWeekdays"></div>
+              </fieldset>
               </div>
               <button class="primary-button compact habit-submit" type="submit">습관 추가</button>
                   </form>
@@ -1186,7 +1200,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=262"></script>
+    <script src="./app.js?v=263"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

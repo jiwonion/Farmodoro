@@ -1935,3 +1935,47 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     font-size: 9px;
   }
 }
+
+/* Keep all nine farm plots square at every viewport size. */
+body #farmPage .farm-scene,
+body #farmPage[data-farm-theme] .farm-scene,
+body #farmPage .farm-scene-grid {
+  height: auto;
+  min-height: 0;
+}
+body #farmPage .farm-scene .farm-grid {
+  height: auto;
+  aspect-ratio: 1;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  container-type: inline-size;
+}
+body #farmPage .farm-scene .farm-plot {
+  min-height: 0;
+  height: 100%;
+  aspect-ratio: 1;
+}
+@media (max-width: 700px) {
+  body #farmPage .farm-scene .crop-plot {
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    gap: 1px;
+    padding: 2px;
+  }
+  body #farmPage .farm-scene .crop-visual { min-height: 0; }
+  body #farmPage .farm-scene .crop-visual .crop-pixel {
+    width: clamp(18px, 10cqw, 38px);
+    height: clamp(18px, 10cqw, 38px);
+  }
+  body #farmPage .farm-scene .crop-info strong,
+  body #farmPage .farm-scene .crop-info small,
+  body #farmPage .farm-scene .crop-wilt-countdown {
+    font-size: 7px;
+    line-height: 1.2;
+    padding: 0 1px;
+  }
+  body #farmPage .farm-scene .crop-plot > button,
+  body #farmPage .farm-scene .plot-growth-actions button {
+    min-height: 16px;
+    padding: 0 2px;
+    font-size: 7px;
+  }
+}

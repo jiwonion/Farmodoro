@@ -70,6 +70,103 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     expression: 'document.querySelectorAll("#tutorialModal, #reopenTutorial, .tutorial-settings-section").length',
   });
   assert.equal(tutorialElements.result.value, 0, "tutorial UI must stay removed");
+  const habitFocusEditing = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+    taskDataHydrated = true;
+    showPage('habits');
+    openHabitModal();
+    if (habitFocusEnabled.checked) throw Error('New habits should not require a timer');
+    habitInput.value = '지각 안 하기';
+    habitForm.requestSubmit();
+    const untimed = state.habits.at(-1);
+    if (untimed.measureType !== 'amount' || getHabitFocusMinutes(untimed) !== 0) throw Error('Untimed habit not saved');
+    if (document.querySelector('[data-focus-habit="' + untimed.id + '"]')) throw Error('Untimed habit has a focus button');
+    const untimedSnapshot = JSON.parse(serializeTaskDatabaseState());
+    const untimedRow = untimedSnapshot.habits.find(row => row.id === untimed.id);
+    openHabitModal(mapDatabaseHabit(untimedRow, []));
+    if (habitFocusEnabled.checked || !habitFocusMinutes.disabled) throw Error('Untimed setting not restored');
+    closeHabitModal();
+    openHabitModal();
+    habitFocusEnabled.click();
+    habitInput.value = '목표 집중 시간';
+    habitFocusMinutes.value = '45';
+    habitForm.requestSubmit();
+    const habit = state.habits.at(-1);
+    const today = toLocalDateString();
+    if (habit.targetValue !== 45 || habit.measureType !== 'time' || getHabitDailyFocusSeconds(habit) !== 0) throw Error('Target must not create focus records');
+    habit.focusSecondsByDate[today] = 617;
+    openHabitModal(habit);
+    if (habitFocusMinutes.value !== '45') throw Error('Target not restored');
+    habitFocusMinutes.value = '30';
+    const weekday = new Date().getDay() || 7;
+    const dayInput = habitForm.querySelector('[data-habit-focus-weekday="' + weekday + '"]');
+    dayInput.value = '40';
+    habitForm.requestSubmit();
+    if (getHabitDailyFocusSeconds(habit) !== 617) throw Error('Target edit changed focus history');
+    const snapshot = JSON.parse(serializeTaskDatabaseState());
+    const row = snapshot.habits.find(row => row.id === habit.id);
+    if (row.target_value !== 30 || row.target_by_weekday[weekday] !== 40 || row.measure_type !== 'time' || 'focus_minutes' in row) throw Error('Targets must use existing database columns');
+    const restored = mapDatabaseHabit(row, snapshot.habitRecords.filter(row => row.habit_id === habit.id));
+    if (getHabitFocusMinutes(restored) !== 40 || getHabitFocusMinutes(restored, null) !== 30 || getHabitDailyFocusSeconds(restored) !== 617) throw Error('Database round trip');
+    openHabitModal(restored);
+    if (habitForm.querySelector('[data-habit-focus-weekday="' + weekday + '"]').value !== '40') throw Error('Weekday target not restored');
+    const otherDay = weekday === 7 ? 1 : weekday + 1;
+    const checkbox = habitForm.querySelector('[name="habitWeekday"][value="' + otherDay + '"]');
+    checkbox.click();
+    if (!habitForm.querySelector('[data-habit-focus-weekday="' + otherDay + '"]').disabled) throw Error('Off-day input should be disabled');
+    checkbox.click();
+    closeHabitModal();
+    startItemFocus('habit', habit.id);
+    if (!focusRuntimeByMode.linked.countdown || focusSeconds !== 1783 || runningFocusMode !== 'linked') throw Error('Countdown did not start with weekday target');
+    toggleFocus();
+    const paused = focusSeconds;
+    toggleFocus();
+    if (focusSeconds !== paused) throw Error('Resume reset countdown');
+    const originalConfirm = confirmHabitCompletionWithServer;
+    confirmHabitCompletionWithServer = () => {};
+    farmWalletHydrated = true;
+    try {
+      focusLastTickAt = Date.now() - (paused + 10) * 1000;
+      advanceRunningFocusTimer('linked');
+      if (runningFocusMode !== null || activeFocus !== null || !isHabitCompleteToday(habit)) throw Error('Target did not complete habit');
+      if (getHabitDailyFocusSeconds(habit) !== 2400) throw Error('Countdown exceeded target');
+    } finally {
+      confirmHabitCompletionWithServer = originalConfirm;
+      farmWalletHydrated = false;
+      hideFocusAlertBanner();
+    }
+    return true;
+  })()` });
+  if (habitFocusEditing.exceptionDetails) throw Error(habitFocusEditing.exceptionDetails.text + ': ' + habitFocusEditing.exceptionDetails.exception?.description);
+  assert.equal(habitFocusEditing.result.value, true);
+  console.log('Habit weekday target persistence, countdown and resume PASS');
+  for (const width of [1440, 390, 320]) {
+    await call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
+    const layout = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+      openHabitModal(state.habits.at(-1));
+      const form = habitForm.getBoundingClientRect();
+      const inputs = [...habitForm.querySelectorAll('[data-habit-focus-weekday]')];
+      const fits = inputs.length === 7 && inputs.every(input => {
+        const r = input.getBoundingClientRect();
+        return r.width > 0 && r.left >= form.left && r.right <= form.right + 1;
+      });
+      closeHabitModal();
+      return fits && document.documentElement.scrollWidth <= innerWidth;
+    })()` });
+    assert.equal(layout.result.value, true, 'Weekday inputs fit at ' + width + 'px');
+  }
+  const disableFocus = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+    const habit = state.habits.at(-1);
+    const recorded = getHabitDailyFocusSeconds(habit);
+    openHabitModal(habit);
+    habitFocusEnabled.click();
+    habitFocusMinutes.value = '';
+    habitForm.requestSubmit();
+    return habit.measureType === 'amount' && getHabitFocusMinutes(habit) === 0 &&
+      getHabitDailyFocusSeconds(habit) === recorded && isHabitCompleteToday(habit);
+  })()` });
+  assert.equal(disableFocus.result.value, true, 'Disabling focus preserves history and completion');
+  await call('Runtime.evaluate', { expression: 'state.habits = []; taskDataHydrated = false; renderHabits();' });
+  if (process.env.HABIT_FOCUS_ONLY) return;
   for (const width of [1440, 768, 656, 390, 320]) {
     if (process.env.CROP_ATLAS_INSPECT && width === 1440) {
       const atlas = await call('Runtime.evaluate', {awaitPromise:true,returnByValue:true,expression:`(async()=>{
