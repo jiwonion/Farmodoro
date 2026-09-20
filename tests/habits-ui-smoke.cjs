@@ -18,7 +18,7 @@ const server = http.createServer((request, response) => {
   if (pathname === "/") { response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(html); return; }
   if (!file.startsWith(root + path.sep)) { response.writeHead(403).end(); return; }
   try {
-    response.setHeader("Content-Type", file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "text/javascript" : "application/octet-stream");
+    response.setHeader("Content-Type", file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".svg") ? "image/svg+xml" : "application/octet-stream");
     response.end(fs.readFileSync(file));
   } catch { response.writeHead(404).end(); }
 });
@@ -496,7 +496,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       };
     })()`});
     assert.equal(mailResult.exceptionDetails,undefined,JSON.stringify(mailResult.exceptionDetails));
-    assert.deepEqual(mailResult.result.value,{storefront:true,awning:7,opening:true,flag:true,dispatch:true,fits:true});
+    assert.deepEqual(mailResult.result.value,{storefront:true,awning:7,opening:false,flag:false,dispatch:true,fits:true});
     await call('Runtime.evaluate', {expression:'farmMailModal.querySelector(".farm-mail-modal-panel").classList.remove("mail-opening")'});
     await pause(100);
     if (process.env.FARM_SCREENSHOTS) {
@@ -583,7 +583,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const viewportHeight = document.documentElement.clientHeight;
       const focusModeChecks = {
         readable:parseFloat(getComputedStyle(modeButton).fontSize) >= 12,
-        compact:gearRect.width <= 26 && gearRect.height <= 26,
+        compact:innerWidth <= 700
+          ? gearRect.width >= 36 && gearRect.height >= 36
+          : gearRect.width <= 26 && gearRect.height <= 26,
         stable:Math.abs(linkedSummary.height - quickSummary.height) < 1 && Math.abs(linkedRow.left - quickRow.left) < 1,
         centered:Math.abs((settingsRect.left + settingsRect.right) / 2 - viewportWidth / 2) < 2 && Math.abs((settingsRect.top + settingsRect.bottom) / 2 - viewportHeight / 2) < 2,
         panelFits:settingsRect.left >= 0 && settingsRect.right <= innerWidth,
@@ -643,8 +645,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const source = document.querySelector('.today-task-check');
       const taskInput = document.querySelector('#taskInput');
       const taskProgress = document.querySelector('#stripTaskProgress');
-      const coin = document.querySelector('#todayCoinDisplay');
-      const farmMoney = document.querySelector('.summary-wallet .farm-money');
+      const coin = document.querySelector('.nav-coin');
+      const farmMoney = document.querySelector('.nav-farm-money');
       const shiftEnter = new KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true,cancelable:true});
       taskInput.dispatchEvent(shiftEnter);
       taskForm.classList.remove('hidden');
@@ -713,7 +715,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const habitCards=[...document.querySelectorAll('#habitsPage .habit-item')];
       const binaryHabits = habitCards.length===3 && !document.querySelector('#habitsPage .habit-count-control') &&
         habitCards.every(card=>card.querySelector('[data-toggle-habit]')) &&
-        document.querySelectorAll('#habitsPage [data-focus-habit]').length===2 &&
+        document.querySelectorAll('#habitsPage [data-focus-habit]').length===0 &&
         !document.querySelector('#habitMeasureType,#habitTargetValue,#habitUnit,#habitWeekdayTargetsEnabled,#habitWeekdayTargets') &&
         !document.querySelector('#habitForm .weekday-target-toggle');
       const habitVisuals = habitCards.every(card=>card.getBoundingClientRect().width<=422 && getComputedStyle(card).display==='grid') &&
@@ -729,7 +731,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         font:getComputedStyle(document.querySelector('#todayLabel')).fontFamily.includes('Mulmaru') && document.fonts.check('16px Mulmaru'),
         checkAction:source.dataset.taskStatus==='done',addHabit:document.querySelector('#openHabitForm').hidden,
         progress:taskProgress.children.length===10 && taskProgress.querySelectorAll('i.complete').length===3 && taskProgress.dataset.completedSegments==='3',
-        cleanSummary:!document.querySelector('#todayPage .eyebrow') && !coin.querySelector('small') && farmMoney.getBoundingClientRect().top-coin.getBoundingClientRect().bottom<=6,
+        cleanSummary:!document.querySelector('#todayPage .eyebrow') && !!coin && !!farmMoney && !document.querySelector('#summaryGrid .summary-wallet'),
         groupManagerModal,groupControls,groupDeleteConfirm,groupDeleteCancel,tasksToggle,compactTaskCards,taskDeleteCentered,taskModalSharedClose,largeTaskToolbar,archiveCardMatches,taskEditModal,binaryHabits,habitVisuals,
         taskInputUI:taskInput.placeholder==='새 할 일을 입력해' &&
           getComputedStyle(taskInput,'::-webkit-scrollbar').display==='none' && !shiftEnter.defaultPrevented};

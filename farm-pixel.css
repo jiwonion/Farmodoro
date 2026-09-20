@@ -1510,3 +1510,34 @@ body .market-modal-panel.farm-reward-box-panel {
   .cauldron-ingredient,
   .witch-cauldron.mixing { animation: none !important; }
 }
+/* Distinct, static nameplate finishes shared by the shop, farm and rankings. */
+[data-label-effect="goldenSparkle"] { --label-decoration: "♛"; --label-finish: linear-gradient(135deg, #fff8c4, #e9b844 45%, #fff1a6 52%, #e9b844); }
+[data-label-effect="confetti"] { --label-decoration: "✦"; --label-finish: repeating-linear-gradient(125deg, #ffe0ed 0 12px, #d9efff 12px 24px, #fff1af 24px 36px); }
+[data-label-effect="cherryDrift"] { --label-decoration: "✿"; --label-finish: radial-gradient(circle at 12% 20%, #fff5fa 0 4px, transparent 5px), linear-gradient(135deg, #ffe6ef, #efa8c3); }
+[data-label-effect="snowSparkle"] { --label-decoration: "❄"; --label-finish: repeating-linear-gradient(135deg, #effcff 0 9px, #c9e9f7 9px 11px, #e3f4fb 11px 20px); }
+[data-label-effect="rainbowGradient"] { --label-decoration: "◆"; --label-finish: linear-gradient(110deg, #ffd3df, #ffe6a6, #d6edb3, #bce9f6, #e0ccff); }
+[data-label-effect="starAurora"] { --label-decoration: "★"; --label-finish: linear-gradient(120deg, #b8e5e0, #c9c7f1 35%, #d0f4cf 70%, #b6deef); }
+[data-label-effect="heartPop"] { --label-decoration: "♥"; --label-finish: radial-gradient(circle at 15% 25%, #fff0f3 0 5px, transparent 6px), linear-gradient(135deg, #ffd5e3, #f5a6b9); }
+[data-label-effect="flameBorder"] { --label-decoration: "♨"; --label-finish: linear-gradient(0deg, #ffba69, #ffe1a6 45%, #f5c6a8); }
+[data-label-effect="butterflyFlutter"] { --label-decoration: "❧"; --label-finish: repeating-linear-gradient(115deg, #e6efc8 0 15px, #d0e0ad 15px 17px, #f6edc9 17px 32px); }
+[data-label-effect="galaxySparkle"] { --label-decoration: "✧"; --label-finish: radial-gradient(circle at 20% 20%, #eee3ff 0 1px, transparent 2px), radial-gradient(circle at 80% 65%, #b5dbff 0 2px, transparent 3px), linear-gradient(120deg, #343b65, #60467a, #243a60); }
+:is(.label-preview, #farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate)[data-label-effect]:not([data-label-effect=""]) {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  max-width: 100%; min-height: 38px; padding: 7px 10px;
+  background-image: var(--label-finish) !important;
+  border: 4px double var(--label-border); border-radius: 7px;
+  box-shadow: inset 0 0 0 2px #ffffff65, 0 3px 0 var(--label-border);
+  white-space: normal; overflow-wrap: anywhere;
+}
+:is(.label-preview, #farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate)[data-label-effect]:not([data-label-effect=""])::before,
+:is(.label-preview, #farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate)[data-label-effect]:not([data-label-effect=""])::after {
+  content: var(--label-decoration) !important; position: static; flex: 0 0 auto;
+  width: auto; height: auto; color: var(--label-ink); background: none; font-size: 1.15em;
+  animation: none !important; transform: none; text-shadow: 0 1px #ffffff80;
+}
+.label-preview[data-label-effect] { width: 84px; height: 64px; font-size: 11px; gap: 3px; padding: 3px; }
+[data-label-effect="goldenSparkle"]:is(#farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate) { border-width: 5px; border-radius: 2px; }
+[data-label-effect="heartPop"]:is(#farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate) { border-radius: 18px; }
+[data-label-effect="flameBorder"]:is(#farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate) { border-bottom: 5px solid #b95324; }
+[data-label-effect="snowSparkle"]:is(#farmNameLabel, .farm-ranking-farm-name, .cosmetic-preview-nameplate) { border-style: solid; border-color: #96c3dd; }
+#farmRankingMyNameplate { flex-basis: 100%; justify-self: start; }

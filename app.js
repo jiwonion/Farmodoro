@@ -3810,7 +3810,9 @@ function getFarmWeekStart(date = new Date()) {
 }
 
 function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
-  if (farmLeaderboard.length) return farmLeaderboard;
+  if (farmLeaderboard.length) return farmLeaderboard.map((farmer) => farmer.isMe
+    ? { ...farmer, farmName: state.farmName || "내 농장", labelEffect: state.equippedLabelEffect || null }
+    : farmer);
   return [
     {
       farmName: state.farmName || "내 농장",
@@ -4806,6 +4808,9 @@ function renderFarmRanking() {
 
   ensureWeeklyFarmRanking();
   const rankings = getFarmRankings();
+  const myNameplate = document.querySelector("#farmRankingMyNameplate");
+  myNameplate.textContent = state.farmName || "내 농장";
+  myNameplate.dataset.labelEffect = state.equippedLabelEffect || "";
 
   weekLabel.textContent = formatFarmRankingWeek();
   weeklyEarned.textContent = state.weeklyFarmMoneyEarned.toLocaleString("ko-KR");
@@ -5424,6 +5429,36 @@ function renderRachelPanel() {
     : '<p class="rachel-status">아직 보유한 소품이 없어</p>';
 }
 
+function decorateFarmTheme(root, themeId) {
+  const layout = root.querySelector(".farm-layout");
+  if (!layout) return;
+  const entry = getCosmeticEntry("farm_theme", themeId);
+  let banner = layout.querySelector(".farm-theme-banner");
+  if (!entry) {
+    banner?.remove();
+    return;
+  }
+  const captions = {
+    whiteDay: "사탕과 리본으로 포장한 달콤한 농장",
+    bubbleField: "투명한 비눗방울이 머무는 정원",
+    cherryBlossom: "벚꽃 가지 아래 피어난 봄날의 농장",
+    valentine: "초콜릿과 하트에 담은 작은 선물",
+    halloween: "호박 등불이 밝히는 한밤의 농장",
+    christmas: "트리 아래 선물이 쌓이는 겨울 농장",
+    springMeadow: "꽃과 나비가 쉬어 가는 초록 정원",
+    galaxyNight: "달과 별 사이에 펼쳐진 작은 우주",
+    ocean: "조개와 진주를 품은 바닷속 정원",
+  };
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.className = "farm-theme-banner";
+    banner.innerHTML = '<div class="farm-theme-banner-copy"><small>FARM COLLECTION</small><strong></strong><span></span></div><i aria-hidden="true"></i>';
+    layout.querySelector(".farm-window-chrome").after(banner);
+  }
+  banner.querySelector("strong").textContent = entry.name;
+  banner.querySelector(".farm-theme-banner-copy > span").textContent = captions[themeId] || "";
+}
+
 function applyFarmTheme(themeId) {
   const farmPage = document.querySelector("#farmPage");
   if (!farmPage) return;
@@ -5432,6 +5467,7 @@ function applyFarmTheme(themeId) {
   const index = PIXEL_THEME_IDS.indexOf(themeId);
   farmPage.style.setProperty("--theme-x", `${Math.max(0, index % 3) * 50}%`);
   farmPage.style.setProperty("--theme-y", `${Math.max(0, Math.floor(index / 3)) * 50}%`);
+  decorateFarmTheme(farmPage, themeId);
 }
 
 function renderNpcMarketCarousel() {
@@ -6347,7 +6383,7 @@ function updateFocusDisplay() {
 }
 
 function updateMiniFocusTimer() {
-  const fullTimerVisible = currentPage === "today" || currentPage === "focus";
+  const fullTimerVisible = currentPage === "focus";
   const linkedRuntime = focusRuntimeByMode.linked;
   const linkedRunning = runningFocusMode === "linked";
   document.querySelectorAll("[data-focus-habit]").forEach((button) => {
@@ -9097,19 +9133,18 @@ function closeCosmeticPreview() {
 
 function openCosmeticPreview(type, id) {
   const entry = getCosmeticEntry(type, id);
-  const sourceScene = document.querySelector("#farmPage .farm-scene");
-  if (!entry || !sourceScene || !cosmeticPreviewModal || !cosmeticTryonStage) return;
+  if (!entry || !cosmeticPreviewModal || !cosmeticTryonStage) return;
 
   const previewTheme = type === "farm_theme" ? id : state.equippedFarmTheme;
   const previewPlot = type === "plot_skin" ? id : state.equippedPlotSkin;
   const previewLabel = type === "label_effect" ? id : state.equippedLabelEffect;
-  const scene = sourceScene.cloneNode(true);
-  scene.classList.add("cosmetic-preview-farm-scene");
-  scene.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
-  scene.querySelectorAll("button").forEach((button) => {
-    button.disabled = true;
-    button.tabIndex = -1;
-  });
+  // Independent sample plots: preview every skin even on an empty or locked farm.
+  const scene = document.createElement("section");
+  scene.className = "farm-scene cosmetic-preview-farm-scene";
+  scene.innerHTML = `<div class="farm-scene-grid"><div class="farm-grid">${
+    ["carrot", "strawberry", "corn", "eggplant", "tomato", "lavender", "watermelon", "sunflower", "lemon"]
+      .map((crop) => `<div class="farm-plot crop-plot"><div class="crop-visual">${cropPixel(crop)}</div><div class="crop-info"><strong>${escapeHtml(CROPS[crop].name)}</strong></div></div>`).join("")
+  }</div></div>`;
 
   cosmeticTryonStage.replaceChildren();
   cosmeticTryonStage.className = "cosmetic-tryon-stage";
@@ -9137,11 +9172,26 @@ function openCosmeticPreview(type, id) {
   nameplate.className = "cosmetic-preview-nameplate";
   nameplate.textContent = state.farmName || "내 농장";
   if (previewLabel) nameplate.dataset.labelEffect = previewLabel;
-  cosmeticTryonStage.append(nameplate, scene);
+  const farmPreview = document.createElement("div");
+  farmPreview.className = "cosmetic-farm-preview";
+  if (previewTheme) farmPreview.dataset.farmTheme = previewTheme;
+  farmPreview.innerHTML = `<div class="farm-layout">
+    <div class="farm-window-chrome">FARMODORO · FARM DESK</div>
+    <header class="farm-panel-header"><div class="preview-name-slot"></div><div class="farm-header-actions"><span>수확물 · 씨앗 · 농장 용품</span><span>농장 우편소 · 농장 랭킹</span></div></header>
+    <div class="preview-field-slot"></div>
+    <aside class="npc-market"><div class="open-permanent-market"><span>농장 상시 시장</span><small>비료·티켓·특별 용품 구매</small></div>
+      <div class="market-category-tabs"><span>씨앗 판매대</span><span>음식 매입</span><span>작물 매입</span><span>스킨 판매대</span></div>
+      <h3 class="market-section-title">씨앗 판매대</h3>
+      ${["carrot", "strawberry"].map(crop => `<div class="seed-shop-card"><span class="seed-shop-emoji">${cropPixel(crop)}</span><div><strong>${escapeHtml(CROPS[crop].name)} 씨앗</strong><small>샘플 상품</small></div></div>`).join("")}
+    </aside></div>`;
+  farmPreview.querySelector(".preview-name-slot").append(nameplate);
+  farmPreview.querySelector(".preview-field-slot").replaceWith(scene);
+  decorateFarmTheme(farmPreview, previewTheme);
+  cosmeticTryonStage.append(farmPreview);
 
   document.querySelector("#cosmeticPreviewTitle").textContent = entry.name;
   document.querySelector("#cosmeticPreviewDescription").textContent =
-    `${COSMETIC_TYPE_LABELS[type]}을 현재 농장에 적용한 모습이야`;
+    `${COSMETIC_TYPE_LABELS[type]} 적용 예시 · 샘플 작물로 밭과 메뉴, 시장까지 확인해 봐`;
   cosmeticPreviewModal.classList.remove("hidden");
   cosmeticPreviewModal.querySelector("[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
 }
@@ -9292,13 +9342,6 @@ function launchFarmMailDispatch() {
 document.querySelector("#openFarmMail").addEventListener("click", async () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
-  const panel = farmMailModal.querySelector(".farm-mail-modal-panel");
-  panel?.classList.remove("mail-opening");
-  if (panel) {
-    void panel.offsetWidth;
-    panel.classList.add("mail-opening");
-    window.setTimeout(() => panel.classList.remove("mail-opening"), 450);
-  }
   if (!activeAuthUser) return;
   try {
     await farmActionChain;

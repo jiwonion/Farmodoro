@@ -1,14 +1,14 @@
-const CACHE_VERSION = "farmodoro-v264";
+const CACHE_VERSION = "farmodoro-v267";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
   "./styles.css?v=253",
   "./pixel-theme.css?v=191",
-  "./farm-pixel.css?v=233",
-  "./pixel-layout.css?v=264",
-  "./farm-theme.css?v=254",
-  "./app.js?v=263",
+  "./farm-pixel.css?v=266",
+  "./pixel-layout.css?v=266",
+  "./farm-theme.css?v=267",
+  "./app.js?v=267",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
   "./supabase-config.js",
@@ -19,6 +19,15 @@ const APP_SHELL = [
   "./assets/pixel/farm-supplies-atlas.png",
   "./assets/pixel/food-atlas.png",
   "./assets/farmodoro-logo-v2.png",
+  "./assets/farm-themes/bubbleField.svg",
+  "./assets/farm-themes/cherryBlossom.svg",
+  "./assets/farm-themes/christmas.svg",
+  "./assets/farm-themes/galaxyNight.svg",
+  "./assets/farm-themes/halloween.svg",
+  "./assets/farm-themes/ocean.svg",
+  "./assets/farm-themes/springMeadow.svg",
+  "./assets/farm-themes/valentine.svg",
+  "./assets/farm-themes/whiteDay.svg",
   "./assets/focus-farm-background.png",
   "./assets/focus/default-focus-room.png",
   "./assets/npc-morrison.png",
@@ -26,10 +35,10 @@ const APP_SHELL = [
   "./assets/npc-rachel.png",
   "./assets/fonts/Maplestory-Light.ttf",
   "./assets/fonts/Maplestory-Bold.ttf",
-  "./assets/icons/icon-192.png?v=252",
-  "./assets/icons/icon-512.png?v=252",
-  "./assets/icons/icon-maskable-512.png?v=252",
-  "./assets/icons/apple-touch-icon.png?v=252"
+  "./assets/icons/icon-192.png?v=266",
+  "./assets/icons/icon-512.png?v=266",
+  "./assets/icons/icon-maskable-512.png?v=266",
+  "./assets/icons/apple-touch-icon.png?v=266"
 ];
 const APP_SHELL_URLS = new Set(
   APP_SHELL.map((path) => new URL(path, self.location.href).href),
@@ -121,7 +130,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",
-      icon: "./assets/icons/icon-192.png?v=252",
+      icon: "./assets/icons/icon-192.png?v=266",
       // No `badge` here on purpose -- Android ignores the icon's colors for
       // this slot and renders only its alpha channel, so a normal full-color
       // square icon (icon-192.png has no transparent margin) turns into a

@@ -9,8 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Farmodoro" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png?v=252" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=252" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/icon-192.png?v=266" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png?v=266" />
     <title>Farmodoro</title>
     <script>
       window.setTimeout(() => {
@@ -36,9 +36,9 @@
     </script>
     <link rel="stylesheet" href="./styles.css?v=253" />
     <link rel="stylesheet" href="./pixel-theme.css?v=191" />
-    <link rel="stylesheet" href="./farm-pixel.css?v=233" />
-    <link rel="stylesheet" href="./pixel-layout.css?v=264" />
-    <link rel="stylesheet" href="./farm-theme.css?v=254" />
+    <link rel="stylesheet" href="./farm-pixel.css?v=266" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=266" />
+    <link rel="stylesheet" href="./farm-theme.css?v=267" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -618,7 +618,7 @@
                     <span>🍳 농장 주방</span>
                   </button>
                   <button class="farm-utility-button farm-weekly-ranking-button farm-header-ranking" id="openFarmRanking" type="button">
-                    <span>🏆 농장 주간보</span>
+                    <span>🏆 농장 랭킹</span>
                   </button>
                 </div>
               </header>
@@ -698,17 +698,18 @@
       <section class="market-modal-panel farm-ranking-modal-panel">
         <header>
           <div>
-            <span class="section-kicker">WEEKLY FARM NEWS</span>
-            <h2 id="farmRankingTitle">농장 주간보</h2>
+            <span class="section-kicker">WEEKLY FARM RANKING</span>
+            <h2 id="farmRankingTitle">농장 랭킹</h2>
             <p>월요일부터 일요일까지 얻은 Farm Money로 순위를 매겨</p>
           </div>
-          <button class="pixel-close-button" type="button" data-close-farm-ranking aria-label="농장 주간보 닫기">×</button>
+          <button class="pixel-close-button" type="button" data-close-farm-ranking aria-label="농장 랭킹 닫기">×</button>
         </header>
         <div class="farm-ranking-period">
           <span id="farmRankingWeekLabel">이번 주</span>
           <small>매주 월요일 00:00에 새 시즌이 시작돼</small>
         </div>
         <div class="farm-ranking-my-score">
+          <strong class="farm-ranking-farm-name" id="farmRankingMyNameplate"></strong>
           <strong class="farm-ranking-my-rank" id="farmRankingMyRank">현재 -위</strong>
           <span>이번 주 내가 얻은 Farm Money</span>
           <strong>✦ <span id="weeklyFarmMoneyEarned">0</span></strong>
@@ -1200,7 +1201,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=263"></script>
+    <script src="./app.js?v=267"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

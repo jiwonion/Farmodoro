@@ -1,5 +1,5 @@
 /* Equipped farm cosmetics color the entire farm tab. */
-#farmPage[data-farm-theme] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] {
   --farm-bg: #e5efd7;
   --farm-surface: #f9fced;
   --farm-soft: #d3e4bc;
@@ -17,73 +17,73 @@
   background: repeating-linear-gradient(0deg, transparent 0 31px, var(--farm-soft) 31px 32px), var(--farm-bg);
   border-radius: 3px;
 }
-#farmPage[data-farm-theme="cherryBlossom"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="cherryBlossom"] {
   --farm-bg: #f7e3eb; --farm-surface: #fff7fa; --farm-soft: #f1cddd;
   --farm-ink: #502a3f; --farm-muted: #80566b; --farm-edge: #88536e;
   --farm-accent: #a04470; --farm-on-accent: #fff7fa; --farm-shadow: #cf9eb4;
 }
-#farmPage[data-farm-theme="valentine"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="valentine"] {
   --farm-bg: #efd8dd; --farm-surface: #fff2eb; --farm-soft: #eac0cc;
   --farm-ink: #522b32; --farm-muted: #80505c; --farm-edge: #74414d;
   --farm-accent: #a32f54; --farm-on-accent: #fff6ed; --farm-shadow: #bd8d99;
 }
-#farmPage[data-farm-theme="halloween"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="halloween"] {
   --farm-bg: #292038; --farm-surface: #3b2d49; --farm-soft: #51405e;
   --farm-ink: #fff0d5; --farm-muted: #dbc3e3; --farm-edge: #bb8cce;
   --farm-accent: #ffb35c; --farm-on-accent: #352039; --farm-shadow: #181221;
 }
-#farmPage[data-farm-theme="christmas"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="christmas"] {
   --farm-bg: #dce8df; --farm-surface: #fff9e9; --farm-soft: #c6ddcf;
   --farm-ink: #253f35; --farm-muted: #54695d; --farm-edge: #3f6352;
   --farm-accent: #a53243; --farm-on-accent: #fff9e9; --farm-shadow: #98b3a1;
 }
-#farmPage[data-farm-theme="whiteDay"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="whiteDay"] {
   --farm-bg: #e4eef6; --farm-surface: #fffdf7; --farm-soft: #d5e1f2;
   --farm-ink: #384663; --farm-muted: #5c6883; --farm-edge: #7384a7;
   --farm-accent: #626aa6; --farm-on-accent: #fffdf7; --farm-shadow: #abbdd5;
 }
-#farmPage[data-farm-theme="springMeadow"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="springMeadow"] {
   --farm-bg: #e5efd7; --farm-surface: #f9fced; --farm-soft: #d3e4bc;
   --farm-ink: #273c2a; --farm-muted: #4e6546; --farm-edge: #486444;
   --farm-accent: #3e7045; --farm-on-accent: #fffced; --farm-shadow: #a5bc90;
 }
-#farmPage[data-farm-theme="galaxyNight"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="galaxyNight"] {
   --farm-bg: #171c39; --farm-surface: #262e50; --farm-soft: #384168;
   --farm-ink: #f4edff; --farm-muted: #c6c9ec; --farm-edge: #909bd6;
   --farm-accent: #beb0ff; --farm-on-accent: #23233f; --farm-shadow: #0c1028;
 }
-#farmPage[data-farm-theme="ocean"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="ocean"] {
   --farm-bg: #d4edf2; --farm-surface: #f0fcfa; --farm-soft: #b9e1e8;
   --farm-ink: #193f54; --farm-muted: #426c7c; --farm-edge: #39778e;
   --farm-accent: #146980; --farm-on-accent: #f0fcfa; --farm-shadow: #8abdc9;
 }
-#farmPage[data-farm-theme="bubbleField"] {
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="bubbleField"] {
   --farm-bg: #e9e2f7; --farm-surface: #fcf7ff; --farm-soft: #dfd0ee;
   --farm-ink: #463355; --farm-muted: #715880; --farm-edge: #8d70a0;
   --farm-accent: #815599; --farm-on-accent: #fcf7ff; --farm-shadow: #bca5d0;
 }
-body #farmPage[data-farm-theme] .farm-layout {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-layout {
   border-color: var(--farm-edge);
   background: repeating-linear-gradient(0deg, transparent 0 23px, var(--farm-soft) 23px 24px), var(--farm-bg);
   box-shadow: inset 0 0 0 3px var(--farm-soft), 6px 6px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] .farm-window-chrome {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-window-chrome {
   border-color: var(--farm-edge);
   background: var(--farm-accent);
   color: var(--farm-on-accent);
   box-shadow: inset 0 4px #ffffff30, inset 0 -4px #00000026;
 }
-body #farmPage[data-farm-theme] :is(.farm-panel-header, .farm-wallet, .farm-header-money, .seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-panel-header, .farm-wallet, .farm-header-money, .seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) {
   border-color: var(--farm-edge);
   background: var(--farm-surface) !important;
   color: var(--farm-ink);
   box-shadow: inset 0 -3px var(--farm-soft), 3px 3px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] .farm-scene {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-scene {
   border-color: var(--farm-edge);
   box-shadow: inset 0 0 0 4px var(--farm-soft), 3px 3px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] .npc-market {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market {
   border-color: var(--farm-edge);
   background:
     linear-gradient(90deg, var(--farm-soft) 0 6px, transparent 6px calc(100% - 6px), var(--farm-soft) calc(100% - 6px)),
@@ -91,60 +91,197 @@ body #farmPage[data-farm-theme] .npc-market {
   box-shadow: inset 0 0 0 3px var(--farm-soft), 4px 4px 0 var(--farm-shadow);
   scrollbar-color: var(--farm-accent) var(--farm-bg);
 }
-body #farmPage[data-farm-theme] button:not(.farm-plot):not(.rachel-preview-button) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:not(.farm-plot):not(.rachel-preview-button) {
   border-color: var(--farm-edge);
   background: var(--farm-surface) !important;
   color: var(--farm-ink) !important;
   box-shadow: inset 0 -3px var(--farm-soft), 2px 2px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] button:not(.farm-plot):not(:disabled):hover {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:not(.farm-plot):not(:disabled):hover {
   background: var(--farm-soft) !important;
 }
-body #farmPage[data-farm-theme] button:focus-visible {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:focus-visible {
   outline-color: var(--farm-accent);
 }
-body #farmPage[data-farm-theme] button:active:not(:disabled) { box-shadow: none; }
-body #farmPage[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:active:not(:disabled) { box-shadow: none; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button) {
   background: var(--farm-accent) !important;
   color: var(--farm-on-accent) !important;
   box-shadow: inset 0 3px #ffffff30, inset 0 -3px #00000026, 2px 2px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button):hover:not(:disabled) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button):hover:not(:disabled) {
   background: var(--farm-accent) !important;
   box-shadow: inset 0 0 0 2px var(--farm-on-accent), 2px 2px 0 var(--farm-shadow);
 }
-body #farmPage[data-farm-theme] .npc-market > .open-permanent-market::before {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market > .open-permanent-market::before {
   border-color: var(--farm-edge);
   background: repeating-linear-gradient(90deg, var(--farm-accent) 0 28px, var(--farm-surface) 28px 56px);
 }
-body #farmPage[data-farm-theme] :is(.farm-name-display h2:not([data-label-effect]), .farm-header-actions button span, .farm-header-money span, .farm-header-money b, .farm-wallet strong, .open-permanent-market span, .seed-shop-card strong, .noah-buy-card strong, .rachel-preview-button) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-name-display h2:not([data-label-effect]), .farm-header-actions button span, .farm-header-money span, .farm-header-money b, .farm-wallet strong, .open-permanent-market span, .seed-shop-card strong, .noah-buy-card strong, .rachel-preview-button) {
   color: var(--farm-ink) !important;
 }
-body #farmPage[data-farm-theme] :is(.open-permanent-market small, .seed-shop-card small, .noah-buy-card small, .rachel-cosmetic-card small, .rachel-status) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.open-permanent-market small, .seed-shop-card small, .noah-buy-card small, .rachel-cosmetic-card small, .rachel-status) {
   color: var(--farm-muted) !important;
 }
-body #farmPage[data-farm-theme] :is(.section-kicker, .farm-header-money strong, .farm-header-money i, .rachel-cosmetic-card .rachel-preview-hint) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.section-kicker, .farm-header-money strong, .farm-header-money i, .rachel-cosmetic-card .rachel-preview-hint) {
   color: var(--farm-accent) !important;
 }
-body #farmPage[data-farm-theme] :is(.market-section-title, .farm-protection-status, .rachel-equipped-badge) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-section-title, .farm-protection-status, .rachel-equipped-badge) {
   border-color: var(--farm-accent);
   background: var(--farm-soft);
   color: var(--farm-ink);
 }
-body #farmPage[data-farm-theme] :is(.market-section-title small, .farm-storage-toolbar small, .farm-mail-header-unread) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-section-title small, .farm-storage-toolbar small, .farm-mail-header-unread) {
   border-color: var(--farm-edge);
   background: var(--farm-accent);
   color: var(--farm-on-accent);
 }
-body #farmPage[data-farm-theme] :is(.seed-shop-emoji, .noah-buy-card > span) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.seed-shop-emoji, .noah-buy-card > span) {
   background: var(--farm-soft);
 }
-body #farmPage[data-farm-theme] .rachel-cosmetic-card.equipped {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .rachel-cosmetic-card.equipped {
   border-color: var(--farm-accent);
   background: var(--farm-bg) !important;
 }
-body #farmPage[data-farm-theme] .farm-name-form input {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-name-form input {
   border-color: var(--farm-edge);
   background: var(--farm-surface);
   color: var(--farm-ink);
+}
+
+/* Theme ornaments and materials are shared by the live farm and its preview. */
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] {
+  --farm-paper: radial-gradient(circle, #ffffff80 1px, transparent 2px) 0 0 / 20px 20px;
+  --farm-trim: repeating-linear-gradient(90deg, var(--farm-soft) 0 16px, var(--farm-surface) 16px 32px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="whiteDay"] {
+  --farm-bg: #eff2fc; --farm-surface: #fffdf7; --farm-soft: #d8e1f6;
+  --farm-ornament: url('./assets/farm-themes/whiteDay.svg');
+  --farm-paper: repeating-linear-gradient(45deg, transparent 0 17px, #ffffffa8 17px 20px, transparent 20px 37px), repeating-linear-gradient(-45deg, transparent 0 17px, #b8c8e93b 17px 20px, transparent 20px 37px);
+  --farm-trim: repeating-linear-gradient(125deg, #abbde1 0 12px, #fffdf4 12px 24px, #d9daf0 24px 36px, #fffdf4 36px 48px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="bubbleField"] {
+  --farm-ornament: url('./assets/farm-themes/bubbleField.svg');
+  --farm-paper: radial-gradient(circle at 24px 27px, #ffffff50 0 17px, #adacd57a 18px 19px, transparent 20px) 0 0 / 99px 91px, radial-gradient(circle at 65px 63px, #dafffd5c 0 10px, #a8c9d870 11px 12px, transparent 13px) 0 0 / 99px 91px;
+  --farm-trim: radial-gradient(circle, #f9ffff 0 5px, #c2d5e9 6px 7px, transparent 8px) 0 0 / 22px 18px, #e0cfea;
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="cherryBlossom"] {
+  --farm-ornament: url('./assets/farm-themes/cherryBlossom.svg');
+  --farm-paper: radial-gradient(ellipse at 18px 20px, #e6a5be70 0 5px, transparent 6px) 0 0 / 63px 55px, radial-gradient(ellipse at 41px 41px, #fff8fc 0 4px, transparent 5px) 0 0 / 63px 55px;
+  --farm-trim: repeating-linear-gradient(90deg, #dda1b8 0 8px, #fff0f5 8px 25px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="valentine"] {
+  --farm-ornament: url('./assets/farm-themes/valentine.svg');
+  --farm-paper: repeating-linear-gradient(0deg, #a16a7320 0 2px, transparent 2px 32px), repeating-linear-gradient(90deg, #a16a7320 0 2px, transparent 2px 32px);
+  --farm-trim: repeating-linear-gradient(90deg, #73414e 0 16px, #e9b0bd 16px 19px, #73414e 19px 32px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="halloween"] {
+  --farm-ornament: url('./assets/farm-themes/halloween.svg');
+  --farm-paper: repeating-linear-gradient(135deg, transparent 0 28px, #b78dcc15 28px 30px);
+  --farm-trim: repeating-linear-gradient(135deg, #e8a459 0 12px, #4b345e 12px 24px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="christmas"] {
+  --farm-ornament: url('./assets/farm-themes/christmas.svg');
+  --farm-paper: radial-gradient(circle, #ffffffd9 0 2px, transparent 3px) 0 0 / 28px 28px;
+  --farm-trim: repeating-linear-gradient(125deg, #a74554 0 12px, #fff7e8 12px 24px, #4d8266 24px 36px, #fff7e8 36px 48px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="springMeadow"] {
+  --farm-ornament: url('./assets/farm-themes/springMeadow.svg');
+  --farm-paper: repeating-linear-gradient(0deg, #7ba46414 0 12px, transparent 12px 24px), repeating-linear-gradient(90deg, #7ba46414 0 12px, transparent 12px 24px);
+  --farm-trim: repeating-linear-gradient(90deg, #6f9863 0 8px, #eaf0cd 8px 24px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="galaxyNight"] {
+  --farm-ornament: url('./assets/farm-themes/galaxyNight.svg');
+  --farm-paper: radial-gradient(circle at 16px 18px, #f5dfaa 0 1px, transparent 2px) 0 0 / 59px 61px, radial-gradient(circle at 43px 41px, #c9bcf5 0 1px, transparent 2px) 0 0 / 73px 71px;
+  --farm-trim: repeating-linear-gradient(115deg, #53618e 0 16px, #d8c7eb 16px 18px, #353e67 18px 34px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="ocean"] {
+  --farm-ornament: url('./assets/farm-themes/ocean.svg');
+  --farm-paper: radial-gradient(ellipse at 50% 0, transparent 0 22px, #72bbc330 23px 25px, transparent 26px) 0 0 / 64px 32px;
+  --farm-trim: repeating-linear-gradient(135deg, #60a6b4 0 6px, #d9f1eb 6px 18px, #96c8ca 18px 24px);
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-layout {
+  background: var(--farm-paper), var(--farm-bg);
+  border-width: 4px;
+  border-style: double;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 128px;
+  padding: 18px 170px 18px 24px;
+  overflow: hidden;
+  border: 3px double var(--farm-edge);
+  background: linear-gradient(90deg, var(--farm-surface) 35%, transparent), var(--farm-paper), var(--farm-bg);
+  color: var(--farm-ink);
+  box-shadow: inset 0 0 0 5px var(--farm-surface), 3px 3px 0 var(--farm-shadow);
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 9px;
+  background: var(--farm-trim);
+  content: '';
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy { display: grid; gap: 6px; min-width: 0; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy small { font-size: 10px; letter-spacing: .18em; color: var(--farm-muted); }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy strong { font-size: 27px; line-height: 1.2; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy > span { font-size: 13px; line-height: 1.5; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner > i {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  width: 164px; height: 123px; background: var(--farm-ornament) center / contain no-repeat;
+  pointer-events: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-panel-header {
+  position: relative;
+  border-top-width: 7px;
+  border-bottom-style: double;
+  border-bottom-width: 5px;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market {
+  background: linear-gradient(var(--farm-surface), var(--farm-surface)) padding-box, var(--farm-trim) border-box;
+  border: 6px solid transparent;
+  box-shadow: 0 0 0 2px var(--farm-edge), 4px 4px 0 var(--farm-shadow);
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market::before {
+  display: block; height: 48px; margin: 0 0 10px;
+  border-bottom: 2px dashed var(--farm-edge);
+  background: var(--farm-ornament) center / 64px 48px repeat-x;
+  content: ''; pointer-events: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market > .open-permanent-market {
+  position: relative; display: grid; gap: 5px; width: 100%;
+  padding: 20px 10px 12px; border: 2px solid var(--farm-edge);
+  border-radius: 0; background: var(--farm-surface); color: var(--farm-ink);
+  box-shadow: inset 0 -4px var(--farm-soft), 2px 2px 0 var(--farm-shadow);
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market > .open-permanent-market::before {
+  position: absolute; top: -2px; left: -2px; right: -2px; height: 12px;
+  border: 2px solid var(--farm-edge); background: var(--farm-trim); content: '';
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .market-section-title {
+  border-left: 6px double var(--farm-accent);
+  border-bottom: 2px dashed var(--farm-edge);
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="whiteDay"] .farm-panel-header {
+  border-color: #9badd3;
+  background: linear-gradient(90deg, transparent 0 8px, #d3def1 8px 12px, transparent 12px calc(100% - 12px), #d3def1 calc(100% - 12px) calc(100% - 8px), transparent calc(100% - 8px)), var(--farm-surface) !important;
+  padding-inline: 20px;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="whiteDay"] .farm-window-chrome {
+  background: repeating-linear-gradient(90deg, transparent 0 45px, #ffffff15 45px 47px), #7585b7;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="bubbleField"] :is(.farm-theme-banner, .farm-panel-header, .npc-market) { border-radius: 18px; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="bubbleField"] .farm-window-chrome { background: linear-gradient(110deg, #746a9b, #698da1, #88719f); }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="valentine"] .farm-theme-banner { border-radius: 16px 16px 3px 3px; }
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="galaxyNight"] .farm-window-chrome { background: var(--farm-paper), #262e50; color: #f4edff; }
+@media (max-width: 700px) {
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner { min-height: 112px; padding: 18px 102px 16px 12px; }
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner > i { width: 106px; height: 90px; right: 0; }
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy strong { font-size: 21px; }
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy > span { font-size: 12px; }
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market::before { height: 36px; background-size: 48px 36px; }
 }
