@@ -1354,6 +1354,9 @@ const FARM_ITEMS = {
 };
 
 const FARM_THEMES = [
+  { id: "volcano", name: "화산", price: 2000 },
+  { id: "iceKingdom", name: "얼음 왕국", price: 2000 },
+  { id: "goldenHarvest", name: "황금 들판", price: 2000 },
   { id: "cherryBlossom", name: "벚꽃", price: 2000 },
   { id: "valentine", name: "발렌타인", price: 2000 },
   { id: "halloween", name: "할로윈", price: 2000 },
@@ -1381,6 +1384,10 @@ const PLOT_SKINS = [
 ];
 
 const LABEL_EFFECTS = [
+  { id: "iceCrystal", name: "얼음 결정 명패", price: 1200 },
+  { id: "candyRibbon", name: "사탕 리본 명패", price: 1200 },
+  { id: "pumpkinLantern", name: "호박 등불 명패", price: 1200 },
+  { id: "pearlShell", name: "진주 조개 명패", price: 1200 },
   { id: "goldenSparkle", name: "황금 도트 명패", price: 1200 },
   { id: "confetti", name: "컬러 블록 명패", price: 1200 },
   { id: "cherryDrift", name: "벚꽃 도트 명패", price: 1200 },
@@ -1388,7 +1395,7 @@ const LABEL_EFFECTS = [
   { id: "rainbowGradient", name: "무지개 블록 명패", price: 1200 },
   { id: "starAurora", name: "오로라 도트 명패", price: 1200 },
   { id: "heartPop", name: "하트 도트 명패", price: 1200 },
-  { id: "flameBorder", name: "테라코타 명패", price: 1200 },
+  { id: "flameBorder", name: "불 명패", price: 1200 },
   { id: "butterflyFlutter", name: "나비 정원 명패", price: 1200 },
   { id: "galaxySparkle", name: "밤하늘 도트 명패", price: 1200 },
 ];
@@ -1398,6 +1405,72 @@ const COSMETIC_CATALOGS = {
   plot_skin: PLOT_SKINS,
   label_effect: LABEL_EFFECTS,
 };
+
+const FARM_COSMETIC_SETS = [
+  { id: "cherry", name: "벚꽃", effect: "wilt", farm_theme: ["cherryBlossom"], plot_skin: ["cherryPetalFall"], label_effect: ["cherryDrift"] },
+  { id: "frost", name: "얼음", effect: "fertilizerReturn", farm_theme: ["iceKingdom"], plot_skin: ["frostbite"], label_effect: ["iceCrystal"] },
+  { id: "valentine", name: "발렌타인", effect: "cookDouble", farm_theme: ["valentine"], plot_skin: ["chocolate"], label_effect: ["heartPop"] },
+  { id: "candy", name: "화이트데이", effect: "ingredientSave", farm_theme: ["whiteDay"], plot_skin: ["candy"], label_effect: ["candyRibbon"] },
+  { id: "galaxy", name: "은하수", effect: "focusCoinDouble", farm_theme: ["galaxyNight"], plot_skin: ["starCandy"], label_effect: ["starAurora", "galaxySparkle"] },
+  { id: "halloween", name: "할로윈", effect: "harvestCoin", farm_theme: ["halloween"], plot_skin: ["mapleLeaf"], label_effect: ["pumpkinLantern"] },
+  { id: "snow", name: "크리스마스", effect: "seedReturn", farm_theme: ["christmas"], plot_skin: ["snowField"], label_effect: ["snowSparkle"] },
+  { id: "ocean", name: "바다", effect: "waterGrowth", farm_theme: ["ocean"], plot_skin: ["sandDune"], label_effect: ["pearlShell"] },
+  { id: "volcano", name: "용암", effect: "water", farm_theme: ["volcano"], plot_skin: ["lava"], label_effect: ["flameBorder"] },
+  { id: "rainbow", name: "무지개", effect: "seedDouble", farm_theme: ["bubbleField"], plot_skin: ["rainbow"], label_effect: ["rainbowGradient", "confetti"] },
+  { id: "golden", name: "황금", effect: "saleDouble", farm_theme: ["goldenHarvest"], plot_skin: ["golden"], label_effect: ["goldenSparkle"] },
+  { id: "garden", name: "봄 정원", effect: "harvestDouble", farm_theme: ["springMeadow"], plot_skin: ["lavenderField"], label_effect: ["butterflyFlutter"] },
+];
+const FARM_SET_PERCENT = [0, 1, 5, 10];
+
+const FARM_SET_EFFECTS = {
+  wilt: { name: "작물 시들기 시간", suffix: "증가" },
+  water: { name: "물주기 쿨타임", suffix: "감소" },
+  harvestDouble: { name: "수확량 2배", suffix: "확률", bonus: "수확량 2배!" },
+  cookDouble: { name: "요리 2개 제작", suffix: "확률", bonus: "요리 2배!" },
+  focusCoinDouble: { name: "집중 60분 보상 Coin 2배", suffix: "확률", bonus: "집중 보상 Coin 2배!" },
+  ingredientSave: { name: "요리 성공 시 재료 1개 환급", suffix: "확률", bonus: "재료 1개 환급!" },
+  fertilizerReturn: { name: "수확 시 사용한 비료 1개 회수", suffix: "확률", bonus: "비료 1개 회수!" },
+  harvestCoin: { name: "수확 시 1 Coin 발견", suffix: "확률", bonus: "1 Coin 발견!" },
+  seedReturn: { name: "수확한 작물의 씨앗 1개 획득", suffix: "확률", bonus: "씨앗 1개 획득!" },
+  waterGrowth: { name: "무료 물주기 시 추가 1단계 성장", suffix: "확률", bonus: "추가 1단계 성장!" },
+  seedDouble: { name: "씨앗 구매 시 같은 씨앗 1개 추가", suffix: "확률", bonus: "씨앗 1개 추가!" },
+  saleDouble: { name: "음식·작물 판매 Farm Money 2배", suffix: "확률", bonus: "판매 보상 2배!" },
+};
+
+function getFarmSetBonuses(equipment = state) {
+  const equipped = { farm_theme: equipment.equippedFarmTheme, plot_skin: equipment.equippedPlotSkin, label_effect: equipment.equippedLabelEffect };
+  const sets = FARM_COSMETIC_SETS.map((set) => {
+    const count = Object.entries(equipped).filter(([type, id]) => id && set[type].includes(id)).length;
+    return { ...set, count, percent: FARM_SET_PERCENT[count] };
+  }).filter(({ count }) => count > 0);
+  const bonuses = Object.fromEntries(Object.keys(FARM_SET_EFFECTS).map((effect) => [effect, 0]));
+  sets.forEach((set) => { bonuses[set.effect] += set.percent; });
+  return { sets, ...bonuses };
+}
+
+function farmSetEffectText(effect, percent = null) {
+  const entry = FARM_SET_EFFECTS[effect];
+  if (!entry) return "";
+  return `${entry.name}${percent === null ? "" : ` ${percent}%`} ${entry.suffix}`;
+}
+
+function getCosmeticSetDescription(type, id) {
+  const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
+  if (!set) return "";
+  return `${set.name} 세트 · ${farmSetEffectText(set.effect)} · 1부위 1% / 2부위 5% / 3부위 10%`;
+}
+
+function farmBonusMessage(event) {
+  const messages = (event?.bonuses ?? []).map((effect) => FARM_SET_EFFECTS[effect]?.bonus).filter(Boolean);
+  return messages.length ? ` · ${messages.join(" · ")}` : "";
+}
+
+function renderFarmSetBonuses() {
+  const panel = document.querySelector("#farmSetBonuses");
+  if (!panel) return;
+  const { sets } = getFarmSetBonuses();
+  panel.innerHTML = `<strong>장착 세트 효과</strong>${sets.length ? sets.map((set) => `<span>${set.name} ${set.count}세트 · ${farmSetEffectText(set.effect, set.percent)}</span>`).join("") : "<span>스킨을 장착하면 효과가 적용돼</span>"}`;
+}
 
 const SYSTEM_FARM_SENDER = {
   id: "system",
@@ -1446,6 +1519,10 @@ const RECIPES = {
   sweetCornCheeseBake: { name: "찰옥수수 치즈구이", icon: "🧈", ingredients: ["sweetCorn", "pepper"], sellPrice: 52 },
   truffleRisotto: { name: "송로버섯 리조또", icon: "🍚", ingredients: ["truffle", "rice", "mushroom"], sellPrice: 96 },
   lavenderTea: { name: "라벤더 밀크티", icon: "🍵", ingredients: ["lavender", "oat"], sellPrice: 50 },
+  cherryTart: { name: "체리 타르트", icon: "🥧", ingredients: ["cherry", "wheat"], sellPrice: 74, pixelRecipe: "berryTart" },
+  sweetPotatoSalad: { name: "고구마 해바라기 샐러드", icon: "🥗", ingredients: ["sweetPotato", "sunflower", "lettuce"], sellPrice: 62, pixelRecipe: "gardenSalad" },
+  rootVegetableSoup: { name: "뿌리채소 수프", icon: "🥣", ingredients: ["radish", "turnip", "daikon"], sellPrice: 50, pixelRecipe: "pumpkinSoup" },
+  greenBeanStew: { name: "케일 콩 스튜", icon: "🍲", ingredients: ["kale", "celery", "bean"], sellPrice: 58, pixelRecipe: "countryStew" },
 };
 
 const defaultState = {
@@ -1472,7 +1549,6 @@ const defaultState = {
   equippedPlotSkin: null,
   equippedLabelEffect: null,
   foodInventory: Object.fromEntries(Object.keys(RECIPES).map((recipeId) => [recipeId, 0])),
-  discoveredRecipes: [],
   farmItemInventory: Object.fromEntries(
     Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
   ),
@@ -1525,7 +1601,6 @@ const FARM_STATE_KEYS = [
   "equippedPlotSkin",
   "equippedLabelEffect",
   "foodInventory",
-  "discoveredRecipes",
   "farmItemInventory",
   "seedInventory",
   "harvestInventory",
@@ -1832,7 +1907,6 @@ function startFarmMailRealtime(user) {
       "farms",
       "farm_plots",
       "farm_inventory",
-      "farm_recipe_discoveries",
       "farm_market_rotations",
       "farm_weekly_earnings",
     ],
@@ -1898,7 +1972,6 @@ function farmRenderSignatureState(snapshot = state) {
       fertilizer: plot.fertilizer ?? "",
     })),
     inventory,
-    discoveredRecipes: [...snapshot.discoveredRecipes],
     marketRotation: {
       date: snapshot.marketRotationDate,
       seedOffers: [...snapshot.dailySeedOffers],
@@ -2143,7 +2216,6 @@ async function fetchFarmDataFromDatabase(user) {
   state.foodInventory = structuredClone(defaultState.foodInventory);
   (data?.inventory ?? []).forEach(applyServerFarmInventoryEntry);
 
-  state.discoveredRecipes = (data?.discoveredRecipes ?? []).filter((recipeId) => RECIPES[recipeId]);
   // rotation.cropSellOffers/cosmeticOffers are only present once the backend
   // has the 042/043 migrations applied (returned via get_my_farm_state_v3/v4).
   // On an unmigrated backend the key is simply absent (undefined) -- leave
@@ -2221,12 +2293,8 @@ function applyFarmActionResult(result) {
   if (!result) return;
   (result.plots ?? []).forEach(applyServerFarmPlot);
   (result.inventory ?? []).forEach(applyServerFarmInventoryEntry);
-  if (Array.isArray(result.discoveredRecipes)) {
-    result.discoveredRecipes.forEach((recipeId) => {
-      if (!state.discoveredRecipes.includes(recipeId)) state.discoveredRecipes.push(recipeId);
-    });
-  }
   if (result.marketRotation) applyServerMarketRotation(result.marketRotation);
+  if (Number.isFinite(result.weeklyFarmMoneyEarned)) state.weeklyFarmMoneyEarned = result.weeklyFarmMoneyEarned;
   if (result.farm) {
     if (result.farm.productionBoostUntil !== undefined) {
       state.productionBoostUntil = Date.parse(result.farm.productionBoostUntil || "") || 0;
@@ -2357,7 +2425,6 @@ function loadState(savedState = null) {
         ...structuredClone(defaultState.foodInventory),
         ...(saved.foodInventory ?? {}),
       },
-      discoveredRecipes: saved.discoveredRecipes ?? [],
       farmItemInventory: {
         ...structuredClone(defaultState.farmItemInventory),
         ...(saved.farmItemInventory ?? {}),
@@ -3872,9 +3939,10 @@ function formatFarmRankingWeek() {
 }
 
 function getPlotWaterRemaining(plot, now = Date.now()) {
+  const cooldown = FARM_WATER_COOLDOWN_MS * (1 - getFarmSetBonuses().water / 100);
   return Math.min(
-    FARM_WATER_COOLDOWN_MS,
-    Math.max(0, Number(plot.lastFreeWaterAt ?? 0) + FARM_WATER_COOLDOWN_MS - now),
+    cooldown,
+    Math.max(0, Number(plot.lastFreeWaterAt ?? 0) + cooldown - now),
   );
 }
 
@@ -3886,9 +3954,23 @@ function formatPlotWaterCooldown(milliseconds) {
   return hours ? `${hours}:${String(minutes).padStart(2, "0")}` : `${minutes}분`;
 }
 
+function refreshFarmWaterReminders() {
+  const now = Date.now();
+  state.farmPlots.forEach((plot) => {
+    if (!plot.crop || plot.wilted || plot.growth >= getCropGrowthCost(plot.crop) || !plot.lastFreeWaterAt) return;
+    const remaining = getPlotWaterRemaining(plot, now);
+    if (remaining <= 0) {
+      cancelFarmPushNotification("plot_water_ready", String(plot.id));
+      return;
+    }
+    scheduleFarmPushNotification("plot_water_ready", String(plot.id), now + remaining,
+      "물 줄 시간이 됐어", `${plot.id + 1}번 밭에 물을 줄 수 있어`);
+  });
+}
+
 function getPlotWiltRemaining(plot, now = Date.now()) {
   if (!plot?.crop || !plot.lastCaredAt || plot.wilted) return 0;
-  const wiltAt = Number(plot.lastCaredAt) + FARM_WILT_AFTER_MS;
+  const wiltAt = Number(plot.lastCaredAt) + FARM_WILT_AFTER_MS * (1 + getFarmSetBonuses().wilt / 100);
   const protectedUntil = Number(state.wiltProtectionUntil ?? 0);
   return Math.max(0, Math.max(wiltAt, protectedUntil) - now);
 }
@@ -3974,47 +4056,6 @@ function launchHarvestCelebration() {
   ).join("");
   document.body.append(celebration);
   setTimeout(() => celebration.remove(), 1800);
-}
-
-function launchRecipeDiscoveryFireworks() {
-  const stage = document.createElement("div");
-  stage.className = "recipe-fireworks";
-  const colors = ["#f2c84b", "#e66b56", "#5ea76d", "#7e78bd", "#4fb3d9", "#f08fb0"];
-  const bursts = [
-    { left: 50, top: 40, delay: 0 },
-    { left: 32, top: 54, delay: 180 },
-    { left: 68, top: 52, delay: 320 },
-  ];
-  stage.innerHTML =
-    `<div class="flash"></div>` +
-    bursts
-      .map(({ left, top, delay }, burstIndex) => {
-        const particleCount = 26;
-        const particles = Array.from({ length: particleCount }, (_, index) => {
-          const angle = (index / particleCount) * Math.PI * 2 + Math.random() * 0.3;
-          const distance = 90 + Math.random() * 110;
-          const tx = Math.round(Math.cos(angle) * distance);
-          const ty = Math.round(Math.sin(angle) * distance);
-          const rot = Math.round(Math.random() * 360 - 180);
-          const duration = (0.9 + Math.random() * 0.5).toFixed(2);
-          const particleDelay = (delay / 1000 + Math.random() * 0.05).toFixed(2);
-          const color = colors[(burstIndex + index) % colors.length];
-          const style = `--tx:${tx}px;--ty:${ty}px;--rot:${rot}deg;--dur:${duration}s;--delay:${particleDelay}s;--color:${color};`;
-          return index % 3 === 0
-            ? `<b class="spark" style="${style}">✦</b>`
-            : `<i class="chip" style="${style}"></i>`;
-        }).join("");
-        const ringColor = colors[burstIndex % colors.length];
-        return `
-          <div class="burst" style="left:${left}%;top:${top}%;">
-            <span class="ring" style="border-color:${ringColor};animation-delay:${(delay / 1000).toFixed(2)}s"></span>
-            ${particles}
-          </div>
-        `;
-      })
-      .join("");
-  document.body.append(stage);
-  setTimeout(() => stage.remove(), 2200);
 }
 
 function launchCraftWasteEffect() {
@@ -4569,10 +4610,10 @@ function cropPixel(cropId, stage = "mature") {
   return `<span class="crop-pixel" aria-hidden="true" style="${pixelCropStyle(index)}"></span>`;
 }
 
-const PIXEL_FOOD_IDS = Object.keys(RECIPES);
+const PIXEL_FOOD_IDS = Object.keys(RECIPES).filter((id) => !RECIPES[id].pixelRecipe);
 
 function foodPixel(recipeId) {
-  const index = PIXEL_FOOD_IDS.indexOf(recipeId);
+  const index = PIXEL_FOOD_IDS.indexOf(RECIPES[recipeId]?.pixelRecipe ?? recipeId);
   if (index < 0) return "";
   const column = index % 8;
   const row = Math.floor(index / 8);
@@ -5278,12 +5319,61 @@ function renderRecipeIngredientPicker(select) {
   ].join("");
 }
 
+function getRecipeAvailability(recipe, inventory = state.harvestInventory) {
+  const required = recipe.ingredients.reduce((counts, id) => {
+    counts[id] = (counts[id] ?? 0) + 1;
+    return counts;
+  }, {});
+  const missing = Object.entries(required)
+    .filter(([id, count]) => (inventory[id] ?? 0) < count)
+    .map(([id, count]) => `${CROPS[id].name} ${count - (inventory[id] ?? 0)}개 부족`);
+  const count = Math.min(...Object.entries(required).map(([id, quantity]) => Math.floor((inventory[id] ?? 0) / quantity)));
+  return { count, missing };
+}
+
+function renderAvailableRecipes() {
+  const list = document.querySelector("#availableRecipes");
+  if (!list) return;
+  const selected = selectedRecipeIngredients.filter(Boolean);
+  const recipes = Object.entries(RECIPES).filter(([, recipe]) => {
+    if (!getRecipeAvailability(recipe).count) return false;
+    const remaining = [...recipe.ingredients];
+    return selected.every((id) => {
+      const index = remaining.indexOf(id);
+      if (index < 0) return false;
+      remaining.splice(index, 1);
+      return true;
+    });
+  });
+  document.querySelector("#availableRecipeCount").textContent = `${recipes.length}종`;
+  list.innerHTML = recipes.length ? recipes.map(([id, recipe]) => `
+    <button type="button" class="available-recipe" data-select-recipe="${id}">
+      ${foodPixel(id)}<span><strong>${recipe.name}</strong><small>최대 ${getRecipeAvailability(recipe).count}개 · 재료 선택</small></span>
+    </button>`).join("") : `<p class="empty-food-message">${selected.length ? "선택한 재료로 만들 수 있는 요리가 없어. 재료를 비우거나 아래 레시피를 골라." : "재료가 부족해. 아래 레시피에서 필요한 작물을 확인해."}</p>`;
+  document.querySelector("#clearRecipeIngredients").disabled = selected.length === 0;
+}
+
+function selectKitchenRecipe(recipeId) {
+  const recipe = RECIPES[recipeId];
+  if (!recipe || !getRecipeAvailability(recipe).count) return;
+  selectedRecipeIngredients.splice(0, 3, ...recipe.ingredients, ...Array(3 - recipe.ingredients.length).fill(""));
+  [1, 2, 3].forEach((slot) => {
+    const select = document.querySelector(`#recipeIngredient${slot}`);
+    select.value = selectedRecipeIngredients[slot - 1];
+    renderRecipeIngredientPicker(select);
+  });
+  closeRecipeIngredientMenus();
+  renderKitchenCauldron();
+  document.querySelector("#cookRecipeButton").focus({ preventScroll: true });
+}
+
 function renderKitchenCauldron() {
   const cauldron = document.querySelector("#recipeCauldron");
   const ingredientStage = document.querySelector("#recipeCauldronIngredients");
   const status = document.querySelector("#recipeCauldronStatus");
   if (!cauldron || !ingredientStage || !status) return;
 
+  renderAvailableRecipes();
   const ingredientIds = selectedRecipeIngredients.filter((cropId) => CROPS[cropId]);
   cauldron.classList.toggle("has-ingredients", ingredientIds.length > 0);
   ingredientStage.innerHTML = ingredientIds.length
@@ -5349,12 +5439,13 @@ function pixelAtlasPosition(ids, id, columns, rows, prefix) {
 }
 
 function cosmeticPixelPreview(type, id) {
-  if (type === "farm_theme") return `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="${pixelAtlasPosition(PIXEL_THEME_IDS, id, 3, 3, "theme")}"></span>`;
+  if (type === "farm_theme") return `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="background-image:url('./assets/farm-themes/${id}.svg');background-size:contain;background-position:center;background-repeat:no-repeat"></span>`;
   if (type === "plot_skin") return `<span aria-hidden="true" class="cosmetic-preview plot-preview" style="${pixelAtlasPosition(PIXEL_PLOT_IDS, id, 4, 3, "plot")}"></span>`;
   return `<span aria-hidden="true" class="cosmetic-preview label-preview" data-label-effect="${id}">FARM</span>`;
 }
 
 function renderRachelPanel() {
+  renderFarmSetBonuses();
   const offersList = document.querySelector("#rachelOffersList");
   const ownedList = document.querySelector("#rachelOwnedList");
   if (!offersList || !ownedList) return;
@@ -5378,6 +5469,7 @@ function renderRachelPanel() {
                 <span class="rachel-preview-copy">
                   <strong>${entry.name}</strong>
                   <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
+                  <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
                   <small class="rachel-preview-hint">눌러서 미리보기</small>
                 </span>
               </button>
@@ -5418,6 +5510,7 @@ function renderRachelPanel() {
                 <span class="rachel-preview-copy">
                   <strong>${name}</strong>
                   <small>${COSMETIC_TYPE_LABELS[type]}</small>
+                  <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
                   <small class="rachel-preview-hint">눌러서 미리보기</small>
                 </span>
               </button>
@@ -5433,12 +5526,18 @@ function decorateFarmTheme(root, themeId) {
   const layout = root.querySelector(".farm-layout");
   if (!layout) return;
   const entry = getCosmeticEntry("farm_theme", themeId);
+  const index = PIXEL_THEME_IDS.indexOf(themeId);
+  root.style.setProperty("--theme-x", `${Math.max(0, index % 3) * 50}%`);
+  root.style.setProperty("--theme-y", `${Math.max(0, Math.floor(index / 3)) * 50}%`);
   let banner = layout.querySelector(".farm-theme-banner");
   if (!entry) {
     banner?.remove();
     return;
   }
   const captions = {
+    volcano: "붉은 용암과 불꽃이 흐르는 화산 농장",
+    iceKingdom: "얼음 결정이 반짝이는 서리 정원",
+    goldenHarvest: "황금빛 이삭이 물결치는 풍요로운 들판",
     whiteDay: "사탕과 리본으로 포장한 달콤한 농장",
     bubbleField: "투명한 비눗방울이 머무는 정원",
     cherryBlossom: "벚꽃 가지 아래 피어난 봄날의 농장",
@@ -5729,19 +5828,17 @@ function renderFarm() {
     storedFoods ||
     '<span class="empty-food-message">완성된 음식이 아직 없어</span>';
 
-  recipeBookProgress.textContent = `${state.discoveredRecipes.length} / ${Object.keys(RECIPES).length}`;
-  recipeBook.innerHTML = Object.entries(RECIPES)
-    .map(([recipeId, recipe]) => {
-      const discovered = state.discoveredRecipes.includes(recipeId);
-      return `
-        <article class="recipe-entry ${discovered ? "" : "locked"}">
-          <span>${discovered ? foodPixel(recipeId) : "?"}</span>
-          <strong>${discovered ? recipe.name : "알 수 없는 요리"}</strong>
-          <small>${recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")}</small>
-        </article>
-      `;
-    })
-    .join("");
+  const recipeEntries = Object.entries(RECIPES).map(([id, recipe]) => ({ id, recipe, ...getRecipeAvailability(recipe) }));
+  recipeEntries.sort((a, b) => Number(b.count > 0) - Number(a.count > 0));
+  recipeBookProgress.textContent = `${recipeEntries.length}종 · 제작 가능 ${recipeEntries.filter(({ count }) => count > 0).length}종`;
+  recipeBook.innerHTML = recipeEntries.map(({ id, recipe, count, missing }) => `
+    <article class="recipe-entry ${count ? "craftable" : ""}">
+      <span>${foodPixel(id)}</span>
+      <strong>${recipe.name}</strong>
+      <small>${recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")}</small>
+      <small class="recipe-availability">${count ? `제작 가능 · 최대 ${count}개` : missing.join(" · ")}</small>
+      <button type="button" data-select-recipe="${id}" ${count ? "" : "disabled"}>재료 선택</button>
+    </article>`).join("");
 
   grid.innerHTML = state.farmPlots
     .map((plot) => {
@@ -6724,7 +6821,7 @@ async function flushFocusTime() {
       focusProgressServerSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0)) % 3600;
       if (Number.isFinite(Number(data?.coinBalance))) state.coins = Number(data.coinBalance);
       const awardedCoins = Math.max(0, Number(data?.awardedCoins) || 0);
-      if (awardedCoins > 0) showToast(`집중 누적 60분 완료 ${awardedCoins} Coin을 받았어`);
+      if (awardedCoins > 0) showToast(`집중 누적 60분 완료 ${awardedCoins} Coin을 받았어${farmBonusMessage(data?.event)}`);
       refreshFocusProgress();
       renderFarm();
     }
@@ -8548,14 +8645,13 @@ document.querySelector("#seedShop").addEventListener("click", async (event) => {
   const previousSeedCount = state.seedInventory[cropId];
   const previousSelectedSeed = selectedSeed;
 
-  await runFarmAction({
+  const result = await runFarmAction({
     rpc: "buy_farm_seed",
     params: { p_crop_id: cropId },
     apply: () => {
       state.coins -= crop.seedPrice;
       state.seedInventory[cropId] += 1;
       if (!selectedSeed) selectedSeed = cropId;
-      showToast(`${crop.name} 씨앗을 1개 샀어`);
     },
     revert: () => {
       state.coins = previousCoins;
@@ -8564,6 +8660,7 @@ document.querySelector("#seedShop").addEventListener("click", async (event) => {
     },
     failureMessage: "씨앗 구매 저장에 실패해서 되돌렸어.",
   });
+  if (result) showToast(`${crop.name} 씨앗을 ${result.event?.seedAmount ?? 1}개 샀어${farmBonusMessage(result.event)}`);
 });
 
 document.querySelector("#seedInventory").addEventListener("click", (event) => {
@@ -8878,8 +8975,8 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     if (jackpot) launchHarvestCelebration();
     showToast(
       jackpot
-        ? `대풍년! ${cropName}을 5개 수확했어!`
-        : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어`,
+        ? `대풍년! ${cropName}을 ${harvestAmount}개 수확했어!${farmBonusMessage(result.event)}`
+        : `${cropName}을 ${harvestAmount}개 수확해서 보관함에 넣었어${farmBonusMessage(result.event)}`,
     );
     return;
   }
@@ -8908,22 +9005,18 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
       apply: () => {
         plot.lastFreeWaterAt = Date.now();
         advanceFarmPlotGrowth(plot);
-        showToast(
-          plot.growth >= maxGrowth
-            ? `물을 주니 ${crop.name}이 다 자랐어`
-            : `물을 주니 ${crop.name}이 한 단계 자랐어`,
-        );
       },
       revert: () => Object.assign(plot, previousPlotState),
       failureMessage: "물주기 저장에 실패해서 되돌렸어.",
     });
+    if (result) showToast(`${crop.name}${plot.growth >= maxGrowth ? "이 다 자랐어" : "에 물을 줬어"}${farmBonusMessage(result.event)}`);
     // Only schedule a "ready to water" reminder if there's still growing
     // left to do -- a plot that just hit max growth has nothing more to water.
     if (result && plot.growth < maxGrowth) {
       scheduleFarmPushNotification(
         "plot_water_ready",
         String(plotIndex),
-        Date.now() + FARM_WATER_COOLDOWN_MS,
+        Date.now() + getPlotWaterRemaining(plot),
         "물 줄 시간이 됐어",
         `${plotIndex + 1}번 밭에 물을 줄 수 있어`,
       );
@@ -8985,7 +9078,7 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
   const previousFarmMoney = state.farmMoney;
   const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
 
-  await runFarmAction({
+  const result = await runFarmAction({
     rpc: "sell_farm_food",
     params: { p_recipe_id: recipeId },
     apply: () => {
@@ -8993,7 +9086,6 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
       state.farmMoney += recipe.sellPrice;
       ensureWeeklyFarmRanking();
       state.weeklyFarmMoneyEarned += recipe.sellPrice;
-      showToast(`${recipe.name}을 팔고 ${recipe.sellPrice} Farm Money를 받았어`);
     },
     revert: () => {
       state.foodInventory[recipeId] = previousFoodCount;
@@ -9002,6 +9094,7 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
     },
     failureMessage: "음식 판매 저장에 실패해서 되돌렸어.",
   });
+  if (result) showToast(`${recipe.name}을 팔고 ${result.event?.saleAmount ?? recipe.sellPrice} Farm Money를 받았어${farmBonusMessage(result.event)}`);
 });
 
 document.querySelector("#noahCropBundleList").addEventListener("click", async (event) => {
@@ -9021,7 +9114,7 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
   const previousFarmMoney = state.farmMoney;
   const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
 
-  await runFarmAction({
+  const result = await runFarmAction({
     rpc: "sell_farm_crop_bundle",
     params: { p_crop_id: cropId, p_bundle_size: bundleSize },
     apply: () => {
@@ -9029,7 +9122,6 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
       state.farmMoney += totalPrice;
       ensureWeeklyFarmRanking();
       state.weeklyFarmMoneyEarned += totalPrice;
-      showToast(`${crop.name} ${bundleSize}개를 팔고 ${totalPrice} Farm Money를 받았어`);
     },
     revert: () => {
       state.harvestInventory[cropId] = previousHarvestCount;
@@ -9038,6 +9130,7 @@ document.querySelector("#noahCropBundleList").addEventListener("click", async (e
     },
     failureMessage: "작물 판매 저장에 실패해서 되돌렸어.",
   });
+  if (result) showToast(`${crop.name} ${bundleSize}개를 팔고 ${result.event?.saleAmount ?? totalPrice} Farm Money를 받았어${farmBonusMessage(result.event)}`);
 });
 
 document.querySelector("#cookRecipeButton").addEventListener("click", async (event) => {
@@ -9074,9 +9167,6 @@ document.querySelector("#cookRecipeButton").addEventListener("click", async (eve
     Object.keys(requiredCounts).map((cropId) => [cropId, state.harvestInventory[cropId]]),
   );
 
-  // Matching + recipe discovery move server-side (cook_farm_recipe) --
-  // getRecipeByIngredients no longer decides the outcome, it's read back
-  // from result.event instead.
   const result = await runFarmAction({
     rpc: "cook_farm_recipe",
     params: { p_crop_ids: ingredientIds },
@@ -9102,12 +9192,7 @@ document.querySelector("#cookRecipeButton").addEventListener("click", async (eve
   }
 
   const recipe = RECIPES[result.event.recipeId];
-  if (result.event.firstDiscovery) launchRecipeDiscoveryFireworks();
-  showToast(
-    result.event.firstDiscovery
-      ? `새 레시피 발견! ${recipe.name}`
-      : `${recipe.name}을 만들었어`,
-  );
+  showToast(`${recipe.name}을 ${result.event.foodAmount ?? 1}개 만들었어${farmBonusMessage(result.event)}`);
 });
 
 document.querySelector("#toggleRecipeBook").addEventListener("click", (event) => {
@@ -9191,9 +9276,11 @@ function openCosmeticPreview(type, id) {
 
   document.querySelector("#cosmeticPreviewTitle").textContent = entry.name;
   document.querySelector("#cosmeticPreviewDescription").textContent =
-    `${COSMETIC_TYPE_LABELS[type]} 적용 예시 · 샘플 작물로 밭과 메뉴, 시장까지 확인해 봐`;
+    `${COSMETIC_TYPE_LABELS[type]} 적용 예시 · ${getCosmeticSetDescription(type, id)}`;
+  const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
+  document.querySelector("#cosmeticPreviewSetMembers").textContent = set ? ["farm_theme", "plot_skin", "label_effect"].map((slot) => `${COSMETIC_TYPE_LABELS[slot]}: ${set[slot].map((member) => getCosmeticEntry(slot, member)?.name).join(" / ")}`).join(" · ") : "";
   cosmeticPreviewModal.classList.remove("hidden");
-  cosmeticPreviewModal.querySelector("[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
+  cosmeticPreviewModal.querySelector("button[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
 }
 
 document.querySelector("#npcMarket").addEventListener("click", (event) => {
@@ -9261,6 +9348,7 @@ document.querySelector("#rachelOffersList").addEventListener("click", async (eve
   if (type === "farm_theme") state.equippedFarmTheme = id;
   if (type === "plot_skin") state.equippedPlotSkin = id;
   if (type === "label_effect") state.equippedLabelEffect = id;
+  refreshFarmWaterReminders();
   showToast(`${entry.name}을 구매해서 바로 장착했어`);
   render();
 });
@@ -9293,6 +9381,7 @@ document.querySelector("#rachelOwnedList").addEventListener("click", async (even
   if (type === "farm_theme") state.equippedFarmTheme = targetId;
   if (type === "plot_skin") state.equippedPlotSkin = targetId;
   if (type === "label_effect") state.equippedLabelEffect = targetId;
+  refreshFarmWaterReminders();
   showToast(targetId ? `${entry.name}을 장착했어` : `${COSMETIC_TYPE_LABELS[type]}를 해제했어`);
   render();
 });
@@ -9641,6 +9730,16 @@ document.querySelector("#openFarmKitchen").addEventListener("click", () => {
   farmKitchenModal.classList.remove("hidden");
 });
 farmKitchenModal.addEventListener("click", (event) => {
+  const recipeButton = event.target.closest("[data-select-recipe]");
+  if (recipeButton) {
+    selectKitchenRecipe(recipeButton.dataset.selectRecipe);
+    return;
+  }
+  if (event.target.closest("#clearRecipeIngredients")) {
+    selectedRecipeIngredients.fill("");
+    renderFarm();
+    return;
+  }
   if (event.target.closest("[data-close-kitchen]")) {
     closeRecipeIngredientMenus();
     farmKitchenModal.classList.add("hidden");

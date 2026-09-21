@@ -699,6 +699,27 @@
   90% { transform: translateY(0) rotate(4deg); }
 }
 
+.available-recipes-panel { padding: 12px; border: 2px solid #8767a4; background: #faf5ff; }
+.available-recipes-heading { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.available-recipes-heading h3 { margin: 0; font-size: 13px; }
+.available-recipes-heading button { flex-shrink: 0; padding: 6px; font-size: 11px; }
+.available-recipes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; max-height: 230px; overflow-y: auto; }
+.available-recipe { display: flex; align-items: center; gap: 8px; padding: 8px; text-align: left; border: 2px solid #749768; background: #f5ffef; }
+.available-recipe > span:last-child { display: grid; gap: 4px; min-width: 0; }
+.available-recipe strong { font-size: 12px; overflow-wrap: anywhere; }
+.available-recipe small { font-size: 10px; color: #46643d; }
+.kitchen-modal-panel .recipe-entry.craftable { border-color: #749768; background: #f5ffef; }
+.kitchen-modal-panel .recipe-entry > .recipe-availability { grid-column: 1 / -1; margin-top: 5px; }
+.kitchen-modal-panel .recipe-entry.craftable > .recipe-availability { color: #32652e; }
+.kitchen-modal-panel .recipe-entry > button { grid-column: 1 / -1; margin-top: 5px; padding: 6px; font-size: 11px; }
+.farm-set-bonuses { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 10px; margin: 0; border: 2px solid var(--farm-edge, #749768); background: var(--farm-surface, #f5ffef); color: var(--farm-ink, #324c2d); font-size: 11px; line-height: 1.6; }
+.farm-set-bonuses > strong { flex-basis: 100%; }
+.rachel-preview-copy .rachel-set-description { white-space: normal; overflow-wrap: anywhere; font-size: 10px; line-height: 1.5; }
+[data-label-effect="iceCrystal"] { --label-bg: #d9f3ff; --label-border: #608ba9; --label-ink: #234a6a; --label-decoration: "❄"; --label-finish: repeating-linear-gradient(135deg, #effcff 0 8px, #b1dcef 8px 12px); }
+[data-label-effect="candyRibbon"] { --label-bg: #eee6ff; --label-border: #9180af; --label-ink: #574278; --label-decoration: "✦"; --label-finish: repeating-linear-gradient(125deg, #f1d9ee 0 12px, #fff5df 12px 24px); }
+[data-label-effect="pumpkinLantern"] { --label-bg: #f7c780; --label-border: #966333; --label-ink: #5c3521; --label-decoration: "✧"; --label-finish: linear-gradient(0deg, #e89848, #ffe1a0); }
+[data-label-effect="pearlShell"] { --label-bg: #d8f4f3; --label-border: #5c949a; --label-ink: #24565b; --label-decoration: "◈"; --label-finish: linear-gradient(135deg, #d8f4f3, #fff4e6, #bedfe9); }
+
 /* Witch kitchen: the existing recipe system presented as a playable pixel workbench. */
 .kitchen-modal-panel {
   width: min(980px, 100%);

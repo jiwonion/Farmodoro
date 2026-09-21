@@ -580,19 +580,17 @@ body .cosmetic-preview-modal-panel {
 }
 body .cosmetic-preview-modal-panel > .modal-scroll-area { padding: 16px; }
 body .cosmetic-preview-modal-panel > .modal-scroll-area > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
-  padding: 12px 58px 12px 14px;
+  padding: 12px 14px;
   border: 3px solid #14264a;
   background: #dceaff;
   box-shadow: 3px 3px 0 #8dadde;
 }
-body .cosmetic-preview-modal-panel > .modal-scroll-area > header > button {
-  top: 50%;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  transform: translateY(-50%);
-}
+body .cosmetic-preview-modal-panel > .modal-scroll-area > header > div { min-width: 0; }
 body .cosmetic-preview-modal-panel h2 { color: #14264a; font-size: 23px; }
 body .cosmetic-preview-modal-panel header p { color: #496284; }
 body .cosmetic-tryon-stage {
@@ -858,7 +856,7 @@ body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::after {
   body #supplyStorageModal .supply-card-actions button { min-width: 44px; padding-inline: 5px; }
   body .cosmetic-preview-modal-panel { width: calc(100vw - 18px); max-height: calc(100dvh - 18px); box-shadow: 4px 4px 0 #315bf1; }
   body .cosmetic-preview-modal-panel > .modal-scroll-area { padding: 9px; }
-  body .cosmetic-preview-modal-panel > .modal-scroll-area > header { padding: 9px 50px 9px 10px; }
+  body .cosmetic-preview-modal-panel > .modal-scroll-area > header { padding: 9px 10px; }
   body .cosmetic-preview-modal-panel h2 { font-size: 18px; }
   body .cosmetic-tryon-stage { padding: 8px; }
   body .cosmetic-preview-farm-scene { min-height: 310px; padding: 8px 4px; }
@@ -2119,4 +2117,184 @@ body #farmMailModal .farm-mail-inbox-row::before { animation: none !important; }
   body #tasksPage .task-page-tools { flex-wrap: wrap; gap: 8px; }
   body #tasksPage .task-page-tools button { min-height: 46px; font-size: 15px; padding: 6px 10px; }
   body #todayPage .task-filter-list button { min-height: 36px; font-size: 13px; padding: 5px 8px; }
+}
+
+/* Phone top menu: the label had fallen back to the 9-10px base size. */
+@media (max-width: 700px) {
+  body .main-nav > .nav-item .nav-label { font-size: 14px; letter-spacing: -.5px; overflow: visible; }
+}
+@media (max-width: 360px) {
+  body .main-nav > .nav-item .nav-label { font-size: 12px; letter-spacing: -.7px; }
+}
+
+/* Login screen: retro blue kitsch, matching the pixel app UI. */
+body .auth-gate {
+  --auth-blue: #315bf1; --auth-navy: #283754; --auth-sky: #e8efff; --auth-line: #bcc9e8;
+  --cream: #eaf1ff; --paper: #ffffff; --ink: #283754; --muted: #5b6f9a;
+  font-family: inherit;
+}
+body :is(.auth-gate, .auth-entry, .auth-boot) { background: #eaf1ff; }
+body .auth-entry {
+  background:
+    linear-gradient(90deg, #d4e0fa 2px, transparent 2px) 0 0 / 24px 24px,
+    linear-gradient(0deg, #d4e0fa 2px, transparent 2px) 0 0 / 24px 24px,
+    #eaf1ff;
+}
+body .auth-landscape {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Cpath d='M30 40h30v-10h40v10h20v10h20v20h-130v-20h20z' transform='translate%280 0%29'/%3E%3Cpath d='M150 100h20v-10h20v-10h30v10h10v20h-80z' transform='translate%28-10 -50%29'/%3E%3C/g%3E%3Cg fill='%23cfe0ff'%3E%3Cpath d='M20 70h130v10h-130z'/%3E%3Cpath d='M140 50h60v10h-60z'/%3E%3C/g%3E%3C/svg%3E") 8% 14% / 300px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Cpath d='M30 40h30v-10h40v10h20v10h20v20h-130v-20h20z' transform='translate%280 0%29'/%3E%3Cpath d='M150 100h20v-10h20v-10h30v10h10v20h-80z' transform='translate%28-10 -50%29'/%3E%3C/g%3E%3Cg fill='%23cfe0ff'%3E%3Cpath d='M20 70h130v10h-130z'/%3E%3Cpath d='M140 50h60v10h-60z'/%3E%3C/g%3E%3C/svg%3E") 78% 34% / 220px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Cpath d='M30 40h30v-10h40v10h20v10h20v20h-130v-20h20z' transform='translate%280 0%29'/%3E%3Cpath d='M150 100h20v-10h20v-10h30v10h10v20h-80z' transform='translate%28-10 -50%29'/%3E%3C/g%3E%3Cg fill='%23cfe0ff'%3E%3Cpath d='M20 70h130v10h-130z'/%3E%3Cpath d='M140 50h60v10h-60z'/%3E%3C/g%3E%3C/svg%3E") 4% 40% / 200px no-repeat,
+    linear-gradient(180deg, #3f6ff5 0 22%, #5a86f7 22% 44%, #7ca4fa 44% 66%, #a5c3fc 66% 84%, #cfe0ff 84%);
+  image-rendering: pixelated;
+}
+body .auth-landscape-shade { background: linear-gradient(180deg, transparent 45%, #1c2f8a66 100%); }
+body .auth-landscape::before { border: 4px dashed #ffffffb0; border-radius: 0; }
+body .auth-landscape-copy { text-shadow: 3px 3px 0 var(--auth-navy); }
+body .auth-landscape-kicker { display: inline-block; padding: 4px 10px; border: 2px solid var(--auth-navy); background: #ffe27a; color: var(--auth-navy); text-shadow: none; box-shadow: 3px 3px 0 var(--auth-navy); }
+body .auth-landscape-copy > p { color: #fff; }
+body .auth-landscape-tags span { border: 2px solid var(--auth-navy); border-radius: 0; background: #fff; color: var(--auth-navy); text-shadow: none; box-shadow: 3px 3px 0 var(--auth-navy); backdrop-filter: none; }
+body .auth-landscape-tags svg { stroke: var(--auth-blue); }
+body .auth-landscape-tags b { color: var(--auth-navy); }
+body .auth-card {
+  position: relative; overflow: hidden; padding-top: calc(clamp(30px, 4.5vw, 48px) + 30px);
+  border: 3px solid var(--auth-navy); border-radius: 0; background: #fff;
+  box-shadow: 8px 8px 0 var(--auth-blue);
+}
+body .auth-card::before {
+  content: "■ FARMODORO.EXE"; position: absolute; top: 0; right: 0; left: 0; height: 30px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;
+  border-bottom: 3px solid var(--auth-navy); background: repeating-linear-gradient(90deg, var(--auth-blue) 0 6px, #4a72f5 6px 12px);
+  color: #fff; font-size: 12px; letter-spacing: .12em;
+}
+body .auth-card::after {
+  content: "_ □ ×"; position: absolute; top: 0; right: 10px; height: 30px; display: flex; align-items: center;
+  color: #fff; font-size: 13px; letter-spacing: .3em;
+}
+body .auth-brand { color: var(--auth-navy); }
+body .auth-brand-mark { border: 2px solid var(--auth-navy); border-radius: 0; background: #d9e5ff; box-shadow: 3px 3px 0 var(--auth-navy); transform: none; }
+body .auth-heading > span { display: inline-block; padding: 3px 8px; background: var(--auth-blue); color: #fff; }
+body .auth-heading h1 { color: var(--auth-navy); text-shadow: 3px 3px 0 #cfdcff; }
+body .auth-heading p { color: #5b6f9a; }
+body .google-login-button { border: 2px solid var(--auth-navy); border-radius: 0; background: #fff; box-shadow: 4px 4px 0 var(--auth-line); }
+body .auth-status { padding: 8px 10px; border: 2px dashed var(--auth-line); border-radius: 0; background: #f3f7ff; color: #4d6396; }
+body .auth-status.notice { color: #a34a1f; background: #fff3d6; border-color: #e6b25a; }
+body .auth-benefits { padding: 14px; border: 2px solid var(--auth-line); border-radius: 0; background: #eef3ff; }
+body .auth-benefits > div > span { border: 2px solid var(--auth-navy); border-radius: 0; background: #fff; color: var(--auth-blue); box-shadow: 2px 2px 0 var(--auth-line); }
+body .auth-benefits strong { color: var(--auth-navy); }
+body .auth-benefits small { color: #5b6f9a; }
+body .auth-footer { color: var(--auth-blue); font-weight: 700; }
+@media (max-width: 920px) {
+  body .auth-gate {
+    background:
+      linear-gradient(90deg, #ffffff22 2px, transparent 2px) 0 0 / 24px 24px,
+      linear-gradient(0deg, #ffffff22 2px, transparent 2px) 0 0 / 24px 24px,
+      linear-gradient(180deg, #3f6ff5 0 25%, #5a86f7 25% 50%, #7ca4fa 50% 75%, #a5c3fc 75%);
+    background-attachment: fixed;
+  }
+  body .auth-entry { background: transparent; }
+  body .auth-card { box-shadow: 6px 6px 0 var(--auth-navy); }
+  body .auth-footer { color: #fff; text-shadow: 2px 2px 0 var(--auth-navy); }
+}
+@media (max-width: 480px) {
+  body .auth-card { padding: 57px 20px 24px; border-radius: 0; }
+}
+
+/* Default farm desk: blue retro kitsch (equipped farm themes keep their own palette). */
+body #farmPage:not([data-farm-theme]) .farm-layout {
+  border-color: #283754;
+  background:
+    linear-gradient(90deg, #d4e0fa 2px, transparent 2px) 0 0 / 24px 24px,
+    linear-gradient(0deg, #d4e0fa 2px, transparent 2px) 0 0 / 24px 24px,
+    #eaf1ff;
+  box-shadow: inset 0 0 0 3px #a9c0f7, 6px 6px 0 #315bf1;
+}
+body #farmPage:not([data-farm-theme]) .farm-window-chrome {
+  border-bottom-color: #283754;
+  background: repeating-linear-gradient(90deg, #315bf1 0 6px, #4a72f5 6px 12px);
+  box-shadow: none;
+  color: #fff;
+}
+body #farmPage:not([data-farm-theme]) .farm-panel-header {
+  border-color: #283754;
+  background: #fff;
+  box-shadow: 3px 3px 0 #bcc9e8;
+}
+body #farmPage:not([data-farm-theme]) .farm-name-display h2 { color: #283754; }
+body #farmPage:not([data-farm-theme]) .farm-header-actions > :is(button, .farm-header-money, .farm-wallet),
+body #farmPage:not([data-farm-theme]) .farm-storage-toolbar button.farm-storage-button,
+body #farmPage:not([data-farm-theme]) .farm-header-actions > button.farm-utility-button {
+  border-color: #283754;
+  background: #fff !important;
+  box-shadow: inset 0 -3px #d4e0fa, 2px 2px 0 #bcc9e8;
+  color: #283754;
+}
+body #farmPage:not([data-farm-theme]) .farm-header-actions > button.farm-utility-button:hover,
+body #farmPage:not([data-farm-theme]) .farm-storage-toolbar button.farm-storage-button:hover { background: #dfe9ff !important; }
+body #farmPage:not([data-farm-theme]) .farm-header-actions > button.farm-utility-button span { color: #283754; }
+body #farmPage:not([data-farm-theme]) .farm-set-bonuses {
+  border: 2px dashed #8fa8e6;
+  background: #f3f7ff;
+  color: #283754;
+}
+body #farmPage:not([data-farm-theme]) .farm-set-bonuses > strong { color: #315bf1; }
+/* Field: blue gingham picnic cloth under the soil beds. */
+body #farmPage:not([data-farm-theme]) .farm-scene {
+  border: 3px solid #283754;
+  background-color: #a9c8ff;
+  background-image:
+    repeating-linear-gradient(0deg, #ffffff70 0 16px, transparent 16px 32px),
+    repeating-linear-gradient(90deg, #ffffff70 0 16px, transparent 16px 32px);
+  box-shadow: inset 0 0 0 4px #dfe9ff, 3px 3px 0 #315bf1;
+}
+body #farmPage:not([data-farm-theme]) .farm-scene .farm-plot {
+  border-color: #283754;
+  box-shadow: 3px 3px 0 #283754;
+}
+body #farmPage:not([data-farm-theme]) .farm-scene .crop-wilt-countdown { background: #283754; }
+body #farmPage:not([data-farm-theme]) .farm-scene .crop-info strong,
+body #farmPage:not([data-farm-theme]) .farm-scene .crop-info small { color: #283754; background: #fff; }
+/* Market: blue window frame instead of wood. */
+body #farmPage:not([data-farm-theme]) .npc-market {
+  border-color: #283754;
+  background:
+    linear-gradient(90deg, #315bf1 0 6px, transparent 6px calc(100% - 6px), #315bf1 calc(100% - 6px)),
+    repeating-linear-gradient(0deg, #ffffff 0 28px, #eaf1ff 29px 30px);
+  box-shadow: inset 0 0 0 3px #a9c0f7, 4px 4px 0 #315bf1;
+  scrollbar-color: #315bf1 #dfe9ff;
+}
+body #farmPage:not([data-farm-theme]) .npc-market > .open-permanent-market {
+  border-color: #283754;
+  background: #fff;
+  box-shadow: inset 0 -5px #d4e0fa, 3px 3px 0 #bcc9e8;
+  color: #283754;
+}
+body #farmPage:not([data-farm-theme]) .npc-market > .open-permanent-market::before {
+  border-color: #283754;
+  background: repeating-linear-gradient(90deg, #315bf1 0 28px, #fff 28px 56px);
+}
+body #farmPage:not([data-farm-theme]) .open-permanent-market span { color: #283754; }
+body #farmPage:not([data-farm-theme]) .market-category-tabs button {
+  border-color: #283754;
+  background: #fff;
+  box-shadow: inset 0 -3px #d4e0fa, 2px 2px 0 #bcc9e8;
+  color: #283754;
+}
+body #farmPage:not([data-farm-theme]) .market-category-tabs button.active {
+  background: #315bf1;
+  box-shadow: inset 0 3px #78a0ff, inset 0 -4px #173bb5, 2px 2px 0 #283754;
+  color: #fff;
+}
+body #farmPage:not([data-farm-theme]) .market-section-title { border-left-color: #315bf1; background: #dfe9ff; color: #283754; }
+body #farmPage:not([data-farm-theme]) :is(.seed-shop-card, .noah-buy-card) {
+  border-color: #283754;
+  background: #fff;
+  box-shadow: inset 0 -3px #d4e0fa, 2px 2px 0 #bcc9e8;
+}
+body #farmPage:not([data-farm-theme]) :is(.seed-shop-emoji, .noah-buy-card > span) { background: #eaf1ff; }
+body #farmPage:not([data-farm-theme]) :is(.seed-shop-card, .noah-buy-card) button {
+  border-color: #283754;
+  background: #315bf1;
+  color: #fff;
+  box-shadow: inset 0 3px #78a0ff, inset 0 -3px #173bb5, 2px 2px 0 #283754;
 }

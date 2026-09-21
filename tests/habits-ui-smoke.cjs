@@ -381,7 +381,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const skinResult = await call('Runtime.evaluate', {returnByValue:true, expression:`(() => {
       const sameIDs = (ids, catalog) => JSON.stringify(ids.slice().sort()) === JSON.stringify(catalog.map(item => item.id).sort());
       const stateBefore = JSON.stringify([state.ownedCosmetics, state.coins, state.farmMoney, state.farmPlots]);
-      const allThemes = FARM_THEMES.every(({id}) => { applyFarmTheme(id); return document.querySelector('#farmPage').dataset.farmTheme === id && getComputedStyle(document.querySelector('.farm-scene')).backgroundImage.includes('themes-atlas.png'); });
+      const allThemes = FARM_THEMES.every(({id}) => { applyFarmTheme(id); return document.querySelector('#farmPage').dataset.farmTheme === id && getComputedStyle(document.querySelector('.farm-theme-banner > i')).backgroundImage.includes('/farm-themes/'+id+'.svg'); });
       applyFarmTheme(null);
       const defaultTheme = !document.querySelector('#farmPage').hasAttribute('data-farm-theme') && !getComputedStyle(document.querySelector('.farm-scene')).backgroundImage.includes('themes-atlas.png');
       applyFarmTheme(state.equippedFarmTheme);
@@ -394,7 +394,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       document.querySelector('[data-rachel-tab="offers"]').click();
       document.querySelector('#rachelOffersList [data-preview-cosmetic="farm_theme:cherryBlossom"]').click();
       const popup = !document.querySelector('#cosmeticPreviewModal').classList.contains('hidden');
-      const themePreview = getComputedStyle(document.querySelector('.cosmetic-preview-farm-scene')).backgroundImage.includes('themes-atlas.png');
+      const themePreview = getComputedStyle(document.querySelector('.cosmetic-farm-preview .farm-layout')).backgroundImage.includes('themes-atlas.png') && getComputedStyle(document.querySelector('.cosmetic-preview-farm-scene')).backgroundImage === 'none';
       closeCosmeticPreview();
       openCosmeticPreview('plot_skin','lavenderField');
       const plotPreview = [...document.querySelectorAll('.cosmetic-preview-farm-scene .farm-plot')].every(plot => plot.dataset.previewPlot === 'lavenderField' && getComputedStyle(plot).backgroundImage.includes('plots-atlas.png'));
@@ -403,7 +403,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const labelPreview = document.querySelector('.cosmetic-preview-nameplate').dataset.labelEffect === 'galaxySparkle' && getComputedStyle(document.querySelector('.cosmetic-preview-nameplate')).backgroundColor === 'rgb(52, 59, 101)';
       const noDuplicateIds = !document.querySelector('.cosmetic-preview-farm-scene [id]');
       closeCosmeticPreview();
-      return {themeIDs: sameIDs(PIXEL_THEME_IDS,FARM_THEMES), plotIDs:sameIDs(PIXEL_PLOT_IDS,PLOT_SKINS), allThemes, defaultTheme, owned,
+      return {themeIDs: PIXEL_THEME_IDS.every(id => FARM_THEMES.some(theme => theme.id===id)), plotIDs:sameIDs(PIXEL_PLOT_IDS,PLOT_SKINS), allThemes, defaultTheme, owned,
         popup,ownedPlotPopup,themePreview,plotPreview,labelPreview,noDuplicateIds,
         unchanged:stateBefore === JSON.stringify([state.ownedCosmetics,state.coins,state.farmMoney,state.farmPlots]),
         svgCount:document.querySelectorAll('#farmGrid svg').length};
@@ -439,7 +439,6 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await call('Runtime.evaluate',{expression:'closeFarmRewardBoxModal()'});
     const kitchenResult = await call('Runtime.evaluate',{returnByValue:true,expression:`(() => {
       selectedRecipeIngredients.splice(0,3,'carrot','potato','');
-      state.discoveredRecipes=Object.keys(RECIPES);
       Object.keys(state.foodInventory).forEach(id=>state.foodInventory[id]=0);
       ['countryStew','sunsetSoup','berryParfait'].forEach(id=>state.foodInventory[id]=1);
       renderFarm();
@@ -469,7 +468,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         selectors:document.querySelectorAll('.witch-ingredient-rack .recipe-ingredient-select').length,
         witchScene:!!document.querySelector('.witch-kitchen-scene .witch-cauldron'),
         pickerArrows:[...document.querySelectorAll('.recipe-picker-arrow')].length===3 && [...document.querySelectorAll('.recipe-picker-arrow')].every(arrow=>arrow.textContent==='' && getComputedStyle(arrow).clipPath!=='none'),
-        recipeFoodSprites:document.querySelectorAll('#recipeBook .food-pixel').length,
+        recipeFoodSprites:document.querySelectorAll('#recipeBook .food-pixel').length === Object.keys(RECIPES).length,
         storedFoodSprites:document.querySelectorAll('#foodInventory .food-pixel').length,
         menusContained:containment.every(result=>result.menu),
         ingredientIconsContained:containment.every(result=>result.icon),
@@ -477,7 +476,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       };
     })()`});
     assert.equal(kitchenResult.exceptionDetails,undefined,JSON.stringify(kitchenResult.exceptionDetails));
-    assert.deepEqual(kitchenResult.result.value,{ingredients:2,filled:true,status:true,selectors:3,witchScene:true,pickerArrows:true,recipeFoodSprites:39,storedFoodSprites:3,menusContained:true,ingredientIconsContained:true,fits:true});
+    assert.deepEqual(kitchenResult.result.value,{ingredients:2,filled:true,status:true,selectors:3,witchScene:true,pickerArrows:true,recipeFoodSprites:true,storedFoodSprites:3,menusContained:true,ingredientIconsContained:true,fits:true});
     await call('Runtime.evaluate', {expression:'farmKitchenModal.classList.add("hidden")'});
     const mailResult = await call('Runtime.evaluate',{returnByValue:true,expression:`(() => {
       renderFarmMail();
@@ -541,7 +540,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await call('Runtime.evaluate', {expression:'farmRankingModal.classList.add("hidden")'});
     }
     await call('Runtime.evaluate', {expression:'farmMailModal.classList.add("hidden")'});
-    await call('Runtime.evaluate', {expression:'selectedRecipeIngredients.fill(""); state.discoveredRecipes=[]; Object.keys(state.foodInventory).forEach(id=>state.foodInventory[id]=0); renderFarm()'});
+    await call('Runtime.evaluate', {expression:'selectedRecipeIngredients.fill(""); Object.keys(state.foodInventory).forEach(id=>state.foodInventory[id]=0); renderFarm()'});
     console.log(`${width}px: pixel farm, crop/stage mapping, cosmetic previews, static labels, no bulletin or overflow PASS`);
     const themeResult = await call('Runtime.evaluate',{returnByValue:true,expression:`(() => {
       showPage('focus');

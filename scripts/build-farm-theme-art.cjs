@@ -10,6 +10,10 @@ const candy = (x,y,r=0) => `<g transform="translate(${x} ${y}) rotate(${r})" str
 const flower = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})" fill="#ffdbec" stroke="#b66b91" stroke-width="2"><path d="M0-4C-25-30-28 8-7 8C-19 33 17 32 7 8C31 11 25-24 4-7C14-31-18-33 0-4Z"/><circle r="5" fill="#ffdc88"/></g>`;
 const bubble = (x,y,r) => `<g><circle cx="${x}" cy="${y}" r="${r}" fill="url(#bubble)" stroke="#9588c4" stroke-width="2"/><path d="M${x-r*.6} ${y-r*.1}Q${x-r*.6} ${y-r*.68} ${x-r*.1} ${y-r*.72}" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"/><circle cx="${x+r*.43}" cy="${y+r*.48}" r="${r*.12}" fill="#fff"/></g>`;
 const motifs = {
+  volcano: `<path d="M8 108 57 30h42l53 78Z" fill="#563c49" stroke="#291e30" stroke-width="4"/><path d="M57 30h42l-10 15-9-7-13 18-8-12-13 9Z" fill="#ffb544"/><path d="m79 41-8 25 13 12-10 30" fill="none" stroke="#fa7142" stroke-width="8"/><path d="m67 17-5-13m23 11 9-12m17 29 14-8" stroke="#ffcc67" stroke-width="5"/>${star(25,37,.45,'#ffc45a')}${star(134,59,.4,'#ff854e')}`,
+  iceKingdom: `<g fill="#c9efff" stroke="#6894b9" stroke-width="3"><path d="M19 100V58l17-26 17 26v42Z"/><path d="M53 105V37L80 4l27 33v68Z"/><path d="M108 100V60l16-21 17 21v40Z"/><path d="M80 5v99M54 38l26 19 27-19" fill="none"/></g>${star(20,20,.65,'#ecffff')}${star(138,17,.7,'#a6d3f4')}`,
+  goldenHarvest: `<g fill="none" stroke="#ae7930" stroke-width="4"><path d="M44 110 53 17M80 110V12M115 110 104 19"/></g><g fill="#edc75d" stroke="#ae7930" stroke-width="2"><path d="M51 39Q26 18 36 12Q57 17 51 39M50 63Q22 43 33 35Q55 39 50 63M79 36Q56 16 65 8Q85 13 79 36M82 57Q108 31 98 26Q79 32 82 57M108 51Q130 28 120 22Q101 29 108 51M111 77Q137 52 126 46Q103 53 111 77"/></g>${star(23,81,.8,'#ffe9a1')}${star(137,90,.65,'#edc75d')}`,
+
   whiteDay: `${star(25,18,.55,'#8a9fcb')}${star(132,91,.5,'#8a9fcb')}<g stroke="#7f91b8" stroke-width="2.5"><rect x="52" y="47" width="65" height="55" rx="3" fill="#fffdf4"/><path d="M50 52h69v13H50Z" fill="#e4eaf8"/><path d="M77 47h15v55H77Z" fill="#a4b9e7"/></g>${bow(84,46)}${candy(30,78,-28)}${candy(132,30,30)}`,
   bubbleField: `${bubble(40,75,27)}${bubble(95,48,37)}${bubble(127,94,16)}${bubble(26,23,12)}${star(135,15,.55,'#fff')}${star(72,102,.7,'#fff')}`,
   cherryBlossom: `<path d="M5 100Q65 84 139 19M74 69 73 22M101 50l44 19" fill="none" stroke="#986a76" stroke-width="7"/>${flower(40,84,.9)}${flower(80,34,1.1)}${flower(120,56,.85)}${leaf(60,76,60)}<path d="M134 91q24-13 13 8q-15 8-13-8" fill="#f2aac9"/>`,
@@ -23,4 +27,30 @@ const motifs = {
 for (const [id, art] of Object.entries(motifs)) {
   const defs = `<defs><radialGradient id="bubble" cx=".3" cy=".25" r=".85"><stop stop-color="#ffffff" stop-opacity=".8"/><stop offset=".45" stop-color="#d8eafa" stop-opacity=".25"/><stop offset=".78" stop-color="#d9c4ed" stop-opacity=".65"/><stop offset="1" stop-color="#a6e3e4" stop-opacity=".8"/></radialGradient></defs>`;
   fs.writeFileSync(path.join(out, `${id}.svg`), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120">${defs}${art}</svg>\n`);
+}
+
+const landscapePalettes = {
+  volcano: {ground:'#493539', edge:'#29252e', light:'#ffb35c', accent:'#e4683b'},
+  iceKingdom: {ground:'#dceef7', edge:'#a8cde3', light:'#f5fdff', accent:'#6b9fbf'},
+  goldenHarvest: {ground:'#d8bd76', edge:'#8b713d', light:'#fff0b2', accent:'#e5ba43'},
+};
+for (const [id, palette] of Object.entries(landscapePalettes)) {
+  const pieces = [`<rect width="600" height="600" fill="${palette.ground}"/>`];
+  for (let i=0; i<30; i++) {
+    const x=(i*137+21)%584, y=(i*83+33)%584;
+    pieces.push(`<path d="M${x} ${y}h8v4h-4v4h-4Z" fill="${palette.light}" opacity=".25"/>`);
+  }
+  for (let i=0; i<10; i++) {
+    for (const [x,y] of [[i*60,0],[i*60,540],[0,i*60],[540,i*60]]) {
+      if(id==='volcano') {
+        pieces.push(`<path d="M${x} ${y+56}v-20h8V${y+20}h12V${y+8}h20v12h12v16h8v20Z" fill="${palette.edge}"/><path d="M${x+20} ${y+20}h20v8h-8v12h-8V${y+28}h-4Z" fill="${palette.accent}"/>`);
+      } else if(id==='iceKingdom') {
+        pieces.push(`<path d="M${x+6} ${y+56}V${y+24}h8V${y+12}h12V${y+4}h8v16h12v16h8v20Z" fill="${palette.edge}"/><path d="M${x+26} ${y+8}h8v44h-8Z" fill="${palette.light}"/>`);
+      } else {
+        pieces.push(`<path d="M${x+20} ${y+56}V${y+8}h4v48Zm20 0V${y+14}h4v42Z" fill="${palette.edge}"/><path d="M${x+12} ${y+12}h8v8h8v8h-8v8h-8v-8h8v-8h-8Zm20 6h8v8h8v8h-8v8h-8v-8h8v-8h-8Z" fill="${palette.accent}"/>`);
+      }
+    }
+  }
+  pieces.push(`<path d="M260 570h80v10h12v20h-104v-20h12Z" fill="${palette.edge}"/><path d="M270 574h24v8h-24Zm34 0h24v8h-24Zm-44 14h34v8h-34Zm44 0h34v8h-34Z" fill="${palette.light}"/>`);
+  fs.writeFileSync(path.join(out, `${id}-landscape.svg`), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" preserveAspectRatio="none" shape-rendering="crispEdges">${pieces.join('')}</svg>\n`);
 }

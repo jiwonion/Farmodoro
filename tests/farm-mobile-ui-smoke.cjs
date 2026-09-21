@@ -129,7 +129,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   for (const width of [1440, 390, 320]) {
     await call('Emulation.setDeviceMetricsOverride',{width,height:1300,deviceScaleFactor:1,mobile:false});
     await call('Emulation.setTouchEmulationEnabled',{enabled:false});
-    const themes = await evaluate('PIXEL_THEME_IDS');
+    const themes = await evaluate('FARM_THEMES.map(theme => theme.id)');
     for (const theme of themes) {
       const decoration = await evaluate(`(() => {
         showPage('farm'); state.equippedFarmTheme=${JSON.stringify(theme)}; renderFarm();
@@ -141,14 +141,15 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         openCosmeticPreview('farm_theme',${JSON.stringify(theme)});
         const preview=document.querySelector('.cosmetic-farm-preview');
         return {
-          matching:ornament===getComputedStyle(preview.querySelector('.farm-theme-banner > i')).backgroundImage && paper===getComputedStyle(preview.querySelector('.farm-layout')).backgroundImage && trim===getComputedStyle(preview.querySelector('.npc-market'),'::before').backgroundImage,
+          matching:ornament===getComputedStyle(preview.querySelector('.farm-theme-banner > i')).backgroundImage && paper===getComputedStyle(preview.querySelector('.farm-layout')).backgroundImage && getComputedStyle(farm.querySelector('.farm-layout')).backgroundPosition===getComputedStyle(preview.querySelector('.farm-layout')).backgroundPosition && trim===getComputedStyle(preview.querySelector('.npc-market'),'::before').backgroundImage,
           decorated:ornament.includes('/farm-themes/'+${JSON.stringify(theme)}+'.svg') && trim===ornament,
+          fullScenery:paper.includes(PIXEL_THEME_IDS.includes(${JSON.stringify(theme)}) ? 'themes-atlas.png' : ${JSON.stringify(theme)}+'-landscape.svg') && getComputedStyle(farm.querySelector('.farm-scene')).backgroundImage==='none' && getComputedStyle(preview.querySelector('.farm-scene')).backgroundImage==='none',
           fits:farm.scrollWidth<=farm.clientWidth && preview.scrollWidth<=preview.clientWidth,
           noPurchase:money===state.farmMoney && coins===state.coins,
           unique:farm.querySelectorAll('.farm-theme-banner').length===1
         };
       })()`);
-      assert.deepEqual(decoration,{matching:true,decorated:true,fits:true,noPurchase:true,unique:true},theme+' '+width);
+      assert.deepEqual(decoration,{matching:true,decorated:true,fullScenery:true,fits:true,noPurchase:true,unique:true},theme+' '+width);
       assert.equal(await evaluate(`(async () => { const art=new Image(); art.src='./assets/farm-themes/'+${JSON.stringify(theme)}+'.svg'; await art.decode(); return art.naturalWidth>0; })()`),true,'theme ornament loads');
       if (process.env.FARM_THEME_SCREENSHOTS && ['whiteDay','bubbleField'].includes(theme) && width!==320) {
         fs.mkdirSync(process.env.FARM_THEME_SCREENSHOTS,{recursive:true});
@@ -166,8 +167,55 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await evaluate('closeCosmeticPreview()');
     }
     assert.equal(await evaluate(`applyFarmTheme(null); document.querySelectorAll('#farmPage .farm-theme-banner').length`),0);
-    console.log(width+'px: all nine themes share ornaments, backgrounds and market trims with preview; no purchase or overflow');
+    console.log(width+'px: all themes share ornaments, backgrounds and market trims with preview; no purchase or overflow');
   }
+  for (const width of [1440, 768, 390, 320]) {
+    await call('Emulation.setDeviceMetricsOverride', {width, height: 1000, deviceScaleFactor: 1, mobile: false});
+    const result = await evaluate(`(() => {
+      showPage('farm');
+      state.harvestInventory = Object.fromEntries(Object.keys(CROPS).map(id => [id, 3]));
+      state.seedInventory = Object.fromEntries(Object.keys(CROPS).map(id => [id, 2]));
+      selectedRecipeIngredients.fill('');
+      renderFarm();
+      farmKitchenModal.classList.remove('hidden');
+      const allPublic = document.querySelectorAll('#recipeBook .recipe-entry').length === Object.keys(RECIPES).length && !document.querySelector('#recipeBook .locked');
+      const allAvailable = document.querySelectorAll('#availableRecipes [data-select-recipe]').length === Object.keys(RECIPES).length;
+      document.querySelector('#availableRecipes [data-select-recipe="cherryTart"]').click();
+      const selected = selectedRecipeIngredients.join(',') === 'cherry,wheat,' && document.querySelector('#recipeIngredient1').value === 'cherry';
+      const filtered = [...document.querySelectorAll('#availableRecipes [data-select-recipe]')].every(button => RECIPES[button.dataset.selectRecipe].ingredients.includes('cherry'));
+      document.querySelector('#clearRecipeIngredients').click();
+      const reset = selectedRecipeIngredients.every(id => !id);
+      state.harvestInventory.cherry = 0; renderFarm();
+      const missing = document.querySelector('#recipeBook [data-select-recipe="cherryTart"]').disabled && document.querySelector('#recipeBook [data-select-recipe="cherryTart"]').closest('article').textContent.includes('체리 1개 부족');
+      const kitchenFits = farmKitchenModal.querySelector('.modal-scroll-area').scrollWidth <= farmKitchenModal.querySelector('.modal-scroll-area').clientWidth + 1;
+      farmKitchenModal.classList.add('hidden');
+      const namesFit = ['harvestStorageModal', 'seedStorageModal'].every(id => {
+        const modal = document.getElementById(id); modal.classList.remove('hidden');
+        const labels = [...modal.querySelectorAll('.storage-grid-44 strong')];
+        const fits = labels.length > 0 && labels.every(label => label.scrollWidth <= label.clientWidth + 1 && label.scrollHeight <= label.clientHeight + 1 && getComputedStyle(label).whiteSpace === 'normal');
+        modal.classList.add('hidden'); return fits;
+      });
+      openCosmeticPreview('farm_theme', 'volcano');
+      const header = cosmeticPreviewModal.querySelector('header').getBoundingClientRect();
+      const close = cosmeticPreviewModal.querySelector('button[data-close-cosmetic-preview]').getBoundingClientRect();
+      const closeAligned = header.right - close.right <= 20 && close.top >= header.top && close.right <= header.right;
+      const focusClose = document.activeElement.matches('button[data-close-cosmetic-preview]');
+      closeCosmeticPreview();
+      return { allPublic, allAvailable, selected, filtered, reset, missing, kitchenFits, namesFit, closeAligned, focusClose };
+    })()`);
+    assert.ok(Object.values(result).every(Boolean), width + 'px kitchen/storage/preview: ' + JSON.stringify(result));
+    console.log(width + 'px: public recipes, ingredient selection, missing ingredients, wrapped crop names and preview close PASS');
+    if (process.env.FARM_FEATURE_SCREENSHOTS && [1440, 390].includes(width)) {
+      fs.mkdirSync(process.env.FARM_FEATURE_SCREENSHOTS, {recursive:true});
+      for (const view of ['kitchen', 'preview', 'storage']) {
+        await evaluate(view === 'kitchen' ? `farmKitchenModal.classList.remove('hidden')` : view === 'preview' ? `openCosmeticPreview('farm_theme','volcano')` : `document.querySelector('#seedStorageModal').classList.remove('hidden')`);
+        const shot = await call('Page.captureScreenshot', {format:'png'});
+        fs.writeFileSync(path.join(process.env.FARM_FEATURE_SCREENSHOTS, view+'-'+width+'.png'), Buffer.from(shot.data,'base64'));
+        await evaluate(`farmKitchenModal.classList.add('hidden'); closeCosmeticPreview(); document.querySelector('#seedStorageModal').classList.add('hidden')`);
+      }
+    }
+  }
+  assert.deepEqual(exceptions, []);
   console.log('Farm/mobile regression checks PASS');
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {
   ws?.close();

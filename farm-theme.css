@@ -285,3 +285,72 @@ body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="galaxyNight"] .farm
   body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-theme-banner-copy > span { font-size: 12px; }
   body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market::before { height: 36px; background-size: 48px 36px; }
 }
+
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="volcano"] {
+  --farm-bg: #33262d; --farm-surface: #493139; --farm-soft: #65404a;
+  --farm-ink: #fff0d4; --farm-muted: #e9bdac; --farm-edge: #d47d57;
+  --farm-accent: #ffae60; --farm-on-accent: #35232b; --farm-shadow: #211921;
+  --farm-ornament: url('./assets/farm-themes/volcano.svg');
+  --farm-paper: repeating-linear-gradient(135deg, transparent 0 40px, #ed7b4326 40px 44px);
+  --farm-trim: repeating-linear-gradient(125deg, #ffac56 0 8px, #58323d 8px 24px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="iceKingdom"] {
+  --farm-bg: #d6edf7; --farm-surface: #f0fbff; --farm-soft: #bdddec;
+  --farm-ink: #26465d; --farm-muted: #506e89; --farm-edge: #7199b9;
+  --farm-accent: #396e99; --farm-on-accent: #f0fbff; --farm-shadow: #9cbbd1;
+  --farm-ornament: url('./assets/farm-themes/iceKingdom.svg');
+  --farm-paper: repeating-linear-gradient(60deg, transparent 0 30px, #ffffff70 30px 33px);
+  --farm-trim: repeating-linear-gradient(135deg, #91c1e1 0 12px, #ecfaff 12px 24px);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="goldenHarvest"] {
+  --farm-bg: #f2e6bf; --farm-surface: #fff9e8; --farm-soft: #e5d49b;
+  --farm-ink: #564026; --farm-muted: #7b653e; --farm-edge: #a17e37;
+  --farm-accent: #8c651f; --farm-on-accent: #fff9e8; --farm-shadow: #c5ae73;
+  --farm-ornament: url('./assets/farm-themes/goldenHarvest.svg');
+  --farm-paper: repeating-linear-gradient(90deg, transparent 0 22px, #b7862d18 22px 24px);
+  --farm-trim: repeating-linear-gradient(115deg, #d2ad50 0 12px, #fff1bc 12px 24px);
+}
+body :is(#farmPage, .cosmetic-farm-preview):is([data-farm-theme="volcano"], [data-farm-theme="iceKingdom"], [data-farm-theme="goldenHarvest"]) .farm-scene {
+  background: var(--farm-paper), var(--farm-soft);
+}
+
+/* The original field scenery is the backdrop for the entire farm and preview. */
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] {
+  --farm-landscape: url('./assets/pixel/themes-atlas.png');
+  --farm-landscape-size: 300% 300%;
+  --farm-landscape-position: var(--theme-x, 0%) var(--theme-y, 0%);
+  background: var(--farm-bg);
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="volcano"] {
+  --farm-landscape: url('./assets/farm-themes/volcano-landscape.svg');
+  --farm-landscape-size: 100% 100%;
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="iceKingdom"] {
+  --farm-landscape: url('./assets/farm-themes/iceKingdom-landscape.svg');
+  --farm-landscape-size: 100% 100%;
+}
+:is(#farmPage, .cosmetic-farm-preview)[data-farm-theme="goldenHarvest"] {
+  --farm-landscape: url('./assets/farm-themes/goldenHarvest-landscape.svg');
+  --farm-landscape-size: 100% 100%;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-layout {
+  background-image: var(--farm-landscape);
+  background-size: var(--farm-landscape-size);
+  background-position: var(--farm-landscape-position);
+  background-repeat: no-repeat;
+  background-color: var(--farm-bg);
+  padding: 28px;
+  image-rendering: pixelated;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-scene {
+  background: transparent !important;
+  border-color: transparent;
+  box-shadow: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-theme-banner, .farm-panel-header, .npc-market, .farm-set-bonuses) {
+  background: var(--farm-surface) !important;
+  background: color-mix(in srgb, var(--farm-surface) 90%, transparent) !important;
+}
+@media (max-width: 700px) {
+  body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-layout { padding: 18px; gap: 12px; }
+}

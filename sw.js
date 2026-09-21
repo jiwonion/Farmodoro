@@ -1,14 +1,14 @@
-const CACHE_VERSION = "farmodoro-v268";
+const CACHE_VERSION = "farmodoro-v272";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
-  "./styles.css?v=253",
+  "./styles.css?v=272",
   "./pixel-theme.css?v=191",
-  "./farm-pixel.css?v=266",
-  "./pixel-layout.css?v=268",
-  "./farm-theme.css?v=267",
-  "./app.js?v=267",
+  "./farm-pixel.css?v=272",
+  "./pixel-layout.css?v=272",
+  "./farm-theme.css?v=272",
+  "./app.js?v=272",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
   "./supabase-config.js",
@@ -27,6 +27,9 @@ const APP_SHELL = [
   "./assets/farm-themes/springMeadow.svg",
   "./assets/farm-themes/valentine.svg",
   "./assets/farm-themes/whiteDay.svg",
+  "./assets/farm-themes/volcano.svg",
+  "./assets/farm-themes/iceKingdom.svg",
+  "./assets/farm-themes/goldenHarvest.svg",
   "./assets/focus-farm-background.png",
   "./assets/focus/default-focus-room.png",
   "./assets/npc-morrison.png",
