@@ -114,7 +114,15 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     console.log('crop geometry', width, geometry);
     assert.equal(geometry.soilBed,true,'foreshortened soil bed '+width);
     assert.equal(geometry.overflow,false,'populated overflow '+width);
-    if(width<=700) assert.ok(geometry.sprite>=geometry.tile*0.2,'visible crop cluster '+width);
+    if(width<=700) assert.ok(geometry.sprite>=18,'visible crop cluster '+width);
+    const inlineStatus = await evaluate(`(() => {
+      const tile=document.querySelector('#farmGrid .crop-plot');
+      const parts=['.crop-info','.crop-visual','.crop-wilt-countdown','.harvest-button'].map(selector=>tile.querySelector(selector));
+      const visible=parts.every(element=>getComputedStyle(element).display!=='none' && element.getBoundingClientRect().height>0);
+      const rects=parts.map(element=>element.getBoundingClientRect());
+      return {visible,noOverlap:rects.every((rect,index)=>index===0 || rect.top>=rects[index-1].bottom-2),noInspector:!document.querySelector('#farmPlotInspector,.farm-plot-select'),noToolbar:!document.querySelector('#farmPage .farm-header-actions,#farmPage .farm-storage-toolbar')};
+    })()`);
+    assert.ok(Object.values(inlineStatus).every(Boolean),width+'px inline status: '+JSON.stringify(inlineStatus));
     if(process.env.FARM_SCREENSHOTS && [640,390,320].includes(width)) {
       fs.mkdirSync(process.env.FARM_SCREENSHOTS,{recursive:true});
       for(const view of ['farm','focus','preview','ranking']) {
@@ -143,7 +151,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         return {
           matching:ornament===getComputedStyle(preview.querySelector('.farm-theme-banner > i')).backgroundImage && paper===getComputedStyle(preview.querySelector('.farm-layout')).backgroundImage && getComputedStyle(farm.querySelector('.farm-layout')).backgroundPosition===getComputedStyle(preview.querySelector('.farm-layout')).backgroundPosition && trim===getComputedStyle(preview.querySelector('.npc-market'),'::before').backgroundImage,
           decorated:ornament.includes('/farm-themes/'+${JSON.stringify(theme)}+'.svg') && trim===ornament,
-          fullScenery:paper==='none' && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage.includes('farm-world-atlas.png') && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage===getComputedStyle(preview.querySelector('.farm-scene-grid'),'::before').backgroundImage && farm.querySelector('.farm-scene').dataset.scenery===preview.querySelector('.farm-scene').dataset.scenery,
+          fullScenery:paper==='none' && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage.includes('farm-world-facilities-atlas.png') && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage===getComputedStyle(preview.querySelector('.farm-scene-grid'),'::before').backgroundImage && farm.querySelector('.farm-scene').dataset.scenery===preview.querySelector('.farm-scene').dataset.scenery,
           fits:farm.scrollWidth<=farm.clientWidth && preview.scrollWidth<=preview.clientWidth,
           noPurchase:money===state.farmMoney && coins===state.coins,
           unique:farm.querySelectorAll('.farm-theme-banner').length===1
@@ -233,7 +241,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const particles=scene.querySelector('.farm-weather');
       const first=particles.firstElementChild;
       renderFarm();
-      const button=scene.querySelector('.farm-plot-select');
+      const button=scene.querySelector('.harvest-button, [data-grow-plot]');
       button.scrollIntoView({block:'center'});
       const rect=button.getBoundingClientRect();
       const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
@@ -248,8 +256,31 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   assert.equal(await evaluate("getComputedStyle(document.querySelector('#farmPage .farm-weather')).display"),'none');
   await call('Emulation.setEmulatedMedia',{features:[]});
-  assert.equal(await evaluate("(async () => {const art=new Image(); art.src='./assets/pixel/farm-world-atlas.png'; await art.decode(); return art.naturalWidth===1881 && art.naturalHeight===836;})()"),true);
+  assert.equal(await evaluate("(async () => {const art=new Image(); art.src='./assets/pixel/farm-world-facilities-atlas.png'; await art.decode(); return art.naturalWidth===1881 && art.naturalHeight===836;})()"),true);
   console.log('Scenery selection, removal, weather hit testing, stable particles and reduced motion PASS');
+  for (const width of [1440, 390, 320]) {
+    await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
+    for (const [selector,modalId] of [
+      ['.facility-harvest','harvestStorageModal'],['.facility-seed','seedStorageModal'],['.facility-supply','supplyStorageModal'],
+      ['.facility-mail','farmMailModal'],['.facility-kitchen','farmKitchenModal'],['.facility-ranking','farmRankingModal'],
+    ]) {
+      const result=await evaluate(`(async () => {
+        const facility=document.querySelector(${JSON.stringify(selector)});
+        facility.scrollIntoView({block:'center',inline:'center'});
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        const rect=facility.getBoundingClientRect();
+        const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+        const clickable=hit===facility || facility.contains(hit);
+        facility.click(); await Promise.resolve();
+        const modal=document.getElementById(${JSON.stringify(modalId)});
+        const opens=!modal.classList.contains('hidden');
+        modal.classList.add('hidden');
+        return {clickable,opens,inMap:!!facility.closest('.farm-scene-grid'),sized:rect.width>=44 && rect.height>=44};
+      })()`);
+      assert.ok(Object.values(result).every(Boolean),width+'px '+selector+': '+JSON.stringify(result));
+    }
+  }
+  console.log('All six farm facilities open their own panels at desktop and mobile sizes PASS');
   const interactions = await evaluate(`(async () => {
     const originalAction=runFarmAction;
     const calls=[];
@@ -257,39 +288,40 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:id<2?'carrot':null,growth:0,wilted:id===1,lastCaredAt:Date.now(),lastFreeWaterAt:0}));
       state.coins=5; state.seedInventory.carrot=2;
-      selectedSeed=null; selectedFarmItem=null; selectedFarmPlotId=null; renderFarm();
-      const select=id=>document.querySelector('[data-select-farm-plot="'+id+'"]').click();
-      const action=name=>document.querySelector('#farmPlotInspector [data-'+name+'-plot]').click();
-      select(0);
-      const selection=!document.querySelector('#farmPlotInspector').hidden && document.querySelector('#farmGrid [data-plot-id="0"]').classList.contains('plot-selected');
+      selectedSeed=null; selectedFarmItem=null; renderFarm();
+      const action=(name,id=0)=>document.querySelector('#farmGrid [data-'+name+'-plot="'+id+'"]').click();
+      const tile=document.querySelector('#farmGrid [data-plot-id="0"]');
+      const selection=!document.querySelector('#farmPlotInspector, .farm-plot-select') && getComputedStyle(tile.querySelector('.crop-info')).display!=='none' && getComputedStyle(tile.querySelector('.crop-wilt-countdown')).display!=='none';
+      tile.querySelector('[data-grow-plot]').focus();
       action('grow'); await Promise.resolve();
-      const growth=state.farmPlots[0].growth===1 && state.coins===4;
+      const growth=state.farmPlots[0].growth===1 && state.coins===4 && document.activeElement.dataset.growPlot==='0';
       action('water'); await Promise.resolve();
       const water=state.farmPlots[0].growth===2;
-      selectedFarmItem='growthTonic'; state.farmItemInventory.growthTonic=1; select(0); await Promise.resolve();
+      selectedFarmItem='growthTonic'; state.farmItemInventory.growthTonic=1; renderFarm(); document.querySelector('#farmGrid [data-plot-id="0"] .farm-apply-item').click(); await Promise.resolve();
       const supply=state.farmPlots[0].growth===getCropGrowthCost('carrot') && state.farmItemInventory.growthTonic===0;
-      select(0); action('harvest'); await Promise.resolve();
-      const harvested=!state.farmPlots[0].crop && document.querySelector('#farmPlotInspector').hidden;
+      action('harvest'); await Promise.resolve();
+      const harvested=!state.farmPlots[0].crop && !document.querySelector('#farmPlotInspector');
       document.querySelector('[data-plant-plot="0"]').click();
       const seedsOpened=!document.querySelector('#seedStorageModal').classList.contains('hidden');
       document.querySelector('#seedStorageModal').classList.add('hidden');
       selectedSeed='carrot'; document.querySelector('[data-plant-plot="0"]').click(); await Promise.resolve();
       const planted=state.farmPlots[0].crop==='carrot' && state.seedInventory.carrot===1;
-      selectedSeed=null; select(1); action('discard'); await Promise.resolve();
+      selectedSeed=null; action('discard',1); await Promise.resolve();
       const discarded=!state.farmPlots[1].crop;
       document.querySelector('[data-open-farm-market]').click();
       const marketOpen=getComputedStyle(document.querySelector('#npcMarket')).display!=='none';
       document.querySelector('[data-close-farm-market]').click();
       const marketClosed=getComputedStyle(document.querySelector('#npcMarket')).display==='none';
-      select(0); document.querySelector('#farmPlotInspector').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-      const keyboardClose=document.querySelector('#farmPlotInspector').hidden && document.activeElement.dataset.selectFarmPlot==='0';
+      document.querySelector('[data-open-farm-market]').click();
+      document.querySelector('#npcMarket').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      const keyboardClose=!document.querySelector('#farmPage').classList.contains('farm-market-open') && document.activeElement.id==='toggleFarmMarket';
       return {selection,growth,water,supply,harvested,seedsOpened,planted,discarded,marketOpen,marketClosed,keyboardClose,calls};
     } finally {runFarmAction=originalAction;}
   })()`);
   assert.ok(Object.entries(interactions).filter(([key])=>key!=='calls').every(([,value])=>value),JSON.stringify(interactions));
   assert.deepEqual(interactions.calls.map(call=>call.rpc),['grow_farm_plot_with_coin','water_farm_plot','apply_farm_plot_item','harvest_farm_plot','plant_farm_seed','discard_farm_plot']);
   assert.ok(interactions.calls.every(call=>[0,1].includes(call.params.p_plot_index)));
-  console.log('Map selection, inspector actions, supplies, seed picker, market and keyboard close PASS (local RPC stub)');
+  console.log('Visible plot status, direct actions, supplies, seed picker, market and keyboard close PASS (local RPC stub)');
   assert.deepEqual(exceptions, []);
   console.log('Farm/mobile regression checks PASS');
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {

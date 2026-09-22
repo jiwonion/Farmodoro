@@ -1680,7 +1680,6 @@ let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth()
 let selectedHabitDate = null;
 let selectedSeed = null;
 let selectedFarmItem = null;
-let selectedFarmPlotId = null;
 const NPC_PANELS = ["morrison", "food", "crop", "rachel"];
 let activeNpcPanel = "morrison";
 let rachelActiveTab = "offers";
@@ -3989,7 +3988,7 @@ function updateFarmWiltCountdowns() {
       (entry) => entry.id === Number(label.dataset.wiltCountdown),
     );
     if (!plot?.crop || plot.wilted) return;
-    label.textContent = `시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}`;
+    label.textContent = `시듦까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}`;
   });
 }
 
@@ -5894,6 +5893,10 @@ function renderFarm() {
       <button type="button" data-select-recipe="${id}" ${count ? "" : "disabled"}>재료 선택</button>
     </article>`).join("");
 
+  const focusedPlotButton = document.activeElement?.closest("#farmGrid button");
+  const focusedPlotId = focusedPlotButton?.closest("[data-plot-id]")?.dataset.plotId;
+  const focusedPlotAction = ["data-grow-plot", "data-water-plot", "data-harvest-plot", "data-discard-plot", "data-plant-plot"]
+    .find((attribute) => focusedPlotButton?.hasAttribute(attribute));
   grid.innerHTML = state.farmPlots
     .map((plot) => {
       if (!plot.crop) {
@@ -5951,7 +5954,7 @@ function renderFarm() {
               <strong>${crop.name}</strong>
               <small>${plot.growth} / ${maxGrowth}</small>
             </div>
-            <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
+            <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시듦까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
             <div class="plot-growth-actions">
               <button type="button" data-grow-plot="${plot.id}" aria-label="${crop.name}에 1 Coin 주기"><i class="plot-action-icon" aria-hidden="true">●</i><span>1</span></button>
               <button
@@ -5976,7 +5979,7 @@ function renderFarm() {
             <strong>${crop.name}</strong>
             <small>${plot.growth} / ${maxGrowth}</small>
           </div>
-          <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시들기까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
+          <div class="crop-wilt-countdown" data-wilt-countdown="${plot.id}">시듦까지 ${formatPlotWiltRemaining(getPlotWiltRemaining(plot))}</div>
           <button class="harvest-button" type="button" data-harvest-plot="${plot.id}">수확하기</button>
         </article>
       `;
@@ -5989,39 +5992,21 @@ function renderFarm() {
     const visual = tile.querySelector(".crop-visual");
     const sprite = visual.querySelector(".crop-pixel");
     visual.replaceChildren(...Array.from({ length: 3 }, () => sprite.cloneNode(true)));
-    const select = document.createElement("button");
-    select.type = "button";
-    select.className = "farm-plot-select";
-    select.dataset.selectFarmPlot = String(plot.id);
-    select.setAttribute("aria-controls", "farmPlotInspector");
-    select.setAttribute("aria-label", `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name} · ${plot.wilted ? "시듦" : plot.growth >= getCropGrowthCost(plot.crop) ? "수확 가능" : "성장 중"} 관리`);
-    tile.append(select);
+    tile.setAttribute("aria-label", `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name}`);
+    if (selectedFarmItem) {
+      const useItem = document.createElement("button");
+      useItem.type = "button";
+      useItem.className = "farm-apply-item";
+      useItem.setAttribute("aria-label", `${plot.id + 1}번 밭에 ${FARM_ITEMS[selectedFarmItem]?.name || "용품"} 사용`);
+      useItem.textContent = "용품 사용";
+      tile.append(useItem);
+    }
   });
-  renderFarmPlotInspector();
-}
-
-function renderFarmPlotInspector() {
-  const inspector = document.querySelector("#farmPlotInspector");
-  const plot = state.farmPlots.find((entry) => entry.id === selectedFarmPlotId && entry.crop);
-  document.querySelectorAll("#farmGrid [data-plot-id]").forEach((tile) => {
-    const active = Boolean(plot && Number(tile.dataset.plotId) === plot.id);
-    tile.classList.toggle("plot-selected", active);
-    tile.querySelector(".farm-plot-select")?.setAttribute("aria-expanded", String(active));
-  });
-  inspector.hidden = !plot;
-  if (!plot) {
-    selectedFarmPlotId = null;
-    inspector.replaceChildren();
-    return;
+  if (focusedPlotId !== undefined) {
+    const tile = grid.querySelector(`[data-plot-id="${focusedPlotId}"]`);
+    const action = focusedPlotAction && tile?.querySelector(`[${focusedPlotAction}]:not(:disabled)`);
+    (action || tile?.querySelector("button:not(:disabled)") || (tile?.matches("button") ? tile : null))?.focus({ preventScroll: true });
   }
-  const tile = document.querySelector(`#farmGrid [data-plot-id="${plot.id}"]`);
-  const focusedAction = inspector.contains(document.activeElement)
-    ? ["data-grow-plot", "data-water-plot", "data-harvest-plot", "data-discard-plot"].find((key) => document.activeElement.hasAttribute(key))
-    : null;
-  inspector.innerHTML = `<header><strong>${plot.id + 1}번 밭 · ${escapeHtml(CROPS[plot.crop].name)}</strong><button type="button" data-close-farm-plot aria-label="밭 관리 닫기">×</button></header><div class="farm-plot-detail"></div>`;
-  const detail = inspector.querySelector(".farm-plot-detail");
-  tile.querySelectorAll(".crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button").forEach((element) => detail.append(element.cloneNode(true)));
-  if (focusedAction) inspector.querySelector(`[${focusedAction}]`)?.focus({ preventScroll: true });
 }
 
 function renderFocusPicker() {
@@ -8907,12 +8892,7 @@ function setFarmMarketOpen(open) {
 
 document.querySelector("#farmPage").addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
-  if (!document.querySelector("#farmPlotInspector").hidden) {
-    const id = selectedFarmPlotId;
-    selectedFarmPlotId = null;
-    renderFarmPlotInspector();
-    document.querySelector(`[data-select-farm-plot="${id}"]`)?.focus({ preventScroll: true });
-  } else if (document.querySelector("#farmPage").classList.contains("farm-market-open")) {
+  if (document.querySelector("#farmPage").classList.contains("farm-market-open")) {
     setFarmMarketOpen(false);
   }
 });
@@ -8924,13 +8904,6 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
   }
   if (event.target.closest("[data-close-farm-market]")) {
     setFarmMarketOpen(false);
-    return;
-  }
-  if (event.target.closest("[data-close-farm-plot]")) {
-    const id = selectedFarmPlotId;
-    selectedFarmPlotId = null;
-    renderFarmPlotInspector();
-    document.querySelector(`[data-select-farm-plot="${id}"]`)?.focus({ preventScroll: true });
     return;
   }
   const plantButton = event.target.closest("[data-plant-plot]");
@@ -9011,14 +8984,6 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
       },
       failureMessage: "아이템 적용 저장에 실패해서 되돌렸어.",
     });
-    return;
-  }
-
-  const selectPlotButton = event.target.closest("[data-select-farm-plot]");
-  if (selectPlotButton) {
-    selectedFarmPlotId = Number(selectPlotButton.dataset.selectFarmPlot);
-    renderFarmPlotInspector();
-    document.querySelector("#farmPlotInspector [data-close-farm-plot]")?.focus({ preventScroll: true });
     return;
   }
 
@@ -9404,7 +9369,7 @@ function openCosmeticPreview(type, id) {
   if (previewTheme) farmPreview.dataset.farmTheme = previewTheme;
   farmPreview.innerHTML = `<div class="farm-layout">
     <div class="farm-window-chrome">FARMODORO · FARM DESK</div>
-    <header class="farm-panel-header"><div class="preview-name-slot"></div><div class="farm-header-actions"><span>수확물 · 씨앗 · 농장 용품</span><span>농장 우편소 · 농장 랭킹</span></div></header>
+    <header class="farm-panel-header"><div class="preview-name-slot"></div></header>
     <div class="preview-field-slot"></div>
     <aside class="npc-market"><div class="open-permanent-market"><span>농장 상시 시장</span><small>비료·티켓·특별 용품 구매</small></div>
       <div class="market-category-tabs"><span>씨앗 판매대</span><span>음식 매입</span><span>작물 매입</span><span>스킨 판매대</span></div>
@@ -9926,7 +9891,7 @@ const storageModals = {
   seed: document.querySelector("#seedStorageModal"),
   supply: document.querySelector("#supplyStorageModal"),
 };
-document.querySelector(".farm-storage-toolbar").addEventListener("click", (event) => {
+document.querySelector("#farmPage").addEventListener("click", (event) => {
   const button = event.target.closest("[data-open-storage]");
   if (!button) return;
   storageModals[button.dataset.openStorage]?.classList.remove("hidden");

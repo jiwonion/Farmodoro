@@ -39,7 +39,7 @@
     <link rel="stylesheet" href="./farm-pixel.css?v=272" />
     <link rel="stylesheet" href="./pixel-layout.css?v=272" />
     <link rel="stylesheet" href="./farm-theme.css?v=272" />
-    <link rel="stylesheet" href="./farm-scenery.css?v=275" />
+    <link rel="stylesheet" href="./farm-scenery.css?v=276" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -594,37 +594,23 @@
                     <button id="cancelFarmName" type="button">취소</button>
                   </form>
                 </div>
-                <div class="farm-header-actions">
-                  <nav class="farm-storage-toolbar" aria-label="농장 보관함">
-                    <button class="farm-storage-button" type="button" data-open-storage="harvest">🧺 수확물 <small id="harvestStorageCount">0</small></button>
-                    <button class="farm-storage-button" type="button" data-open-storage="seed">🌱 씨앗 <small id="seedStorageCount">0</small></button>
-                    <button class="farm-storage-button" type="button" data-open-storage="supply">🎒 농장 용품 <small id="supplyStorageCount">0</small></button>
-                  </nav>
-                  <button class="farm-utility-button open-farm-mail" id="openFarmMail" type="button">
-                    <span>📮 농장 우편소</span>
-                    <small class="farm-mail-header-unread" id="farmMailHeaderUnread" hidden>0</small>
-                  </button>
-                  <button class="farm-utility-button open-farm-kitchen" id="openFarmKitchen" type="button">
-                    <span>🍳 농장 주방</span>
-                  </button>
-                  <button class="farm-utility-button farm-weekly-ranking-button farm-header-ranking" id="openFarmRanking" type="button">
-                    <span>🏆 농장 랭킹</span>
-                  </button>
-                  <button class="farm-utility-button" id="toggleFarmMarket" type="button" aria-controls="npcMarket" aria-expanded="false"><span>🏡 상점</span></button>
-                </div>
               </header>
 
               <p class="farm-protection-status" id="farmProtectionStatus" hidden>작물 보호 중 · 시들지 않아요</p>
               <div id="farmSetBonuses" class="farm-set-bonuses" aria-live="polite"></div>
               <section class="farm-scene">
                 <div class="farm-scene-grid">
-                  <button class="farm-building farm-building-home" type="button" data-open-storage="harvest" aria-label="오두막 · 수확물 보관함"><span>보관함</span></button>
-                  <button class="farm-building farm-building-market" type="button" data-open-farm-market aria-label="농장 판매대 열기"><span>상점</span></button>
+                  <button class="farm-building farm-facility facility-harvest" type="button" data-open-storage="harvest" aria-label="수확물 보관함"><span>수확물</span><small id="harvestStorageCount">0</small></button>
+                  <button class="farm-building farm-facility facility-seed" type="button" data-open-storage="seed" aria-label="씨앗 보관함"><span>씨앗</span><small id="seedStorageCount">0</small></button>
+                  <button class="farm-building farm-facility facility-supply" type="button" data-open-storage="supply" aria-label="농장 용품 보관함"><span>농장 용품</span><small id="supplyStorageCount">0</small></button>
+                  <button class="farm-building farm-facility facility-mail" id="openFarmMail" type="button" aria-label="우편함"><span>우편함</span><small id="farmMailHeaderUnread" hidden>0</small></button>
+                  <button class="farm-building farm-facility facility-kitchen" id="openFarmKitchen" type="button" aria-label="화로 · 농장 주방"><span>주방</span></button>
+                  <button class="farm-building farm-facility facility-ranking" id="openFarmRanking" type="button" aria-label="게시판 · 농장 랭킹"><span>랭킹</span></button>
+                  <button class="farm-building farm-building-market" id="toggleFarmMarket" type="button" data-open-farm-market aria-label="농장 판매대 열기" aria-controls="npcMarket" aria-expanded="false"><span>상점</span></button>
                   <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
                 </div>
               </section>
-              <p class="farm-world-hint">밭을 눌러 작물을 돌봐줘<span> · 좌우로 밀어 농장 둘러보기</span></p>
-              <section class="farm-plot-inspector" id="farmPlotInspector" aria-label="선택한 밭 관리" hidden></section>
+              <p class="farm-world-hint">농장 안의 시설을 눌러 이용해<span> · 좌우로 밀어 농장 둘러보기</span></p>
 
             </div>
 
@@ -1214,7 +1200,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=275"></script>
+    <script src="./app.js?v=276"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>
