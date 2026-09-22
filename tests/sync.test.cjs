@@ -17,6 +17,30 @@ function context(names, globals = {}) {
 const noop = () => {};
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
+test("free passes include habits registered without focus time", () => {
+  const today = new Date();
+  const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const habit = {
+    id: "no-focus", title: "물 마시기", measureType: "amount", targetValue: 1,
+    weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: dateString, endDate: "",
+    completionDates: [], focusSecondsByDate: {},
+  };
+  const ctx = context([
+    "isHabitScheduledOn", "isHabitScheduledToday", "getHabitTargetForDate",
+    "getHabitProgress", "getHabitProgressRatio", "isHabitCompleteToday", "getFreePassTargets",
+  ], {
+    toLocalDateString: () => dateString,
+    state: { tasks: [], habits: [
+      habit,
+      { ...habit, id: "timed", measureType: "time", targetValue: 30 },
+      { ...habit, id: "done", completionDates: [dateString] },
+      { ...habit, id: "unscheduled", weekdays: [] },
+      { ...habit, id: "expired", endDate: "2000-01-01" },
+    ] },
+  });
+  assert.deepEqual(plain(ctx.getFreePassTargets()).map(target => target.value), ["habit:no-focus", "habit:timed"]);
+});
+
 function habitDateContext(extra = {}) {
   return context(["canEditHabitRecord", "isHabitScheduledOn", "getHabitTargetForDate", "savePastHabitRecord"], {
     toLocalDateString: (date) => date
