@@ -568,17 +568,6 @@
               </div>
             </div>
             <div class="focus-page-slot" id="focusPageSlot"></div>
-            <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
-              <div class="focus-alert-icon" aria-hidden="true">⏰</div>
-              <div class="focus-alert-text">
-                <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
-                <span id="focusAlertSubtitle"></span>
-              </div>
-              <div class="focus-alert-actions">
-                <button type="button" id="focusAlertMuteButton" hidden>🔇 소리 끄기</button>
-                <button type="button" id="focusAlertDismissButton" aria-label="알림 닫기">✕</button>
-              </div>
-            </div>
           </section>
         </section>
 
@@ -1204,6 +1193,17 @@
       </aside>
     </div>
 
+    <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
+      <div class="focus-alert-icon" aria-hidden="true">⏰</div>
+      <div class="focus-alert-text">
+        <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
+        <span id="focusAlertSubtitle"></span>
+      </div>
+      <div class="focus-alert-actions">
+        <button type="button" id="focusAlertMuteButton" hidden>🔇 소리 끄기</button>
+        <button type="button" id="focusAlertDismissButton" aria-label="알림 닫기">✕</button>
+      </div>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>

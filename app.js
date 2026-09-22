@@ -4671,7 +4671,7 @@ function getFreePassTargets() {
       label: `할 일 · ${task.title}`,
     }));
   const habits = state.habits
-    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit) && getHabitFocusMinutes(habit) > 0)
+    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
     .map((habit) => ({
       value: `habit:${habit.id}`,
       type: "habit",
@@ -10162,6 +10162,8 @@ focusFullscreenButton.addEventListener("click", async () => {
 
 document.addEventListener("fullscreenchange", () => {
   const active = document.fullscreenElement === focusPageStage;
+  const alertContainer = document.fullscreenElement || document.body;
+  alertContainer.append(document.querySelector("#focusAlertBanner"));
   focusFullscreenButton.innerHTML = active
     ? '<span aria-hidden="true">×</span> 전체 화면 종료'
     : '<span aria-hidden="true">⛶</span> 전체 화면';
