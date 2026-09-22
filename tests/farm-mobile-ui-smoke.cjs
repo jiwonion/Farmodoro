@@ -97,7 +97,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       showPage('farm');
       const field=document.querySelector('#farmPage .farm-scene').getBoundingClientRect();
       const market=document.querySelector('#npcMarket').getBoundingClientRect();
-      const marketMatches=innerWidth<=1100 || Math.abs(field.height-market.height)<2;
+      const marketMatches=getComputedStyle(document.querySelector('#npcMarket')).display==='none' && field.width>0;
       return {sample,theme,label,timer,hidden,focusFits,marketMatches,overflow:document.documentElement.scrollWidth>innerWidth};
     })()`);
     console.log(width, result);
@@ -109,12 +109,12 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const geometry = await evaluate(`(() => {
       const plot=document.querySelector('#farmGrid .crop-plot'), sprite=plot.querySelector('.crop-pixel');
       const p=plot.getBoundingClientRect(), s=sprite.getBoundingClientRect();
-      return {square:Math.abs(p.width-p.height)<2, sprite:s.width, tile:p.width, overflow:document.documentElement.scrollWidth>innerWidth};
+      return {soilBed:p.width>p.height*1.5, sprite:s.width, tile:p.width, overflow:document.documentElement.scrollWidth>innerWidth};
     })()`);
     console.log('crop geometry', width, geometry);
-    assert.equal(geometry.square,true,'square plot '+width);
+    assert.equal(geometry.soilBed,true,'foreshortened soil bed '+width);
     assert.equal(geometry.overflow,false,'populated overflow '+width);
-    if(width<=700) assert.ok(geometry.sprite>=geometry.tile*0.55,'visible crop '+width);
+    if(width<=700) assert.ok(geometry.sprite>=geometry.tile*0.2,'visible crop cluster '+width);
     if(process.env.FARM_SCREENSHOTS && [640,390,320].includes(width)) {
       fs.mkdirSync(process.env.FARM_SCREENSHOTS,{recursive:true});
       for(const view of ['farm','focus','preview','ranking']) {
@@ -143,7 +143,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         return {
           matching:ornament===getComputedStyle(preview.querySelector('.farm-theme-banner > i')).backgroundImage && paper===getComputedStyle(preview.querySelector('.farm-layout')).backgroundImage && getComputedStyle(farm.querySelector('.farm-layout')).backgroundPosition===getComputedStyle(preview.querySelector('.farm-layout')).backgroundPosition && trim===getComputedStyle(preview.querySelector('.npc-market'),'::before').backgroundImage,
           decorated:ornament.includes('/farm-themes/'+${JSON.stringify(theme)}+'.svg') && trim===ornament,
-          fullScenery:paper.includes(PIXEL_THEME_IDS.includes(${JSON.stringify(theme)}) ? 'themes-atlas.png' : ${JSON.stringify(theme)}+'-landscape.svg') && getComputedStyle(farm.querySelector('.farm-scene')).backgroundImage==='none' && getComputedStyle(preview.querySelector('.farm-scene')).backgroundImage==='none',
+          fullScenery:paper==='none' && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage.includes('farm-world-atlas.png') && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage===getComputedStyle(preview.querySelector('.farm-scene-grid'),'::before').backgroundImage && farm.querySelector('.farm-scene').dataset.scenery===preview.querySelector('.farm-scene').dataset.scenery,
           fits:farm.scrollWidth<=farm.clientWidth && preview.scrollWidth<=preview.clientWidth,
           noPurchase:money===state.farmMoney && coins===state.coins,
           unique:farm.querySelectorAll('.farm-theme-banner').length===1
@@ -215,6 +215,81 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       }
     }
   }
+  for (const [theme, skin, scenery, weather] of [
+    [null, null, "meadow", "none"],
+    ["springMeadow", null, "tulip", "none"],
+    ["cherryBlossom", null, "cherry", "petals"],
+    ["christmas", null, "snow", "snow"],
+    ["galaxyNight", "lavenderField", "lavender", "none"],
+    [null, "snowField", "snow", "snow"],
+    [null, "cherryPetalFall", "cherry", "petals"],
+    [null, null, "meadow", "none"],
+  ]) {
+    const result = await evaluate(`(() => {
+      closeCosmeticPreview(); showPage('farm');
+      state.equippedFarmTheme=${JSON.stringify(theme)};
+      state.equippedPlotSkin=${JSON.stringify(skin)}; renderFarm();
+      const scene=document.querySelector('#farmPage .farm-scene');
+      const particles=scene.querySelector('.farm-weather');
+      const first=particles.firstElementChild;
+      renderFarm();
+      const button=scene.querySelector('.farm-plot-select');
+      button.scrollIntoView({block:'center'});
+      const rect=button.getBoundingClientRect();
+      const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+      return {scenery:scene.dataset.scenery,weather:particles.dataset.weather,
+        layers:scene.querySelectorAll('.farm-weather').length,
+        count:particles.children.length,stable:first===particles.firstElementChild,
+        clickable:hit===button || button.contains(hit)};
+    })()`);
+    assert.deepEqual(result,{scenery,weather,layers:1,count:weather==='none'?0:18,stable:true,clickable:true});
+  }
+  await evaluate("state.equippedPlotSkin='snowField'; renderFarm();");
+  await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('#farmPage .farm-weather')).display"),'none');
+  await call('Emulation.setEmulatedMedia',{features:[]});
+  assert.equal(await evaluate("(async () => {const art=new Image(); art.src='./assets/pixel/farm-world-atlas.png'; await art.decode(); return art.naturalWidth===1881 && art.naturalHeight===836;})()"),true);
+  console.log('Scenery selection, removal, weather hit testing, stable particles and reduced motion PASS');
+  const interactions = await evaluate(`(async () => {
+    const originalAction=runFarmAction;
+    const calls=[];
+    runFarmAction=async (options) => {calls.push({rpc:options.rpc,params:options.params}); options.apply(); renderFarm(); return {event:{}};};
+    try {
+      state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:id<2?'carrot':null,growth:0,wilted:id===1,lastCaredAt:Date.now(),lastFreeWaterAt:0}));
+      state.coins=5; state.seedInventory.carrot=2;
+      selectedSeed=null; selectedFarmItem=null; selectedFarmPlotId=null; renderFarm();
+      const select=id=>document.querySelector('[data-select-farm-plot="'+id+'"]').click();
+      const action=name=>document.querySelector('#farmPlotInspector [data-'+name+'-plot]').click();
+      select(0);
+      const selection=!document.querySelector('#farmPlotInspector').hidden && document.querySelector('#farmGrid [data-plot-id="0"]').classList.contains('plot-selected');
+      action('grow'); await Promise.resolve();
+      const growth=state.farmPlots[0].growth===1 && state.coins===4;
+      action('water'); await Promise.resolve();
+      const water=state.farmPlots[0].growth===2;
+      selectedFarmItem='growthTonic'; state.farmItemInventory.growthTonic=1; select(0); await Promise.resolve();
+      const supply=state.farmPlots[0].growth===getCropGrowthCost('carrot') && state.farmItemInventory.growthTonic===0;
+      select(0); action('harvest'); await Promise.resolve();
+      const harvested=!state.farmPlots[0].crop && document.querySelector('#farmPlotInspector').hidden;
+      document.querySelector('[data-plant-plot="0"]').click();
+      const seedsOpened=!document.querySelector('#seedStorageModal').classList.contains('hidden');
+      document.querySelector('#seedStorageModal').classList.add('hidden');
+      selectedSeed='carrot'; document.querySelector('[data-plant-plot="0"]').click(); await Promise.resolve();
+      const planted=state.farmPlots[0].crop==='carrot' && state.seedInventory.carrot===1;
+      selectedSeed=null; select(1); action('discard'); await Promise.resolve();
+      const discarded=!state.farmPlots[1].crop;
+      document.querySelector('[data-open-farm-market]').click();
+      const marketOpen=getComputedStyle(document.querySelector('#npcMarket')).display!=='none';
+      document.querySelector('[data-close-farm-market]').click();
+      const marketClosed=getComputedStyle(document.querySelector('#npcMarket')).display==='none';
+      select(0); document.querySelector('#farmPlotInspector').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      const keyboardClose=document.querySelector('#farmPlotInspector').hidden && document.activeElement.dataset.selectFarmPlot==='0';
+      return {selection,growth,water,supply,harvested,seedsOpened,planted,discarded,marketOpen,marketClosed,keyboardClose,calls};
+    } finally {runFarmAction=originalAction;}
+  })()`);
+  assert.ok(Object.entries(interactions).filter(([key])=>key!=='calls').every(([,value])=>value),JSON.stringify(interactions));
+  assert.deepEqual(interactions.calls.map(call=>call.rpc),['grow_farm_plot_with_coin','water_farm_plot','apply_farm_plot_item','harvest_farm_plot','plant_farm_seed','discard_farm_plot']);
+  assert.ok(interactions.calls.every(call=>[0,1].includes(call.params.p_plot_index)));
+  console.log('Map selection, inspector actions, supplies, seed picker, market and keyboard close PASS (local RPC stub)');
   assert.deepEqual(exceptions, []);
   console.log('Farm/mobile regression checks PASS');
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {

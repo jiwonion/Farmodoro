@@ -1680,6 +1680,7 @@ let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth()
 let selectedHabitDate = null;
 let selectedSeed = null;
 let selectedFarmItem = null;
+let selectedFarmPlotId = null;
 const NPC_PANELS = ["morrison", "food", "crop", "rachel"];
 let activeNpcPanel = "morrison";
 let rachelActiveTab = "offers";
@@ -5469,6 +5470,7 @@ function renderRachelPanel() {
                 <span class="rachel-preview-copy">
                   <strong>${entry.name}</strong>
                   <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
+                  ${getFarmSceneryDescription(type, id) ? `<small>${getFarmSceneryDescription(type, id)}</small>` : ""}
                   <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
                   <small class="rachel-preview-hint">눌러서 미리보기</small>
                 </span>
@@ -5510,6 +5512,7 @@ function renderRachelPanel() {
                 <span class="rachel-preview-copy">
                   <strong>${name}</strong>
                   <small>${COSMETIC_TYPE_LABELS[type]}</small>
+                  ${getFarmSceneryDescription(type, id) ? `<small>${getFarmSceneryDescription(type, id)}</small>` : ""}
                   <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
                   <small class="rachel-preview-hint">눌러서 미리보기</small>
                 </span>
@@ -5558,6 +5561,56 @@ function decorateFarmTheme(root, themeId) {
   banner.querySelector(".farm-theme-banner-copy > span").textContent = captions[themeId] || "";
 }
 
+function getFarmSceneryDescription(type, id) {
+  const descriptions = {
+    "farm_theme:springMeadow": "오두막 앞에 펼쳐진 튤립 정원",
+    "farm_theme:cherryBlossom": "벚꽃 정원 · 흩날리는 꽃잎",
+    "farm_theme:christmas": "눈 덮인 오두막 · 내리는 눈",
+    "farm_theme:iceKingdom": "하얀 겨울 정원 · 내리는 눈",
+    "farm_theme:galaxyNight": "달빛 아래 잠든 오두막과 정원",
+    "plot_skin:lavenderField": "밭 주변을 라벤더 꽃밭으로 변경",
+    "plot_skin:cherryPetalFall": "밭 주변에 벚꽃과 꽃잎 효과 적용",
+    "plot_skin:snowField": "밭 주변을 눈밭으로 변경 · 내리는 눈",
+    "plot_skin:frostbite": "밭 주변을 겨울 정원으로 변경 · 내리는 눈",
+  };
+  return descriptions[`${type}:${id}`] || "";
+}
+
+function getFarmScenery(themeId, plotSkin) {
+  const themes = {
+    springMeadow: "tulip", cherryBlossom: "cherry", christmas: "snow",
+    iceKingdom: "snow", galaxyNight: "night", halloween: "night",
+    valentine: "tulip", whiteDay: "tulip", bubbleField: "lavender",
+    volcano: "volcano", ocean: "ocean", goldenHarvest: "goldenHarvest",
+  };
+  const skins = {
+    lavenderField: "lavender", cherryPetalFall: "cherry",
+    snowField: "snow", frostbite: "snow",
+  };
+  const scenery = skins[plotSkin] || themes[themeId] || "meadow";
+  const weather = scenery === "snow" ? "snow" : scenery === "cherry" ? "petals" : "none";
+  return { scenery, weather };
+}
+
+function renderFarmScenery(root, themeId, plotSkin) {
+  const scene = root.querySelector(".farm-scene");
+  if (!scene) return;
+  const { scenery, weather } = getFarmScenery(themeId, plotSkin);
+  scene.dataset.scenery = scenery;
+  let atmosphere = scene.querySelector(".farm-weather");
+  if (!atmosphere) {
+    atmosphere = document.createElement("div");
+    atmosphere.className = "farm-weather";
+    atmosphere.setAttribute("aria-hidden", "true");
+    scene.append(atmosphere);
+  }
+  if (atmosphere.dataset.weather === weather) return;
+  atmosphere.dataset.weather = weather;
+  atmosphere.innerHTML = weather === "none" ? "" : Array.from({ length: 18 }, (_, index) =>
+    `<i style="--drift-x:${(index * 37) % 100}%;--drift-delay:-${index * 1.7}s;--drift-duration:${10 + index % 7}s;--flake-size:${3 + index % 4}px"></i>`,
+  ).join("");
+}
+
 function applyFarmTheme(themeId) {
   const farmPage = document.querySelector("#farmPage");
   if (!farmPage) return;
@@ -5567,6 +5620,7 @@ function applyFarmTheme(themeId) {
   farmPage.style.setProperty("--theme-x", `${Math.max(0, index % 3) * 50}%`);
   farmPage.style.setProperty("--theme-y", `${Math.max(0, Math.floor(index / 3)) * 50}%`);
   decorateFarmTheme(farmPage, themeId);
+  renderFarmScenery(farmPage, themeId, state.equippedPlotSkin);
 }
 
 function renderNpcMarketCarousel() {
@@ -5930,7 +5984,44 @@ function renderFarm() {
     .join("");
   grid.querySelectorAll("[data-plot-skin]").forEach((tile) => {
     tile.style.cssText = pixelAtlasPosition(PIXEL_PLOT_IDS, tile.dataset.plotSkin, 4, 3, "plot");
+    const plot = state.farmPlots.find((entry) => entry.id === Number(tile.dataset.plotId));
+    if (!plot?.crop) return;
+    const visual = tile.querySelector(".crop-visual");
+    const sprite = visual.querySelector(".crop-pixel");
+    visual.replaceChildren(...Array.from({ length: 3 }, () => sprite.cloneNode(true)));
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "farm-plot-select";
+    select.dataset.selectFarmPlot = String(plot.id);
+    select.setAttribute("aria-controls", "farmPlotInspector");
+    select.setAttribute("aria-label", `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name} · ${plot.wilted ? "시듦" : plot.growth >= getCropGrowthCost(plot.crop) ? "수확 가능" : "성장 중"} 관리`);
+    tile.append(select);
   });
+  renderFarmPlotInspector();
+}
+
+function renderFarmPlotInspector() {
+  const inspector = document.querySelector("#farmPlotInspector");
+  const plot = state.farmPlots.find((entry) => entry.id === selectedFarmPlotId && entry.crop);
+  document.querySelectorAll("#farmGrid [data-plot-id]").forEach((tile) => {
+    const active = Boolean(plot && Number(tile.dataset.plotId) === plot.id);
+    tile.classList.toggle("plot-selected", active);
+    tile.querySelector(".farm-plot-select")?.setAttribute("aria-expanded", String(active));
+  });
+  inspector.hidden = !plot;
+  if (!plot) {
+    selectedFarmPlotId = null;
+    inspector.replaceChildren();
+    return;
+  }
+  const tile = document.querySelector(`#farmGrid [data-plot-id="${plot.id}"]`);
+  const focusedAction = inspector.contains(document.activeElement)
+    ? ["data-grow-plot", "data-water-plot", "data-harvest-plot", "data-discard-plot"].find((key) => document.activeElement.hasAttribute(key))
+    : null;
+  inspector.innerHTML = `<header><strong>${plot.id + 1}번 밭 · ${escapeHtml(CROPS[plot.crop].name)}</strong><button type="button" data-close-farm-plot aria-label="밭 관리 닫기">×</button></header><div class="farm-plot-detail"></div>`;
+  const detail = inspector.querySelector(".farm-plot-detail");
+  tile.querySelectorAll(".crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button").forEach((element) => detail.append(element.cloneNode(true)));
+  if (focusedAction) inspector.querySelector(`[${focusedAction}]`)?.focus({ preventScroll: true });
 }
 
 function renderFocusPicker() {
@@ -8798,7 +8889,50 @@ confirmFreePassTarget.addEventListener("click", () => {
   if (selectedFreePassTarget) useFreePassOnTarget(selectedFreePassTarget);
 });
 
-document.querySelector("#farmGrid").addEventListener("click", async (event) => {
+const farmSceneResizeObserver = new ResizeObserver((entries) => {
+  for (const { target, contentRect } of entries) {
+    if (contentRect.width <= 0 || Number(target.dataset.centeredWidth) === contentRect.width) continue;
+    target.scrollLeft = Math.max(0, (target.scrollWidth - target.clientWidth) / 2);
+    target.dataset.centeredWidth = String(contentRect.width);
+  }
+});
+farmSceneResizeObserver.observe(document.querySelector("#farmPage .farm-scene"));
+
+function setFarmMarketOpen(open) {
+  document.querySelector("#farmPage").classList.toggle("farm-market-open", open);
+  document.querySelector("#toggleFarmMarket").setAttribute("aria-expanded", String(open));
+  if (open) document.querySelector("[data-close-farm-market]").focus({ preventScroll: true });
+  else document.querySelector("#toggleFarmMarket").focus({ preventScroll: true });
+}
+
+document.querySelector("#farmPage").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!document.querySelector("#farmPlotInspector").hidden) {
+    const id = selectedFarmPlotId;
+    selectedFarmPlotId = null;
+    renderFarmPlotInspector();
+    document.querySelector(`[data-select-farm-plot="${id}"]`)?.focus({ preventScroll: true });
+  } else if (document.querySelector("#farmPage").classList.contains("farm-market-open")) {
+    setFarmMarketOpen(false);
+  }
+});
+
+document.querySelector("#farmPage").addEventListener("click", async (event) => {
+  if (event.target.closest("#toggleFarmMarket, [data-open-farm-market]")) {
+    setFarmMarketOpen(!document.querySelector("#farmPage").classList.contains("farm-market-open"));
+    return;
+  }
+  if (event.target.closest("[data-close-farm-market]")) {
+    setFarmMarketOpen(false);
+    return;
+  }
+  if (event.target.closest("[data-close-farm-plot]")) {
+    const id = selectedFarmPlotId;
+    selectedFarmPlotId = null;
+    renderFarmPlotInspector();
+    document.querySelector(`[data-select-farm-plot="${id}"]`)?.focus({ preventScroll: true });
+    return;
+  }
   const plantButton = event.target.closest("[data-plant-plot]");
   const growButton = event.target.closest("[data-grow-plot]");
   const waterButton = event.target.closest("[data-water-plot]");
@@ -8880,9 +9014,17 @@ document.querySelector("#farmGrid").addEventListener("click", async (event) => {
     return;
   }
 
+  const selectPlotButton = event.target.closest("[data-select-farm-plot]");
+  if (selectPlotButton) {
+    selectedFarmPlotId = Number(selectPlotButton.dataset.selectFarmPlot);
+    renderFarmPlotInspector();
+    document.querySelector("#farmPlotInspector [data-close-farm-plot]")?.focus({ preventScroll: true });
+    return;
+  }
+
   if (plantButton) {
     if (!selectedSeed || !state.seedInventory[selectedSeed]) {
-      showToast("씨앗 보관함에서 심을 씨앗을 먼저 골라");
+      document.querySelector("#seedStorageModal").classList.remove("hidden");
       return;
     }
 
@@ -9272,11 +9414,12 @@ function openCosmeticPreview(type, id) {
   farmPreview.querySelector(".preview-name-slot").append(nameplate);
   farmPreview.querySelector(".preview-field-slot").replaceWith(scene);
   decorateFarmTheme(farmPreview, previewTheme);
+  renderFarmScenery(farmPreview, previewTheme, previewPlot);
   cosmeticTryonStage.append(farmPreview);
 
   document.querySelector("#cosmeticPreviewTitle").textContent = entry.name;
   document.querySelector("#cosmeticPreviewDescription").textContent =
-    `${COSMETIC_TYPE_LABELS[type]} 적용 예시 · ${getCosmeticSetDescription(type, id)}`;
+    [getFarmSceneryDescription(type, id) || `${COSMETIC_TYPE_LABELS[type]} 적용 예시`, getCosmeticSetDescription(type, id)].join(" · ");
   const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
   document.querySelector("#cosmeticPreviewSetMembers").textContent = set ? ["farm_theme", "plot_skin", "label_effect"].map((slot) => `${COSMETIC_TYPE_LABELS[slot]}: ${set[slot].map((member) => getCosmeticEntry(slot, member)?.name).join(" / ")}`).join(" · ") : "";
   cosmeticPreviewModal.classList.remove("hidden");

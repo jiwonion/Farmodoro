@@ -1,0 +1,214 @@
+/* The farm is one game map; UI panels appear only when opened. */
+body :is(#farmPage, .cosmetic-farm-preview) .farm-layout {
+  display: block !important;
+  position: relative;
+  padding: 0 !important;
+  border: 3px solid #4b3725 !important;
+  border-radius: 8px;
+  background: #30462b !important;
+  box-shadow: 0 5px 0 #392a21 !important;
+  overflow: hidden;
+}
+body :is(#farmPage, .cosmetic-farm-preview) :is(.farm-window-chrome, .farm-theme-banner) { display: none !important; }
+body #farmPage .farm-panel { display: block; padding: 0; min-width: 0; }
+body #farmPage .farm-panel-header {
+  display: flex !important;
+  align-items: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 16px !important;
+  margin: 0;
+  border: 0 !important;
+  border-bottom: 3px solid #50351e !important;
+  background: #f2dfb5 !important;
+  box-shadow: inset 0 3px #fff0cc, inset 0 -3px #c6a779 !important;
+}
+body #farmPage .farm-name-display h2 { color: #513b28 !important; font-size: 21px; }
+body #farmPage .farm-header-actions { display: flex !important; flex-wrap: wrap; gap: 6px; width: auto; margin-left: auto; }
+body #farmPage .farm-storage-toolbar { display: contents !important; }
+body #farmPage .farm-header-actions :is(button.farm-storage-button, button.farm-utility-button),
+body #farmPage .farm-name-display > button {
+  width: auto !important; flex: 0 0 auto !important; order: 0 !important;
+  min-width: 0; min-height: 34px; height: auto; padding: 5px 9px;
+  border: 1px solid #96734b !important; border-radius: 4px;
+  background: #fff2cd !important; color: #543820 !important;
+  box-shadow: 0 2px #b99a69 !important; font-size: 12px;
+}
+body #farmPage .farm-header-actions button span { color: #543820 !important; }
+body #farmPage .farm-set-bonuses {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 5px 14px; margin: 0; border: 0 !important; border-radius: 0;
+  background: #334c31 !important; color: #f4eccb !important; font-size: 11px;
+}
+body #farmPage .farm-set-bonuses :is(span, small, p) { color: #f4eccb !important; margin: 0; }
+body #farmPage .farm-set-bonuses > strong { color: #ead998 !important; }
+body #farmPage .farm-protection-status { margin: 0; border: 0; background: #334c31; color: #fff2ca; }
+
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] {
+  --scenery-x: 0%; --scenery-y: 0%; --world-filter: none;
+  position: relative; isolation: isolate;
+  width: 100%; height: auto; min-height: 0; padding: 0 !important;
+  overflow: auto; overscroll-behavior-x: contain;
+  border: 0 !important; border-radius: 0;
+  background: #4a682e !important; box-shadow: none !important;
+  scrollbar-width: thin; scrollbar-color: #927148 #30462b;
+  image-rendering: pixelated;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="lavender"] { --scenery-x: 50%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="tulip"] { --scenery-x: 100%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="cherry"] { --scenery-y: 100%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="snow"] { --scenery-x: 50%; --scenery-y: 100%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="night"] { --scenery-x: 100%; --scenery-y: 100%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="volcano"] { --scenery-x: 100%; --scenery-y: 100%; --world-filter: sepia(.65) hue-rotate(315deg); }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="goldenHarvest"] { --world-filter: sepia(.45) saturate(1.15); }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery="ocean"] { --world-filter: hue-rotate(30deg); }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-scene-grid {
+  position: relative; isolation: isolate;
+  width: 100%; min-width: 600px; height: auto; min-height: 0;
+  aspect-ratio: 3 / 2; padding: 0; margin: 0;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-scene-grid::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  background: url('./assets/pixel/farm-world-atlas.png') var(--scenery-x) var(--scenery-y) / 300% 200% no-repeat;
+  filter: var(--world-filter); pointer-events: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid {
+  display: grid; position: absolute; left: 24.5%; top: 40%;
+  width: 54.5%; max-width: none; height: 39%;
+  padding: 0; margin: 0; gap: 1.4%; aspect-ratio: auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  background: none; border: 0; box-shadow: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .farm-plot {
+  display: block; position: relative; container-type: inline-size;
+  min-height: 0 !important; height: 100%; min-width: 0; aspect-ratio: auto;
+  padding: 0; margin: 0; overflow: visible;
+  border: 0 !important; border-radius: 7px;
+  background: none !important; box-shadow: none !important;
+  transform: none !important;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .farm-plot:is(:hover, :focus-visible, .plot-selected) {
+  outline: 2px dashed #ffeb96; outline-offset: -4px;
+  background: #ffe4a014 !important;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .farm-plot::before {
+  content: ''; position: absolute; inset: 3%; border-radius: 5px;
+  background: var(--soil-tint, transparent); mix-blend-mode: color; pointer-events: none;
+}
+.farm-plot:is([data-plot-skin="chocolate"], [data-preview-plot="chocolate"]) { --soil-tint: #43221899; }
+.farm-plot:is([data-plot-skin="candy"], [data-preview-plot="candy"]) { --soil-tint: #e694b866; }
+.farm-plot:is([data-plot-skin="starCandy"], [data-preview-plot="starCandy"]) { --soil-tint: #8476c499; }
+.farm-plot:is([data-plot-skin="mapleLeaf"], [data-preview-plot="mapleLeaf"]) { --soil-tint: #d47b3277; }
+.farm-plot:is([data-plot-skin="sandDune"], [data-preview-plot="sandDune"]) { --soil-tint: #e9c484aa; }
+.farm-plot:is([data-plot-skin="lava"], [data-preview-plot="lava"]) { --soil-tint: #e5462788; }
+.farm-plot:is([data-plot-skin="rainbow"], [data-preview-plot="rainbow"]) { --soil-tint: linear-gradient(110deg, #e7717766, #e5ce7966, #7acb9366, #869bd566); }
+.farm-plot:is([data-plot-skin="golden"], [data-preview-plot="golden"]) { --soil-tint: #e8bd48aa; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid :is(.crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button, .fertilizer-badge) { display: none !important; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .empty-plot > span { opacity: 0; font-size: 20px; color: #ffecad; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .empty-plot:is(:hover, :focus-visible, .ready) > span { opacity: .9; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .crop-visual {
+  position: absolute; inset: -16% 4% 12%; min-height: 0;
+  display: flex; align-items: flex-end; justify-content: space-evenly;
+  margin: 0; padding: 0; pointer-events: none;
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .crop-visual .crop-pixel {
+  display: block; flex: 0 0 29%; width: 29%; height: auto;
+  aspect-ratio: 1; max-width: 65px; max-height: none;
+  transform: none; filter: drop-shadow(1px 3px 0 #1c271855);
+}
+body :is(#farmPage, .cosmetic-farm-preview) .farm-scene[data-scenery] .crop-visual .crop-pixel:nth-child(2) { align-self: center; }
+body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot > .farm-plot-select {
+  position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0;
+  z-index: 2; border: 0 !important; background: transparent !important; box-shadow: none !important;
+  cursor: pointer;
+}
+body #farmPage .farm-scene[data-scenery] .farm-plot-select:focus-visible { outline: 3px solid #ffe9a3; }
+body #farmPage .farm-scene[data-scenery] .farm-plot.mature::after {
+  content: '✦'; position: absolute; top: -14%; right: 5%;
+  color: #fff09b; text-shadow: 1px 1px #644022; font-size: 15px; pointer-events: none;
+}
+body #farmPage .farm-scene[data-scenery] .farm-building {
+  position: absolute; z-index: 2; border: 0 !important; padding: 0;
+  background: transparent !important; box-shadow: none !important;
+  cursor: pointer; display: flex; align-items: flex-end; justify-content: center;
+}
+body #farmPage .farm-scene[data-scenery] .farm-building-home { left: 8%; top: 5%; width: 29%; height: 28%; }
+body #farmPage .farm-scene[data-scenery] .farm-building-market { left: 74%; top: 16%; width: 16%; height: 20%; }
+body #farmPage .farm-scene[data-scenery] .farm-building span {
+  padding: 3px 10px; border: 1px solid #553b24; background: #f8e8b9; color: #50351f;
+  box-shadow: 1px 2px #5e432d; font-size: 12px; border-radius: 3px;
+}
+body #farmPage .farm-scene[data-scenery] .farm-building:hover span { background: #fff7da; transform: translateY(-2px); }
+body #farmPage .farm-world-hint { margin: 0; padding: 7px 12px; text-align: center; background: #30462b; color: #eadfbd; font-size: 12px; }
+.farm-world-hint span { display: none; }
+
+body #farmPage .npc-market {
+  display: none !important; position: absolute; z-index: 20; top: 65px; right: 14px; bottom: 35px;
+  width: min(390px, calc(100% - 28px)); height: auto !important; max-height: none;
+  min-height: 0; contain: none; overflow: auto; padding: 42px 12px 12px;
+  border: 3px solid #65492e !important; border-radius: 6px;
+  background: #fff2d7 !important; box-shadow: 0 8px 24px #17251b66 !important;
+}
+body #farmPage.farm-market-open .npc-market { display: block !important; }
+body #farmPage .npc-market::before { display: none; }
+body #farmPage .npc-market .farm-market-close {
+  position: absolute; right: 8px; top: 6px; width: 30px; height: 28px;
+  border: 1px solid #765238; background: #f4dfb1 !important; color: #543820 !important;
+  font-size: 22px; line-height: 1;
+}
+body #farmPage .farm-plot-inspector {
+  position: fixed; z-index: 85; right: 24px; bottom: 20px;
+  width: min(360px, calc(100vw - 28px)); padding: 12px;
+  border: 3px solid #64482b; border-radius: 7px;
+  background: #fff1cd; color: #50361f; box-shadow: 0 5px 0 #392c20, 0 12px 30px #18291f50;
+}
+body #farmPage .farm-plot-inspector[hidden] { display: none; }
+.farm-plot-inspector header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.farm-plot-inspector header strong { font-size: 16px; }
+body #farmPage .farm-plot-inspector button { min-height: 38px; padding: 6px 12px; border: 1px solid #896843; background: #f5d58f !important; color: #50361f !important; border-radius: 4px; box-shadow: 0 2px #bca071 !important; }
+body #farmPage .farm-plot-inspector header button { min-height: 28px; padding: 2px 8px; font-size: 19px; }
+.farm-plot-detail { display: grid; gap: 8px; }
+.farm-plot-detail .crop-info { display: flex; gap: 8px; align-items: center; }
+.farm-plot-detail .crop-info strong { display: none; }
+.farm-plot-detail .crop-info small { font-size: 12px; }
+body #farmPage .farm-plot-inspector .crop-info small { color: #62462c; background: none; }
+.farm-plot-detail .crop-wilt-countdown { font-size: 12px; }
+.farm-plot-detail .plot-growth-actions { display: flex; gap: 8px; }
+.farm-plot-detail .plot-growth-actions button { flex: 1; }
+body #farmPage .npc-market :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card, .seed-shop-card, .noah-buy-card) {
+  border-color: #9b7e52 !important; background: #fff5db !important;
+  color: #503b25 !important; box-shadow: none !important;
+}
+body #farmPage .npc-market :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small) { color: #624d30 !important; }
+body #farmPage .npc-market :is(.market-category-tabs, .rachel-tabs) button {
+  border-color: #94794f !important; background: #f4e4be !important; color: #5d442b !important; box-shadow: 0 2px #ad9064 !important;
+}
+body #farmPage .npc-market :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"]) {
+  background: #466a3e !important; color: #fff0c6 !important;
+}
+
+.farm-weather { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
+.farm-weather i { position: absolute; top: 0; left: var(--drift-x); width: 12px; height: 100%; animation: farm-weather-drift var(--drift-duration) var(--drift-delay) linear infinite; }
+.farm-weather i::before { content: ''; display: block; width: var(--flake-size); height: var(--flake-size); background: #fff; box-shadow: 1px 1px #d9eafd80; opacity: .85; }
+.farm-weather[data-weather="petals"] i::before { width: calc(var(--flake-size) + 3px); background: #ffcfdf; border-radius: 1px 5px 1px 5px; box-shadow: 1px 1px #b6608540; transform: rotate(-25deg); }
+@keyframes farm-weather-drift { from { transform: translate3d(-22px, -100%, 0); } to { transform: translate3d(34px, 105%, 0); } }
+body .cosmetic-farm-preview .npc-market { display: none; }
+body .cosmetic-farm-preview .farm-panel-header { margin: 0; background: #f2dfb5 !important; border: 0; }
+body .cosmetic-farm-preview .farm-header-actions { display: none; }
+body .cosmetic-farm-preview .farm-scene[data-scenery] .farm-scene-grid { min-width: 0; }
+body .cosmetic-farm-preview .farm-scene[data-scenery] .farm-plot .crop-pixel { width: 55%; flex-basis: 55%; }
+
+@media (max-width: 700px) {
+  body #farmPage .farm-panel-header { padding: 8px !important; gap: 6px; }
+  body #farmPage .farm-name-display h2 { font-size: 17px; }
+  body #farmPage .farm-header-actions { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; margin: 0; gap: 5px; }
+  body #farmPage .farm-header-actions > * { grid-area: auto !important; }
+  body #farmPage .farm-header-actions :is(button.farm-storage-button, button.farm-utility-button) { min-height: 32px; padding: 4px 2px; font-size: 10px; white-space: normal; }
+  body #farmPage .farm-name-display > button { min-height: 28px; }
+  .farm-world-hint span { display: inline; }
+  body #farmPage .npc-market { position: fixed; top: 95px; bottom: 16px; right: 12px; width: calc(100vw - 24px); z-index: 90; }
+  body #farmPage .farm-plot-inspector { right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .farm-weather { display: none; } .farm-weather i { animation: none; } }
