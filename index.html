@@ -39,7 +39,7 @@
     <link rel="stylesheet" href="./farm-pixel.css?v=272" />
     <link rel="stylesheet" href="./pixel-layout.css?v=272" />
     <link rel="stylesheet" href="./farm-theme.css?v=272" />
-    <link rel="stylesheet" href="./farm-scenery.css?v=276" />
+    <link rel="stylesheet" href="./farm-scenery.css?v=281" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -600,6 +600,9 @@
               <div id="farmSetBonuses" class="farm-set-bonuses" aria-live="polite"></div>
               <section class="farm-scene">
                 <div class="farm-scene-grid">
+                  <i class="farm-decor farm-decor-house" aria-hidden="true"></i>
+                  <i class="farm-decor farm-decor-well" aria-hidden="true"></i>
+                  <i class="farm-decor farm-decor-bridge" aria-hidden="true"></i>
                   <button class="farm-building farm-facility facility-harvest" type="button" data-open-storage="harvest" aria-label="수확물 보관함"><span>수확물</span><small id="harvestStorageCount">0</small></button>
                   <button class="farm-building farm-facility facility-seed" type="button" data-open-storage="seed" aria-label="씨앗 보관함"><span>씨앗</span><small id="seedStorageCount">0</small></button>
                   <button class="farm-building farm-facility facility-supply" type="button" data-open-storage="supply" aria-label="농장 용품 보관함"><span>농장 용품</span><small id="supplyStorageCount">0</small></button>
@@ -1200,7 +1203,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=276"></script>
+    <script src="./app.js?v=279"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

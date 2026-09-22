@@ -1,0 +1,1698 @@
+﻿[
+    {
+        "file":  "crops/apple.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6647,
+        "transparentPixels":  9737,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/barley.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6358,
+        "transparentPixels":  10026,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/bean.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9243,
+        "transparentPixels":  7141,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/beet.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7259,
+        "transparentPixels":  9125,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/bellFlower.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6671,
+        "transparentPixels":  9713,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/blueberry.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7591,
+        "transparentPixels":  8793,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/bokchoy.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8689,
+        "transparentPixels":  7695,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/broccoli.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7583,
+        "transparentPixels":  8801,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/cabbage.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9920,
+        "transparentPixels":  6464,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/carrot.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7075,
+        "transparentPixels":  9309,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/celery.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6789,
+        "transparentPixels":  9595,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/cherry.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6697,
+        "transparentPixels":  9687,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/chestnut.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7112,
+        "transparentPixels":  9272,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/chili.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8215,
+        "transparentPixels":  8169,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/corn.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6978,
+        "transparentPixels":  9406,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/cucumber.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8969,
+        "transparentPixels":  7415,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/daikon.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6787,
+        "transparentPixels":  9597,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/edamame.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7841,
+        "transparentPixels":  8543,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/eggplant.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8519,
+        "transparentPixels":  7865,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/fig.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7469,
+        "transparentPixels":  8915,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/flower.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8580,
+        "transparentPixels":  7804,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/garlic.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  4371,
+        "transparentPixels":  12013,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/grape.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8998,
+        "transparentPixels":  7386,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/growing.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6298,
+        "transparentPixels":  10086,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/kale.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9306,
+        "transparentPixels":  7078,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/kiwi.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9001,
+        "transparentPixels":  7383,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/lavender.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7997,
+        "transparentPixels":  8387,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/lemon.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6967,
+        "transparentPixels":  9417,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/lettuce.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8427,
+        "transparentPixels":  7957,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/mango.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7329,
+        "transparentPixels":  9055,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/melon.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9464,
+        "transparentPixels":  6920,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/mushroom.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7676,
+        "transparentPixels":  8708,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/oat.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7720,
+        "transparentPixels":  8664,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/onion.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  4300,
+        "transparentPixels":  12084,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/orange.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7120,
+        "transparentPixels":  9264,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/passionFruit.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8657,
+        "transparentPixels":  7727,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pea.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8619,
+        "transparentPixels":  7765,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/peach.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7878,
+        "transparentPixels":  8506,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/peanut.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  9159,
+        "transparentPixels":  7225,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pear.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6915,
+        "transparentPixels":  9469,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pepper.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7457,
+        "transparentPixels":  8927,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pineapple.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7344,
+        "transparentPixels":  9040,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/plum.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7367,
+        "transparentPixels":  9017,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/potato.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7617,
+        "transparentPixels":  8767,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pumpkin.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8612,
+        "transparentPixels":  7772,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/pumpkinSquash.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8421,
+        "transparentPixels":  7963,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/radish.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6762,
+        "transparentPixels":  9622,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/raspberry.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8701,
+        "transparentPixels":  7683,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/rice.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7618,
+        "transparentPixels":  8766,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/seed.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  4674,
+        "transparentPixels":  11710,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/spinach.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8120,
+        "transparentPixels":  8264,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/sprout.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6386,
+        "transparentPixels":  9998,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/strawberry.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7440,
+        "transparentPixels":  8944,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/sunflower.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6258,
+        "transparentPixels":  10126,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/sweetCorn.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7254,
+        "transparentPixels":  9130,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/sweetPotato.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8559,
+        "transparentPixels":  7825,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/tomato.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7328,
+        "transparentPixels":  9056,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/truffle.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  8800,
+        "transparentPixels":  7584,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/turnip.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7931,
+        "transparentPixels":  8453,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/watermelon.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  7686,
+        "transparentPixels":  8698,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/wheat.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6847,
+        "transparentPixels":  9537,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "crops/wilted.png",
+        "width":  128,
+        "height":  128,
+        "visiblePixels":  6573,
+        "transparentPixels":  9811,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/apple.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4578,
+        "transparentPixels":  4638,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/barley.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2902,
+        "transparentPixels":  6314,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/bean.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3535,
+        "transparentPixels":  5681,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/beet.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3227,
+        "transparentPixels":  5989,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/bellFlower.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4089,
+        "transparentPixels":  5127,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/blueberry.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3766,
+        "transparentPixels":  5450,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/bokchoy.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4425,
+        "transparentPixels":  4791,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/broccoli.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4518,
+        "transparentPixels":  4698,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/cabbage.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4397,
+        "transparentPixels":  4819,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/carrot.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2751,
+        "transparentPixels":  6465,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/celery.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3579,
+        "transparentPixels":  5637,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/cherry.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3625,
+        "transparentPixels":  5591,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/chestnut.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4857,
+        "transparentPixels":  4359,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/chili.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2315,
+        "transparentPixels":  6901,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/corn.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3166,
+        "transparentPixels":  6050,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/cucumber.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2938,
+        "transparentPixels":  6278,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/daikon.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3816,
+        "transparentPixels":  5400,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/edamame.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3740,
+        "transparentPixels":  5476,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/eggplant.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3449,
+        "transparentPixels":  5767,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/fig.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3870,
+        "transparentPixels":  5346,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/flower.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4164,
+        "transparentPixels":  5052,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/garlic.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4448,
+        "transparentPixels":  4768,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/grape.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3526,
+        "transparentPixels":  5690,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/growing.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4296,
+        "transparentPixels":  4920,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/kale.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4404,
+        "transparentPixels":  4812,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/kiwi.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  5217,
+        "transparentPixels":  3999,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/lavender.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2861,
+        "transparentPixels":  6355,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/lemon.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4112,
+        "transparentPixels":  5104,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/lettuce.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4968,
+        "transparentPixels":  4248,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/mango.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4726,
+        "transparentPixels":  4490,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/melon.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4339,
+        "transparentPixels":  4877,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/mushroom.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4655,
+        "transparentPixels":  4561,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/oat.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3470,
+        "transparentPixels":  5746,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/onion.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3709,
+        "transparentPixels":  5507,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/orange.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4976,
+        "transparentPixels":  4240,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/passionFruit.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  5316,
+        "transparentPixels":  3900,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pea.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3383,
+        "transparentPixels":  5833,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/peach.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4955,
+        "transparentPixels":  4261,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/peanut.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4024,
+        "transparentPixels":  5192,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pear.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3865,
+        "transparentPixels":  5351,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pepper.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4060,
+        "transparentPixels":  5156,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pineapple.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3393,
+        "transparentPixels":  5823,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/plum.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4594,
+        "transparentPixels":  4622,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/potato.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4868,
+        "transparentPixels":  4348,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pumpkin.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4772,
+        "transparentPixels":  4444,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/pumpkinSquash.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4690,
+        "transparentPixels":  4526,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/radish.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2690,
+        "transparentPixels":  6526,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/raspberry.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4992,
+        "transparentPixels":  4224,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/rice.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3568,
+        "transparentPixels":  5648,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/seed.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  2211,
+        "transparentPixels":  7005,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/spinach.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4477,
+        "transparentPixels":  4739,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/sprout.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4110,
+        "transparentPixels":  5106,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/strawberry.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4245,
+        "transparentPixels":  4971,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/sunflower.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3911,
+        "transparentPixels":  5305,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/sweetCorn.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3296,
+        "transparentPixels":  5920,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/sweetPotato.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4477,
+        "transparentPixels":  4739,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/tomato.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  5138,
+        "transparentPixels":  4078,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/truffle.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4618,
+        "transparentPixels":  4598,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/turnip.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3213,
+        "transparentPixels":  6003,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/watermelon.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4707,
+        "transparentPixels":  4509,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/wheat.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  3097,
+        "transparentPixels":  6119,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "inventory/wilted.png",
+        "width":  96,
+        "height":  96,
+        "visiblePixels":  4181,
+        "transparentPixels":  5035,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/bridge.png",
+        "width":  160,
+        "height":  112,
+        "visiblePixels":  9456,
+        "transparentPixels":  8464,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/fence-horizontal.png",
+        "width":  112,
+        "height":  64,
+        "visiblePixels":  3262,
+        "transparentPixels":  3906,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/fence-vertical.png",
+        "width":  40,
+        "height":  96,
+        "visiblePixels":  1534,
+        "transparentPixels":  2306,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/house.png",
+        "width":  192,
+        "height":  176,
+        "visiblePixels":  20836,
+        "transparentPixels":  12956,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/kitchen.png",
+        "width":  144,
+        "height":  128,
+        "visiblePixels":  8987,
+        "transparentPixels":  9445,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/mailbox.png",
+        "width":  64,
+        "height":  104,
+        "visiblePixels":  1960,
+        "transparentPixels":  4696,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/market.png",
+        "width":  176,
+        "height":  160,
+        "visiblePixels":  18082,
+        "transparentPixels":  10078,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/noticeboard.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4850,
+        "transparentPixels":  5134,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/produce-crate.png",
+        "width":  104,
+        "height":  88,
+        "visiblePixels":  4790,
+        "transparentPixels":  4362,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/seed-chest.png",
+        "width":  104,
+        "height":  96,
+        "visiblePixels":  5624,
+        "transparentPixels":  4360,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/tool-rack.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4777,
+        "transparentPixels":  5207,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/rustic/well.png",
+        "width":  128,
+        "height":  144,
+        "visiblePixels":  11585,
+        "transparentPixels":  6847,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/bridge.png",
+        "width":  160,
+        "height":  112,
+        "visiblePixels":  10489,
+        "transparentPixels":  7431,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/fence-horizontal.png",
+        "width":  112,
+        "height":  64,
+        "visiblePixels":  3220,
+        "transparentPixels":  3948,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/fence-vertical.png",
+        "width":  40,
+        "height":  96,
+        "visiblePixels":  1620,
+        "transparentPixels":  2220,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/house.png",
+        "width":  192,
+        "height":  176,
+        "visiblePixels":  21235,
+        "transparentPixels":  12557,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/kitchen.png",
+        "width":  144,
+        "height":  128,
+        "visiblePixels":  9340,
+        "transparentPixels":  9092,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/mailbox.png",
+        "width":  64,
+        "height":  104,
+        "visiblePixels":  2026,
+        "transparentPixels":  4630,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/market.png",
+        "width":  176,
+        "height":  160,
+        "visiblePixels":  18713,
+        "transparentPixels":  9447,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/noticeboard.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4323,
+        "transparentPixels":  5661,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/produce-crate.png",
+        "width":  104,
+        "height":  88,
+        "visiblePixels":  4702,
+        "transparentPixels":  4450,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/seed-chest.png",
+        "width":  104,
+        "height":  96,
+        "visiblePixels":  5507,
+        "transparentPixels":  4477,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/tool-rack.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4157,
+        "transparentPixels":  5827,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/sakura/well.png",
+        "width":  128,
+        "height":  144,
+        "visiblePixels":  11132,
+        "transparentPixels":  7300,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/bridge.png",
+        "width":  160,
+        "height":  112,
+        "visiblePixels":  10502,
+        "transparentPixels":  7418,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/fence-horizontal.png",
+        "width":  112,
+        "height":  64,
+        "visiblePixels":  3771,
+        "transparentPixels":  3397,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/fence-vertical.png",
+        "width":  40,
+        "height":  96,
+        "visiblePixels":  1510,
+        "transparentPixels":  2330,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/house.png",
+        "width":  192,
+        "height":  176,
+        "visiblePixels":  21166,
+        "transparentPixels":  12626,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/kitchen.png",
+        "width":  144,
+        "height":  128,
+        "visiblePixels":  10058,
+        "transparentPixels":  8374,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/mailbox.png",
+        "width":  64,
+        "height":  104,
+        "visiblePixels":  2119,
+        "transparentPixels":  4537,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/market.png",
+        "width":  176,
+        "height":  160,
+        "visiblePixels":  18369,
+        "transparentPixels":  9791,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/noticeboard.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4794,
+        "transparentPixels":  5190,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/produce-crate.png",
+        "width":  104,
+        "height":  88,
+        "visiblePixels":  4907,
+        "transparentPixels":  4245,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/seed-chest.png",
+        "width":  104,
+        "height":  96,
+        "visiblePixels":  5493,
+        "transparentPixels":  4491,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/tool-rack.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4915,
+        "transparentPixels":  5069,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/snow/well.png",
+        "width":  128,
+        "height":  144,
+        "visiblePixels":  11701,
+        "transparentPixels":  6731,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/bridge.png",
+        "width":  160,
+        "height":  112,
+        "visiblePixels":  10177,
+        "transparentPixels":  7743,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/fence-horizontal.png",
+        "width":  112,
+        "height":  64,
+        "visiblePixels":  3503,
+        "transparentPixels":  3665,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/fence-vertical.png",
+        "width":  40,
+        "height":  96,
+        "visiblePixels":  1521,
+        "transparentPixels":  2319,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/house.png",
+        "width":  192,
+        "height":  176,
+        "visiblePixels":  20970,
+        "transparentPixels":  12822,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/kitchen.png",
+        "width":  144,
+        "height":  128,
+        "visiblePixels":  9146,
+        "transparentPixels":  9286,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/mailbox.png",
+        "width":  64,
+        "height":  104,
+        "visiblePixels":  2024,
+        "transparentPixels":  4632,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/market.png",
+        "width":  176,
+        "height":  160,
+        "visiblePixels":  17861,
+        "transparentPixels":  10299,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/noticeboard.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4890,
+        "transparentPixels":  5094,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/produce-crate.png",
+        "width":  104,
+        "height":  88,
+        "visiblePixels":  4729,
+        "transparentPixels":  4423,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/seed-chest.png",
+        "width":  104,
+        "height":  96,
+        "visiblePixels":  5500,
+        "transparentPixels":  4484,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/tool-rack.png",
+        "width":  96,
+        "height":  104,
+        "visiblePixels":  4907,
+        "transparentPixels":  5077,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "objects/volcanic/well.png",
+        "width":  128,
+        "height":  144,
+        "visiblePixels":  11742,
+        "transparentPixels":  6690,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/bubble.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1213,
+        "transparentPixels":  2883,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-01.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  2332,
+        "transparentPixels":  1764,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-02.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  745,
+        "transparentPixels":  3351,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-03.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  746,
+        "transparentPixels":  3350,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-04.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  602,
+        "transparentPixels":  3494,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-05.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  832,
+        "transparentPixels":  3264,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/ember-06.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  727,
+        "transparentPixels":  3369,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/foam.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1260,
+        "transparentPixels":  2836,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/lavender.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  687,
+        "transparentPixels":  3409,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/leaf-autumn.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1322,
+        "transparentPixels":  2774,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/leaf-golden.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1278,
+        "transparentPixels":  2818,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-01.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1560,
+        "transparentPixels":  2536,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-02.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1049,
+        "transparentPixels":  3047,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-03.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1157,
+        "transparentPixels":  2939,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-04.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1131,
+        "transparentPixels":  2965,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-05.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1539,
+        "transparentPixels":  2557,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/petal-06.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1041,
+        "transparentPixels":  3055,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-01.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1765,
+        "transparentPixels":  2331,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-02.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1691,
+        "transparentPixels":  2405,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-03.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1714,
+        "transparentPixels":  2382,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-04.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1263,
+        "transparentPixels":  2833,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-05.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1175,
+        "transparentPixels":  2921,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/snow-06.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1885,
+        "transparentPixels":  2211,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "particles/water-glint.png",
+        "width":  64,
+        "height":  64,
+        "visiblePixels":  1078,
+        "transparentPixels":  3018,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/candy.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20704,
+        "transparentPixels":  6080,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/cherryPetalFall.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20591,
+        "transparentPixels":  6193,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/chocolate.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20711,
+        "transparentPixels":  6073,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/default.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20648,
+        "transparentPixels":  6136,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/dry.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20893,
+        "transparentPixels":  5891,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/exhausted.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  21082,
+        "transparentPixels":  5702,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/frostbite.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20796,
+        "transparentPixels":  5988,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/golden.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  21057,
+        "transparentPixels":  5727,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/lava.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20938,
+        "transparentPixels":  5846,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/lavenderField.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  21030,
+        "transparentPixels":  5754,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/mapleLeaf.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20889,
+        "transparentPixels":  5895,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/rainbow.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  21064,
+        "transparentPixels":  5720,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/sandDune.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20802,
+        "transparentPixels":  5982,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/snowField.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20893,
+        "transparentPixels":  5891,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/starCandy.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20701,
+        "transparentPixels":  6083,
+        "visibleEdgePixels":  0
+    },
+    {
+        "file":  "plots/watered.png",
+        "width":  216,
+        "height":  124,
+        "visiblePixels":  20648,
+        "transparentPixels":  6136,
+        "visibleEdgePixels":  0
+    }
+]

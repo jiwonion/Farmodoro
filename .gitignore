@@ -1,0 +1,8 @@
+# Raw image-gen material for assets/farm-b-v1 (tens of MB of intermediates).
+# The build recipe itself is tracked: build-assets.ps1, build-input.json, prompts.md.
+output/imagegen/*/sources/
+output/imagegen/*/*.png
+
+# Local browser profile left behind by screenshot runs.
+.tmp-chrome-*/
+.tmp-*.png

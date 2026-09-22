@@ -1679,6 +1679,9 @@ let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedHabitDate = null;
 let selectedSeed = null;
+// The farm map keeps plot controls hidden until a plot is tapped, so the
+// scene reads as a game map rather than a grid of panels.
+let openFarmPlotId = null;
 let selectedFarmItem = null;
 const NPC_PANELS = ["morrison", "food", "crop", "rachel"];
 let activeNpcPanel = "morrison";
@@ -5433,6 +5436,99 @@ function isCosmeticEquipped(type, id) {
 const PIXEL_THEME_IDS = "cherryBlossom valentine halloween christmas whiteDay springMeadow galaxyNight ocean bubbleField".split(" ");
 const PIXEL_PLOT_IDS = "cherryPetalFall frostbite chocolate candy starCandy mapleLeaf snowField sandDune lava rainbow golden lavenderField".split(" ");
 
+// The farm map is composited from separate layers instead of one baked atlas:
+// an empty terrain background, facility sprites, plot tiles and crop sprites.
+const FARM_ART_ROOT = "./assets/farm-b-v1";
+const FARM_TERRAIN_IDS = new Set(
+  "springMeadow cherryBlossom christmas iceKingdom galaxyNight halloween valentine whiteDay bubbleField volcano ocean goldenHarvest lavender meadow".split(" "),
+);
+// These plot skins are sold as "changes the area around the field", so they
+// still override the terrain on top of swapping the plot tiles themselves.
+const PLOT_SKIN_TERRAIN = {
+  lavenderField: "lavender", cherryPetalFall: "cherryBlossom",
+  snowField: "christmas", frostbite: "iceKingdom",
+};
+const TERRAIN_OBJECT_SKINS = {
+  christmas: "snow", iceKingdom: "snow",
+  cherryBlossom: "sakura", valentine: "sakura", whiteDay: "sakura",
+  volcano: "volcanic", halloween: "volcanic",
+};
+// Each terrain was generated separately, so the open clearing the plots have to
+// sit in lands somewhere different on every one -- measured off the art as
+// [left, top, right, bottom] in % of the scene box. A single shared rectangle
+// does not fit: meadow's clearing ends at 67% height, springMeadow's at 78%.
+const TERRAIN_CLEARINGS = {
+  meadow: [29, 30, 71, 67],
+  lavender: [29, 31, 71, 68],
+  springMeadow: [33, 34, 75, 78],
+  bubbleField: [33, 33, 73, 79],
+  cherryBlossom: [30, 33, 73, 76],
+  valentine: [33, 33, 76, 76],
+  whiteDay: [30, 33, 72, 76],
+  galaxyNight: [33, 33, 73, 78],
+  christmas: [29, 33, 73, 76],
+  iceKingdom: [30, 33, 75, 78],
+  halloween: [30, 36, 72, 75],
+  goldenHarvest: [33, 36, 76, 78],
+  ocean: [27, 31, 74, 76],
+  volcano: [30, 33, 73, 78],
+};
+const PLOT_SPRITE_ASPECT = 216 / 124;
+const SCENE_ASPECT = 3 / 2;
+const CLEARING_INSET_X = 1.5;
+const CLEARING_INSET_TOP = 1;
+// The entrance path cuts into the bottom of every clearing, so keep more room there.
+const CLEARING_INSET_BOTTOM = 2.5;
+// Spare vertical room goes mostly below the field, which reads better and leaves
+// space for the popover that opens above a plot.
+const GRID_VERTICAL_BIAS = 0.3;
+
+// Largest 3x3 grid that keeps the plot sprites' own aspect ratio and still sits
+// inside the terrain's clearing.
+function farmGridRect(terrain) {
+  const [left, top, right, bottom] = TERRAIN_CLEARINGS[terrain] || TERRAIN_CLEARINGS.meadow;
+  const innerLeft = left + CLEARING_INSET_X;
+  const innerTop = top + CLEARING_INSET_TOP;
+  const innerWidth = right - left - CLEARING_INSET_X * 2;
+  const innerHeight = bottom - top - CLEARING_INSET_TOP - CLEARING_INSET_BOTTOM;
+  let width = innerWidth;
+  let height = innerWidth * SCENE_ASPECT / PLOT_SPRITE_ASPECT;
+  if (height > innerHeight) {
+    height = innerHeight;
+    width = innerHeight * PLOT_SPRITE_ASPECT / SCENE_ASPECT;
+  }
+  return {
+    left: innerLeft + (innerWidth - width) / 2,
+    top: innerTop + (innerHeight - height) * GRID_VERTICAL_BIAS,
+    width,
+    height,
+  };
+}
+
+// Growth stages ship as their own sprites next to the 57 crop sprites.
+const FIELD_STAGE_SPRITES = { seed: "seed", sprout: "sprout", growing: "growing", flower: "flower", wilted: "wilted" };
+
+function fieldCropSprite(cropId, stage = "mature") {
+  const name = stage === "mature"
+    ? (PIXEL_CROP_IDS.includes(cropId) ? cropId : "")
+    : FIELD_STAGE_SPRITES[stage];
+  if (!name) return "";
+  return `<span class="field-crop" aria-hidden="true" style="--field-crop:url('${FARM_ART_ROOT}/crops/${name}.png')"></span>`;
+}
+
+// Collapsed plots show growth as pips so the map stays readable without text.
+function plotProgressPips(growth, max) {
+  const filled = Math.min(5, Math.round((growth / Math.max(1, max)) * 5));
+  return Array.from({ length: 5 }, (_, index) => `<i${index < filled ? ' class="on"' : ""}></i>`).join("");
+}
+
+function fieldPlotSprite(plot, skin) {
+  if (plot?.wilted) return "dry";
+  if (PIXEL_PLOT_IDS.includes(skin)) return skin;
+  if (plot?.crop && getPlotWaterRemaining(plot) > 0) return "watered";
+  return "default";
+}
+
 function pixelAtlasPosition(ids, id, columns, rows, prefix) {
   const index = ids.indexOf(id);
   return index < 0 ? "" : `--${prefix}-x:${(index % columns) * 100 / (columns - 1)}%;--${prefix}-y:${Math.floor(index / columns) * 100 / (rows - 1)}%;`;
@@ -5587,15 +5683,59 @@ function getFarmScenery(themeId, plotSkin) {
     snowField: "snow", frostbite: "snow",
   };
   const scenery = skins[plotSkin] || themes[themeId] || "meadow";
-  const weather = scenery === "snow" ? "snow" : scenery === "cherry" ? "petals" : "none";
-  return { scenery, weather };
+  return { scenery };
 }
+
+// Which prop occupies each clickable facility slot, plus the scenery-only props.
+const FARM_OBJECT_SLOTS = {
+  ".facility-harvest": "produce-crate", ".facility-seed": "seed-chest",
+  ".facility-supply": "tool-rack", ".facility-mail": "mailbox",
+  ".facility-kitchen": "kitchen", ".facility-ranking": "noticeboard",
+  ".farm-building-market": "market",
+  ".farm-decor-house": "house", ".farm-decor-well": "well", ".farm-decor-bridge": "bridge",
+};
+const TERRAIN_WEATHER = {
+  christmas: "snow", iceKingdom: "snow", galaxyNight: "snow",
+  cherryBlossom: "petals", valentine: "petals", whiteDay: "petals",
+  volcano: "embers", halloween: "leaves", goldenHarvest: "leaves",
+  ocean: "bubbles", bubbleField: "bubbles", lavender: "lavender",
+};
+const WEATHER_PARTICLES = {
+  snow: ["snow-01", "snow-02", "snow-03", "snow-04", "snow-05", "snow-06"],
+  petals: ["petal-01", "petal-02", "petal-03", "petal-04", "petal-05", "petal-06"],
+  embers: ["ember-01", "ember-02", "ember-03", "ember-04", "ember-05", "ember-06"],
+  leaves: ["leaf-autumn", "leaf-golden"],
+  bubbles: ["bubble", "foam", "water-glint"],
+  lavender: ["lavender"],
+};
 
 function renderFarmScenery(root, themeId, plotSkin) {
   const scene = root.querySelector(".farm-scene");
   if (!scene) return;
-  const { scenery, weather } = getFarmScenery(themeId, plotSkin);
+  const { scenery } = getFarmScenery(themeId, plotSkin);
   scene.dataset.scenery = scenery;
+  const terrain = PLOT_SKIN_TERRAIN[plotSkin]
+    || (FARM_TERRAIN_IDS.has(themeId) ? themeId : "meadow");
+  const objectSkin = TERRAIN_OBJECT_SKINS[terrain] || "rustic";
+  scene.dataset.terrain = terrain;
+  scene.dataset.objectSkin = objectSkin;
+  scene.style.setProperty("--terrain", `url('${FARM_ART_ROOT}/terrain/${terrain}.png')`);
+  const grid = farmGridRect(terrain);
+  // Props that stand just off the field follow the clearing edges, so they stay
+  // on the grass band instead of drifting onto the path or the plots.
+  const clearing = TERRAIN_CLEARINGS[terrain] || TERRAIN_CLEARINGS.meadow;
+  scene.style.setProperty("--clearing-top", `${clearing[1]}%`);
+  scene.style.setProperty("--clearing-right", `${clearing[2]}%`);
+  scene.style.setProperty("--grid-left", `${grid.left.toFixed(2)}%`);
+  scene.style.setProperty("--grid-top", `${grid.top.toFixed(2)}%`);
+  scene.style.setProperty("--grid-width", `${grid.width.toFixed(2)}%`);
+  scene.style.setProperty("--grid-height", `${grid.height.toFixed(2)}%`);
+  Object.entries(FARM_OBJECT_SLOTS).forEach(([selector, prop]) => {
+    scene.querySelector(selector)?.style
+      .setProperty("--sprite", `url('${FARM_ART_ROOT}/objects/${objectSkin}/${prop}.png')`);
+  });
+
+  const weather = TERRAIN_WEATHER[terrain] || "none";
   let atmosphere = scene.querySelector(".farm-weather");
   if (!atmosphere) {
     atmosphere = document.createElement("div");
@@ -5605,9 +5745,11 @@ function renderFarmScenery(root, themeId, plotSkin) {
   }
   if (atmosphere.dataset.weather === weather) return;
   atmosphere.dataset.weather = weather;
-  atmosphere.innerHTML = weather === "none" ? "" : Array.from({ length: 18 }, (_, index) =>
-    `<i style="--drift-x:${(index * 37) % 100}%;--drift-delay:-${index * 1.7}s;--drift-duration:${10 + index % 7}s;--flake-size:${3 + index % 4}px"></i>`,
-  ).join("");
+  const particles = WEATHER_PARTICLES[weather];
+  atmosphere.innerHTML = !particles ? "" : Array.from({ length: 18 }, (_, index) => {
+    const sprite = particles[index % particles.length];
+    return `<i style="--drift-x:${(index * 37) % 100}%;--drift-delay:-${index * 1.7}s;--drift-duration:${10 + index % 7}s;--flake-size:${10 + (index % 4) * 3}px;--flake:url('${FARM_ART_ROOT}/particles/${sprite}.png')"></i>`;
+  }).join("");
 }
 
 function applyFarmTheme(themeId) {
@@ -5897,6 +6039,10 @@ function renderFarm() {
   const focusedPlotId = focusedPlotButton?.closest("[data-plot-id]")?.dataset.plotId;
   const focusedPlotAction = ["data-grow-plot", "data-water-plot", "data-harvest-plot", "data-discard-plot", "data-plant-plot"]
     .find((attribute) => focusedPlotButton?.hasAttribute(attribute));
+  if (openFarmPlotId !== null
+    && !state.farmPlots.find((entry) => entry.id === openFarmPlotId)?.crop) {
+    openFarmPlotId = null;
+  }
   grid.innerHTML = state.farmPlots
     .map((plot) => {
       if (!plot.crop) {
@@ -5922,12 +6068,16 @@ function renderFarm() {
         ? `<span class="fertilizer-badge">${FARM_ITEMS[plot.fertilizer]?.icon ?? "✦"}</span>`
         : "";
 
+      const open = openFarmPlotId === plot.id;
+      const plotHit = `<button class="plot-hit" type="button" data-select-plot="${plot.id}" aria-expanded="${open}" aria-label="${plot.id + 1}번 밭 · ${crop.name} 상세"></button>`;
+
       if (plot.wilted) {
         return `
-          <article class="farm-plot crop-plot wilted" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
+          <article class="farm-plot crop-plot wilted ${open ? "is-open" : ""}" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
+            ${plotHit}
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
-              <span>${cropPixel(plot.crop, "wilted")}</span>
+              ${fieldCropSprite(plot.crop, "wilted")}
             </div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
@@ -5942,14 +6092,16 @@ function renderFarm() {
         const waterRemaining = getPlotWaterRemaining(plot);
         return `
           <article
-            class="farm-plot crop-plot growable-plot"
+            class="farm-plot crop-plot growable-plot ${open ? "is-open" : ""}"
             data-plot-id="${plot.id}"
             data-plot-skin="${state.equippedPlotSkin ?? ""}"
           >
+            ${plotHit}
             ${fertilizerBadge}
             <div class="crop-visual stage-${plot.growth}">
-              <span>${cropPixel(plot.crop, stage)}</span>
+              ${fieldCropSprite(plot.crop, stage)}
             </div>
+            <div class="plot-progress" aria-hidden="true">${plotProgressPips(plot.growth, maxGrowth)}</div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
               <small>${plot.growth} / ${maxGrowth}</small>
@@ -5970,10 +6122,11 @@ function renderFarm() {
       }
 
       return `
-        <article class="farm-plot crop-plot mature" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
+        <article class="farm-plot crop-plot mature ${open ? "is-open" : ""}" data-plot-id="${plot.id}" data-plot-skin="${state.equippedPlotSkin ?? ""}">
+          ${plotHit}
           ${fertilizerBadge}
           <div class="crop-visual stage-${plot.growth}">
-            <span>${cropPixel(plot.crop)}</span>
+            ${fieldCropSprite(plot.crop)}
           </div>
           <div class="crop-info">
             <strong>${crop.name}</strong>
@@ -5986,12 +6139,9 @@ function renderFarm() {
     })
     .join("");
   grid.querySelectorAll("[data-plot-skin]").forEach((tile) => {
-    tile.style.cssText = pixelAtlasPosition(PIXEL_PLOT_IDS, tile.dataset.plotSkin, 4, 3, "plot");
     const plot = state.farmPlots.find((entry) => entry.id === Number(tile.dataset.plotId));
+    tile.style.cssText = `--plot-src:url('${FARM_ART_ROOT}/plots/${fieldPlotSprite(plot, tile.dataset.plotSkin)}.png')`;
     if (!plot?.crop) return;
-    const visual = tile.querySelector(".crop-visual");
-    const sprite = visual.querySelector(".crop-pixel");
-    visual.replaceChildren(...Array.from({ length: 3 }, () => sprite.cloneNode(true)));
     tile.setAttribute("aria-label", `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name}`);
     if (selectedFarmItem) {
       const useItem = document.createElement("button");
@@ -8906,6 +9056,21 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
     setFarmMarketOpen(false);
     return;
   }
+
+  // Tapping a plot expands its controls; a farm item in hand still applies
+  // straight to the plot, so that path is left alone.
+  const selectPlotButton = event.target.closest("[data-select-plot]");
+  if (selectPlotButton && !selectedFarmItem) {
+    const plotId = Number(selectPlotButton.dataset.selectPlot);
+    openFarmPlotId = openFarmPlotId === plotId ? null : plotId;
+    renderFarm();
+    return;
+  }
+  if (openFarmPlotId !== null && !event.target.closest("[data-plot-id]")) {
+    openFarmPlotId = null;
+    renderFarm();
+  }
+
   const plantButton = event.target.closest("[data-plant-plot]");
   const growButton = event.target.closest("[data-grow-plot]");
   const waterButton = event.target.closest("[data-water-plot]");
@@ -9351,13 +9516,10 @@ function openCosmeticPreview(type, id) {
 
   scene.querySelectorAll(".farm-plot").forEach((plot) => {
     plot.removeAttribute("data-plot-skin");
-    plot.style.removeProperty("--plot-x");
-    plot.style.removeProperty("--plot-y");
-    if (!previewPlot || !PIXEL_PLOT_IDS.includes(previewPlot)) return;
+    const skinned = previewPlot && PIXEL_PLOT_IDS.includes(previewPlot);
+    plot.style.setProperty("--plot-src", `url('${FARM_ART_ROOT}/plots/${skinned ? previewPlot : "default"}.png')`);
+    if (!skinned) return;
     plot.dataset.previewPlot = previewPlot;
-    const plotIndex = PIXEL_PLOT_IDS.indexOf(previewPlot);
-    plot.style.setProperty("--preview-plot-x", `${(plotIndex % 4) * 100 / 3}%`);
-    plot.style.setProperty("--preview-plot-y", `${Math.floor(plotIndex / 4) * 50}%`);
   });
 
   const nameplate = document.createElement("strong");
