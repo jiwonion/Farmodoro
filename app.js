@@ -6668,7 +6668,10 @@ function showToast(message) {
 
 function updateFocusDisplay() {
   const runtime = focusRuntimeByMode[focusMode];
-  const inOvertime = focusMode === "quick" && timerPhase === "focus" && Boolean(runtime.overtime);
+  // Matches the action button's own overtime test -- the ring must never say
+  // OVERTIME while the button offers a fresh set.
+  const inOvertime =
+    focusMode === "quick" && timerPhase === "focus" && Boolean(runtime.overtime) && runtime.started;
   const displaySeconds = inOvertime ? (runtime.overtimeSeconds ?? 0) : focusSeconds;
   const minutes = String(Math.floor(displaySeconds / 60)).padStart(2, "0");
   const seconds = String(displaySeconds % 60).padStart(2, "0");
@@ -6879,7 +6882,7 @@ function updateFocusTarget() {
   if (focusMode === "quick") {
     focusButton.disabled = false;
     const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
-    if (focusRuntimeByMode.quick.overtime) {
+    if (focusRuntimeByMode.quick.overtime && focusRuntimeByMode.quick.started) {
       target.textContent = "목표 시간을 넘겨서 집중 중이야";
       description.textContent = "쉬고 싶으면 아래 버튼을 눌러줘";
       description.hidden = false;
@@ -7289,7 +7292,12 @@ function advanceRunningFocusTimer(mode) {
     runtime.overtime = true;
     runtime.overtimeSeconds = Math.max(0, elapsedSeconds - remainingSeconds);
     if (ownsTimer) notifyFocusPhaseComplete("focus");
-    if (focusMode === mode) updateFocusActionButton();
+    if (focusMode === mode) {
+      updateFocusActionButton();
+      // The heading/description switch to the "over your target" copy that
+      // explains what the button now does, so they have to move together.
+      updateFocusTarget();
+    }
     return { advanced: true, finished: false };
   }
 
@@ -7313,6 +7321,12 @@ function resetToFocus() {
     const quickSettings = getFocusSettings("quick");
     focusSeconds = quickSettings.focusMinutes * 60;
     focusRuntimeByMode.quick.sessionMinutes = quickSettings.focusMinutes;
+    // A reset drops the finished set entirely. saveCurrentFocusRuntime()
+    // spreads the old runtime, so leaving the overtime flag behind would keep
+    // the ring painting "+MM:SS" OVERTIME next to a "N분 시작" button -- and the
+    // next set would then count up instead of counting down.
+    focusRuntimeByMode.quick.overtime = false;
+    focusRuntimeByMode.quick.overtimeSeconds = 0;
     saveCurrentFocusRuntime();
   }
   updateFocusActionButton();
@@ -7523,6 +7537,13 @@ function toggleFocus() {
   }
 
   hideFocusAlertBanner();
+  // Starting a set from an idle timer must drop any leftover overtime state --
+  // a stale flag (from a runtime saved before it was cleared) would make
+  // advanceRunningFocusTimer count up from the start instead of counting down.
+  if (focusMode === "quick" && !runtime.started) {
+    runtime.overtime = false;
+    runtime.overtimeSeconds = 0;
+  }
   runningFocusMode = focusMode;
   focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   focusTimerLastHeartbeatAt = Date.now();
