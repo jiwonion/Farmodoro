@@ -107,7 +107,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await evaluate(`state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:['carrot','strawberry','corn','eggplant','tomato','lavender','watermelon','sunflower','lemon'][id],growth:100,lastCaredAt:Date.now(),lastWateredAt:Date.now()})); state.dailySeedOffers=Object.keys(CROPS).slice(0,6); renderFarm(); focusRuntimeByMode.quick.started=false; runningFocusMode=null; updateMiniFocusTimer();`);
     await pause(100);
     const geometry = await evaluate(`(() => {
-      const plot=document.querySelector('#farmGrid .crop-plot'), sprite=plot.querySelector('.crop-pixel');
+      const plot=document.querySelector('#farmGrid .crop-plot'), sprite=plot.querySelector('.field-crop');
       const p=plot.getBoundingClientRect(), s=sprite.getBoundingClientRect();
       return {soilBed:p.width>p.height*1.5, sprite:s.width, tile:p.width, overflow:document.documentElement.scrollWidth>innerWidth};
     })()`);
@@ -117,7 +117,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     if(width<=700) assert.ok(geometry.sprite>=18,'visible crop cluster '+width);
     const inlineStatus = await evaluate(`(() => {
       const tile=document.querySelector('#farmGrid .crop-plot');
-      const parts=['.crop-info','.crop-visual','.crop-wilt-countdown','.harvest-button'].map(selector=>tile.querySelector(selector));
+      const parts=['.crop-visual','.plot-status'].map(selector=>tile.querySelector(selector));
       const visible=parts.every(element=>getComputedStyle(element).display!=='none' && element.getBoundingClientRect().height>0);
       const rects=parts.map(element=>element.getBoundingClientRect());
       return {visible,noOverlap:rects.every((rect,index)=>index===0 || rect.top>=rects[index-1].bottom-2),noInspector:!document.querySelector('#farmPlotInspector,.farm-plot-select'),noToolbar:!document.querySelector('#farmPage .farm-header-actions,#farmPage .farm-storage-toolbar')};
@@ -151,7 +151,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         return {
           matching:ornament===getComputedStyle(preview.querySelector('.farm-theme-banner > i')).backgroundImage && paper===getComputedStyle(preview.querySelector('.farm-layout')).backgroundImage && getComputedStyle(farm.querySelector('.farm-layout')).backgroundPosition===getComputedStyle(preview.querySelector('.farm-layout')).backgroundPosition && trim===getComputedStyle(preview.querySelector('.npc-market'),'::before').backgroundImage,
           decorated:ornament.includes('/farm-themes/'+${JSON.stringify(theme)}+'.svg') && trim===ornament,
-          fullScenery:paper==='none' && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage.includes('farm-world-facilities-atlas.png') && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage===getComputedStyle(preview.querySelector('.farm-scene-grid'),'::before').backgroundImage && farm.querySelector('.farm-scene').dataset.scenery===preview.querySelector('.farm-scene').dataset.scenery,
+          fullScenery:paper==='none' && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage.includes('/farm-b-v1/terrain/') && getComputedStyle(farm.querySelector('.farm-scene-grid'),'::before').backgroundImage===getComputedStyle(preview.querySelector('.farm-scene-grid'),'::before').backgroundImage && farm.querySelector('.farm-scene').dataset.scenery===preview.querySelector('.farm-scene').dataset.scenery,
           fits:farm.scrollWidth<=farm.clientWidth && preview.scrollWidth<=preview.clientWidth,
           noPurchase:money===state.farmMoney && coins===state.coins,
           unique:farm.querySelectorAll('.farm-theme-banner').length===1
@@ -228,7 +228,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     ["springMeadow", null, "tulip", "none"],
     ["cherryBlossom", null, "cherry", "petals"],
     ["christmas", null, "snow", "snow"],
-    ["galaxyNight", "lavenderField", "lavender", "none"],
+    ["galaxyNight", "lavenderField", "lavender", "lavender"],
     [null, "snowField", "snow", "snow"],
     [null, "cherryPetalFall", "cherry", "petals"],
     [null, null, "meadow", "none"],
@@ -241,7 +241,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const particles=scene.querySelector('.farm-weather');
       const first=particles.firstElementChild;
       renderFarm();
-      const button=scene.querySelector('.harvest-button, [data-grow-plot]');
+      openFarmPlotId=state.farmPlots.find(plot=>plot.crop && !plot.wilted).id; renderFarm();
+      const button=scene.querySelector('.is-open .harvest-button, .is-open [data-grow-plot]');
       button.scrollIntoView({block:'center'});
       const rect=button.getBoundingClientRect();
       const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
@@ -281,6 +282,93 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
   }
   console.log('All six farm facilities open their own panels at desktop and mobile sizes PASS');
+  await evaluate(`state.dailySeedOffers=Object.keys(CROPS).slice(0,7); state.dailyFoodOffers=Object.keys(RECIPES).slice(0,7); state.dailyCropSellOffers=Object.keys(CROPS).slice(0,7).map(cropId=>({cropId,bundleSize:5})); renderFarm();`);
+  assert.deepEqual(await evaluate(`[document.querySelectorAll('#seedShop .seed-shop-card').length,document.querySelectorAll('#noahBuyList .noah-buy-card').length,document.querySelectorAll('#noahCropBundleList .noah-buy-card').length]`),[7,7,7]);
+  for (const width of [1440, 390, 320]) {
+    await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
+    for (const theme of [null, 'springMeadow', 'cherryBlossom', 'christmas', 'iceKingdom', 'galaxyNight', 'halloween', 'valentine', 'whiteDay', 'bubbleField', 'volcano', 'ocean', 'goldenHarvest', 'lavender']) {
+      await evaluate(`state.equippedFarmTheme=${JSON.stringify(theme)}; state.equippedPlotSkin=null; renderFarm();`);
+      await evaluate(`renderFarmRewardBoxes({boxCropIds:['carrot','corn','tomato'],openedBoxIndexes:[0]});`);
+      for (const id of ['farmKitchenModal','farmMailModal','harvestStorageModal','seedStorageModal','supplyStorageModal','farmRankingModal','farmRewardBoxModal','cosmeticPreviewModal','freePassTargetModal']) {
+        const result=await evaluate(`(() => {
+          const modal=document.getElementById(${JSON.stringify(id)}); modal.classList.remove('hidden');
+          const scroll=modal.querySelector('.modal-scroll-area'), panel=modal.querySelector('.market-modal-panel');
+          const r=panel.getBoundingClientRect();
+          const actionsFit=[...modal.querySelectorAll('.supply-card-actions')].every(actions=>{
+            const parts=[...actions.children].map(e=>e.getBoundingClientRect());
+            return parts.every((r,i)=>i===0 || r.left>=parts[i-1].right+3);
+          });
+          return {actionsFit,palette:modal.dataset.rpgTheme===${JSON.stringify(theme || 'meadow')}, fits:scroll.scrollWidth<=scroll.clientWidth+1, onScreen:r.left>=0 && r.right<=innerWidth+1 && r.top>=0 && r.bottom<=innerHeight+1};
+        })()`);
+        assert.ok(Object.values(result).every(Boolean),`${width}px ${theme} ${id}: ${JSON.stringify(result)}`);
+        if (process.env.FARM_RPG_SCREENSHOTS && width!==320 && [null,'cherryBlossom','galaxyNight'].includes(theme)) {
+          fs.mkdirSync(process.env.FARM_RPG_SCREENSHOTS,{recursive:true});
+          await pause(100);
+          const shot=await call('Page.captureScreenshot',{format:'png'});
+          fs.writeFileSync(path.join(process.env.FARM_RPG_SCREENSHOTS,`${id}-${theme || 'meadow'}-${width}.png`),Buffer.from(shot.data,'base64'));
+        }
+        await evaluate(`document.getElementById(${JSON.stringify(id)}).classList.add('hidden')`);
+      }
+      await evaluate(`setFarmMarketOpen(true)`);
+      assert.equal(await evaluate(`(() => {const market=document.querySelector('#npcMarket'); return market.dataset.rpgTheme===${JSON.stringify(theme || 'meadow')} && market.scrollWidth<=market.clientWidth+1;})()`),true);
+      if(process.env.FARM_RPG_SCREENSHOTS && width!==320 && [null,'galaxyNight'].includes(theme)) {
+        const shot=await call('Page.captureScreenshot',{format:'png'});
+        fs.writeFileSync(path.join(process.env.FARM_RPG_SCREENSHOTS,`market-${theme || 'meadow'}-${width}.png`),Buffer.from(shot.data,'base64'));
+      }
+      await evaluate(`setFarmMarketOpen(false)`);
+    }
+    await evaluate(`state.equippedFarmTheme=null; state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:'carrot',growth:id===0?0:3,wilted:id===3,lastCaredAt:Date.now()-(id===2?23:0)*3600000,lastFreeWaterAt:0})); renderFarm();`);
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('[data-plot-status]')].slice(0,4).map(e=>e.dataset.urgency)`),['water','harvest','urgent','wilted']);
+    await evaluate(`document.querySelector('#toggleFarmOverview').click()`);
+    await pause(100);
+    assert.equal(await evaluate(`(() => {const scene=document.querySelector('#farmPage .farm-scene'); return scene.scrollWidth<=scene.clientWidth+1 && document.querySelector('#toggleFarmOverview').getAttribute('aria-pressed')==='true';})()`),true);
+    if(process.env.FARM_RPG_SCREENSHOTS) {
+      const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
+      fs.writeFileSync(path.join(process.env.FARM_RPG_SCREENSHOTS,`overview-${width}.png`),Buffer.from(shot.data,'base64'));
+    }
+    await evaluate(`document.querySelector('#farmGrid .plot-hit').click()`);
+    await pause(100);
+    assert.equal(await evaluate(`!document.querySelector('#farmPage .farm-scene').classList.contains('is-overview') && !!document.querySelector('#farmGrid .is-open')`),true);
+  }
+  await evaluate(`state.equippedFarmTheme='galaxyNight'; state.equippedPlotSkin='snowField'; renderFarm();`);
+  assert.equal(await evaluate(`document.querySelector('#farmMailModal').dataset.rpgTheme`),'christmas');
+  await evaluate(`openCosmeticPreview('farm_theme','volcano')`);
+  assert.equal(await evaluate(`document.querySelector('#farmMailModal').dataset.rpgTheme`),'christmas');
+  await evaluate(`closeCosmeticPreview(); state.equippedPlotSkin=null; state.equippedFarmTheme=null; renderFarm();`);
+  console.log('RPG popup palettes, 9 dialogs and market across 14 terrains, skin overrides, status priorities and overview navigation PASS');
+  const supplyPurchase = await evaluate(`(async () => {
+    const originalAction=runFarmAction, calls=[];
+    runFarmAction=async options=>{calls.push(options.rpc); options.apply(); renderFarm(); return {event:{}};};
+    try {
+      selectedFarmItem=null; state.farmMoney=500; state.farmItemInventory.growthTonic=0;
+      state.farmItemInventory.farmFestivalPass=0; state.wiltProtectionUntil=0; renderFarm();
+      const modal=document.querySelector('#supplyStorageModal'); modal.classList.remove('hidden');
+      const removed=!document.querySelector('#permanentMarketModal,#openPermanentMarket,#farmItemShop');
+      const button=()=>modal.querySelector('[data-buy-farm-item="growthTonic"]');
+      const use=()=>modal.querySelector('[data-use-farm-item="growthTonic"]');
+      const initial=use().disabled && !button().disabled;
+      button().click(); await Promise.resolve();
+      const bought=state.farmItemInventory.growthTonic===1 && state.farmMoney===500-FARM_ITEMS.growthTonic.price && !use().disabled && !modal.classList.contains('hidden') && document.querySelector('#supplyFarmMoneyBalance').textContent===String(state.farmMoney);
+      use().click(); await Promise.resolve();
+      const selected=selectedFarmItem==='growthTonic' && modal.classList.contains('hidden') && state.farmItemInventory.growthTonic===1;
+      modal.classList.remove('hidden');
+      modal.querySelector('[data-buy-farm-item="farmFestivalPass"]').click(); await Promise.resolve();
+      modal.querySelector('[data-use-farm-item="farmFestivalPass"]').click(); await Promise.resolve();
+      const used=state.farmItemInventory.farmFestivalPass===0 && state.wiltProtectionUntil>Date.now();
+      state.farmMoney=0; renderFarm(); const before=calls.length;
+      button().click(); await Promise.resolve();
+      const insufficient=button().disabled && calls.length===before && state.farmMoney===0;
+      state.farmMoney=500; renderFarm();
+      runFarmAction=async options=>{options.apply(); options.revert(); renderFarm(); return null;};
+      button().click(); await Promise.resolve();
+      const rollback=state.farmMoney===500 && state.farmItemInventory.growthTonic===1;
+      modal.classList.add('hidden'); selectedFarmItem=null; state.wiltProtectionUntil=0;
+      return {removed,initial,bought,selected,used,insufficient,rollback,calls};
+    } finally {runFarmAction=originalAction;}
+  })()`);
+  assert.ok(Object.entries(supplyPurchase).filter(([key])=>key!=='calls').every(([,value])=>value),JSON.stringify(supplyPurchase));
+  assert.deepEqual(supplyPurchase.calls,['buy_farm_supply','buy_farm_supply','use_farm_festival_pass']);
+  console.log('Unified supplies purchase, balance, target selection, immediate use, insufficient funds and rollback PASS (local RPC stub)');
   const interactions = await evaluate(`(async () => {
     const originalAction=runFarmAction;
     const calls=[];
@@ -288,8 +376,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:id<2?'carrot':null,growth:0,wilted:id===1,lastCaredAt:Date.now(),lastFreeWaterAt:0}));
       state.coins=5; state.seedInventory.carrot=2;
-      selectedSeed=null; selectedFarmItem=null; renderFarm();
+      selectedSeed=null; selectedFarmItem=null; openFarmPlotId=null; renderFarm();
       const action=(name,id=0)=>document.querySelector('#farmGrid [data-'+name+'-plot="'+id+'"]').click();
+      document.querySelector('#farmGrid [data-select-plot="0"]').click();
       const tile=document.querySelector('#farmGrid [data-plot-id="0"]');
       const selection=!document.querySelector('#farmPlotInspector, .farm-plot-select') && getComputedStyle(tile.querySelector('.crop-info')).display!=='none' && getComputedStyle(tile.querySelector('.crop-wilt-countdown')).display!=='none';
       tile.querySelector('[data-grow-plot]').focus();

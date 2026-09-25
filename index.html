@@ -39,7 +39,8 @@
     <link rel="stylesheet" href="./farm-pixel.css?v=272" />
     <link rel="stylesheet" href="./pixel-layout.css?v=272" />
     <link rel="stylesheet" href="./farm-theme.css?v=272" />
-    <link rel="stylesheet" href="./farm-scenery.css?v=281" />
+    <link rel="stylesheet" href="./farm-scenery.css?v=284" />
+    <link rel="stylesheet" href="./farm-rpg.css?v=284" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -613,17 +614,13 @@
                   <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
                 </div>
               </section>
-              <p class="farm-world-hint">농장 안의 시설을 눌러 이용해<span> · 좌우로 밀어 농장 둘러보기</span></p>
+              <div class="farm-world-footer"><p class="farm-world-hint">시설을 눌러 이용해<span> · 좌우로 밀어 둘러보기</span></p><button id="toggleFarmOverview" type="button" aria-pressed="false">전체 보기</button></div>
 
             </div>
 
             <aside class="seed-shop npc-market" id="npcMarket" data-active-npc="morrison">
+              <header class="rpg-market-heading"><span class="section-kicker">FARM TRADING POST</span><h2>농장 상점</h2><p>씨앗을 사고, 수확의 기쁨을 나눠요</p></header>
               <button class="farm-market-close" type="button" data-close-farm-market aria-label="판매대 닫기">×</button>
-              <button class="open-permanent-market" id="openPermanentMarket" type="button">
-                <span>농장 상시 시장</span>
-                <small>비료·티켓·특별 용품 구매</small>
-              </button>
-
               <nav class="npc-market-dots market-category-tabs" aria-label="판매대 선택">
                 <button type="button" data-npc-dot="morrison">씨앗 판매대</button>
                 <button type="button" data-npc-dot="food">음식 매입</button>
@@ -632,17 +629,17 @@
               </nav>
               <div class="npc-market-panels">
                 <section class="npc-panel" data-npc-panel="morrison">
-                  <h3 class="market-section-title">씨앗 판매대 <small>6종</small></h3>
+                  <h3 class="market-section-title">씨앗 판매대 <small>7종</small></h3>
                   <div class="seed-shop-list" id="seedShop"></div>
                 </section>
 
                 <section class="npc-panel" data-npc-panel="food" hidden>
-                  <h3 class="market-section-title">🍳 오늘의 음식 매입 <small>6종</small></h3>
+                  <h3 class="market-section-title">🍳 오늘의 음식 매입 <small>7종</small></h3>
                   <div class="noah-buy-list" id="noahBuyList"></div>
                 </section>
 
                 <section class="npc-panel" data-npc-panel="crop" hidden>
-                  <h3 class="market-section-title">🧺 오늘의 작물 대량 매입 <small>6종</small></h3>
+                  <h3 class="market-section-title">🧺 오늘의 작물 대량 매입 <small>7종</small></h3>
                   <div class="noah-crop-bundle-list" id="noahCropBundleList"></div>
                 </section>
 
@@ -661,22 +658,6 @@
           </section>
         </section>
       </main>
-    </div>
-
-    <div class="market-modal hidden" id="permanentMarketModal" role="dialog" aria-modal="true" aria-labelledby="permanentMarketTitle">
-      <div class="market-modal-backdrop" data-close-market></div>
-      <section class="market-modal-panel farm-supply-modal-panel permanent-market-modal-panel">
-        <header>
-          <div>
-            <span class="section-kicker">FARM'S PERMANENT MARKET</span>
-            <h2 id="permanentMarketTitle">농장 상시 시장</h2>
-            <p>Farm Money로 비료, 티켓, 특별 농장 용품을 구매해</p>
-          </div>
-          <button class="pixel-close-button" type="button" data-close-market aria-label="시장 닫기">×</button>
-        </header>
-        <div class="modal-market-balance">보유 Farm Money <strong>✦ <span id="modalFarmMoneyBalance">0</span></strong></div>
-        <div class="farm-item-shop" id="farmItemShop"></div>
-      </section>
     </div>
 
     <div class="market-modal hidden" id="farmRankingModal" role="dialog" aria-modal="true" aria-labelledby="farmRankingTitle">
@@ -959,10 +940,11 @@
       <div class="market-modal-backdrop" data-close-storage></div>
       <section class="market-modal-panel farm-supply-modal-panel supply-storage-modal">
         <header>
-          <div><span class="section-kicker">FARM STORAGE</span><h2 id="supplyStorageTitle">농장 용품 보관함</h2><p>보유한 용품의 효과를 확인하고 바로 사용해</p></div>
+          <div><span class="section-kicker">FARM SUPPLIES</span><h2 id="supplyStorageTitle">농장 용품</h2><p>Farm Money로 용품을 구매하고, 보유한 용품을 바로 사용해</p></div>
           <button class="pixel-close-button" type="button" data-close-storage aria-label="농장 용품 보관함 닫기">×</button>
         </header>
-        <div class="modal-market-balance">보유 농장 용품 <strong>🎒 <span id="supplyModalCount">0</span>개</strong></div>
+        <div class="modal-market-balance">보유 Farm Money <strong>✦ <span id="supplyFarmMoneyBalance">0</span></strong></div>
+        <p class="supply-inventory-summary">보유 용품 <strong><span id="supplyModalCount">0</span>개</strong> · 구매 후 사용할 용품을 골라줘</p>
         <div class="farm-item-shop farm-supply-list" id="farmItemInventory"></div>
       </section>
     </div>
@@ -1203,7 +1185,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=282"></script>
+    <script src="./app.js?v=285"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

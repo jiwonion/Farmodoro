@@ -3986,6 +3986,16 @@ function formatPlotWiltRemaining(milliseconds) {
 }
 
 function updateFarmWiltCountdowns() {
+  document.querySelectorAll("[data-plot-status]").forEach((label) => {
+    const plot = state.farmPlots.find(entry => entry.id === Number(label.dataset.plotStatus));
+    if (!plot?.crop) return;
+    const status = getFarmPlotStatus(plot);
+    label.textContent = status.text;
+    label.dataset.urgency = status.kind;
+    label.title = status.detail;
+    label.closest(".farm-plot")?.querySelector(".plot-hit")?.setAttribute("aria-label",
+      `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name} · ${status.detail} · 상세 보기`);
+  });
   document.querySelectorAll("[data-wilt-countdown]").forEach((label) => {
     const plot = state.farmPlots.find(
       (entry) => entry.id === Number(label.dataset.wiltCountdown),
@@ -5522,6 +5532,37 @@ function plotProgressPips(growth, max) {
   return Array.from({ length: 5 }, (_, index) => `<i${index < filled ? ' class="on"' : ""}></i>`).join("");
 }
 
+function getFarmPlotStatus(plot) {
+  if (plot.wilted) return { kind: "wilted", text: "시들었음", detail: "시든 작물 · 회복 또는 폐기" };
+  const remaining = getPlotWiltRemaining(plot);
+  if (remaining <= 2 * 60 * 60 * 1000) return {
+    kind: "urgent", text: "! 시듦 임박", detail: `시듦까지 ${formatPlotWiltRemaining(remaining)}`,
+  };
+  if (plot.growth >= getCropGrowthCost(plot.crop)) return { kind: "harvest", text: "✦ 수확", detail: "수확 가능" };
+  if (getPlotWaterRemaining(plot) === 0) return { kind: "water", text: "물주기", detail: "무료 물주기 가능" };
+  return { kind: "growing", text: `${plot.growth}/${getCropGrowthCost(plot.crop)}`, detail: `성장 ${plot.growth}/${getCropGrowthCost(plot.crop)}` };
+}
+
+// Popups live outside #farmPage. Share the actual terrain (including plot-skin
+// overrides), without letting a shop preview change the equipped palette.
+function applyFarmRpgTheme(terrain, objectSkin) {
+  const windows = {
+    npcMarket: "market", farmKitchenModal: "kitchen",
+    farmMailModal: "mailbox", harvestStorageModal: "produce-crate", seedStorageModal: "seed-chest",
+    supplyStorageModal: "tool-rack", farmRankingModal: "noticeboard", farmRewardBoxModal: "seed-chest",
+    cosmeticPreviewModal: "house", freePassTargetModal: "tool-rack",
+  };
+  document.querySelector("#farmPage").dataset.rpgTheme = terrain;
+  Object.entries(windows).forEach(([id, prop]) => {
+    const root = document.getElementById(id);
+    if (!root) return;
+    root.dataset.farmRpg = "";
+    root.dataset.rpgTheme = terrain;
+    root.style.setProperty("--rpg-icon", `url('${FARM_ART_ROOT}/objects/${objectSkin}/${prop}.png')`);
+    root.style.setProperty("--rpg-landscape", `url('${FARM_ART_ROOT}/terrain/${terrain}.png')`);
+  });
+}
+
 function fieldPlotSprite(plot, skin) {
   if (plot?.wilted) return "dry";
   if (PIXEL_PLOT_IDS.includes(skin)) return skin;
@@ -5717,6 +5758,7 @@ function renderFarmScenery(root, themeId, plotSkin) {
   const terrain = PLOT_SKIN_TERRAIN[plotSkin]
     || (FARM_TERRAIN_IDS.has(themeId) ? themeId : "meadow");
   const objectSkin = TERRAIN_OBJECT_SKINS[terrain] || "rustic";
+  if (root.id === "farmPage") applyFarmRpgTheme(terrain, objectSkin);
   scene.dataset.terrain = terrain;
   scene.dataset.objectSkin = objectSkin;
   scene.style.setProperty("--terrain", `url('${FARM_ART_ROOT}/terrain/${terrain}.png')`);
@@ -5785,8 +5827,7 @@ function renderFarm() {
   const noahBuyList = document.querySelector("#noahBuyList");
   const noahCropBundleList = document.querySelector("#noahCropBundleList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
-  const modalFarmMoney = document.querySelector("#modalFarmMoneyBalance");
-  const farmItemShop = document.querySelector("#farmItemShop");
+  const supplyFarmMoney = document.querySelector("#supplyFarmMoneyBalance");
   const farmItemInventory = document.querySelector("#farmItemInventory");
   const foodInventory = document.querySelector("#foodInventory");
   const recipeBook = document.querySelector("#recipeBook");
@@ -5805,8 +5846,7 @@ function renderFarm() {
     !noahBuyList ||
     !noahCropBundleList ||
     !marketFarmMoney ||
-    !modalFarmMoney ||
-    !farmItemShop ||
+    !supplyFarmMoney ||
     !farmItemInventory ||
     !foodInventory ||
     !recipeBook ||
@@ -5825,7 +5865,7 @@ function renderFarm() {
   ensureWeeklyFarmRanking();
   farmBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
-  modalFarmMoney.textContent = state.farmMoney;
+  supplyFarmMoney.textContent = state.farmMoney;
   farmBalance.closest(".nav-balance").classList.toggle("negative", state.coins < 0);
   harvestStorageCount.textContent = Object.values(state.harvestInventory).reduce(
     (total, count) => total + count,
@@ -5850,21 +5890,6 @@ function renderFarm() {
   renderFarmRanking();
   renderFarmMail();
 
-  farmItemShop.innerHTML = Object.entries(FARM_ITEMS)
-    .map(
-      ([itemId, item]) => `
-        <article class="farm-item-card">
-          <span class="farm-supply-pixel-icon" data-farm-item-icon="${itemId}" aria-hidden="true"></span>
-          <div>
-            <strong>${item.name}</strong>
-            <small>${item.description}</small>
-          </div>
-          <button type="button" data-buy-farm-item="${itemId}">✦ ${item.price}</button>
-        </article>
-      `,
-    )
-    .join("");
-
   farmItemInventory.innerHTML = Object.entries(FARM_ITEMS)
     .map(([itemId, item]) => {
       const count = state.farmItemInventory[itemId] ?? 0;
@@ -5876,7 +5901,7 @@ function renderFarm() {
           : "";
       return `
         <article
-          class="farm-item-card farm-supply-item ${getCropNameLengthClass(item.name)} ${count ? "" : "empty"} ${selectedFarmItem === itemId ? "selected" : ""}"
+          class="farm-item-card farm-supply-item ${getCropNameLengthClass(item.name)} ${selectedFarmItem === itemId ? "selected" : ""}"
         >
           <span class="supply-card-icon farm-supply-pixel-icon" data-farm-item-icon="${itemId}" aria-hidden="true"></span>
           <div class="supply-card-copy">
@@ -5885,7 +5910,8 @@ function renderFarm() {
             ${boostStatus}
           </div>
           <div class="supply-card-actions">
-            <em>${count}개</em>
+            <em>보유 ${count}개</em>
+            <button type="button" data-buy-farm-item="${itemId}" aria-label="${item.name} 1개 구매, ${item.price} Farm Money" ${state.farmMoney < item.price ? "disabled" : ""}>구매 ✦ ${item.price}</button>
             <button
               type="button"
               data-use-farm-item="${itemId}"
@@ -5916,7 +5942,7 @@ function renderFarm() {
     .join("");
 
   shop.innerHTML = state.dailySeedOffers
-    .slice(0, 6)
+    .slice(0, 7)
     .map((cropId) => [cropId, CROPS[cropId]])
     .map(([cropId, crop]) => {
       const growthCost = getCropGrowthCost(cropId);
@@ -5968,7 +5994,7 @@ function renderFarm() {
     .join("");
 
   noahCropBundleList.innerHTML = state.dailyCropSellOffers
-    .slice(0, 6)
+    .slice(0, 7)
     .map(({ cropId, bundleSize }) => {
       const crop = CROPS[cropId];
       const owned = state.harvestInventory[cropId] ?? 0;
@@ -6069,7 +6095,9 @@ function renderFarm() {
         : "";
 
       const open = openFarmPlotId === plot.id;
-      const plotHit = `<button class="plot-hit" type="button" data-select-plot="${plot.id}" aria-expanded="${open}" aria-label="${plot.id + 1}번 밭 · ${crop.name} 상세"></button>`;
+      const status = getFarmPlotStatus(plot);
+      const plotHit = `<button class="plot-hit" type="button" data-select-plot="${plot.id}" aria-expanded="${open}" aria-label="${plot.id + 1}번 밭 · ${crop.name} · ${status.detail} · 상세 보기"></button>
+        <span class="plot-status" data-plot-status="${plot.id}" data-urgency="${status.kind}" title="${status.detail}">${status.text}</span>`;
 
       if (plot.wilted) {
         return `
@@ -8925,7 +8953,7 @@ document.querySelector("#seedInventory").addEventListener("click", (event) => {
   renderFarm();
 });
 
-document.querySelector("#farmItemShop").addEventListener("click", async (event) => {
+document.querySelector("#farmItemInventory").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-buy-farm-item]");
   if (!button) return;
   const itemId = button.dataset.buyFarmItem;
@@ -9054,6 +9082,18 @@ const farmSceneResizeObserver = new ResizeObserver((entries) => {
 });
 farmSceneResizeObserver.observe(document.querySelector("#farmPage .farm-scene"));
 
+document.querySelector("#toggleFarmOverview").addEventListener("click", (event) => {
+  const scene = document.querySelector("#farmPage .farm-scene");
+  const overview = scene.classList.toggle("is-overview");
+  event.currentTarget.setAttribute("aria-pressed", String(overview));
+  event.currentTarget.textContent = overview ? "밭 돌보기" : "전체 보기";
+  openFarmPlotId = null;
+  renderFarm();
+  requestAnimationFrame(() => {
+    scene.scrollLeft = overview ? 0 : Math.max(0, (scene.scrollWidth - scene.clientWidth) / 2);
+  });
+});
+
 function setFarmMarketOpen(open) {
   document.querySelector("#farmPage").classList.toggle("farm-market-open", open);
   document.querySelector("#toggleFarmMarket").setAttribute("aria-expanded", String(open));
@@ -9083,6 +9123,17 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
   const selectPlotButton = event.target.closest("[data-select-plot]");
   if (selectPlotButton && !selectedFarmItem) {
     const plotId = Number(selectPlotButton.dataset.selectPlot);
+    const scene = document.querySelector("#farmPage .farm-scene");
+    if (scene.classList.contains("is-overview")) {
+      scene.classList.remove("is-overview");
+      const overviewButton = document.querySelector("#toggleFarmOverview");
+      overviewButton.setAttribute("aria-pressed", "false");
+      overviewButton.textContent = "전체 보기";
+      requestAnimationFrame(() => {
+        const tile = scene.querySelector(`[data-plot-id="${plotId}"]`);
+        if (tile) scene.scrollLeft = tile.parentElement.offsetLeft + tile.offsetLeft + tile.offsetWidth / 2 - scene.clientWidth / 2;
+      });
+    }
     openFarmPlotId = openFarmPlotId === plotId ? null : plotId;
     renderFarm();
     return;
@@ -9554,7 +9605,7 @@ function openCosmeticPreview(type, id) {
     <div class="farm-window-chrome">FARMODORO · FARM DESK</div>
     <header class="farm-panel-header"><div class="preview-name-slot"></div></header>
     <div class="preview-field-slot"></div>
-    <aside class="npc-market"><div class="open-permanent-market"><span>농장 상시 시장</span><small>비료·티켓·특별 용품 구매</small></div>
+    <aside class="npc-market">
       <div class="market-category-tabs"><span>씨앗 판매대</span><span>음식 매입</span><span>작물 매입</span><span>스킨 판매대</span></div>
       <h3 class="market-section-title">씨앗 판매대</h3>
       ${["carrot", "strawberry"].map(crop => `<div class="seed-shop-card"><span class="seed-shop-emoji">${cropPixel(crop)}</span><div><strong>${escapeHtml(CROPS[crop].name)} 씨앗</strong><small>샘플 상품</small></div></div>`).join("")}
@@ -9677,15 +9728,6 @@ document.querySelector("#rachelOwnedList").addEventListener("click", async (even
   render();
 });
 
-const permanentMarketModal = document.querySelector("#permanentMarketModal");
-document.querySelector("#openPermanentMarket").addEventListener("click", () => {
-  permanentMarketModal.classList.remove("hidden");
-});
-permanentMarketModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-close-market]")) {
-    permanentMarketModal.classList.add("hidden");
-  }
-});
 const farmRankingModal = document.querySelector("#farmRankingModal");
 document.querySelector("#openFarmRanking").addEventListener("click", async () => {
   if (supabaseClient && activeAuthUser) {
@@ -10138,7 +10180,6 @@ document.addEventListener("keydown", (event) => {
     if (closeThemedDateCalendar()) return;
     closeUserSettings();
     closeFreePassTargetModal();
-    permanentMarketModal.classList.add("hidden");
     farmRankingModal.classList.add("hidden");
     farmMailModal.classList.add("hidden");
     farmKitchenModal.classList.add("hidden");

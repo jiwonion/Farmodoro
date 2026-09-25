@@ -65,7 +65,7 @@ body :is(#farmPage, .cosmetic-farm-preview) .farm-decor {
   background: var(--sprite) center bottom / contain no-repeat;
 }
 body :is(#farmPage, .cosmetic-farm-preview) .farm-decor-house { left: 3%; top: 6%; width: 16%; height: 22%; }
-body :is(#farmPage, .cosmetic-farm-preview) .farm-decor-well { left: 3%; top: 36%; width: 10.7%; height: 18%; }
+body :is(#farmPage, .cosmetic-farm-preview) .farm-decor-well { left: 4%; top: 46%; width: 10.7%; height: 16%; }
 body :is(#farmPage, .cosmetic-farm-preview) .farm-decor-bridge { left: 87%; top: 31%; width: 12%; height: 13%; }
 /* Position comes from farmGridRect() in app.js: every terrain's clearing sits
    somewhere different, so the grid is fitted per terrain. */
@@ -166,16 +166,17 @@ body #farmPage .farm-scene[data-scenery] .farm-building > span {
   font-size: 12px; line-height: 1.3; white-space: nowrap; pointer-events: none;
 }
 body #farmPage .farm-scene[data-scenery] .farm-building:focus-visible { outline: 2px dashed #ffe9a3; outline-offset: 3px; }
+body #farmPage .farm-scene[data-scenery]:not(.is-overview) .farm-building { min-width: 44px; min-height: 44px; }
 body #farmPage .farm-scene[data-scenery] .farm-building:hover > span { color: #ffde82; }
-body #farmPage .farm-scene[data-scenery] .facility-kitchen { left: 19%; top: 12%; width: 12%; height: 16%; }
+body #farmPage .farm-scene[data-scenery] .facility-kitchen { left: 4%; top: 29%; width: 12%; height: 14%; }
 /* The storage props stand on the grass band above the path, so they hang off the
    clearing's top edge instead of a fixed offset that only suits one terrain. */
 body #farmPage .farm-scene[data-scenery] :is(.facility-harvest, .facility-seed, .facility-supply) {
-  bottom: calc(100% - var(--clearing-top, 30%) + 9% - 40px);
+  bottom: auto;
 }
-body #farmPage .farm-scene[data-scenery] .facility-harvest { left: 33%; width: 8.7%; height: 11%; }
-body #farmPage .farm-scene[data-scenery] .facility-seed { left: 43%; width: 8.7%; height: 12%; }
-body #farmPage .farm-scene[data-scenery] .facility-supply { left: 53.5%; width: 8%; height: 13%; }
+body #farmPage .farm-scene[data-scenery] .facility-harvest { left: 60%; top: 16%; width: 8.7%; height: 11%; }
+body #farmPage .farm-scene[data-scenery] .facility-seed { left: 20%; top: 28%; width: 8.7%; height: 12%; }
+body #farmPage .farm-scene[data-scenery] .facility-supply { left: 20%; top: 9%; width: 8%; height: 13%; }
 body #farmPage .farm-scene[data-scenery] .farm-building-market { left: 70%; top: 8%; width: 14.7%; height: 20%; }
 body #farmPage .farm-scene[data-scenery] .facility-mail { left: 17%; top: 44%; width: 5.3%; height: 13%; }
 body #farmPage .farm-scene[data-scenery] .facility-ranking { left: calc(var(--clearing-right, 71%) + 2%); top: 42%; width: 8%; height: 13%; }
@@ -188,6 +189,29 @@ body #farmPage .farm-scene[data-scenery] .farm-building small {
   border: 1px solid #56371d; border-radius: 3px; background: #fff0ba; color: #533820;
   font-size: 10px; line-height: 1.2;
 }
+body #farmPage .farm-scene[data-scenery] .plot-status {
+  position: absolute; z-index: 2; bottom: 3px; left: 50%; transform: translateX(-50%);
+  width: max-content; max-width: 100%; padding: 2px 5px; border: 1px solid #ae945b;
+  border-radius: 3px; color: #fff3ce; background: #382b1eee; font-size: 11px; line-height: 1.2;
+  pointer-events: none; text-shadow: none;
+}
+body #farmPage .farm-scene[data-scenery] .plot-status[data-urgency="water"] { background: #203f4b; border-color: #8dccd5; color: #e1ffff; }
+body #farmPage .farm-scene[data-scenery] .plot-status[data-urgency="harvest"] { background: #354726; border-color: #e4c775; color: #fff0ae; }
+body #farmPage .farm-scene[data-scenery] .plot-status:is([data-urgency="urgent"], [data-urgency="wilted"]) { background: #773628; border-color: #f4bb86; color: #fff1d4; }
+body #farmPage .farm-scene[data-scenery] .plot-progress { display: none; }
+body #farmPage .farm-scene[data-scenery] .crop-visual { bottom: 23px; padding-bottom: 0; }
+body #farmPage .farm-scene[data-scenery].is-overview .crop-visual { bottom: 3px; }
+.farm-world-footer { display: flex; justify-content: center; align-items: center; gap: 10px; background: #30462b; padding: 6px 10px; }
+body #farmPage .farm-world-footer .farm-world-hint { padding: 0; }
+body #farmPage #toggleFarmOverview { flex-shrink: 0; min-height: 36px; padding: 5px 10px; border: 1px solid #b89a5f; background: #f1dfb5 !important; color: #3e3522 !important; box-shadow: 0 2px #182817 !important; font-size: 12px; }
+body #farmPage .farm-scene[data-scenery].is-overview .farm-scene-grid { min-width: 0; }
+body #farmPage .farm-scene.is-overview .plot-status { font-size: clamp(7px, 1.8vw, 11px); padding: 1px 2px; bottom: 0; }
+body #farmPage .farm-scene.is-overview .farm-building > span { font-size: clamp(8px, 2vw, 12px); padding-inline: 2px; }
+@media (max-width: 700px) {
+  body #farmPage .farm-scene[data-scenery].is-overview .plot-status { left: auto; right: 3px; top: 3px; bottom: auto; transform: none; width: 7px; height: 7px; padding: 0; font-size: 0; border-width: 2px; border-radius: 50%; }
+  body #farmPage .farm-scene.is-overview + .farm-world-footer .farm-world-hint span { display: none; }
+}
+@media (min-width: 1101px) { body #farmPage #toggleFarmOverview { display: none; } }
 body #farmPage .farm-scene[data-scenery] .facility-mail.has-unread small { background: #ad3c32; color: #fff6da; }
 body #farmPage .farm-world-hint { margin: 0; padding: 7px 12px; text-align: center; background: #30462b; color: #eadfbd; font-size: 12px; }
 .farm-world-hint span { display: none; }

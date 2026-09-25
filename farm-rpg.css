@@ -1,0 +1,215 @@
+/* Farm windows share the equipped landscape, including terrain-changing skins.
+   Scoped to farm dialogs so the productivity pages keep their own visual system. */
+[data-rpg-theme] {
+  --rpg-frame: #483222; --rpg-wood: #795335; --rpg-rim: #bd965a;
+  --rpg-paper: #f3e6c5; --rpg-slot: #fff3d7; --rpg-soft: #e3d1a7;
+  --rpg-ink: #3d3222; --rpg-muted: #6b593d;
+  --rpg-accent: #425c35; --rpg-on-accent: #fff3cf;
+}
+[data-rpg-theme="springMeadow"] { --rpg-paper: #e9edcf; --rpg-slot: #f7f8dc; --rpg-soft: #d6dfb6; --rpg-accent: #466331; }
+[data-rpg-theme="cherryBlossom"], [data-rpg-theme="valentine"] {
+  --rpg-frame: #53323c; --rpg-wood: #86515a; --rpg-rim: #d3a182;
+  --rpg-paper: #f3dfe0; --rpg-slot: #fff0e9; --rpg-soft: #e7c6cd;
+  --rpg-ink: #512d3a; --rpg-muted: #795366; --rpg-accent: #87445d;
+}
+[data-rpg-theme="christmas"], [data-rpg-theme="iceKingdom"], [data-rpg-theme="whiteDay"] {
+  --rpg-frame: #35454b; --rpg-wood: #526d74; --rpg-rim: #afc5c2;
+  --rpg-paper: #e2edef; --rpg-slot: #f3faf7; --rpg-soft: #c7dcdf;
+  --rpg-ink: #2b414a; --rpg-muted: #4d6873; --rpg-accent: #386472;
+}
+[data-rpg-theme="christmas"] { --rpg-accent: #85424a; }
+[data-rpg-theme="whiteDay"] { --rpg-accent: #64628c; --rpg-soft: #d9d8e9; }
+[data-rpg-theme="lavender"], [data-rpg-theme="bubbleField"] {
+  --rpg-frame: #47364f; --rpg-wood: #705579; --rpg-rim: #c6ab9b;
+  --rpg-paper: #e9e1ed; --rpg-slot: #f7eff8; --rpg-soft: #d9cbe3;
+  --rpg-ink: #44304f; --rpg-muted: #725c7c; --rpg-accent: #735186;
+}
+[data-rpg-theme="ocean"] {
+  --rpg-frame: #29474a; --rpg-wood: #426d6d; --rpg-rim: #abbc8e;
+  --rpg-paper: #dcece4; --rpg-slot: #eef7e8; --rpg-soft: #bfddd5;
+  --rpg-ink: #234749; --rpg-muted: #47696a; --rpg-accent: #286c71;
+}
+[data-rpg-theme="goldenHarvest"] { --rpg-paper: #f4e4b8; --rpg-slot: #fff2cc; --rpg-soft: #e7cc91; --rpg-accent: #7a5525; }
+[data-rpg-theme="galaxyNight"] {
+  --rpg-frame: #141e31; --rpg-wood: #35405c; --rpg-rim: #9b9abb;
+  --rpg-paper: #293448; --rpg-slot: #354359; --rpg-soft: #414f68;
+  --rpg-ink: #f3ecd9; --rpg-muted: #c7cedd; --rpg-accent: #c4b0e3; --rpg-on-accent: #24253c;
+}
+[data-rpg-theme="halloween"], [data-rpg-theme="volcano"] {
+  --rpg-frame: #2a2027; --rpg-wood: #584047; --rpg-rim: #bb8a60;
+  --rpg-paper: #3c3038; --rpg-slot: #4a3b42; --rpg-soft: #614950;
+  --rpg-ink: #fff0d4; --rpg-muted: #dec5b6; --rpg-accent: #eeb077; --rpg-on-accent: #352329;
+}
+
+body [data-farm-rpg] {
+  --ink: var(--rpg-ink); --muted: var(--rpg-muted); --paper: var(--rpg-paper);
+  --pixel-edge: var(--rpg-frame); --pixel-soft: var(--rpg-slot); --pixel-shadow: var(--rpg-soft);
+  color: var(--rpg-ink);
+}
+body [data-farm-rpg] .market-modal-backdrop { background: #121b19b5; backdrop-filter: blur(3px); }
+body .market-modal[data-farm-rpg] { padding: 12px; }
+body [data-farm-rpg] .market-modal-panel,
+body #farmPage #npcMarket[data-farm-rpg] {
+  border: 4px solid var(--rpg-frame) !important; border-radius: 7px;
+  padding: 9px; background: var(--rpg-wood) !important;
+  box-shadow: inset 0 0 0 2px var(--rpg-rim), 0 5px 0 var(--rpg-frame), 0 20px 60px #10170f70 !important;
+  color: var(--rpg-ink);
+}
+body [data-farm-rpg] .market-modal-panel > .modal-scroll-area {
+  padding: 16px; border: 1px solid var(--rpg-frame); border-radius: 2px;
+  background: repeating-linear-gradient(0deg, #89623506 0 2px, transparent 2px 5px), var(--rpg-paper);
+  scrollbar-color: var(--rpg-wood) var(--rpg-paper);
+}
+body [data-farm-rpg] .modal-scroll-area::-webkit-scrollbar-thumb { background: var(--rpg-wood); border-color: var(--rpg-paper); }
+body [data-farm-rpg] .modal-scroll-area > header,
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading {
+  position: relative; min-height: 100px; margin: -16px -16px 18px; padding: 18px 14px 16px 92px;
+  gap: 12px; border: 0; border-bottom: 3px solid var(--rpg-rim); border-radius: 0;
+  background: linear-gradient(90deg, #15251ee8 0%, #15251edb 62%, #15251e70), var(--rpg-landscape) center 24% / cover;
+  box-shadow: 0 2px 0 var(--rpg-frame); color: #fff3d5;
+}
+body [data-farm-rpg] .modal-scroll-area > header::before,
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading::before {
+  content: ''; position: absolute; left: 14px; top: 16px; width: 64px; height: 68px;
+  background: var(--rpg-icon) center / contain no-repeat; image-rendering: pixelated;
+  filter: drop-shadow(0 3px 1px #0007); pointer-events: none; border: 0; box-shadow: none;
+}
+body [data-farm-rpg] :is(h2, h3, h4, label, .section-kicker) { color: var(--rpg-ink) !important; text-shadow: none !important; }
+body [data-farm-rpg] :is(p, small) { color: var(--rpg-muted); }
+body [data-farm-rpg] .modal-scroll-area > header :is(h2, .section-kicker, p),
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading :is(h2, .section-kicker, p) { color: #fff1d0 !important; }
+body [data-farm-rpg] .modal-scroll-area > header h2,
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading h2 { font-size: 23px; margin: 5px 0; line-height: 1.3; }
+body [data-farm-rpg] .modal-scroll-area > header p { line-height: 1.6; font-size: 12px; }
+body [data-farm-rpg] .section-kicker { font-size: 9px; letter-spacing: .13em; }
+body [data-farm-rpg] :is(button, input, select, textarea) { font-family: inherit; }
+body [data-farm-rpg] button,
+body #farmPage #npcMarket[data-farm-rpg] button {
+  border: 1px solid var(--rpg-rim) !important; border-radius: 3px;
+  background: var(--rpg-slot) !important; color: var(--rpg-ink) !important;
+  box-shadow: inset 0 1px #ffffff30, 0 2px 0 var(--rpg-frame) !important;
+}
+body [data-farm-rpg] button:not(:disabled):hover { filter: brightness(1.07); border-color: var(--rpg-accent) !important; }
+body [data-farm-rpg] button:disabled { opacity: .52; cursor: not-allowed; }
+body [data-farm-rpg] :is(button, input, textarea, select):focus-visible { outline: 3px solid var(--rpg-accent); outline-offset: 3px; }
+body [data-farm-rpg] :is(input, select, textarea) {
+  background: var(--rpg-slot) !important; color: var(--rpg-ink) !important;
+  border: 2px solid var(--rpg-rim) !important; border-radius: 3px;
+  box-shadow: inset 0 2px 2px #0001 !important;
+}
+body [data-farm-rpg] input::placeholder { color: var(--rpg-muted); opacity: 1; }
+body [data-farm-rpg] :is(button.active, button.selected, button[aria-selected="true"], button[aria-pressed="true"], .farm-mail-send, #cookRecipeButton),
+body #farmPage #npcMarket[data-farm-rpg] :is(button.active, button[aria-selected="true"]) {
+  background: var(--rpg-accent) !important; color: var(--rpg-on-accent) !important; border-color: var(--rpg-frame) !important;
+}
+body [data-farm-rpg] :is(button.active, button.selected, button[aria-selected="true"]) :is(strong, small, span) { color: inherit !important; }
+body [data-farm-rpg] .pixel-close-button,
+body #farmPage #npcMarket[data-farm-rpg] .farm-market-close {
+  flex-shrink: 0; width: 38px; height: 38px; min-width: 38px; min-height: 38px;
+  background: var(--rpg-wood) !important; color: #fff1d0 !important; border: 2px solid var(--rpg-rim) !important; font-size: 24px;
+}
+/* Inset inventory slots and parchment sections; illustrations keep their colors. */
+body [data-farm-rpg] :is(.farm-item-card, .inventory-seed, .harvest-item, .farm-supply-item, .storage-slot,
+  .farm-mail-step, .farm-mail-item, .farm-mail-card, .farm-mail-history-item, .available-recipes-panel,
+  .available-recipe, .recipe-entry, .food-item, .kitchen-food-storage, .recipe-book,
+  .farm-ranking-my-score, .farm-ranking-rewards, .farm-ranking-table, .farm-podium-farmer,
+  .farm-reward-box-status, .cosmetic-preview-guide, .free-pass-target, .recipe-ingredient-menu) {
+  border-color: var(--rpg-rim) !important; border-radius: 3px;
+  background: var(--rpg-slot) !important; color: var(--rpg-ink) !important;
+  box-shadow: inset 0 1px #fff3, 0 2px 0 var(--rpg-soft) !important;
+}
+body [data-farm-rpg] :is(.storage-grid-44, .farm-item-shop, .farm-mail-items) {
+  padding: 10px; gap: 10px; border: 1px solid var(--rpg-rim); border-radius: 4px; background: var(--rpg-soft);
+}
+body [data-farm-rpg] .storage-grid-44 { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+body [data-farm-rpg] .storage-grid-44 :is(.inventory-seed, .harvest-item) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 106px;
+}
+body [data-farm-rpg] .storage-grid-44 :is(.inventory-seed, .harvest-item) strong {
+  width: 100%; font-size: 12px; letter-spacing: 0; text-align: center; line-height: 1.4;
+}
+body [data-farm-rpg] :is(.modal-market-balance, .farm-mail-status, .farm-mail-tabs, .farm-mail-inbox-note,
+  .farm-mail-quantity, .farm-mail-price, .farm-mail-message, .farm-ranking-period,
+  .farm-ranking-table > header, .recipe-book-heading, .ingredient-slot-number, .witch-kitchen-guide) {
+  background: var(--rpg-soft) !important; color: var(--rpg-ink) !important;
+  border-color: var(--rpg-rim) !important; box-shadow: none !important;
+}
+body [data-farm-rpg] :is(.farm-item-card, .storage-grid-44, .farm-mail-step, .farm-mail-card,
+  .recipe-entry, .available-recipe, .food-item, .farm-ranking-my-score, .farm-ranking-table,
+  .farm-ranking-period, .farm-ranking-rewards, .modal-market-balance) :is(strong, span, small, p) { color: var(--rpg-ink); }
+body [data-farm-rpg] :is(.farm-item-card, .storage-grid-44, .recipe-entry) small { color: var(--rpg-muted); }
+body [data-farm-rpg] .farm-mail-step h3 > span { background: var(--rpg-accent); color: var(--rpg-on-accent); border-color: var(--rpg-frame); box-shadow: none; }
+/* Replace the unrelated blue post-office drawing with the map's own mailbox. */
+body [data-farm-rpg] .pixel-post-office-sign {
+  min-height: 80px; padding: 18px 16px 18px 86px; display: flex; align-items: center;
+  background: var(--rpg-icon) 18px center / 46px 64px no-repeat, var(--rpg-soft);
+  border: 1px solid var(--rpg-rim); box-shadow: none;
+}
+body [data-farm-rpg] .pixel-post-office-sign > :not(p):not(.pixel-post-dispatch) { display: none; }
+body [data-farm-rpg] .pixel-post-office-sign p { border: 0; background: none; box-shadow: none; color: var(--rpg-ink); padding: 0; text-align: left; line-height: 1.8; }
+body [data-farm-rpg] .witch-kitchen-scene {
+  background: repeating-linear-gradient(0deg, transparent 0 40px, #00000015 40px 43px), var(--rpg-wood);
+  border-color: var(--rpg-frame); box-shadow: inset 0 0 0 3px var(--rpg-rim);
+}
+body [data-farm-rpg] .witch-kitchen-scene::before,
+body [data-farm-rpg] .witch-kitchen-scene::after { background: var(--rpg-landscape) center / cover; border-color: var(--rpg-frame); box-shadow: inset 0 0 0 2px var(--rpg-rim); }
+body [data-farm-rpg] .recipe-ingredient-trigger > span { color: var(--rpg-ink) !important; }
+body [data-farm-rpg] .recipe-picker-arrow { background: var(--rpg-accent) !important; }
+body [data-farm-rpg] #recipeCauldronStatus { color: #fff2d3; }
+body [data-farm-rpg] .recipe-ingredient-option > i { border-color: var(--rpg-rim); background: var(--rpg-soft); }
+body [data-farm-rpg] .farm-ranking-list > li { background: var(--rpg-slot); color: var(--rpg-ink); border-color: var(--rpg-rim); }
+body [data-farm-rpg] .farm-ranking-list > li.is-me { background: var(--rpg-soft); }
+body [data-farm-rpg] .farm-ranking-podium { background: var(--rpg-soft); border-color: var(--rpg-rim); box-shadow: none; }
+body [data-farm-rpg] .farm-podium-place { background: var(--rpg-slot); color: var(--rpg-ink); border-color: var(--rpg-rim); box-shadow: none; }
+body [data-farm-rpg] .farm-podium-place[data-rank="1"] { background: var(--rpg-soft); border-color: var(--rpg-rim); }
+body [data-farm-rpg] :is(.farm-podium-place > i, .farm-ranking-my-rank) { background: var(--rpg-accent); color: var(--rpg-on-accent) !important; border-color: var(--rpg-frame); box-shadow: none; }
+body [data-farm-rpg] .farm-podium-place.is-me { outline-color: var(--rpg-rim); }
+body [data-farm-rpg] .farm-podium-farmer strong:not([data-label-effect]) { color: var(--rpg-ink); }
+body [data-farm-rpg] :is(.farm-podium-medal, .farm-podium-score, .farm-podium-farmer small) { color: var(--rpg-ink); }
+body [data-farm-rpg] .farm-reward-box-panel > .modal-scroll-area > header { border: 0 !important; border-bottom: 3px solid var(--rpg-rim) !important; }
+body [data-farm-rpg] .farm-reward-box-panel > .modal-scroll-area > header::after { display: none; }
+body [data-farm-rpg] .farm-reward-box-status::before { background: var(--rpg-soft); }
+body [data-farm-rpg] .farm-reward-box-status strong { color: var(--rpg-ink); text-shadow: none !important; }
+body [data-farm-rpg] .farm-reward-box :is(strong, small) { color: var(--rpg-ink); text-shadow: none; }
+body [data-farm-rpg] .reward-box-number { background: var(--rpg-soft); color: var(--rpg-ink); border-color: var(--rpg-rim); }
+body #supplyStorageModal .farm-supply-item { grid-template-columns: 46px minmax(0, 1fr); gap: 10px; }
+body #supplyStorageModal .supply-card-copy strong { font-size: 13px; white-space: normal; overflow: visible; }
+body #supplyStorageModal .supply-card-copy small { display: block; font-size: 11px; line-height: 1.6; -webkit-line-clamp: unset; overflow: visible; }
+body #supplyStorageModal .supply-card-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; }
+body #supplyStorageModal .supply-card-actions > :is(em, button) { grid-column: auto; grid-row: auto; }
+body #supplyStorageModal .supply-card-actions em { justify-self: start; color: var(--rpg-muted); }
+body #supplyStorageModal .supply-card-actions button { min-height: 40px; min-width: 58px; padding: 6px 10px; font-size: 12px; }
+body #supplyStorageModal .supply-inventory-summary { font-size: 12px; line-height: 1.6; }
+
+body #farmPage #npcMarket[data-farm-rpg] { padding: 12px; background: var(--rpg-paper) !important; }
+body #farmPage #npcMarket[data-farm-rpg]::before { display: none !important; }
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading { margin: -12px -12px 16px; padding: 17px 48px 16px 76px; }
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading::before { left: 8px; width: 60px; }
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading h2 { font-size: 20px; }
+body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading p { font-size: 11px; line-height: 1.6; }
+body #farmPage #npcMarket[data-farm-rpg] .farm-market-close { z-index: 2; top: 12px; right: 10px; }
+body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card, .seed-shop-card, .noah-buy-card, .noah-crop-bundle-card) {
+  background: var(--rpg-slot) !important; border-color: var(--rpg-rim) !important; color: var(--rpg-ink) !important; box-shadow: none !important;
+}
+body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small, .seed-shop-card strong, .seed-shop-card small, .market-section-title) { color: var(--rpg-ink) !important; }
+
+body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot.is-open::before {
+  background: var(--rpg-paper); border-color: var(--rpg-rim); box-shadow: 0 3px 0 var(--rpg-frame), inset 0 0 0 2px var(--rpg-soft);
+}
+body #farmPage .farm-scene[data-scenery] .farm-grid :is(.crop-info strong, .crop-info small, .crop-wilt-countdown) { color: var(--rpg-ink); text-shadow: none; }
+body #farmPage .farm-scene[data-scenery] .farm-grid :is(.plot-growth-actions button, .harvest-button, .discard-button) {
+  background: var(--rpg-accent) !important; color: var(--rpg-on-accent) !important; border-color: var(--rpg-frame) !important;
+}
+
+@media (max-width: 700px) {
+  body [data-farm-rpg] .market-modal-panel { padding: 6px; width: calc(100% - 8px); max-height: calc(100dvh - 24px); }
+  body [data-farm-rpg] .market-modal-panel > .modal-scroll-area { padding: 10px; max-height: calc(100dvh - 46px); }
+  body [data-farm-rpg] .modal-scroll-area > header { margin: -10px -10px 14px; padding: 14px 10px 14px 62px; gap: 6px; }
+  body [data-farm-rpg] .modal-scroll-area > header::before { left: 8px; top: 18px; width: 46px; height: 56px; }
+  body [data-farm-rpg] .modal-scroll-area > header h2 { font-size: 18px; }
+  body [data-farm-rpg] .modal-scroll-area > header p { font-size: 11px; }
+  body [data-farm-rpg] .section-kicker { font-size: 8px; letter-spacing: .03em; }
+  body [data-farm-rpg] :is(.storage-grid-44, .farm-item-shop, .farm-mail-items) { padding: 6px; gap: 6px; }
+  body [data-farm-rpg] .storage-grid-44 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body [data-farm-rpg] .available-recipes-heading { flex-wrap: wrap; }
+}

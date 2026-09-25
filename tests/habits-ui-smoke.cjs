@@ -298,7 +298,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       });
       state.coins = 128; state.farmMoney = 5400;
       state.dailySeedOffers = Object.keys(CROPS).slice(0, 7);
-      state.dailyFoodOffers = Object.keys(RECIPES).slice(0, 6);
+      state.dailyFoodOffers = Object.keys(RECIPES).slice(0, 7);
       state.dailyCropSellOffers = Object.keys(CROPS).slice(0, 7).map((cropId, index) => ({cropId, bundleSize:index % 2 ? 10 : 5}));
       farmLeaderboard = [
         {farmName:'별빛 농장',displayName:'농부 A',score:980,isMe:false},
@@ -327,24 +327,17 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const supplyModal = document.querySelector('#supplyStorageModal');
       supplyModal.classList.remove('hidden');
       const supplyRowCenters = [...document.querySelectorAll('#farmItemInventory .farm-supply-item')].map(card => {
-        const parts = [card.querySelector('.farm-supply-pixel-icon'), card.querySelector('.supply-card-copy'), card.querySelector('.supply-card-actions em'), card.querySelector('.supply-card-actions button')];
+        const parts = [...card.querySelectorAll('.supply-card-actions > *')];
         return parts.map(part => { const rect=part.getBoundingClientRect(); return rect.top+rect.height/2; });
       });
       const supplyRowsAligned = supplyRowCenters.every(centers => Math.max(...centers)-Math.min(...centers)<2);
       if (!supplyRowsAligned) throw Error('Supply row centers: '+JSON.stringify(supplyRowCenters));
       supplyModal.classList.add('hidden');
-      const marketPanel = document.querySelector('#permanentMarketModal .farm-supply-modal-panel');
       const supplyPanel = document.querySelector('#supplyStorageModal .farm-supply-modal-panel');
-      const marketHeader = marketPanel.querySelector('.modal-scroll-area > header');
-      const supplyHeader = supplyPanel.querySelector('.modal-scroll-area > header');
-      const marketBalance = marketPanel.querySelector('.modal-market-balance');
-      const supplyBalance = supplyPanel.querySelector('.modal-market-balance');
-      const sameStorefront = Boolean(marketPanel && supplyPanel) &&
-        getComputedStyle(marketPanel).borderTopWidth===getComputedStyle(supplyPanel).borderTopWidth &&
-        getComputedStyle(marketPanel).boxShadow===getComputedStyle(supplyPanel).boxShadow &&
-        getComputedStyle(marketHeader).backgroundColor===getComputedStyle(supplyHeader).backgroundColor &&
-        getComputedStyle(marketBalance).backgroundColor===getComputedStyle(supplyBalance).backgroundColor &&
-        getComputedStyle(marketBalance).borderTopLeftRadius===getComputedStyle(supplyBalance).borderTopLeftRadius;
+      const sameStorefront = !document.querySelector('#permanentMarketModal,#openPermanentMarket') &&
+        supplyPanel.querySelectorAll('[data-buy-farm-item]').length===Object.keys(FARM_ITEMS).length &&
+        supplyPanel.querySelectorAll('[data-use-farm-item]').length===Object.keys(FARM_ITEMS).length &&
+        supplyPanel.querySelector('#supplyFarmMoneyBalance').textContent===String(state.farmMoney);
       return { mappingOK: JSON.stringify(expected) === JSON.stringify(mapping), allStages, cosmetics,
         farmMainExpanded: document.body.classList.contains('farm-page-active') && getComputedStyle(document.querySelector('.main-content')).maxWidth === 'none',
         plots: tiles.length, sprites: document.querySelectorAll('#farmGrid .crop-pixel').length,
@@ -376,7 +369,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         animation: getComputedStyle(document.querySelector('#farmNameLabel')).animationName };
     })()` });
     assert.equal(farmResult.exceptionDetails, undefined, JSON.stringify(farmResult.exceptionDetails));
-    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true,farmMainExpanded:true,plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,seedOffers:6,foodOffers:6,cropOffers:6,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
+    assert.deepEqual(farmResult.result.value, {mappingOK:true, allStages:true, cosmetics:true,farmMainExpanded:true,plots:9, sprites:8, previews:3, bulletin:false,noNpcProfiles:true,marketTabs:4,headerUtilities:true,uniformHeader:true,farmMoneyCompact:true,storageInHeader:true,uniformStorageButtons:true,separateBuyMenus:true,seedOffers:7,foodOffers:7,cropOffers:7,podium:3,rankedRows:3,pixelCoin:true,waterStartsAtFive:true,supplyPixelIcons:true,supplyRowsAligned:true,sameStorefront:true,foodSprites:true,foodAtlas:true,foodMailIcon:true,compactNames:true,overlaps:false, fits:true, raster:true, animation:'none'});
     assert.deepEqual(exceptions, [], "No farm runtime errors");
     const skinResult = await call('Runtime.evaluate', {returnByValue:true, expression:`(() => {
       const sameIDs = (ids, catalog) => JSON.stringify(ids.slice().sort()) === JSON.stringify(catalog.map(item => item.id).sort());
@@ -523,11 +516,6 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const previewShot = await call('Page.captureScreenshot', {format:'png', captureBeyondViewport:true});
       fs.writeFileSync(path.join(process.env.FARM_SCREENSHOTS, `farm-skin-preview-${width}.png`), Buffer.from(previewShot.data, 'base64'));
       await call('Runtime.evaluate', {expression:'closeCosmeticPreview()'});
-      await call('Runtime.evaluate', {expression:'document.querySelector("#permanentMarketModal").classList.remove("hidden")'});
-      await pause(150);
-      const marketShot = await call('Page.captureScreenshot', {format:'png', captureBeyondViewport:true});
-      fs.writeFileSync(path.join(process.env.FARM_SCREENSHOTS, `farm-permanent-market-${width}.png`), Buffer.from(marketShot.data, 'base64'));
-      await call('Runtime.evaluate', {expression:'document.querySelector("#permanentMarketModal").classList.add("hidden")'});
       await call('Runtime.evaluate', {expression:'document.querySelector("#supplyStorageModal").classList.remove("hidden")'});
       await pause(150);
       const supplyShot = await call('Page.captureScreenshot', {format:'png', captureBeyondViewport:true});
