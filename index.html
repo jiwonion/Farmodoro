@@ -39,8 +39,8 @@
     <link rel="stylesheet" href="./farm-pixel.css?v=272" />
     <link rel="stylesheet" href="./pixel-layout.css?v=272" />
     <link rel="stylesheet" href="./farm-theme.css?v=272" />
-    <link rel="stylesheet" href="./farm-scenery.css?v=284" />
-    <link rel="stylesheet" href="./farm-rpg.css?v=284" />
+    <link rel="stylesheet" href="./farm-scenery.css?v=294" />
+    <link rel="stylesheet" href="./farm-rpg.css?v=287" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -555,6 +555,10 @@
                   배경 바꾸기
                   <input id="focusBackgroundInput" type="file" accept="image/*" hidden />
                 </label>
+                <button id="toggleFocusFarmBackground" type="button" aria-pressed="false">
+                  <span aria-hidden="true">🌱</span>
+                  농장 배경
+                </button>
                 <button id="resetFocusBackground" type="button">
                   <span aria-hidden="true">↺</span>
                   기본 배경
@@ -610,7 +614,7 @@
                   <button class="farm-building farm-facility facility-mail" id="openFarmMail" type="button" aria-label="우편함"><span>우편함</span><small id="farmMailHeaderUnread" hidden>0</small></button>
                   <button class="farm-building farm-facility facility-kitchen" id="openFarmKitchen" type="button" aria-label="화로 · 농장 주방"><span>주방</span></button>
                   <button class="farm-building farm-facility facility-ranking" id="openFarmRanking" type="button" aria-label="게시판 · 농장 랭킹"><span>랭킹</span></button>
-                  <button class="farm-building farm-building-market" id="toggleFarmMarket" type="button" data-open-farm-market aria-label="농장 판매대 열기" aria-controls="npcMarket" aria-expanded="false"><span>상점</span></button>
+                  <button class="farm-building farm-building-market" id="toggleFarmMarket" type="button" data-open-farm-market aria-label="농장 판매대 열기" aria-controls="farmMarketModal" aria-expanded="false"><span>상점</span></button>
                   <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
                 </div>
               </section>
@@ -618,9 +622,12 @@
 
             </div>
 
-            <aside class="seed-shop npc-market" id="npcMarket" data-active-npc="morrison">
-              <header class="rpg-market-heading"><span class="section-kicker">FARM TRADING POST</span><h2>농장 상점</h2><p>씨앗을 사고, 수확의 기쁨을 나눠요</p></header>
-              <button class="farm-market-close" type="button" data-close-farm-market aria-label="판매대 닫기">×</button>
+          </section>
+          <div class="market-modal hidden" id="farmMarketModal" role="dialog" aria-modal="true" aria-labelledby="farmMarketTitle">
+            <div class="market-modal-backdrop" data-close-farm-market></div>
+            <section class="market-modal-panel seed-shop npc-market" id="npcMarket" data-active-npc="morrison">
+              <header><div><span class="section-kicker">FARM TRADING POST</span><h2 id="farmMarketTitle">농장 상점</h2><p>씨앗을 사고, 수확의 기쁨을 나눠요</p></div>
+              <button class="pixel-close-button" type="button" data-close-farm-market aria-label="농장 상점 닫기">×</button></header>
               <nav class="npc-market-dots market-category-tabs" aria-label="판매대 선택">
                 <button type="button" data-npc-dot="morrison">씨앗 판매대</button>
                 <button type="button" data-npc-dot="food">음식 매입</button>
@@ -654,8 +661,8 @@
                   <div class="rachel-cosmetic-list hidden" id="rachelOwnedList"></div>
                 </section>
               </div>
-            </aside>
-          </section>
+            </section>
+          </div>
         </section>
       </main>
     </div>
@@ -1185,7 +1192,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=285"></script>
+    <script src="./app.js?v=292"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

@@ -1348,7 +1348,7 @@ const FARM_ITEMS = {
     name: "매입 목록 교환권",
     icon: "▤",
     price: 55,
-    description: "노아의 음식·작물 매입 목록을 즉시 새로 뽑아",
+    description: "음식·작물 매입 목록을 즉시 새로 뽑아",
     type: "market",
   },
 };
@@ -1457,7 +1457,7 @@ function farmSetEffectText(effect, percent = null) {
 function getCosmeticSetDescription(type, id) {
   const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
   if (!set) return "";
-  return `${set.name} 세트 · ${farmSetEffectText(set.effect)} · 1부위 1% / 2부위 5% / 3부위 10%`;
+  return `${set.name} 세트 · ${farmSetEffectText(set.effect)} · 1%/5%/10%`;
 }
 
 function farmBonusMessage(event) {
@@ -5474,7 +5474,8 @@ const TERRAIN_CLEARINGS = {
   bubbleField: [33, 33, 73, 79],
   cherryBlossom: [30, 33, 73, 76],
   valentine: [33, 33, 76, 76],
-  whiteDay: [30, 33, 72, 76],
+  // The clearing starts to the right of the slanted left path (about 36%).
+  whiteDay: [36, 33, 73, 74],
   galaxyNight: [33, 33, 73, 78],
   christmas: [29, 33, 73, 76],
   iceKingdom: [30, 33, 75, 78],
@@ -5526,12 +5527,6 @@ function fieldCropSprite(cropId, stage = "mature") {
   return `<span class="field-crop" aria-hidden="true" style="--field-crop:url('${FARM_ART_ROOT}/crops/${name}.png')"></span>`;
 }
 
-// Collapsed plots show growth as pips so the map stays readable without text.
-function plotProgressPips(growth, max) {
-  const filled = Math.min(5, Math.round((growth / Math.max(1, max)) * 5));
-  return Array.from({ length: 5 }, (_, index) => `<i${index < filled ? ' class="on"' : ""}></i>`).join("");
-}
-
 function getFarmPlotStatus(plot) {
   if (plot.wilted) return { kind: "wilted", text: "시들었음", detail: "시든 작물 · 회복 또는 폐기" };
   const remaining = getPlotWiltRemaining(plot);
@@ -5547,7 +5542,7 @@ function getFarmPlotStatus(plot) {
 // overrides), without letting a shop preview change the equipped palette.
 function applyFarmRpgTheme(terrain, objectSkin) {
   const windows = {
-    npcMarket: "market", farmKitchenModal: "kitchen",
+    npcMarket: "market", farmMarketModal: "market", farmKitchenModal: "kitchen",
     farmMailModal: "mailbox", harvestStorageModal: "produce-crate", seedStorageModal: "seed-chest",
     supplyStorageModal: "tool-rack", farmRankingModal: "noticeboard", farmRewardBoxModal: "seed-chest",
     cosmeticPreviewModal: "house", freePassTargetModal: "tool-rack",
@@ -5736,12 +5731,14 @@ const FARM_OBJECT_SLOTS = {
   ".farm-decor-house": "house", ".farm-decor-well": "well", ".farm-decor-bridge": "bridge",
 };
 const TERRAIN_WEATHER = {
+  meadow: "grass", springMeadow: "grass",
   christmas: "snow", iceKingdom: "snow", galaxyNight: "snow",
   cherryBlossom: "petals", valentine: "petals", whiteDay: "petals",
   volcano: "embers", halloween: "leaves", goldenHarvest: "leaves",
   ocean: "bubbles", bubbleField: "bubbles", lavender: "lavender",
 };
 const WEATHER_PARTICLES = {
+  grass: ["grass"],
   snow: ["snow-01", "snow-02", "snow-03", "snow-04", "snow-05", "snow-06"],
   petals: ["petal-01", "petal-02", "petal-03", "petal-04", "petal-05", "petal-06"],
   embers: ["ember-01", "ember-02", "ember-03", "ember-04", "ember-05", "ember-06"],
@@ -5788,9 +5785,10 @@ function renderFarmScenery(root, themeId, plotSkin) {
   if (atmosphere.dataset.weather === weather) return;
   atmosphere.dataset.weather = weather;
   const particles = WEATHER_PARTICLES[weather];
-  atmosphere.innerHTML = !particles ? "" : Array.from({ length: 18 }, (_, index) => {
+  atmosphere.innerHTML = !particles ? "" : Array.from({ length: weather === "grass" ? 12 : 18 }, (_, index) => {
     const sprite = particles[index % particles.length];
-    return `<i style="--drift-x:${(index * 37) % 100}%;--drift-delay:-${index * 1.7}s;--drift-duration:${10 + index % 7}s;--flake-size:${10 + (index % 4) * 3}px;--flake:url('${FARM_ART_ROOT}/particles/${sprite}.png')"></i>`;
+    const flake = weather === "grass" ? "" : `--flake:url('${FARM_ART_ROOT}/particles/${sprite}.png')`;
+    return `<i style="--drift-x:${(index * 37) % 100}%;--drift-delay:-${index * 1.7}s;--drift-duration:${10 + index % 7}s;--flake-size:${10 + (index % 4) * 3}px;${flake}"></i>`;
   }).join("");
 }
 
@@ -5945,13 +5943,12 @@ function renderFarm() {
     .slice(0, 7)
     .map((cropId) => [cropId, CROPS[cropId]])
     .map(([cropId, crop]) => {
-      const growthCost = getCropGrowthCost(cropId);
       return `
         <article class="seed-shop-card">
           <span class="seed-shop-emoji">${cropPixel(cropId)}</span>
           <div>
             <strong>${crop.name} 씨앗</strong>
-            <small>완전 성장 ${growthCost} Coin</small>
+            <small>보유 씨앗 ${state.seedInventory[cropId] ?? 0}개 · 작물 ${state.harvestInventory[cropId] ?? 0}개 · 재배 중 ${state.farmPlots.filter((plot) => plot.crop === cropId).length}개</small>
           </div>
           <button type="button" data-buy-seed="${cropId}">
             ● ${crop.seedPrice}
@@ -6129,7 +6126,6 @@ function renderFarm() {
             <div class="crop-visual stage-${plot.growth}">
               ${fieldCropSprite(plot.crop, stage)}
             </div>
-            <div class="plot-progress" aria-hidden="true">${plotProgressPips(plot.growth, maxGrowth)}</div>
             <div class="crop-info">
               <strong>${crop.name}</strong>
               <small>${plot.growth} / ${maxGrowth}</small>
@@ -6185,6 +6181,7 @@ function renderFarm() {
     const action = focusedPlotAction && tile?.querySelector(`[${focusedPlotAction}]:not(:disabled)`);
     (action || tile?.querySelector("button:not(:disabled)") || (tile?.matches("button") ? tile : null))?.focus({ preventScroll: true });
   }
+  renderFocusFarmBackground();
 }
 
 function renderFocusPicker() {
@@ -9010,8 +9007,8 @@ document.querySelector("#farmItemInventory").addEventListener("click", async (ev
         state.farmItemInventory[itemId] -= 1;
         showToast(
           itemId === "seedMarketRefresh"
-            ? "모리슨의 씨앗 판매대가 새로 바뀌었어"
-            : "노아의 매입 목록이 새로 바뀌었어",
+            ? "씨앗 판매대가 새로 바뀌었어"
+            : "매입 목록이 새로 바뀌었어",
         );
       },
       revert: () => {
@@ -9096,8 +9093,9 @@ document.querySelector("#toggleFarmOverview").addEventListener("click", (event) 
 
 function setFarmMarketOpen(open) {
   document.querySelector("#farmPage").classList.toggle("farm-market-open", open);
+  document.querySelector("#farmMarketModal").classList.toggle("hidden", !open);
   document.querySelector("#toggleFarmMarket").setAttribute("aria-expanded", String(open));
-  if (open) document.querySelector("[data-close-farm-market]").focus({ preventScroll: true });
+  if (open) document.querySelector("button[data-close-farm-market]").focus({ preventScroll: true });
   else document.querySelector("#toggleFarmMarket").focus({ preventScroll: true });
 }
 
@@ -9414,7 +9412,7 @@ document.querySelector("#noahBuyList").addEventListener("click", async (event) =
   const recipeId = button.dataset.sellFood;
   const recipe = RECIPES[recipeId];
   if (!recipe || !state.foodInventory[recipeId]) {
-    showToast("오늘 노아에게 팔 수 있는 음식이 없어");
+    showToast("오늘 팔 수 있는 음식이 없어");
     return;
   }
 
@@ -10363,7 +10361,54 @@ function updateFocusMusicIndicator() {
   miniFocusMusicTitle.textContent = currentFocusTrack?.title || "기본 집중 음악";
 }
 
+function renderFocusFarmBackground() {
+  const stage = document.querySelector("#focusPageStage");
+  const button = document.querySelector("#toggleFocusFarmBackground");
+  stage.querySelector(".focus-farm-background")?.remove();
+  if (button.getAttribute("aria-pressed") !== "true") return;
+
+  const source = document.querySelector("#farmPage .farm-scene");
+  const scene = source.cloneNode(true);
+  scene.className = "farm-scene cosmetic-preview-farm-scene";
+  scene.querySelectorAll(".plot-hit, .plot-status, .crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button, .farm-apply-item, .fertilizer-badge")
+    .forEach((element) => element.remove());
+  scene.querySelectorAll(".farm-building").forEach((building) => building.replaceChildren());
+  scene.querySelectorAll("button").forEach((button) => {
+    const decoration = document.createElement("div");
+    decoration.className = button.className;
+    decoration.style.cssText = button.style.cssText;
+    button.replaceWith(decoration);
+  });
+  [scene, ...scene.querySelectorAll("*")].forEach((element) => {
+    element.removeAttribute("id");
+    element.classList.remove("is-open", "ready");
+    for (const attribute of [...element.attributes]) {
+      if (attribute.name.startsWith("data-") && !["data-scenery", "data-terrain", "data-object-skin", "data-plot-skin", "data-weather"].includes(attribute.name)) {
+        element.removeAttribute(attribute.name);
+      }
+    }
+  });
+  const background = document.createElement("div");
+  background.className = "focus-farm-background cosmetic-farm-preview";
+  background.setAttribute("aria-hidden", "true");
+  background.inert = true;
+  background.append(scene);
+  stage.prepend(background);
+}
+
+document.querySelector("#toggleFocusFarmBackground").addEventListener("click", (event) => {
+  const button = event.currentTarget;
+  const enabled = button.getAttribute("aria-pressed") !== "true";
+  button.setAttribute("aria-pressed", String(enabled));
+  button.classList.toggle("active", enabled);
+  renderFocusFarmBackground();
+});
+
 function applyFocusBackground(file) {
+  const farmButton = document.querySelector("#toggleFocusFarmBackground");
+  farmButton.setAttribute("aria-pressed", "false");
+  farmButton.classList.remove("active");
+  document.querySelector(".focus-farm-background")?.remove();
   if (focusBackgroundObjectUrl) URL.revokeObjectURL(focusBackgroundObjectUrl);
   focusBackgroundObjectUrl = file ? URL.createObjectURL(file) : null;
   if (focusBackgroundObjectUrl) {

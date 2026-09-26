@@ -192,6 +192,18 @@ body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market, .market-sec
   background: var(--rpg-slot) !important; border-color: var(--rpg-rim) !important; color: var(--rpg-ink) !important; box-shadow: none !important;
 }
 body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small, .seed-shop-card strong, .seed-shop-card small, .market-section-title) { color: var(--rpg-ink) !important; }
+/* The article is the card; preview and purchase are separate actions inside it. */
+body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card {
+  grid-template-columns: minmax(0, 1fr); gap: 10px;
+}
+body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card .rachel-preview-button {
+  padding: 0; border: 0 !important; background: transparent !important;
+  box-shadow: none !important; white-space: normal;
+}
+body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card > button:not(.rachel-preview-button),
+body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-actions {
+  grid-column: 1; justify-self: stretch;
+}
 
 body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot.is-open::before {
   background: var(--rpg-paper); border-color: var(--rpg-rim); box-shadow: 0 3px 0 var(--rpg-frame), inset 0 0 0 2px var(--rpg-soft);

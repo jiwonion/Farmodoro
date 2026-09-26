@@ -1,3 +1,18 @@
+/* Cover the focus stage with the farm, preserving the scenery at the top. */
+body #focusPage .focus-farm-background {
+  position: absolute; inset: 0; z-index: 0; container-type: size;
+  display: grid; place-items: center; overflow: hidden;
+  pointer-events: none; background: #243b29;
+}
+body #focusPage .focus-farm-background .farm-scene[data-scenery] {
+  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  width: max(100cqw, 150cqh); max-width: none; margin: 0;
+  overflow: hidden;
+}
+body #focusPage .focus-farm-background .crop-visual { min-height: 0; }
+body #focusPage .focus-farm-background::after {
+  content: ''; position: absolute; inset: 0; background: #10251926;
+}
 /* The farm is one game map; UI panels appear only when opened. */
 body :is(#farmPage, .cosmetic-farm-preview) .farm-layout {
   display: block !important;
@@ -96,16 +111,6 @@ body #farmPage .farm-scene[data-scenery] .farm-grid .plot-hit {
   border: 0 !important; background: transparent !important; box-shadow: none !important;
   cursor: pointer;
 }
-/* Collapsed plots carry a pip row instead of a panel of text. */
-body #farmPage .farm-scene[data-scenery] .farm-grid .plot-progress {
-  position: absolute; bottom: 8%; left: 0; right: 0; z-index: 2;
-  display: flex; justify-content: center; gap: 3px; pointer-events: none;
-}
-body #farmPage .farm-scene[data-scenery] .farm-grid .plot-progress i {
-  width: 5px; height: 5px; background: #2b1d1180; box-shadow: 0 0 0 1px #00000033;
-}
-body #farmPage .farm-scene[data-scenery] .farm-grid .plot-progress i.on { background: #ffd86b; box-shadow: 0 0 0 1px #6b4a1e; }
-body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot.is-open .plot-progress { display: none; }
 /* One wooden plate behind everything the opened plot reveals. */
 body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot.is-open::before {
   content: ''; position: absolute; left: 50%; bottom: calc(100% - 10px); z-index: 3;
@@ -150,41 +155,41 @@ body #farmPage .farm-scene[data-scenery] .farm-plot.mature::after {
 }
 /* [data-object-skin] is here for weight: the themed `button` rule in
    farm-theme.css also uses !important and would otherwise paint over the sprite. */
-body #farmPage .farm-scene[data-scenery][data-object-skin] .farm-building {
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery][data-object-skin] .farm-building {
   position: absolute; z-index: 2; border: 0 !important; padding: 0;
   background: var(--sprite) center bottom / contain no-repeat !important;
   box-shadow: none !important; cursor: pointer;
   transition: transform .12s steps(2);
 }
-body #farmPage .farm-scene[data-scenery] .farm-building:is(:hover, :focus-visible) { transform: translateY(-3px); }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building:is(:hover, :focus-visible) { transform: translateY(-3px); }
 /* Captions hang below each prop instead of covering it. */
-body #farmPage .farm-scene[data-scenery] .farm-building > span {
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building > span {
   position: absolute; top: calc(100% - 3px); left: 50%; transform: translateX(-50%);
   padding: 1px 6px; border: 0; border-radius: 3px;
   background: #2a1c10c4; box-shadow: none;
   color: #ffeec2; text-shadow: 1px 1px #1d1309;
   font-size: 12px; line-height: 1.3; white-space: nowrap; pointer-events: none;
 }
-body #farmPage .farm-scene[data-scenery] .farm-building:focus-visible { outline: 2px dashed #ffe9a3; outline-offset: 3px; }
-body #farmPage .farm-scene[data-scenery]:not(.is-overview) .farm-building { min-width: 44px; min-height: 44px; }
-body #farmPage .farm-scene[data-scenery] .farm-building:hover > span { color: #ffde82; }
-body #farmPage .farm-scene[data-scenery] .facility-kitchen { left: 4%; top: 29%; width: 12%; height: 14%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building:focus-visible { outline: 2px dashed #ffe9a3; outline-offset: 3px; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery]:not(.is-overview) .farm-building { min-width: 44px; min-height: 44px; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building:hover > span { color: #ffde82; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-kitchen { left: 4%; top: 29%; width: 12%; height: 14%; }
 /* The storage props stand on the grass band above the path, so they hang off the
    clearing's top edge instead of a fixed offset that only suits one terrain. */
-body #farmPage .farm-scene[data-scenery] :is(.facility-harvest, .facility-seed, .facility-supply) {
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] :is(.facility-harvest, .facility-seed, .facility-supply) {
   bottom: auto;
 }
-body #farmPage .farm-scene[data-scenery] .facility-harvest { left: 60%; top: 16%; width: 8.7%; height: 11%; }
-body #farmPage .farm-scene[data-scenery] .facility-seed { left: 20%; top: 28%; width: 8.7%; height: 12%; }
-body #farmPage .farm-scene[data-scenery] .facility-supply { left: 20%; top: 9%; width: 8%; height: 13%; }
-body #farmPage .farm-scene[data-scenery] .farm-building-market { left: 70%; top: 8%; width: 14.7%; height: 20%; }
-body #farmPage .farm-scene[data-scenery] .facility-mail { left: 17%; top: 44%; width: 5.3%; height: 13%; }
-body #farmPage .farm-scene[data-scenery] .facility-ranking { left: calc(var(--clearing-right, 71%) + 2%); top: 42%; width: 8%; height: 13%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-harvest { left: 60%; top: 16%; width: 8.7%; height: 11%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-seed { left: 20%; top: 28%; width: 8.7%; height: 12%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-supply { left: 20%; top: 9%; width: 8%; height: 13%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building-market { left: 70%; top: 8%; width: 14.7%; height: 20%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-mail { left: 17%; top: 44%; width: 5.3%; height: 13%; }
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-ranking { left: calc(var(--clearing-right, 71%) + 2%); top: 42%; width: 8%; height: 13%; }
 /* galaxyNight has no night-lit prop set, so the daylight props get dimmed. */
-body #farmPage .farm-scene[data-terrain="galaxyNight"] :is(.farm-building, .farm-decor) {
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-terrain="galaxyNight"] :is(.farm-building, .farm-decor) {
   filter: brightness(.74) saturate(.85) hue-rotate(-12deg);
 }
-body #farmPage .farm-scene[data-scenery] .farm-building small {
+body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building small {
   position: absolute; top: 0; right: 6%; min-width: 17px; padding: 1px 3px;
   border: 1px solid #56371d; border-radius: 3px; background: #fff0ba; color: #533820;
   font-size: 10px; line-height: 1.2;
@@ -198,7 +203,6 @@ body #farmPage .farm-scene[data-scenery] .plot-status {
 body #farmPage .farm-scene[data-scenery] .plot-status[data-urgency="water"] { background: #203f4b; border-color: #8dccd5; color: #e1ffff; }
 body #farmPage .farm-scene[data-scenery] .plot-status[data-urgency="harvest"] { background: #354726; border-color: #e4c775; color: #fff0ae; }
 body #farmPage .farm-scene[data-scenery] .plot-status:is([data-urgency="urgent"], [data-urgency="wilted"]) { background: #773628; border-color: #f4bb86; color: #fff1d4; }
-body #farmPage .farm-scene[data-scenery] .plot-progress { display: none; }
 body #farmPage .farm-scene[data-scenery] .crop-visual { bottom: 23px; padding-bottom: 0; }
 body #farmPage .farm-scene[data-scenery].is-overview .crop-visual { bottom: 3px; }
 .farm-world-footer { display: flex; justify-content: center; align-items: center; gap: 10px; background: #30462b; padding: 6px 10px; }
@@ -216,14 +220,18 @@ body #farmPage .farm-scene[data-scenery] .facility-mail.has-unread small { backg
 body #farmPage .farm-world-hint { margin: 0; padding: 7px 12px; text-align: center; background: #30462b; color: #eadfbd; font-size: 12px; }
 .farm-world-hint span { display: none; }
 
-body #farmPage .npc-market {
-  display: none !important; position: absolute; z-index: 20; top: 65px; right: 14px; bottom: 35px;
-  width: min(390px, calc(100% - 28px)); height: auto !important; max-height: none;
-  min-height: 0; contain: none; overflow: auto; padding: 42px 12px 12px;
-  border: 3px solid #65492e !important; border-radius: 6px;
-  background: #fff2d7 !important; box-shadow: 0 8px 24px #17251b66 !important;
+/* The shop shares the centered dialog and scrolling panel used by farm tools. */
+body #farmPage.farm-market-open { isolation: auto; }
+body #farmPage #farmMarketModal .npc-market {
+  display: block; position: relative; inset: auto; z-index: 1;
+  grid-area: 1 / 1; place-self: center; margin: 0;
+  width: min(680px, 100%); height: auto !important;
+  max-height: min(760px, calc(100dvh - 24px)); min-height: 0;
+  contain: none; overflow: hidden;
 }
-body #farmPage.farm-market-open .npc-market { display: block !important; }
+body #farmPage #farmMarketModal .npc-market > .modal-scroll-area {
+  max-height: calc(min(760px, calc(100dvh - 24px)) - 26px);
+}
 body #farmPage .npc-market::before { display: none; }
 body #farmPage .npc-market .farm-market-close {
   position: absolute; right: 8px; top: 6px; width: 30px; height: 28px;
@@ -252,14 +260,51 @@ body #farmPage .npc-market :is(.market-category-tabs button.active, .rachel-tabs
 .farm-weather:is([data-weather="embers"], [data-weather="bubbles"]) i { animation-name: farm-weather-rise; }
 @keyframes farm-weather-drift { from { transform: translate3d(-22px, -100%, 0); } to { transform: translate3d(34px, 105%, 0); } }
 @keyframes farm-weather-rise { from { transform: translate3d(18px, 105%, 0); } to { transform: translate3d(-14px, -100%, 0); } }
+/* Small pixel grass blades drift diagonally with the breeze. */
+.farm-weather[data-weather="grass"] i {
+  top: var(--drift-x); left: 0; width: 100%; height: 100%;
+  animation-name: farm-grass-drift;
+}
+.farm-weather[data-weather="grass"] i::before {
+  width: calc(var(--flake-size) * .45); height: var(--flake-size);
+  background: #a9cf58; opacity: .8;
+  clip-path: polygon(0 0, 50% 20%, 100% 70%, 75% 100%, 25% 60%);
+  animation: farm-grass-tumble 3s ease-in-out infinite alternate;
+  animation-delay: var(--drift-delay);
+}
+.farm-weather[data-weather="grass"] i:nth-child(3n)::before { background: #d2e58c; }
+.farm-weather[data-weather="grass"] i:nth-child(3n + 1)::before { background: #75ac43; }
+@keyframes farm-grass-drift {
+  0% { transform: translate3d(-5%, -30%, 0); opacity: 0; }
+  12%, 88% { opacity: .8; }
+  50% { transform: translate3d(50%, 0%, 0); }
+  100% { transform: translate3d(105%, 30%, 0); opacity: 0; }
+}
+@keyframes farm-grass-tumble {
+  from { transform: rotate(-45deg) scaleX(.7); }
+  to { transform: rotate(100deg) scaleX(1); }
+}
+/* The farm's legacy pixel reset disables animations; opt the breeze back in. */
+@media (prefers-reduced-motion: no-preference) {
+  #farmPage .farm-weather[data-weather="grass"] i {
+    animation: farm-grass-drift var(--drift-duration) var(--drift-delay) linear infinite !important;
+  }
+  #farmPage .farm-weather[data-weather="grass"] i::before {
+    animation: farm-grass-tumble 3s var(--drift-delay) ease-in-out infinite alternate !important;
+  }
+}
 body .cosmetic-farm-preview .npc-market { display: none; }
 body .cosmetic-farm-preview .farm-panel-header { margin: 0; background: #f2dfb5 !important; border: 0; }
-body .cosmetic-farm-preview .farm-scene[data-scenery] .farm-scene-grid { min-width: 0; }
+/* Match the shared map selector's specificity, including its #farmPage arm.
+   Otherwise its 840px minimum wins even inside a narrow preview dialog. */
+body :is(#farmPage, .cosmetic-farm-preview) .cosmetic-preview-farm-scene[data-scenery] .farm-scene-grid {
+  min-width: 0; width: 100%;
+}
 body .cosmetic-farm-preview .farm-scene[data-scenery] .farm-plot .crop-pixel { width: 55%; flex-basis: 55%; }
 
-/* Plot controls stay out of the map until the plot is opened. */
+/* Details open on selection; growth actions remain available on each tile. */
 body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot:not(.is-open)
-  :is(.crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button) {
+  :is(.crop-info, .crop-wilt-countdown, .harvest-button, .discard-button) {
   display: none !important;
 }
 /* `top: auto` matters: a responsive rule in pixel-layout.css pins .crop-info to
@@ -280,8 +325,14 @@ body #farmPage .farm-scene[data-scenery] .farm-grid .crop-wilt-countdown {
 }
 body #farmPage .farm-scene[data-scenery] .farm-grid .plot-growth-actions {
   display: grid; grid-template-columns: 38% minmax(0, 1fr);
-  position: absolute; bottom: calc(100% + 2px); left: -20%; right: -20%;
+  position: absolute; bottom: 2px; left: 2px; right: 2px;
   gap: 4px; margin: 0; z-index: 5;
+}
+body #farmPage .farm-scene[data-scenery] .farm-grid .growable-plot .plot-status {
+  bottom: 32px;
+}
+body #farmPage .farm-scene[data-scenery] .farm-grid .growable-plot .crop-visual {
+  bottom: 50px;
 }
 body #farmPage .farm-scene[data-scenery] .farm-grid .crop-plot > :is(.harvest-button, .discard-button) {
   display: block; position: absolute; bottom: calc(100% + 2px); left: -20%; right: -20%; width: auto; z-index: 5;
@@ -307,6 +358,5 @@ body .cosmetic-farm-preview .farm-scene[data-scenery] .crop-info { position: abs
   body #farmPage .farm-scene[data-scenery] .farm-scene-grid { min-width: 780px; }
   body #farmPage .farm-name-display > button { min-height: 28px; }
   .farm-world-hint span { display: inline; }
-  body #farmPage .npc-market { position: fixed; top: 95px; bottom: 16px; right: 12px; width: calc(100vw - 24px); z-index: 90; }
 }
 @media (prefers-reduced-motion: reduce) { .farm-weather { display: none; } .farm-weather i { animation: none; } }
