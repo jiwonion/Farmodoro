@@ -2757,6 +2757,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
   const seconds = Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds)));
   return {
     seconds,
+    date: typeof value?.date === "string" ? value.date : "",
     phase: value?.phase === "break" ? "break" : "focus",
     started: Boolean(value?.started),
     countdown: Boolean(value?.countdown),
@@ -2823,14 +2824,18 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
     const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
     const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
-    const appliedSeconds = isLinkedStopwatch || quickFocus
+    const habitCountdown = item && activeFocus?.type === "habit" && runtime.countdown;
+    runtime.date ||= toLocalDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()));
+    const appliedSeconds = habitCountdown
+      ? advanceHabitTimer(runtime, item, Number.isFinite(syncedAt) ? syncedAt : Date.now(), elapsedSeconds, ownsTimer)
+      : isLinkedStopwatch || quickFocus
       ? elapsedSeconds
       : Math.min(elapsedSeconds, runtime.seconds);
     if (quickFocus && (runtime.overtime || appliedSeconds >= runtime.seconds)) {
       runtime.overtimeSeconds += runtime.overtime ? appliedSeconds : appliedSeconds - runtime.seconds;
       runtime.overtime = true;
       runtime.seconds = 0;
-    } else {
+    } else if (!habitCountdown) {
       runtime.seconds = isLinkedStopwatch
         ? runtime.seconds + appliedSeconds
         : Math.max(0, runtime.seconds - appliedSeconds);
@@ -2843,11 +2848,15 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
         item.focusSeconds = Math.max(savedTaskSeconds, runtime.seconds);
         recoveredFocusSeconds = item.focusSeconds - savedTaskSeconds;
       } else if (item && activeFocus?.type === "habit") {
-        const today = toLocalDateString();
-        const previousFocusSeconds = getHabitDailyFocusSeconds(item, today);
-        item.focusSecondsByDate ??= {};
-        item.focusSecondsByDate[today] = previousFocusSeconds + appliedSeconds;
-        recoveredFocusSeconds = item.focusSecondsByDate[today] - previousFocusSeconds;
+        if (habitCountdown) {
+          recoveredFocusSeconds = appliedSeconds;
+        } else {
+          const today = toLocalDateString();
+          const previousFocusSeconds = getHabitDailyFocusSeconds(item, today);
+          item.focusSecondsByDate ??= {};
+          item.focusSecondsByDate[today] = previousFocusSeconds + appliedSeconds;
+          recoveredFocusSeconds = item.focusSecondsByDate[today] - previousFocusSeconds;
+        }
       } else {
         recoveredFocusSeconds = appliedSeconds;
       }
@@ -2859,9 +2868,18 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       }
     }
     focusLastTickAt = Number.isFinite(syncedAt) ? syncedAt + elapsedSeconds * 1000 : Date.now();
+    if (habitCountdown && ownsTimer && runtime.seconds > 0 &&
+        runtime.date !== toLocalDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()))) {
+      scheduleFarmPushNotification("timer_end", "", Date.now() + runtime.seconds * 1000,
+        "집중이 끝났어", "쉬고 싶으면 앱을 열어줘");
+    }
     startFocusTickInterval(runningFocusMode);
   } else {
     focusLastTickAt = 0;
+    const item = getFocusItem();
+    if (item && activeFocus?.type === "habit") {
+      refreshHabitTimerDate(focusRuntimeByMode.linked, item);
+    }
   }
 
   if (isFocusTimerOwner() && activeFocus?.type === "task") {
@@ -3248,6 +3266,7 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         id: liveFocusItem.id,
         taskSeconds: Number(liveFocusItem.focusSeconds ?? 0),
         habitSeconds: getHabitDailyFocusSeconds(liveFocusItem),
+        habitDate: toLocalDateString(),
       }
     : null;
   taskDataUserId = user.id;
@@ -3281,9 +3300,9 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
     } else if (liveFocusSnapshot?.type === "habit") {
       const habit = state.habits.find((item) => item.id === liveFocusSnapshot.id);
       if (habit) {
-        const today = toLocalDateString();
+        const today = liveFocusSnapshot.habitDate;
         habit.focusSecondsByDate[today] = Math.max(
-          getHabitDailyFocusSeconds(habit),
+          getHabitDailyFocusSeconds(habit, today),
           liveFocusSnapshot.habitSeconds,
         );
       }
@@ -3621,6 +3640,7 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
       : getHabitDailyFocusSeconds(item) > 0
     : false;
   focusRuntimeByMode.linked = {
+    date: countdown ? toLocalDateString() : "",
     seconds: countdown ? Math.max(0, sessionMinutes * 60 - getHabitDailyFocusSeconds(item)) : getLinkedFocusSeconds(item),
     countdown,
     sessionMinutes,
@@ -3633,6 +3653,44 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
     focusSessionStarted = hasProgress;
     focusRunning = runningFocusMode === "linked";
   }
+}
+
+// A habit's countdown belongs to a local calendar day, including after a
+// suspended tab or another device restores the timer.
+function refreshHabitTimerDate(runtime, item, date = toLocalDateString()) {
+  if (!runtime.countdown || runtime.date === date) return false;
+  runtime.date = date;
+  runtime.sessionMinutes = getHabitFocusMinutes(item, date);
+  runtime.seconds = Math.max(0, runtime.sessionMinutes * 60 - getHabitDailyFocusSeconds(item, date));
+  runtime.started = runtime.started && runningFocusMode === "linked";
+  return true;
+}
+
+function advanceHabitTimer(runtime, item, startAt, elapsedSeconds, record) {
+  if (runtime.seconds === 0) return 0;
+  let cursor = startAt;
+  const end = startAt + elapsedSeconds * 1000;
+  let applied = 0;
+  runtime.date ||= toLocalDateString(new Date(startAt));
+  while (cursor < end) {
+    const date = toLocalDateString(new Date(cursor));
+    refreshHabitTimerDate(runtime, item, date);
+    const midnight = new Date(cursor);
+    midnight.setHours(24, 0, 0, 0);
+    const segmentEnd = Math.min(end, midnight.getTime());
+    const seconds = Math.min(Math.ceil((segmentEnd - cursor) / 1000), runtime.seconds);
+    runtime.seconds -= seconds;
+    if (record && seconds > 0) {
+      item.focusSecondsByDate ??= {};
+      item.focusSecondsByDate[date] = getHabitDailyFocusSeconds(item, date) + seconds;
+    }
+    applied += seconds;
+    // A completed countdown must not count unattended time on following days.
+    if (runtime.seconds === 0) break;
+    cursor += seconds * 1000;
+  }
+  if (runtime.seconds > 0) refreshHabitTimerDate(runtime, item, toLocalDateString(new Date(end)));
+  return applied;
 }
 
 function getStableGroupColorIndex(value) {
@@ -6612,15 +6670,17 @@ function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund)
     });
 }
 
-function applyHabitCompletionChange(habit, wasComplete, complete) {
+function applyHabitCompletionChange(habit, wasComplete, complete, today = toLocalDateString()) {
   if (wasComplete === complete) return null;
-  const today = toLocalDateString();
+  const isToday = today === toLocalDateString();
   if (!farmWalletHydrated) {
     showToast("지갑 데이터를 불러오는 중이야");
     return null;
   }
-  habit.complete = complete;
-  habit.completedDate = complete ? today : "";
+  if (isToday) {
+    habit.complete = complete;
+    habit.completedDate = complete ? today : "";
+  }
   habit.completionDates = complete
     ? [...new Set([...habit.completionDates, today])]
     : habit.completionDates.filter((date) => date !== today);
@@ -6628,14 +6688,16 @@ function applyHabitCompletionChange(habit, wasComplete, complete) {
 
   const progressValue = habit.measureType === "count"
     ? Math.max(0, Number(habit.progressByDate?.[today] ?? 0))
-    : (complete ? getHabitTargetForDate(habit) : 0);
+    : (complete ? getHabitTargetForDate(habit, today) : 0);
 
   if (complete) {
     const reward = productionCoinReward();
     const completedAt = new Date().toISOString();
     const optimisticCycleId = createUuid();
-    habit.completionReward = reward;
-    habit.completedWithFreePass = false;
+    if (isToday) {
+      habit.completionReward = reward;
+      habit.completedWithFreePass = false;
+    }
     habit.recordMetaByDate[today] = {
       completedAt,
       completionReward: reward,
@@ -6693,6 +6755,15 @@ function showToast(message) {
 
 function updateFocusDisplay() {
   const runtime = focusRuntimeByMode[focusMode];
+  if (focusMode === "linked" && runningFocusMode !== "linked" && activeFocus?.type === "habit") {
+    const item = getFocusItem();
+    if (item && refreshHabitTimerDate(runtime, item)) {
+      focusSeconds = runtime.seconds;
+      focusSessionStarted = runtime.started;
+      updateFocusActionButton();
+      renderHabits();
+    }
+  }
   // Matches the action button's own overtime test -- the ring must never say
   // OVERTIME while the button offers a fresh set.
   const inOvertime =
@@ -7273,6 +7344,7 @@ function advanceRunningFocusTimer(mode) {
 
   const elapsedSeconds = Math.floor((now - focusLastTickAt) / 1000);
   if (elapsedSeconds < 1) return { advanced: false, finished: false };
+  const startAt = focusLastTickAt;
   focusLastTickAt += elapsedSeconds * 1000;
 
   const item = mode === "linked" ? getFocusItem() : null;
@@ -7281,21 +7353,31 @@ function advanceRunningFocusTimer(mode) {
   const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
   const countsUp = isLinkedStopwatch || isQuickOvertime;
   const remainingSeconds = runtime.seconds;
-  const appliedSeconds = countsUp || (mode === "quick" && runtime.phase === "focus")
+  const previousDate = runtime.date;
+  const habitCountdown = item && activeFocus?.type === "habit" && runtime.countdown;
+  const appliedSeconds = habitCountdown
+    ? advanceHabitTimer(runtime, item, startAt, elapsedSeconds, ownsTimer)
+    : countsUp || (mode === "quick" && runtime.phase === "focus")
     ? elapsedSeconds
     : Math.min(elapsedSeconds, runtime.seconds);
   if (isQuickOvertime) {
     runtime.overtimeSeconds = (runtime.overtimeSeconds ?? 0) + appliedSeconds;
-  } else {
+  } else if (!habitCountdown) {
     runtime.seconds = isLinkedStopwatch
       ? runtime.seconds + appliedSeconds
       : Math.max(0, runtime.seconds - appliedSeconds);
   }
   if (ownsTimer && runtime.phase === "focus") {
+    if (habitCountdown && previousDate && previousDate !== runtime.date && runtime.seconds > 0) {
+      scheduleFarmPushNotification("timer_end", "", now + runtime.seconds * 1000,
+        "집중이 끝났어", "쉬고 싶으면 앱을 열어줘");
+      renderHabits();
+      scheduleFocusTimerDatabaseSync(0);
+    }
     if (item) {
       if (activeFocus?.type === "task") {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
-      } else if (activeFocus?.type === "habit") {
+      } else if (activeFocus?.type === "habit" && !habitCountdown) {
         const today = toLocalDateString();
         item.focusSecondsByDate ??= {};
         item.focusSecondsByDate[today] = getHabitDailyFocusSeconds(item, today) + appliedSeconds;
@@ -7373,8 +7455,9 @@ function finishFocusRuntime(mode) {
 
   if (mode === "linked") {
     let completionResult = null;
-    if (item && activeFocus?.type === "habit" && !isHabitCompleteToday(item)) {
-      completionResult = applyHabitCompletionChange(item, false, true);
+    const recordDate = runtime.date || toLocalDateString();
+    if (item && activeFocus?.type === "habit" && !item.completionDates.includes(recordDate)) {
+      completionResult = applyHabitCompletionChange(item, false, true, recordDate);
     }
     activeFocus = null;
     runtime.phase = "focus";
@@ -7517,7 +7600,10 @@ function startFocusTickInterval(mode) {
 // Date.now(), so it's correct regardless of how long the tick was starved)
 // and starts a fresh interval rather than trusting the old one to recover.
 function resumeFocusTimerAfterBackground() {
-  if (!runningFocusMode) return;
+  if (!runningFocusMode) {
+    updateFocusDisplay();
+    return;
+  }
   const tickResult = advanceRunningFocusTimer(runningFocusMode);
   if (!tickResult.finished) startFocusTickInterval(runningFocusMode);
 }
@@ -7525,6 +7611,10 @@ function resumeFocusTimerAfterBackground() {
 function toggleFocus() {
   const button = document.querySelector("#focusButton");
   const runtime = focusRuntimeByMode[focusMode];
+  if (focusMode === "linked" && runningFocusMode !== "linked" && activeFocus?.type === "habit") {
+    const item = getFocusItem();
+    if (item && refreshHabitTimerDate(runtime, item)) focusSeconds = runtime.seconds;
+  }
 
   if (runningFocusMode === focusMode) {
     focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
@@ -11366,6 +11456,7 @@ setInterval(() => {
 // text, it never flips plot.wilted locally.
 setInterval(() => {
   updateFarmWiltCountdowns();
+  if (!runningFocusMode && activeFocus?.type === "habit") updateFocusDisplay();
 }, 1000);
 
 render();

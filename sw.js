@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v294";
+const CACHE_VERSION = "farmodoro-v295";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -10,7 +10,7 @@ const APP_SHELL = [
   "./farm-theme.css?v=272",
   "./farm-scenery.css?v=294",
   "./farm-rpg.css?v=287",
-  "./app.js?v=292",
+  "./app.js?v=295",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
   "./supabase-config.js",

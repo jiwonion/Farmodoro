@@ -207,6 +207,7 @@ function timerContext(owner = false, mode = "quick") {
     "advanceRunningFocusTimer", "getFocusTimerDatabasePayload",
     "normalizeFocusTimerRuntime", "applyFocusTimerDatabaseState",
     "resumeFocusTimerAfterBackground", "getHabitDailyFocusSeconds",
+    "advanceHabitTimer", "refreshHabitTimerDate", "getHabitFocusMinutes",
   ], {
     Date: class extends Date { static now() { return now; } },
     isFocusTimerOwner: () => owner,
@@ -235,6 +236,7 @@ function timerContext(owner = false, mode = "quick") {
     closeFocusSettings: noop,
     scheduleTaskDatabaseSync: noop, scheduleFocusTimerDatabaseSync: noop,
     flushFocusTime: noop,
+    scheduleFarmPushNotification: noop, renderHabits: noop,
     focusSettingsButton: {}, focusSettings: { classList: { add: noop } },
     document: { querySelectorAll: () => [] },
     rewarded: 0, alarms: 0,
@@ -242,8 +244,109 @@ function timerContext(owner = false, mode = "quick") {
   ctx.addFocusSecond = (seconds) => { ctx.rewarded += seconds; };
   ctx.notifyFocusPhaseComplete = () => { ctx.alarms += 1; };
   ctx.elapse = (seconds) => { now += seconds * 1000; };
+  ctx.setNow = (value) => { now = value; };
   return ctx;
 }
+
+function midnightHabitContext(owner = true) {
+  const ctx = timerContext(owner, "linked");
+  const start = new Date(2026, 8, 13, 23, 30).getTime();
+  ctx.setNow(start);
+  ctx.focusLastTickAt = start;
+  ctx.toLocalDateString = (date = new Date(ctx.Date.now())) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const habit = { id: "habit", measureType: "time", targetValue: 60, focusSecondsByDate: {} };
+  ctx.activeFocus = { type: "habit", id: habit.id };
+  ctx.getFocusItem = () => habit;
+  ctx.focusRuntimeByMode.linked = {
+    seconds: 3600, countdown: true, sessionMinutes: 60,
+    date: "2026-09-13", phase: "focus", started: true,
+  };
+  return { ctx, habit };
+}
+
+test("a habit gets a fresh daily target at midnight and splits a suspended tick", () => {
+  const { ctx, habit } = midnightHabitContext();
+  ctx.elapse(40 * 60);
+  ctx.advanceRunningFocusTimer("linked");
+  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 1800, "2026-09-14": 600 });
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
+  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-14");
+  assert.equal(ctx.rewarded, 2400);
+});
+
+test("midnight itself resets the habit countdown using the new weekday target", () => {
+  const { ctx, habit } = midnightHabitContext();
+  habit.targetByWeekday = { 1: 45 };
+  ctx.elapse(30 * 60);
+  ctx.advanceRunningFocusTimer("linked");
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 2700);
+  assert.equal(habit.focusSecondsByDate["2026-09-13"], 1800);
+  assert.equal(habit.focusSecondsByDate["2026-09-14"], undefined);
+});
+
+test("restoring a running habit splits elapsed time across midnight", () => {
+  const { ctx, habit } = midnightHabitContext();
+  const payload = ctx.getFocusTimerDatabasePayload();
+  delete payload.runtimes.linked.date; // Older saved timers have no date.
+  ctx.elapse(40 * 60);
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
+  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 1800, "2026-09-14": 600 });
+  assert.equal(ctx.rewarded, 2400);
+});
+
+test("restoring yesterday's paused timer uses only today's saved progress", () => {
+  const { ctx, habit } = midnightHabitContext();
+  ctx.runningFocusMode = null;
+  ctx.focusRuntimeByMode.linked.seconds = 1800;
+  const payload = ctx.getFocusTimerDatabasePayload();
+  habit.focusSecondsByDate = { "2026-09-13": 1800, "2026-09-14": 120 };
+  ctx.elapse(40 * 60);
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3480);
+  assert.equal(ctx.rewarded, 0);
+});
+
+test("a follower resets at midnight without writing records or rewards", () => {
+  const { ctx, habit } = midnightHabitContext(false);
+  ctx.elapse(40 * 60);
+  ctx.advanceRunningFocusTimer("linked");
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
+  assert.deepEqual(habit.focusSecondsByDate, {});
+  assert.equal(ctx.rewarded, 0);
+});
+
+test("a countdown completed before midnight does not consume the next day's time", () => {
+  const { ctx, habit } = midnightHabitContext();
+  ctx.focusRuntimeByMode.linked.seconds = 600;
+  habit.focusSecondsByDate["2026-09-13"] = 3000;
+  let completedDate;
+  ctx.finishFocusRuntime = () => { completedDate = ctx.focusRuntimeByMode.linked.date; };
+  ctx.elapse(40 * 60);
+  assert.equal(ctx.advanceRunningFocusTimer("linked").finished, true);
+  assert.equal(completedDate, "2026-09-13");
+  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 3600 });
+  assert.equal(ctx.rewarded, 600);
+});
+
+test("recovering yesterday's completion preserves today's completion fields", () => {
+  const calls = [];
+  const ctx = context(["applyHabitCompletionChange"], {
+    toLocalDateString: () => "2026-09-14", farmWalletHydrated: true,
+    state: { coins: 0 }, productionCoinReward: () => 1, createUuid: () => "cycle",
+    getHabitTargetForDate: () => 1,
+    confirmHabitCompletionWithServer: (...args) => calls.push(args),
+  });
+  const habit = { measureType: "time", complete: false, completedDate: "",
+    completionDates: [], completionReward: 0 };
+  ctx.applyHabitCompletionChange(habit, false, true, "2026-09-13");
+  assert.deepEqual(plain(habit.completionDates), ["2026-09-13"]);
+  assert.equal(habit.complete, false);
+  assert.equal(habit.completedDate, "");
+  assert.equal(habit.completionReward, 0);
+  assert.equal(calls[0][1], "2026-09-13");
+});
 
 test("a second device ticks without the owner's heartbeat or duplicate rewards", () => {
   const ctx = timerContext();
