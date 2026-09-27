@@ -1,17 +1,27 @@
-/* Cover the focus stage with the farm, preserving the scenery at the top. */
+/* Fit the entire farm inside the focus stage without cropping. */
+@media (min-width: 901px) {
+  body #focusPage .focus-page-stage:has(.focus-farm-background):not(:fullscreen) {
+    aspect-ratio: 3 / 2;
+    min-height: 0;
+  }
+}
 body #focusPage .focus-farm-background {
   position: absolute; inset: 0; z-index: 0; container-type: size;
   display: grid; place-items: center; overflow: hidden;
   pointer-events: none; background: #243b29;
 }
 body #focusPage .focus-farm-background .farm-scene[data-scenery] {
-  position: absolute; left: 50%; top: 0; transform: translateX(-50%);
-  width: max(100cqw, 150cqh); max-width: none; margin: 0;
+  position: absolute; left: 50%; top: 50%; z-index: 0; transform: translate(-50%, -50%);
+  width: min(100cqw, 150cqh); max-width: none; margin: 0;
   overflow: hidden;
+}
+body #focusPage .focus-farm-background .farm-scene[data-scenery] .farm-scene-grid {
+  min-width: 0;
 }
 body #focusPage .focus-farm-background .crop-visual { min-height: 0; }
 body #focusPage .focus-farm-background::after {
-  content: ''; position: absolute; inset: 0; background: #10251926;
+  content: ''; position: absolute; inset: 0; z-index: 1;
+  background: rgba(0, 0, 0, 0.5); pointer-events: none;
 }
 /* The farm is one game map; UI panels appear only when opened. */
 body :is(#farmPage, .cosmetic-farm-preview) .farm-layout {
