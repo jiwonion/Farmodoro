@@ -1,4 +1,4 @@
-/* Fit the entire farm inside the focus stage without cropping. */
+/* Fit the entire farm normally; fill the screen in fullscreen mode. */
 @media (min-width: 901px) {
   body #focusPage .focus-page-stage:has(.focus-farm-background):not(:fullscreen) {
     aspect-ratio: 3 / 2;
@@ -14,6 +14,9 @@ body #focusPage .focus-farm-background .farm-scene[data-scenery] {
   position: absolute; left: 50%; top: 50%; z-index: 0; transform: translate(-50%, -50%);
   width: min(100cqw, 150cqh); max-width: none; margin: 0;
   overflow: hidden;
+}
+body #focusPage .focus-page-stage:fullscreen .focus-farm-background .farm-scene[data-scenery] {
+  width: max(100cqw, 150cqh);
 }
 body #focusPage .focus-farm-background .farm-scene[data-scenery] .farm-scene-grid {
   min-width: 0;

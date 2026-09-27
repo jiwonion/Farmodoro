@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v297";
+const CACHE_VERSION = "farmodoro-v298";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -8,7 +8,7 @@ const APP_SHELL = [
   "./farm-pixel.css?v=272",
   "./pixel-layout.css?v=272",
   "./farm-theme.css?v=272",
-  "./farm-scenery.css?v=297",
+  "./farm-scenery.css?v=298",
   "./farm-rpg.css?v=287",
   "./app.js?v=295",
   "./pwa-register.js?v=176",
