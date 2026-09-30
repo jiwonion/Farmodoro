@@ -17,6 +17,99 @@ function context(names, globals = {}) {
 const noop = () => {};
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
+for (const rpcFirst of [false, true]) {
+  test(`habit snapshot cannot suppress or overwrite reward (RPC first: ${rpcFirst})`, async () => {
+    const row = { completed_at: null, completion_reward: 0, completion_cycle_id: null };
+    let coins = 0;
+    const snapshot = { groups: [], tasks: [], habits: [], habitRecords: [{
+      habit_id: "habit", record_date: "2026-09-29", progress_value: 1, focus_seconds: 60,
+      completed_at: "optimistic", completion_reward: 1,
+      completed_with_free_pass: false, completion_cycle_id: "client-cycle",
+    }] };
+    const ctx = context(["syncTaskDatabaseSnapshot", "throwTaskSyncError"], {
+      activeAuthUser: { id: "user" }, taskDataUserId: "user",
+      productivityRealtimeMutedUntil: 0, lastTaskSyncSignature: "",
+      habitRecordEditsInFlight: new Set(), habitRecordSyncSignatures: new Map(),
+      pendingTaskDatabaseDeletes: new Set(), pendingHabitDatabaseDeletes: new Set(),
+      pendingGroupDatabaseDeletes: new Set(), syncChangedProductivityRows: async () => {},
+      supabaseClient: { from: () => ({ upsert: async (rows) => {
+        Object.assign(row, plain(rows[0]));
+        return { error: null };
+      } }) },
+    });
+    // Model the server's already-completed guard and atomic reward.
+    const complete = () => {
+      if (row.completed_at) return;
+      Object.assign(row, { completed_at: "server", completion_reward: 1,
+        completion_cycle_id: "server-cycle" });
+      coins += 1;
+    };
+    if (rpcFirst) complete();
+    await ctx.syncTaskDatabaseSnapshot("user", snapshot);
+    complete();
+    assert.equal(coins, 1);
+    assert.equal(row.completed_at, "server");
+    assert.equal(row.completion_cycle_id, "server-cycle");
+    assert.equal(row.focus_seconds, 60);
+    // An old completed snapshot arriving after undo cannot restore completion.
+    row.completed_at = null;
+    row.completion_reward = 0;
+    row.completion_cycle_id = null;
+    ctx.habitRecordSyncSignatures.clear();
+    await ctx.syncTaskDatabaseSnapshot("user", snapshot);
+    assert.equal(row.completed_at, null);
+    assert.equal(row.completion_reward, 0);
+  });
+}
+
+test("task snapshots cannot upload optimistic completion or overwrite server completion", async () => {
+  const writes = [];
+  const ctx = context(["syncTaskDatabaseSnapshot"], {
+    activeAuthUser: { id: "user" }, taskDataUserId: "user",
+    productivityRealtimeMutedUntil: 0, lastTaskSyncSignature: "",
+    habitRecordEditsInFlight: new Set(), habitRecordSyncSignatures: new Map(),
+    pendingTaskDatabaseDeletes: new Set(), pendingHabitDatabaseDeletes: new Set(),
+    pendingGroupDatabaseDeletes: new Set(),
+    syncChangedProductivityRows: async (table, rows) => { if (table === "tasks") writes.push(...plain(rows)); },
+  });
+  await ctx.syncTaskDatabaseSnapshot("user", { groups: [], habits: [], habitRecords: [], tasks: [{
+    id: "task", title: "task", status: "done", completed_on: "2026-09-29",
+    completion_reward: 1, completed_with_free_pass: false,
+    completion_cycle_id: "optimistic", archived_at: null,
+  }] });
+  assert.deepEqual(writes, [{ id: "task", title: "task", user_id: "user" }]);
+});
+
+test("focus reward retries the same event after a lost response", async () => {
+  const seen = new Set();
+  const attempts = [];
+  let coins = 0;
+  const ctx = context(["flushFocusTime"], {
+    console: { error: noop, warn: noop },
+    activeAuthUser: { id: "user" }, focusProgressApiUnavailable: false,
+    focusProgressSyncPromise: null, focusProgressServerSeconds: 0,
+    focusProgressEventQueue: [{ id: "event", mode: "quick", seconds: 60 }],
+    stagePendingFocusEvents: noop, state: { coins: 0 },
+    showToast: noop, farmBonusMessage: () => "", refreshFocusProgress: noop, renderFarm: noop,
+    supabaseClient: { rpc: async (name, args) => {
+      assert.equal(name, "record_my_focus_time");
+      attempts.push(args.p_event_id);
+      if (!seen.has(args.p_event_id)) {
+        seen.add(args.p_event_id);
+        coins += 1;
+        return { error: { message: "response lost after commit" } };
+      }
+      return { data: { progressSeconds: 0, coinBalance: coins, awardedCoins: 0 } };
+    } },
+  });
+  await ctx.flushFocusTime();
+  assert.equal(ctx.focusProgressEventQueue.length, 1);
+  await ctx.flushFocusTime();
+  assert.deepEqual(attempts, ["event", "event"]);
+  assert.equal(ctx.focusProgressEventQueue.length, 0);
+  assert.equal(ctx.state.coins, 1);
+});
+
 test("free passes include habits registered without focus time", () => {
   const today = new Date();
   const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -107,6 +200,40 @@ test("past habit card displays binary completion, schedule and focus", () => {
   ctx.selectedHabitDate = "2026-08-31";
   ctx.renderHabits();
   assert.equal(elements.get("#habitList").innerHTML, "");
+});
+
+test("expired habits disappear after their end date but remain visible in past records", () => {
+  const elements = new Map();
+  const habit = { ...historicalHabit, title: "habit", completionDates: [] };
+  const ctx = context(["renderHabits", "getHabitViewDate", "isHabitScheduledOn"], {
+    currentPage: "habits", selectedHabitDate: null, habitRecordSaving: false,
+    activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "daily",
+    formatFocusTime: String, getHabitProgressRatio: () => 0,
+    getHabitFocusMinutes: () => 0, getHabitDailyFocusSeconds: () => 0, getHabitStreak: () => 0,
+    toLocalDateString: (date) => date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : "2026-09-10",
+    document: { querySelector: (selector) => {
+      if (!elements.has(selector)) elements.set(selector, {});
+      return elements.get(selector);
+    } },
+    state: { habits: [
+      { ...habit, id: "expired", endDate: "2026-09-09" },
+      { ...habit, id: "ends-today", endDate: "2026-09-10" },
+      { ...habit, id: "ongoing" },
+      { ...habit, id: "off-day", weekdays: [1] },
+    ] },
+  });
+  const visibleIds = () => [...elements.get("#habitList").innerHTML.matchAll(/data-habit-id="([^"]+)"/g)].map(match => match[1]);
+  ctx.renderHabits();
+  assert.deepEqual(visibleIds(), ["ends-today", "ongoing", "off-day"]);
+  ctx.selectedHabitDate = "2026-09-09";
+  ctx.renderHabits();
+  assert.deepEqual(visibleIds(), ["expired", "ends-today", "ongoing"]);
+  ctx.currentPage = "today";
+  ctx.renderHabits();
+  assert.deepEqual(visibleIds(), ["ends-today", "ongoing"]);
+  assert.equal(ctx.state.habits.length, 4);
 });
 
 test("checking a past habit saves the displayed date even if navigation changes during the request", async () => {

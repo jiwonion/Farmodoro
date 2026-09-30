@@ -3319,6 +3319,26 @@ button {
 .farm-mail-recent-friends button small { font-size: 9px; }
 .farm-mail-no-friends { padding: 4px 1px; }
 
+.farm-mail-ranking summary {
+  padding: 6px 0;
+  color: #294c3a;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.farm-mail-ranking-friends {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 3px;
+}
+
+.farm-mail-ranking-friends button { min-width: 0; overflow-wrap: anywhere; }
+.farm-mail-ranking-friends button span { font-size: 10px; }
+.farm-mail-ranking-friends button:disabled { opacity: 0.6; cursor: default; }
+.farm-mail-ranking-friends button:focus-visible { outline: 2px solid #294c3a; outline-offset: 1px; }
+
 .farm-mail-item.selected {
   border: 2px solid #294c3a;
   background: #fff3bf;
@@ -5166,6 +5186,7 @@ button {
    instead of wrapping past this box and getting clipped by the stage. */
 #focusTarget {
   overflow: hidden;
+  overflow-wrap: anywhere;
   line-height: 1.2;
   max-height: calc(1.2em * 3);
 }

@@ -1706,6 +1706,7 @@ let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
 const selectedRecipeIngredients = ["", "", ""];
 let farmLeaderboard = [];
+let farmLeaderboardStatus = "idle";
 ensureDailyFarmMail();
 ensureDailyFarmInbox();
 
@@ -1779,6 +1780,8 @@ function resetFarmDataDatabaseState() {
   farmDataLoadPending = null;
   farmActionChain = Promise.resolve();
   farmMailContacts = [];
+  farmLeaderboard = [];
+  farmLeaderboardStatus = "idle";
   farmMailServerUnreadCount = null;
   if (farmMailUnreadPollInterval) clearInterval(farmMailUnreadPollInterval);
   farmMailUnreadPollInterval = null;
@@ -3498,9 +3501,22 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
   await syncChangedProductivityRows("habits", habitRows, previous.habits ?? [], "습관");
 
   if (habitRecordRows.length) {
+    // Completion and its reward belong to complete_my_habit/uncomplete_my_habit.
+    // An optimistic (or stale) snapshot must never mark a day complete before
+    // the RPC awards its coin, or restore completion after an undo.
+    const habitProgressRows = habitRecordRows.map((record) => {
+      const {
+        completed_at,
+        completion_reward,
+        completed_with_free_pass,
+        completion_cycle_id,
+        ...progressFields
+      } = record;
+      return progressFields;
+    });
     const { error } = await supabaseClient
       .from("habit_daily_records")
-      .upsert(habitRecordRows, { onConflict: "habit_id,record_date" });
+      .upsert(habitProgressRows, { onConflict: "habit_id,record_date" });
     throwTaskSyncError("습관 기록", error);
     habitRecordRows.forEach((record) => {
       habitRecordSyncSignatures.set(
@@ -4502,7 +4518,7 @@ function renderHabits() {
   document.querySelector("#habitDateToday").disabled = !isPast;
   const visibleHabits = currentPage === "today" || isPast
     ? state.habits.filter((habit) => isHabitScheduledOn(habit, viewDate))
-    : state.habits;
+    : state.habits.filter((habit) => !habit.endDate || habit.endDate >= dateString);
 
   habitList.innerHTML = visibleHabits
     .map((habit) => {
@@ -4910,6 +4926,64 @@ async function useFreePassOnTarget(targetValue) {
   renderFarm();
 }
 
+async function loadFarmLeaderboard() {
+  if (!supabaseClient || !activeAuthUser) return;
+  const requestedUserId = activeAuthUser.id;
+  farmLeaderboardStatus = "loading";
+  renderFarmMailRanking();
+  try {
+    const { data, error } = await supabaseClient.rpc("get_farm_leaderboard", {});
+    if (activeAuthUser?.id !== requestedUserId) return;
+    if (error) throw error;
+    farmLeaderboard = (data ?? []).map((farmer) => ({
+      rank: Number(farmer.rank_position),
+      farmCode: String(farmer.farm_code || "").toUpperCase(),
+      farmName: farmer.farm_name || "이름 없는 농장",
+      displayName: farmer.display_name || "농부",
+      labelEffect: farmer.equipped_label_effect || null,
+      score: Number(farmer.earned_farm_money ?? 0),
+      isMe: Boolean(farmer.is_me),
+    }));
+    farmLeaderboardStatus = "ready";
+  } catch (error) {
+    if (activeAuthUser?.id !== requestedUserId) return;
+    console.warn("Farmodoro leaderboard could not be loaded", error);
+    farmLeaderboardStatus = "error";
+  } finally {
+    if (activeAuthUser?.id === requestedUserId) renderFarmMailRanking();
+  }
+}
+
+function renderFarmMailRanking() {
+  const list = document.querySelector("#farmMailRankingFriends");
+  if (!list) return;
+  if (!activeAuthUser) {
+    list.innerHTML = '<small>로그인하면 랭킹 농장에 우편을 보낼 수 있어</small>';
+    return;
+  }
+  if (farmLeaderboardStatus === "loading") {
+    list.innerHTML = '<small role="status">랭킹을 불러오는 중…</small>';
+    return;
+  }
+  if (farmLeaderboardStatus === "error") {
+    list.innerHTML = '<small role="status">랭킹을 불러오지 못했어</small><button type="button" data-retry-mail-ranking>다시 불러오기</button>';
+    return;
+  }
+  const recipients = farmLeaderboard.filter((farmer) => !farmer.isMe);
+  list.innerHTML = recipients.length
+    ? recipients.map((farmer) => {
+      const validCode = /^FARM-[A-F0-9]{4}-[A-F0-9]{4}$/.test(farmer.farmCode);
+      const selected = validCode && selectedMailFriendCode === farmer.farmCode;
+      return `<button class="${selected ? "selected" : ""}" type="button"
+        ${validCode ? `data-mail-friend-code="${farmer.farmCode}"` : "disabled"} aria-pressed="${selected}">
+        <strong>${farmer.rank}위 · ${escapeHtml(farmer.farmName)}</strong>
+        <span>${escapeHtml(farmer.displayName)}</span>
+        <small>${validCode ? farmer.farmCode : "팜코드 준비 중"}${selected ? " · 선택됨" : ""}</small>
+      </button>`;
+    }).join("")
+    : '<small>아직 우편을 보낼 랭킹 농장이 없어</small>';
+}
+
 function renderFarmRanking() {
   const weekLabel = document.querySelector("#farmRankingWeekLabel");
   const weeklyEarned = document.querySelector("#weeklyFarmMoneyEarned");
@@ -5312,6 +5386,7 @@ function renderFarmMail() {
         </button>
       `).join("")
     : '<small class="farm-mail-no-friends">우편을 보내면 친구가 여기에 저장돼</small>';
+  renderFarmMailRanking();
 
   categories.querySelectorAll("[data-mail-category]").forEach((button) => {
     button.classList.toggle("active", button.dataset.mailCategory === selectedMailCategory);
@@ -5646,19 +5721,21 @@ function renderRachelPanel() {
     tab.setAttribute("aria-selected", String(tab.dataset.rachelTab === rachelActiveTab));
   });
 
-  offersList.innerHTML = state.dailyCosmeticOffers.length
-    ? state.dailyCosmeticOffers
+  const availableOffers = state.dailyCosmeticOffers.filter(
+    ({ type, id }) => getCosmeticEntry(type, id) && !isCosmeticOwned(type, id),
+  );
+  offersList.innerHTML = availableOffers.length
+    ? availableOffers
         .map(({ type, id }) => {
           const entry = getCosmeticEntry(type, id);
           if (!entry) return "";
-          const owned = isCosmeticOwned(type, id);
           return `
             <article class="rachel-cosmetic-card">
               <button class="rachel-preview-button" type="button" data-preview-cosmetic="${type}:${id}" aria-label="${entry.name} 미리보기">
                 ${cosmeticPixelPreview(type, id)}
                 <span class="rachel-preview-copy">
                   <strong>${entry.name}</strong>
-                  <small>${COSMETIC_TYPE_LABELS[type]}${owned ? " · 보유 중" : ""}</small>
+                  <small>${COSMETIC_TYPE_LABELS[type]}</small>
                   ${getFarmSceneryDescription(type, id) ? `<small>${getFarmSceneryDescription(type, id)}</small>` : ""}
                   <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
                   <small class="rachel-preview-hint">눌러서 미리보기</small>
@@ -5667,9 +5744,9 @@ function renderRachelPanel() {
               <button
                 type="button"
                 data-purchase-cosmetic="${type}:${id}"
-                ${owned || state.farmMoney < entry.price ? "disabled" : ""}
+                ${state.farmMoney < entry.price ? "disabled" : ""}
               >
-                ${owned ? "보유 중" : `✦ ${entry.price}`}
+                ✦ ${entry.price}
               </button>
             </article>
           `;
@@ -6942,8 +7019,7 @@ miniFocusTimer.addEventListener("click", (event) => {
 }, true);
 window.addEventListener("resize", clampMiniFocusPosition);
 
-// Shrinks #focusTarget's font instead of letting a long linked-task title
-// wrap past the CSS max-height (3 lines) and get clipped by the stage.
+// Fit the title's own box and, in fullscreen, leave room for the coin bar.
 function fitFocusTargetText() {
   const target = document.querySelector("#focusTarget");
   if (!target) return;
@@ -6951,9 +7027,16 @@ function fitFocusTargetText() {
   const minFontSize = 14;
   let fontSize = parseFloat(getComputedStyle(target).fontSize);
   if (!fontSize) return;
+  const stage = target.closest(".focus-page-stage");
+  const reward = target.closest(".focus-copy")?.querySelector(".focus-reward");
+  const fullscreen = stage && document.fullscreenElement === stage;
+  const overflows = () => target.scrollHeight > target.clientHeight + 1
+    || target.scrollWidth > target.clientWidth + 1
+    || (fullscreen && reward
+      && reward.getBoundingClientRect().bottom > stage.getBoundingClientRect().bottom - 16);
   let guard = 0;
-  while (fontSize > minFontSize && target.scrollHeight > target.clientHeight + 1 && guard < 40) {
-    fontSize -= 1;
+  while (fontSize > minFontSize && overflows() && guard < 40) {
+    fontSize = Math.max(minFontSize, fontSize - 1);
     target.style.fontSize = `${fontSize}px`;
     guard += 1;
   }
@@ -9818,20 +9901,7 @@ document.querySelector("#rachelOwnedList").addEventListener("click", async (even
 
 const farmRankingModal = document.querySelector("#farmRankingModal");
 document.querySelector("#openFarmRanking").addEventListener("click", async () => {
-  if (supabaseClient && activeAuthUser) {
-    const { data, error } = await supabaseClient.rpc("get_farm_leaderboard", {});
-    if (error) {
-      console.warn("Farmodoro leaderboard could not be loaded", error);
-    } else {
-      farmLeaderboard = (data ?? []).map((farmer) => ({
-        farmName: farmer.farm_name || "이름 없는 농장",
-        displayName: farmer.display_name || "농부",
-        labelEffect: farmer.equipped_label_effect || null,
-        score: Number(farmer.earned_farm_money ?? 0),
-        isMe: Boolean(farmer.is_me),
-      }));
-    }
-  }
+  await loadFarmLeaderboard();
   renderFarmRanking();
   farmRankingModal.classList.remove("hidden");
 });
@@ -9853,6 +9923,7 @@ document.querySelector("#openFarmMail").addEventListener("click", async () => {
   renderFarmMail();
   farmMailModal.classList.remove("hidden");
   if (!activeAuthUser) return;
+  void loadFarmLeaderboard();
   try {
     await farmActionChain;
     await loadFarmDataFromDatabase(activeAuthUser);
@@ -9932,8 +10003,14 @@ farmMailModal.addEventListener("click", async (event) => {
 
   const friendButton = event.target.closest("[data-mail-friend-code]");
   if (friendButton) {
+    if (friendButton.disabled) return;
     selectedMailFriendCode = friendButton.dataset.mailFriendCode;
     renderFarmMail();
+    return;
+  }
+
+  if (event.target.closest("[data-retry-mail-ranking]")) {
+    await loadFarmLeaderboard();
     return;
   }
 

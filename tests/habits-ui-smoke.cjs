@@ -70,6 +70,44 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     expression: 'document.querySelectorAll("#tutorialModal, #reopenTutorial, .tutorial-settings-section").length',
   });
   assert.equal(tutorialElements.result.value, 0, "tutorial UI must stay removed");
+  for (const width of [390, 1440]) {
+  await call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
+  const mailRankingSelection = await call("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+    const savedUser = activeAuthUser;
+    const savedRanking = farmLeaderboard;
+    const savedStatus = farmLeaderboardStatus;
+    const savedRecipient = selectedMailFriendCode;
+    try {
+      activeAuthUser = { id: 'mail-ranking-test' };
+      farmLeaderboardStatus = 'ready';
+      farmLeaderboard = [
+        { rank: 1, isMe: true, farmCode: 'FARM-0000-0000', farmName: '내 농장', displayName: '나' },
+        { rank: 2, isMe: false, farmCode: 'FARM-AAAA-1111', farmName: '친구 농장', displayName: '친구' }
+      ];
+      renderFarmMail();
+      const list = document.querySelector('#farmMailRankingFriends');
+      const button = list.querySelector('[data-mail-friend-code]');
+      button.click();
+      return {
+        recipients: list.querySelectorAll('[data-mail-friend-code]').length,
+        code: document.querySelector('#farmMailFriendCode').value,
+        selected: list.querySelector('[data-mail-friend-code]').getAttribute('aria-pressed')
+      };
+    } finally {
+      activeAuthUser = savedUser;
+      farmLeaderboard = savedRanking;
+      farmLeaderboardStatus = savedStatus;
+      selectedMailFriendCode = savedRecipient;
+      renderFarmMail();
+    }
+  })()` });
+  assert.deepEqual(mailRankingSelection.result.value, { recipients: 1, code: 'FARM-AAAA-1111', selected: 'true' });
+  console.log(width + 'px: mailbox ranking recipient selection PASS');
+  }
+  if (process.env.MAIL_RANKING_ONLY === "1") {
+    assert.deepEqual(exceptions, [], "No mailbox runtime errors");
+    return;
+  }
   const habitFocusEditing = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
     taskDataHydrated = true;
     showPage('habits');

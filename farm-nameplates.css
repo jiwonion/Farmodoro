@@ -1,0 +1,161 @@
+/* Pixel badges: the same artwork in the shop, try-on, farm and rankings. */
+:is([data-label-effect], .cosmetic-preview-nameplate) {
+  --plate-paper: #f7f2db;
+  --plate-ink: #29263d;
+  --plate-edge: #29263d;
+  --plate-accent: #b9d755;
+  --plate-pop: #6874ca;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 2h3v2h2V2h3v4H7v4H5V6H2z'/%3E%3C/svg%3E");
+}
+
+[data-label-effect="iceCrystal"] {
+  --plate-paper: #dff8f5; --plate-accent: #65cedb; --plate-pop: #6a57ca;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M5 0h2v3h2v2h3v2H9v2H7v3H5V9H3V7H0V5h3V3h2zm0 5v2h2V5z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="candyRibbon"] {
+  --plate-paper: #f4cce6; --plate-accent: #bded69; --plate-pop: #cb377a;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 3h2v1h2V3h4v1h2V3h2v6h-2V8H8v1H4V8H2v1H0zm5 1v4h2V4z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="pumpkinLantern"] {
+  --plate-paper: #ffc278; --plate-accent: #a48bce; --plate-pop: #be482a;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M5 0h2v2h3v2h2v6h-2v2H2v-2H0V4h2V2h3zm-3 5v2h2V5zm6 0v2h2V5zM4 8v2h4V8z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="pearlShell"] {
+  --plate-paper: #daeee0; --plate-accent: #eeaab7; --plate-pop: #397c80;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 1h8v2h2v5h-2v2H8v2H4v-2H2V8H0V3h2zm0 3v3h1V4zm3-1v5h2V3zm4 1v3h1V4z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="goldenSparkle"] {
+  --plate-paper: #ffe184; --plate-accent: #f59b4f; --plate-pop: #6854aa;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 2h2v2h2V2h1V0h2v2h1v2h2V2h2v8H0zm2 9h8v1H2z'/%3E%3C/svg%3E");
+}
+[data-label-effect="confetti"] {
+  --plate-paper: #f8f0df; --plate-accent: #ee6c44; --plate-pop: #4764c9;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 0h3v3H0zm8 1h3v3H8zM4 5h3v3H4zM0 9h3v3H0zm9-1h3v3H9z'/%3E%3C/svg%3E");
+}
+[data-label-effect="cherryDrift"] {
+  --plate-paper: #f7d5dc; --plate-accent: #cd4d64; --plate-pop: #668953;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4 0h4v3h4v4H9v4H6V9H4v2H1V7H0V3h4zm1 4v3h3V4z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="snowSparkle"] {
+  --plate-paper: #eef3e9; --plate-accent: #a1b6dc; --plate-pop: #42659b;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M5 0h2v4h1V2h2v2H8v1h4v2H8v1h2v2H8V8H7v4H5V8H4v2H2V8h2V7H0V5h4V4H2V2h2v2h1z'/%3E%3C/svg%3E");
+}
+[data-label-effect="rainbowGradient"] {
+  --plate-paper: #f9e9a9; --plate-accent: #e783a8; --plate-pop: #477b74;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 1h6v2h2v2h1v6h-2V5H8V3H4v2H2v6H0V5h1V3h2zm1 4h4v2h1v4H7V7H5v4H3V7h1z'/%3E%3C/svg%3E");
+}
+[data-label-effect="starAurora"] {
+  --plate-paper: #c9edc0; --plate-accent: #8b6dc3; --plate-pop: #317d6c;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M5 0h2v3h2v1h3v3H9v2h1v3H7v-2H5v2H2V9h1V7H0V4h3V3h2z'/%3E%3C/svg%3E");
+}
+[data-label-effect="heartPop"] {
+  --plate-paper: #f29ca7; --plate-accent: #c7ec70; --plate-pop: #96384f;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1 1h4v2h2V1h4v2h1v4h-2v2H8v2H4V9H2V7H0V3h1z'/%3E%3C/svg%3E");
+}
+[data-label-effect="flameBorder"] {
+  --plate-paper: #303044; --plate-ink: #ffdb96; --plate-accent: #f68a4c; --plate-pop: #f6cb58;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M6 0h2v4h2V3h1v4h1v3h-2v2H2v-2H0V6h2V3h2v3h2zm-1 7v2H4v2h4V9H7V7z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+[data-label-effect="butterflyFlutter"] {
+  --plate-paper: #e4e8a4; --plate-accent: #a590cc; --plate-pop: #506a4a;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M0 1h3v1h2v2h2V2h2V1h3v5h-2v1h1v4H8V9H7v3H5V9H4v2H1V7h1V6H0z'/%3E%3C/svg%3E");
+}
+[data-label-effect="galaxySparkle"] {
+  --plate-paper: #343149; --plate-ink: #f1e5cf; --plate-accent: #bd9de6; --plate-pop: #d0e883;
+  --plate-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M5 0h2v3h2v2h3v2H9v2H7v3H5V9H3V7H0V5h3V3h2zm0 5v2h2V5zM0 0h2v2H0zm10 10h2v2h-2z' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+body :is(.label-preview, [id="farmNameLabel"], .farm-ranking-farm-name, .cosmetic-preview-nameplate) {
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 27px 10px 38px;
+  border: 2px solid var(--plate-edge);
+  border-radius: 0;
+  color: var(--plate-ink) !important;
+  background: var(--plate-paper) !important;
+  background-image: repeating-linear-gradient(90deg, var(--plate-accent) 0 6px, var(--plate-paper) 6px 12px, var(--plate-pop) 12px 18px, var(--plate-paper) 18px 24px) !important;
+  background-size: 24px 4px !important;
+  background-position: left bottom !important;
+  background-repeat: repeat-x !important;
+  box-shadow: 3px 3px 0 var(--plate-edge);
+  line-height: 1.25;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-shadow: none !important;
+  animation: none !important;
+  isolation: isolate;
+}
+
+/* Keep equipped dark badges legible over the farm scenery's heading color. */
+body #farmPage #farmNameLabel { color: var(--plate-ink) !important; }
+
+body :is(.label-preview, [id="farmNameLabel"], .farm-ranking-farm-name, .cosmetic-preview-nameplate)::before {
+  content: "" !important;
+  position: absolute;
+  top: calc(50% - 14px);
+  left: 7px;
+  width: 24px;
+  height: 24px;
+  background: var(--plate-ink);
+  -webkit-mask: var(--plate-icon) center / contain no-repeat;
+  mask: var(--plate-icon) center / contain no-repeat;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+body :is(.label-preview, [id="farmNameLabel"], .farm-ranking-farm-name, .cosmetic-preview-nameplate)::after {
+  content: "" !important;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 4px;
+  height: 4px;
+  background: var(--plate-pop);
+  box-shadow: -4px 4px 0 var(--plate-accent), 0 8px 0 var(--plate-pop);
+  pointer-events: none;
+}
+body .label-preview[data-label-effect] {
+  width: 64px;
+  height: 64px;
+  padding: 34px 4px 10px;
+  font-size: 12px;
+  text-align: center;
+  align-self: center;
+}
+body .label-preview[data-label-effect]::before { width: 24px; height: 24px; left: calc(50% - 12px); top: 6px; }
+body .label-preview[data-label-effect]::after { right: 5px; }
+body #farmRankingMyNameplate { flex-basis: auto; justify-self: start; }
+body .farm-ranking-farm-name { margin: 0 4px 4px 0; }
+body :is(.farm-podium-farmer, .farm-ranking-name) .farm-ranking-farm-name {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+body .farm-podium-place { padding-bottom: 40px; }
+body .cosmetic-preview-nameplate { display: table; margin: 0 auto 10px; }
+
+@media (max-width: 600px) {
+  body .farm-ranking-farm-name {
+    min-height: 32px;
+    padding: 6px 8px 8px 29px;
+  }
+  body .farm-ranking-farm-name::before { width: 18px; height: 18px; left: 5px; top: calc(50% - 11px); }
+  body .farm-ranking-farm-name::after { content: none !important; }
+  body .farm-podium-farmer .farm-ranking-farm-name {
+    padding: 29px 4px 8px;
+    text-align: center;
+    word-break: keep-all;
+  }
+  body .farm-podium-farmer .farm-ranking-farm-name::before {
+    top: 5px;
+    left: calc(50% - 9px);
+  }
+  body .farm-podium-place[data-rank="1"] { min-height: 226px; }
+  body .farm-podium-place[data-rank="2"] { min-height: 208px; }
+  body .farm-podium-place[data-rank="3"] { min-height: 192px; }
+}

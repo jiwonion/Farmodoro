@@ -34,13 +34,14 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=272" />
+    <link rel="stylesheet" href="./styles.css?v=274" />
     <link rel="stylesheet" href="./pixel-theme.css?v=191" />
-    <link rel="stylesheet" href="./farm-pixel.css?v=272" />
+    <link rel="stylesheet" href="./farm-pixel.css?v=273" />
     <link rel="stylesheet" href="./pixel-layout.css?v=272" />
     <link rel="stylesheet" href="./farm-theme.css?v=272" />
     <link rel="stylesheet" href="./farm-scenery.css?v=298" />
     <link rel="stylesheet" href="./farm-rpg.css?v=287" />
+    <link rel="stylesheet" href="./farm-nameplates.css?v=1" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -764,7 +765,11 @@
                   spellcheck="false"
                 />
                 <div class="farm-mail-recent-friends" id="farmMailRecentFriends" aria-label="최근 우편 친구"></div>
-                <small>친구의 사용자 설정에 표시된 농장 코드를 입력해</small>
+                <small>농장 코드를 입력하거나 아래 랭킹에서 받을 친구를 골라줘</small>
+                <details class="farm-mail-ranking" open>
+                  <summary>랭킹에서 받는 사람 선택</summary>
+                  <div class="farm-mail-recent-friends farm-mail-ranking-friends" id="farmMailRankingFriends" aria-label="랭킹 농장과 팜코드"></div>
+                </details>
               </div>
             </div>
             <div class="farm-mail-step">
@@ -1192,7 +1197,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=295"></script>
+    <script src="./app.js?v=300"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>
