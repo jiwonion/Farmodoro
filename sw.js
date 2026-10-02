@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v304";
+const CACHE_VERSION = "farmodoro-v312";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -11,9 +11,14 @@ const APP_SHELL = [
   "./farm-scenery.css?v=298",
   "./farm-rpg.css?v=287",
   "./farm-nameplates.css?v=1",
-  "./app.js?v=300",
+  "./workspace.css?v=6",
+  "./workspace-controls.css?v=2",
+  "./workspace-responsive.css?v=2",
+  "./workspace-forms.css?v=2",
+  "./app.js?v=307",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
+  "./assets/fonts/PretendardVariable.woff2",
   "./supabase-config.js",
   "./manifest.webmanifest",
   "./assets/pixel/crops-atlas.png",

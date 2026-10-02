@@ -13,6 +13,135 @@ const APP_VERSION = new URL(document.currentScript?.src ?? "", location.href)
 const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
 
+function applyWorkspaceTheme(theme) {
+  const dark = theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "white";
+  const toggle = document.querySelector("#themeToggle");
+  toggle.setAttribute("aria-pressed", String(dark));
+  toggle.setAttribute("aria-label", dark ? "화이트 테마로 전환" : "다크 테마로 전환");
+  document.querySelector("#themeToggleLabel").textContent = dark ? "화이트 테마" : "다크 테마";
+  document.querySelector('meta[name="theme-color"]').content = dark ? "#151a24" : "#ffffff";
+}
+
+applyWorkspaceTheme(document.documentElement.dataset.theme);
+document.querySelector("#themeToggle").addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "white" : "dark";
+  applyWorkspaceTheme(theme);
+  try { localStorage.setItem("farmodoro-ui-theme", theme); } catch {}
+});
+window.addEventListener("storage", (event) => {
+  if (event.key === "farmodoro-ui-theme") applyWorkspaceTheme(event.newValue);
+});
+
+function initializeTodaySplitter() {
+  const layout = document.querySelector("#todayPage");
+  const splitter = document.querySelector("#todaySplitter");
+  const mobile = window.matchMedia("(max-width: 700px)");
+  const storageKey = "farmodoro-today-right-percent";
+  let preferredPercent = 30;
+  let appliedPercent = 30;
+  let pointerId = null;
+  let dragOffset = 0;
+  let dragStartPercent = 30;
+  let lastWidth = 0;
+  try {
+    const saved = localStorage.getItem(storageKey);
+    const percent = Number(saved);
+    if (saved !== null && Number.isFinite(percent) && percent >= 20 && percent <= 60) preferredPercent = percent;
+  } catch {}
+
+  function getBounds() {
+    if (mobile.matches || !layout.clientWidth) return null;
+    const width = layout.clientWidth - splitter.offsetWidth;
+    return { width, min: Math.max(20, 260 / width * 100), max: Math.min(60, (width - 260) / width * 100) };
+  }
+
+  function applyWidth() {
+    const bounds = getBounds();
+    if (!bounds) return;
+    appliedPercent = Math.max(bounds.min, Math.min(bounds.max, preferredPercent));
+    layout.style.setProperty("--today-right-width", `${bounds.width * appliedPercent / 100}px`);
+    splitter.setAttribute("aria-valuemin", bounds.min.toFixed(1));
+    splitter.setAttribute("aria-valuemax", bounds.max.toFixed(1));
+    splitter.setAttribute("aria-valuenow", appliedPercent.toFixed(1));
+    splitter.setAttribute("aria-valuetext", `할 일 ${Math.round(100 - appliedPercent)}%, 오른쪽 ${Math.round(appliedPercent)}%`);
+  }
+
+  function saveWidth() {
+    try { localStorage.setItem(storageKey, String(preferredPercent)); } catch {}
+  }
+
+  function finishDrag(cancelled = false) {
+    if (pointerId === null) return;
+    const id = pointerId;
+    pointerId = null;
+    document.body.classList.remove("resizing-today");
+    if (splitter.hasPointerCapture(id)) splitter.releasePointerCapture(id);
+    if (cancelled) {
+      preferredPercent = dragStartPercent;
+      applyWidth();
+    } else saveWidth();
+  }
+
+  splitter.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !event.isPrimary || pointerId !== null || !getBounds()) return;
+    event.preventDefault();
+    pointerId = event.pointerId;
+    dragStartPercent = preferredPercent;
+    const rect = splitter.getBoundingClientRect();
+    dragOffset = event.clientX - rect.left - rect.width / 2;
+    splitter.focus({ preventScroll: true });
+    splitter.setPointerCapture(pointerId);
+    document.body.classList.add("resizing-today");
+  });
+  splitter.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== pointerId) return;
+    const bounds = getBounds();
+    if (!bounds) return finishDrag(true);
+    const left = event.clientX - layout.getBoundingClientRect().left - dragOffset - splitter.offsetWidth / 2;
+    preferredPercent = Math.max(bounds.min, Math.min(bounds.max, (bounds.width - left) / bounds.width * 100));
+    applyWidth();
+  });
+  splitter.addEventListener("pointerup", (event) => { if (event.pointerId === pointerId) finishDrag(); });
+  splitter.addEventListener("pointercancel", (event) => { if (event.pointerId === pointerId) finishDrag(true); });
+  splitter.addEventListener("lostpointercapture", () => finishDrag());
+  splitter.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && pointerId !== null) return finishDrag(true);
+    const bounds = getBounds();
+    if (!bounds) return;
+    const step = event.shiftKey ? 5 : 2;
+    const next = { ArrowLeft: appliedPercent + step, ArrowRight: appliedPercent - step, Home: bounds.min, End: bounds.max }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    preferredPercent = Math.max(bounds.min, Math.min(bounds.max, next));
+    applyWidth();
+    saveWidth();
+  });
+  splitter.addEventListener("dblclick", () => {
+    preferredPercent = 30;
+    applyWidth();
+    saveWidth();
+  });
+  mobile.addEventListener("change", () => {
+    finishDrag(true);
+    applyWidth();
+  });
+  new ResizeObserver(() => {
+    const width = layout.clientWidth;
+    if (width === lastWidth) return;
+    lastWidth = width;
+    applyWidth();
+  }).observe(layout);
+  window.addEventListener("storage", (event) => {
+    if (event.key !== storageKey) return;
+    const percent = event.newValue === null ? 30 : Number(event.newValue);
+    if (!Number.isFinite(percent) || percent < 20 || percent > 60) return;
+    preferredPercent = percent;
+    applyWidth();
+  });
+  applyWidth();
+}
+
 // Public VAPID key for Web Push subscriptions (062_push_subscriptions.sql +
 // supabase/functions/send-push). Not a secret -- pairs with the private key
 // held only in the Edge Function's VAPID_PRIVATE_KEY secret.
@@ -3588,7 +3717,7 @@ function autoGrowTextarea(el) {
 }
 
 function submitOnEnterUnlessShift(event, form) {
-  if (event.key !== "Enter" || event.shiftKey) return;
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) return;
   event.preventDefault();
   form.requestSubmit();
 }
@@ -3794,7 +3923,9 @@ function renderTaskFilters() {
 
   filters.forEach((container) => { container.innerHTML = filterMarkup; });
   archiveButton.classList.toggle("active", archiveActive);
+  archiveButton.setAttribute("aria-pressed", String(archiveActive));
   archiveButton.textContent = archiveActive ? "← 할 일로 돌아가기" : "보관함";
+  if (currentPage === "tasks") taskSection.querySelector(".section-header h2").textContent = archiveActive ? "보관함" : "전체 할 일";
   archivePolicy.textContent = archiveActive
     ? "보관된 할 일은 보관 후 30일이 지나면 자동으로 삭제돼"
     : "완료한 할 일은 다음 날 자동으로 보관함으로 이동해";
@@ -4308,72 +4439,45 @@ function updateDailyFocusQuote() {
 
 updateDailyFocusQuote();
 
-const taskGroupDialog = document.createElement("div");
-taskGroupDialog.className = "task-group-dialog";
-taskGroupDialog.setAttribute("role", "dialog");
-taskGroupDialog.setAttribute("aria-modal", "true");
-taskGroupDialog.setAttribute("aria-labelledby", "taskGroupDialogTitle");
-taskGroupDialog.innerHTML = '<div class="task-create-backdrop" data-close-group-dialog></div><section class="task-create-panel"><header><h2 id="taskGroupDialogTitle">그룹 선택</h2><button class="pixel-close-button" type="button" data-close-group-dialog aria-label="그룹 선택 닫기">×</button></header></section>';
-taskGroupDialog.querySelector("section").append(taskGroupMenu);
-document.body.append(taskGroupDialog);
-taskGroupDialog.querySelectorAll("[data-close-group-dialog]").forEach(button => {
-  button.addEventListener("click", () => { closeTaskGroupMenu(); taskGroupTrigger.focus(); });
-});
-taskGroupDialog.addEventListener("keydown", event => {
+customTaskGroupSelect.addEventListener("keydown", event => {
+  if (taskGroupMenu.classList.contains("hidden")) return;
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
     closeTaskGroupMenu();
     taskGroupTrigger.focus();
   }
-  if (event.key !== "Tab") return;
-  const controls = [...taskGroupDialog.querySelectorAll("button")].filter(el => !el.disabled && el.getClientRects().length);
-  const first = controls[0], last = controls.at(-1);
-  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+  event.preventDefault();
+  const controls = [...taskGroupMenu.querySelectorAll("button")];
+  const index = controls.indexOf(document.activeElement);
+  const next = index < 0 ? (event.key === "ArrowDown" ? 0 : controls.length - 1)
+    : (index + (event.key === "ArrowDown" ? 1 : -1) + controls.length) % controls.length;
+  controls[next]?.focus();
 });
 
-const taskGroupManagerDialog = document.createElement("div");
-taskGroupManagerDialog.id = "taskGroupManagerDialog";
-taskGroupManagerDialog.className = "task-group-dialog group-manager-dialog";
-taskGroupManagerDialog.setAttribute("role", "dialog");
-taskGroupManagerDialog.setAttribute("aria-modal", "true");
-taskGroupManagerDialog.setAttribute("aria-labelledby", "taskGroupManagerDialogTitle");
-taskGroupManagerDialog.innerHTML = '<div class="task-create-backdrop" data-close-group-manager></div><section class="task-create-panel"><header><h2 id="taskGroupManagerDialogTitle">그룹 관리</h2><button class="pixel-close-button" type="button" data-close-group-manager aria-label="그룹 관리 닫기">×</button></header></section>';
-taskGroupManagerDialog.querySelector("section").append(groupManager);
-document.body.append(taskGroupManagerDialog);
+document.addEventListener("pointerdown", event => {
+  if (!customTaskGroupSelect.contains(event.target)) closeTaskGroupMenu();
+});
 
 function closeGroupManager() {
   groupManager.classList.add("hidden");
   document.querySelector("#toggleGroupManager").setAttribute("aria-expanded", "false");
 }
 
-taskGroupManagerDialog.querySelectorAll("[data-close-group-manager]").forEach((button) => {
+groupManager.querySelectorAll("[data-close-group-manager]").forEach((button) => {
   button.addEventListener("click", () => {
     closeGroupManager();
     document.querySelector("#toggleGroupManager").focus();
   });
 });
 
-taskGroupManagerDialog.addEventListener("keydown", (event) => {
+groupManager.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopPropagation();
     closeGroupManager();
     document.querySelector("#toggleGroupManager").focus();
-    return;
-  }
-  if (event.key !== "Tab") return;
-  const controls = [...taskGroupManagerDialog.querySelectorAll("button, input")]
-    .filter((element) => !element.disabled && element.getClientRects().length);
-  const first = controls[0];
-  const last = controls.at(-1);
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last?.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first?.focus();
   }
 });
 
@@ -4462,6 +4566,8 @@ function openTaskInlineEdit(task) {
   taskFocusMinutesInput.value = editingTaskFocusMinutes;
   taskGroup.value = editingTaskGroupId || "";
   renderGroups();
+  document.querySelector("#taskCreateModal").classList.remove("hidden");
+  document.querySelector("#openTaskForm").setAttribute("aria-expanded", "true");
   taskForm.classList.remove("hidden");
   window.setTimeout(() => {
     autoGrowTextarea(taskInput);
@@ -4483,6 +4589,8 @@ function closeTaskInlineEdit() {
   taskGroup.value = "";
   renderGroups();
   taskForm.classList.add("hidden");
+  document.querySelector("#taskCreateModal").classList.add("hidden");
+  document.querySelector("#openTaskForm").setAttribute("aria-expanded", "false");
   closeTaskGroupMenu();
   closeGroupManager();
 }
@@ -4558,9 +4666,9 @@ function renderHabits() {
             <small class="habit-summary">
               <span class="habit-summary-primary">${scheduledToday ? (completeToday ? "완료" : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${getHabitFocusMinutes(habit, dateString) > 0 ? ` · 목표 ${getHabitFocusMinutes(habit, dateString)}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
             </small>
-            ${focusAction}
           </span>
           <span class="habit-actions">
+            ${focusAction}
             <span class="streak">${getHabitStreak(habit, dateString)}일</span>
             ${currentPage === "habits" ? `<button class="habit-edit" type="button" data-edit-habit="${habit.id}" aria-label="${escapeHtml(habit.title)} 수정">✎</button>` : ""}
             <button class="habit-delete" type="button" data-delete-habit="${habit.id}" aria-label="삭제">×</button>
@@ -4579,6 +4687,7 @@ function renderHabitHeatmap() {
   const year = habitCalendarDate.getFullYear();
   const month = habitCalendarDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStart = toLocalDateString(new Date(year, month, 1));
   monthLabel.textContent = `${year}년 ${month + 1}월`;
   grid.style.gridTemplateColumns = `var(--heatmap-name-column, 150px) repeat(${daysInMonth}, var(--heatmap-cell-size, 18px))`;
 
@@ -4588,6 +4697,7 @@ function renderHabitHeatmap() {
   }).join("");
 
   const rows = state.habits
+    .filter((habit) => !habit.endDate || habit.endDate >= monthStart)
     .map((habit) => {
       const cells = Array.from({ length: daysInMonth }, (_, index) => {
         const date = new Date(year, month, index + 1);
@@ -5952,6 +6062,7 @@ function renderNpcMarketCarousel() {
 }
 
 function renderFarm() {
+  renderTodayFarmPreview();
   const inventory = document.querySelector("#seedInventory");
   const shop = document.querySelector("#seedShop");
   const grid = document.querySelector("#farmGrid");
@@ -6388,6 +6499,14 @@ function renderFocusPicker() {
 }
 
 const SUMMARY_PROGRESS_SEGMENTS = 10;
+
+function renderTodayFarmPreview() {
+  const plots = document.querySelector("#todayFarmPlots");
+  const planted = state.farmPlots.filter((plot) => plot.crop);
+  document.querySelector("#previewFarmMoney").textContent = state.farmMoney;
+  document.querySelector("#todayFarmStatus").textContent = planted.length ? `${planted.length}개 작물 · 농장 둘러보기` : "씨앗을 심고 농장을 키워봐";
+  plots.innerHTML = state.farmPlots.map((plot) => `<span class="preview-plot">${plot.crop ? cropPixel(plot.crop, plot.wilted ? "wilted" : getCropStage(plot.crop, plot.growth)) : ""}</span>`).join("");
+}
 
 function renderSummaryProgress(selector, ratio) {
   const progress = document.querySelector(selector);
@@ -8083,7 +8202,6 @@ window.addEventListener("resize", positionThemedDateCalendar);
 window.addEventListener("scroll", positionThemedDateCalendar, true);
 
 const taskCreateModal = document.querySelector("#taskCreateModal");
-document.body.append(taskCreateModal);
 function closeTaskCreate() {
   closeTaskInlineEdit();
 }
@@ -8100,14 +8218,13 @@ taskCreateModal.addEventListener("keydown", event => {
     closeTaskCreate();
     document.querySelector("#openTaskForm").focus();
   }
-  if (event.key !== "Tab") return;
-  const controls = [...taskCreateModal.querySelectorAll('button, input, textarea, [tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length);
-  const first = controls[0], last = controls.at(-1);
-  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 document.querySelector("#openTaskForm").addEventListener("click", () => {
+  const wasOpen = !taskForm.classList.contains("hidden");
   closeTaskInlineEdit();
+  if (wasOpen) return;
+  taskCreateModal.classList.remove("hidden");
+  document.querySelector("#openTaskForm").setAttribute("aria-expanded", "true");
   taskForm.classList.remove("hidden");
   taskInput.focus();
 });
@@ -8117,6 +8234,7 @@ function closeHabitModal() {
   closeThemedDateCalendar();
   habitModal.classList.add("hidden");
   habitForm.classList.add("hidden");
+  openHabitFormButton.setAttribute("aria-expanded", "false");
 }
 
 function resetHabitForm() {
@@ -8166,6 +8284,7 @@ function openHabitModal(habit = null) {
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
   habitForm.classList.remove("hidden");
+  openHabitFormButton.setAttribute("aria-expanded", "true");
   window.setTimeout(() => habitInput.focus(), 0);
 }
 
@@ -8251,7 +8370,7 @@ function closeTaskDeleteModal() {
 }
 
 openHabitFormButton.addEventListener("click", () => {
-  if (currentPage !== "habits") return;
+  if (!habitModal.classList.contains("hidden")) return closeHabitModal();
   openHabitModal();
 });
 
@@ -8327,6 +8446,7 @@ confirmHabitDelete.addEventListener("click", () => {
 });
 
 document.querySelector("#toggleGroupManager").addEventListener("click", () => {
+  if (!groupManager.classList.contains("hidden")) return closeGroupManager();
   groupManager.classList.remove("hidden");
   document.querySelector("#toggleGroupManager").setAttribute("aria-expanded", "true");
   groupInput.focus();
@@ -8359,7 +8479,7 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
 });
 
 groupInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
+  if (event.key === "Enter" && !event.isComposing && event.keyCode !== 229) {
     event.preventDefault();
     document.querySelector("#addGroupButton").click();
   }
@@ -11319,12 +11439,8 @@ function showPage(page) {
 
   if (pageChanged) {
     closePageModals();
-    taskForm.classList.add("hidden");
+    closeTaskCreate();
     closeGroupManager();
-  }
-
-  if (validPage !== "habits" && !habitModal.classList.contains("hidden")) {
-    closeHabitModal();
   }
 
   currentPage = validPage;
@@ -11337,7 +11453,7 @@ function showPage(page) {
     todayWorkspace.appendChild(habitSection);
     taskSection.querySelector(".section-header h2").textContent = "오늘의 할 일";
     habitSection.querySelector(".section-header h2").textContent = "오늘의 습관";
-    openHabitFormButton.hidden = true;
+    openHabitFormButton.hidden = false;
   }
 
   if (validPage === "tasks") {
@@ -11542,3 +11658,4 @@ resetToFocus();
 const hashPage = location.hash.slice(1);
 const initialPage = APP_PAGES.includes(hashPage) ? hashPage : "today";
 showPage(initialPage);
+initializeTodaySplitter();

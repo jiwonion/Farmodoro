@@ -1,0 +1,262 @@
+/* Auxiliary controls share the workspace theme. Farm sprites keep their artwork. */
+:root {
+  --control-danger: #b53645;
+  --control-danger-soft: #fff2f3;
+}
+:root[data-theme="dark"] {
+  --control-danger: #ff8d96;
+  --control-danger-soft: #3b2630;
+}
+
+body :is(#todayPage, #habitsPage) :is(.heatmap-nav, .habit-date-nav) button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+body :is(#todayPage, #habitsPage) #habitDateToday {
+  width: auto;
+  flex-basis: auto;
+  padding: 0 12px;
+  font-size: 12px;
+  background: var(--pixel-soft) !important;
+  color: var(--pixel-accent) !important;
+}
+body #habitsPage #openHabitReset {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--control-danger) 30%, var(--paper)) !important;
+  border-radius: 7px !important;
+  background: var(--control-danger-soft) !important;
+  color: var(--control-danger) !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 550;
+}
+body :is(#todayPage, #habitsPage) :is(.heatmap-nav, .habit-date-nav) button:hover:not(:disabled) {
+  background: var(--pixel-soft) !important;
+  border-color: var(--pixel-accent) !important;
+  color: var(--pixel-accent) !important;
+}
+body #habitsPage #openHabitReset:hover:not(:disabled) {
+  border-color: var(--control-danger) !important;
+}
+
+body :is(#todayPage, #focusPage) #focusCard .focus-mode-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 8px !important;
+  background: var(--theme-board) !important;
+  box-shadow: none !important;
+}
+body :is(#todayPage, #focusPage) #focusCard .focus-mode-switch button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 0 !important;
+  border-radius: 5px !important;
+  background: transparent !important;
+  color: var(--muted) !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 550;
+}
+body :is(#todayPage, #focusPage) #focusCard .focus-mode-switch button.active {
+  background: var(--pixel-soft) !important;
+  color: var(--pixel-accent) !important;
+}
+body #focusPage .focus-stage-actions :is(button, label),
+body #focusPage #focusItemTrigger,
+body :is(#todayPage, #focusPage) #toggleFocusSettings,
+body :is(#todayPage, #focusPage) #focusSkipBreakButton {
+  min-height: 36px;
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+body #focusPage .focus-item-picker {
+  border-radius: 7px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body #focusPage .focus-stage-actions button:is(.active, [aria-pressed="true"]) {
+  border-color: var(--pixel-accent) !important;
+  background: var(--pixel-soft) !important;
+  color: var(--pixel-accent) !important;
+}
+body #focusPage .focus-stage-actions :is(button, label):hover,
+body :is(#todayPage, #focusPage) :is(#toggleFocusSettings, #focusSkipBreakButton):hover {
+  background: var(--pixel-soft) !important;
+  border-color: var(--pixel-accent) !important;
+}
+body :is(#todayPage, #focusPage) #toggleFocusSettings {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  font-size: 18px;
+}
+body #focusPage #focusButton {
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: var(--pixel-accent) !important;
+  color: var(--pixel-on-accent) !important;
+  box-shadow: none !important;
+}
+
+body :is(.custom-group-trigger, .themed-date-trigger) {
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  font-weight: 500;
+}
+body .custom-group-trigger > span:last-child { color: var(--muted); }
+body :is(.custom-group-trigger, .themed-date-trigger)[aria-expanded="true"] {
+  border-color: var(--pixel-accent) !important;
+}
+body :is(.custom-group-menu, .themed-date-calendar) {
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 9px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 8px 28px #0002 !important;
+}
+body .custom-group-option,
+body .themed-date-calendar :is(.themed-date-header button, .themed-date-actions button, .themed-date-day) {
+  border-radius: 5px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+body .custom-group-option:hover,
+body .themed-date-calendar button:hover:not(:disabled) {
+  background: var(--theme-board) !important;
+}
+body .custom-group-option.selected,
+body .themed-date-calendar .themed-date-day.selected {
+  background: var(--pixel-soft) !important;
+  color: var(--pixel-accent) !important;
+}
+body .custom-group-option.selected b { color: inherit; }
+body .themed-date-calendar .themed-date-day.outside { color: var(--muted) !important; }
+body .themed-date-calendar .themed-date-day.today { border-color: var(--pixel-accent) !important; }
+body .themed-date-calendar .themed-date-header button { background: var(--theme-board) !important; }
+
+body :is(#focusSettings, .delete-confirm-panel, .user-settings-modal-panel) .secondary-button,
+body :is(.task-inline-edit-actions, .group-delete-actions) button:not(.danger-button),
+body :is(#chooseProfileAvatar, #resetProfileAvatar, #togglePushNotifications, #copyFarmCode, #signOutButton),
+body .mini-focus-actions button,
+body #farmPage :is(#editFarmName, #cancelFarmName, #toggleFarmOverview),
+body #farmPage #farmNameForm button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 550;
+}
+body :is(#saveFocusSettings, #saveUserSettings),
+body .task-inline-edit-actions button[type="submit"],
+body #farmPage #farmNameForm button[type="submit"] {
+  border: 1px solid var(--pixel-accent) !important;
+  border-radius: 7px !important;
+  background: var(--pixel-accent) !important;
+  color: var(--pixel-on-accent) !important;
+  box-shadow: none !important;
+}
+body #farmPage #editFarmName { display: grid; place-items: center; width: 36px; min-width: 36px; height: 36px; padding: 0 !important; }
+body #farmPage #editFarmName svg { width: 16px; height: 16px; transform: none; }
+body .delete-confirm-actions .danger-button,
+body .group-delete-actions .danger-button,
+body #miniFocusStop {
+  border: 1px solid color-mix(in srgb, var(--control-danger) 30%, var(--paper)) !important;
+  border-radius: 7px !important;
+  background: var(--control-danger-soft) !important;
+  color: var(--control-danger) !important;
+  box-shadow: none !important;
+}
+body #focusSettings,
+body .focus-floating-status :is(.mini-focus-timer, .mini-focus-music) {
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 10px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 8px 28px #0002 !important;
+}
+body .mini-focus-main { border-bottom: 1px solid var(--line); }
+body .mini-focus-main::after { color: var(--muted); }
+body .mini-focus-main :is(span, b) { color: var(--pixel-accent); }
+body .mini-focus-main strong { color: var(--ink); }
+
+body :is(#focusSettings, #userSettingsModal, #farmNameForm) input:not([type="checkbox"]):not([type="file"]),
+body #userSettingsModal textarea {
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+
+body button.pixel-close-button,
+body #focusSettings .focus-settings-header button.pixel-close-button,
+body [data-farm-rpg] button.pixel-close-button,
+body .farm-ranking-modal-panel > .modal-scroll-area > header > button.pixel-close-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--pixel-edge) !important;
+  border-radius: 7px !important;
+  background: var(--paper) !important;
+  color: var(--muted) !important;
+  box-shadow: none !important;
+}
+body button.pixel-close-button:hover {
+  background: var(--pixel-soft) !important;
+  color: var(--ink) !important;
+}
+body button.pixel-close-button::before,
+body button.pixel-close-button::after,
+body #focusSettings .focus-settings-header button.pixel-close-button::before,
+body #focusSettings .focus-settings-header button.pixel-close-button::after {
+  background: currentColor;
+  height: 1.5px;
+}
+
+body :is(.heatmap-nav button, .habit-date-nav button, #openHabitReset,
+  .custom-group-trigger, .custom-group-option, .themed-date-trigger,
+  .themed-date-calendar button, .pixel-close-button, .mini-focus-actions button,
+  #toggleFocusSettings, #focusSkipBreakButton, #focusItemTrigger):focus-visible,
+body #focusPage .focus-stage-actions :is(button, label):focus-visible,
+body :is(#todayPage, #focusPage) #focusCard .focus-mode-switch button:focus-visible {
+  outline: 2px solid var(--pixel-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 700px) {
+  body #habitsPage .heatmap-header-actions { gap: 6px; }
+  body #habitsPage #openHabitReset { padding: 7px 9px; font-size: 12px; }
+  body #focusPage .focus-stage-actions :is(button, label) { min-height: 36px; }
+}

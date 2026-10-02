@@ -1,0 +1,81 @@
+/* Editors stay in the document flow alongside their lists. */
+body .section-header-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: end; gap: 8px; }
+body .section-header-actions button { min-height: 38px; padding: 8px 12px; border-radius: 7px !important; box-shadow: none !important; font-size: 13px; }
+body .section-header-actions .add-button { border: 1px solid var(--pixel-accent) !important; background: var(--pixel-accent) !important; color: var(--pixel-on-accent) !important; }
+body .section-header-actions .add-button span { font-size: 13px; }
+body .section-header-actions .secondary-button { border: 1px solid var(--line) !important; background: var(--paper) !important; color: var(--muted) !important; }
+body :is(#todayPage,#habitsPage) #openHabitForm { min-height: 38px; padding: 8px 12px; border: 1px solid var(--line) !important; border-radius: 7px !important; background: var(--paper) !important; color: var(--ink) !important; box-shadow: none !important; font-size: 13px; }
+body :is(#taskCreateModal,#habitModal,#groupManager).inline-composer {
+  position: static !important; inset: auto !important; display: block; width: 100%; min-width: 0;
+  max-width: none; max-height: none; margin: 0 0 20px; padding: 16px !important;
+  border: 1px solid var(--row-line) !important; border-radius: 10px !important;
+  background: var(--paper) !important; color: var(--ink); box-shadow: none !important;
+}
+body :is(#taskCreateModal,#habitModal,#groupManager).hidden { display: none !important; }
+body .inline-composer > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 0; border: 0; }
+body .inline-composer > header h2 { margin: 0; font-size: 16px; line-height: 1.4; color: var(--ink); }
+body .inline-composer > header p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+body .inline-composer > header .section-kicker { display: none; }
+body .inline-composer .pixel-close-button { flex: 0 0 30px; width: 30px; height: 30px; min-height: 30px; padding: 0; border: 0 !important; border-radius: 6px !important; background: var(--theme-board) !important; color: var(--muted) !important; box-shadow: none !important; font-size: 20px; }
+body #taskCreateModal #taskForm, body #habitModal #habitForm {
+  display: grid; min-width: 0; width: 100%; margin: 0; padding: 0 !important; gap: 12px;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+}
+body #taskCreateModal #taskForm { grid-template-columns: minmax(0,1fr) auto !important; align-items: start; }
+body #taskCreateModal #taskForm .task-input-wrap { grid-column: 1 / -1 !important; grid-row: auto !important; }
+body #taskCreateModal #taskForm .custom-group-select { grid-column: 1 !important; grid-row: auto !important; min-width: 0; }
+body #taskCreateModal #taskForm #taskFormSubmit { grid-column: 2 !important; grid-row: auto !important; align-self: start; }
+body #taskCreateModal #taskModalFocusRow { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; font-size: 13px; }
+body #taskCreateModal #taskModalFocusRow[hidden] { display: none; }
+body #taskCreateModal #taskFocusMinutesInput { width: 90px; margin-right: 6px; }
+body .inline-composer :is(input:not([type="checkbox"]),textarea,.custom-group-trigger,.themed-date-trigger) {
+  min-width: 0; min-height: 40px; padding: 10px 12px !important; border: 1px solid var(--row-line) !important;
+  border-radius: 7px !important; background: var(--cream) !important; color: var(--ink) !important;
+  box-shadow: none !important; font-size: 14px !important; line-height: 1.5;
+}
+body .inline-composer :is(input,textarea)::placeholder { color: var(--muted); opacity: .8; }
+body .inline-composer :is(input,textarea,button):focus-visible { outline: 2px solid var(--pixel-accent); outline-offset: 2px; }
+body #taskCreateModal #taskInput { width: 100%; min-height: 44px; max-height: 150px; grid-column: auto; }
+body #taskCreateModal #taskGroupTrigger { width: 100%; justify-content: space-between; text-align: left; }
+body #taskCreateModal #taskGroupTrigger span:first-child { overflow-wrap: anywhere; }
+body #taskCreateModal #taskGroupMenu:not(.hidden) {
+  position: static !important; inset: auto !important; display: grid !important; width: 100%; min-width: 0;
+  max-height: 220px; overflow-y: auto; margin-top: 8px; padding: 4px;
+  border: 1px solid var(--line) !important; border-radius: 7px !important; background: var(--paper) !important; box-shadow: none !important;
+}
+body #taskCreateModal #taskGroupMenu .custom-group-option { min-height: 36px; padding: 6px 8px; white-space: normal; overflow-wrap: anywhere; border: 0 !important; border-radius: 5px !important; background: transparent !important; color: var(--ink) !important; box-shadow: none !important; font-size: 13px; }
+body #taskCreateModal #taskGroupMenu .custom-group-option:is(:hover,.selected) { background: var(--pixel-soft) !important; }
+body .inline-composer :is(#taskFormSubmit,#addGroupButton,.habit-submit) { width: auto; min-height: 40px; padding: 9px 18px; border: 0 !important; border-radius: 7px !important; background: var(--pixel-accent) !important; color: var(--pixel-on-accent) !important; box-shadow: none !important; font-size: 14px !important; }
+body #groupManager .group-list { margin-bottom: 12px; }
+body #groupManager .group-list:empty { display: none; }
+body #groupManager .group-chip { display: inline-flex; max-width: 100%; min-height: 32px; padding: 5px 8px 5px 10px; gap: 8px; border: 1px solid var(--line) !important; border-radius: 6px !important; background: var(--theme-board) !important; color: var(--ink) !important; box-shadow: none !important; font-size: 13px; overflow-wrap: anywhere; }
+body #groupManager .group-chip button { flex: 0 0 24px; width: 24px; height: 24px; min-height: 24px; padding: 0; border: 0 !important; border-radius: 4px !important; background: transparent !important; color: var(--muted) !important; box-shadow: none !important; }
+body #groupManager .group-add { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+body #groupManager #groupInput { width: 100%; }
+body #habitModal #habitForm { grid-template-columns: minmax(0,1fr) !important; }
+body #habitModal #habitForm > * { min-width: 0; width: 100%; grid-column: 1 !important; grid-row: auto !important; }
+body #habitModal #habitForm fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+body #habitModal #habitForm legend, body #habitModal .habit-date-row label > span { margin-bottom: 8px; font-size: 13px; font-weight: 500; color: var(--muted); }
+body #habitModal .weekday-field > div { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 5px; }
+body #habitModal .weekday-field label { min-width: 0; }
+body #habitModal .weekday-field span { display: grid; place-items: center; width: 100%; min-height: 36px; padding: 4px; border: 1px solid var(--line) !important; border-radius: 6px !important; background: var(--theme-board) !important; color: var(--muted) !important; box-shadow: none !important; font-size: 13px !important; }
+body #habitModal .weekday-field input:checked + span { border-color: var(--pixel-accent) !important; background: var(--pixel-soft) !important; color: var(--pixel-accent) !important; }
+body #habitModal .weekday-field input:focus-visible + span { outline: 2px solid var(--pixel-accent); outline-offset: 2px; }
+body #habitModal .habit-date-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; min-width: 0; }
+body #habitModal .habit-date-row label { display: flex; flex-direction: column; min-width: 0; }
+body #habitModal .themed-date-trigger { width: 100%; gap: 6px; font-size: 13px !important; }
+body #habitModal .habit-focus-toggle { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 13px; }
+body #habitModal .habit-focus-toggle input { accent-color: var(--pixel-accent); }
+body #habitModal #habitFocusSettings .habit-date-row { grid-template-columns: minmax(0,1fr); margin-bottom: 12px; }
+body #habitModal .habit-focus-weekday-field p { margin: 0 0 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+body #habitModal .habit-focus-weekdays { display: grid; grid-template-columns: repeat(auto-fit,minmax(88px,1fr)); gap: 8px; }
+body #habitModal .habit-focus-weekdays label { min-width: 0; }
+body #habitModal .habit-focus-weekdays label span { display: block; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
+body #habitModal .habit-focus-weekdays input { width: 100%; }
+body #habitsPage #habitModal { max-width: 760px; }
+@media (max-width: 700px) {
+  body .section-header { gap: 12px; flex-wrap: wrap; }
+  body .section-header-actions { gap: 6px; }
+  body .section-header-actions button { padding: 8px 10px; font-size: 12px; }
+  body :is(#taskCreateModal,#habitModal,#groupManager).inline-composer { padding: 12px !important; }
+}

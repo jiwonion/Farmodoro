@@ -17,6 +17,22 @@ function context(names, globals = {}) {
 const noop = () => {};
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
+test("task Enter submits only after Korean composition finishes and allows Shift Enter", () => {
+  const ctx = context(["submitOnEnterUnlessShift"]);
+  let submitted = 0;
+  let prevented = 0;
+  const form = { requestSubmit: () => submitted++ };
+  const key = { key: "Enter", preventDefault: () => prevented++ };
+  ctx.submitOnEnterUnlessShift({ ...key, isComposing: true }, form);
+  ctx.submitOnEnterUnlessShift({ ...key, keyCode: 229 }, form);
+  ctx.submitOnEnterUnlessShift({ ...key, shiftKey: true }, form);
+  assert.equal(submitted, 0);
+  assert.equal(prevented, 0);
+  ctx.submitOnEnterUnlessShift(key, form);
+  assert.equal(submitted, 1);
+  assert.equal(prevented, 1);
+});
+
 for (const rpcFirst of [false, true]) {
   test(`habit snapshot cannot suppress or overwrite reward (RPC first: ${rpcFirst})`, async () => {
     const row = { completed_at: null, completion_reward: 0, completion_cycle_id: null };
@@ -235,6 +251,44 @@ test("expired habits disappear after their end date but remain visible in past r
   assert.deepEqual(visibleIds(), ["ends-today", "ongoing"]);
   assert.equal(ctx.state.habits.length, 4);
 });
+
+for (const [year, month, endedDate, boundaryDate] of [
+  [2026, 9, "2026-09-30", "2026-10-01"],
+  [2027, 0, "2026-12-31", "2027-01-01"],
+]) {
+  test(`monthly habit log hides ended habits without losing prior records (${boundaryDate})`, () => {
+    const elements = new Map([
+      ["#habitHeatmapGrid", { style: {} }],
+      ["#habitHeatmapMonth", {}],
+    ]);
+    const habits = [
+      { ...historicalHabit, id: "ended", title: "Ended habit", startDate: "2026-09-01", endDate: endedDate, completionDates: [endedDate] },
+      { ...historicalHabit, id: "boundary", title: "Boundary habit", endDate: boundaryDate, completionDates: [boundaryDate] },
+      { ...historicalHabit, id: "ongoing", title: "Ongoing habit", completionDates: [] },
+    ];
+    const originalHabits = plain(habits);
+    const ctx = context([
+      "renderHabitHeatmap", "isHabitScheduledOn", "getHabitTargetForDate",
+      "getHabitProgress", "getHabitProgressRatio",
+    ], {
+      state: { habits }, habitCalendarDate: new Date(year, month, 15),
+      escapeHtml: String,
+      toLocalDateString: (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+      document: { querySelector: (selector) => elements.get(selector) },
+    });
+    const renderedNames = () => [...elements.get("#habitHeatmapGrid").innerHTML.matchAll(/class="heatmap-habit-name" title="([^"]+)"/g)].map(match => match[1]);
+
+    ctx.renderHabitHeatmap();
+    assert.deepEqual(renderedNames(), ["Boundary habit", "Ongoing habit"]);
+    assert.match(elements.get("#habitHeatmapGrid").innerHTML, new RegExp(`Boundary habit · ${boundaryDate} · 완료`));
+
+    ctx.habitCalendarDate = new Date(year, month - 1, 15);
+    ctx.renderHabitHeatmap();
+    assert.deepEqual(renderedNames(), ["Ended habit", "Boundary habit", "Ongoing habit"]);
+    assert.match(elements.get("#habitHeatmapGrid").innerHTML, new RegExp(`Ended habit · ${endedDate} · 완료`));
+    assert.deepEqual(plain(ctx.state.habits), originalHabits);
+  });
+}
 
 test("checking a past habit saves the displayed date even if navigation changes during the request", async () => {
   let handler;

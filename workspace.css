@@ -1,0 +1,345 @@
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url('./assets/fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 45 920; font-style: normal; font-display: swap;
+}
+:root, :root[data-theme="white"] {
+  color-scheme: light;
+  --cream: #ffffff; --paper: #ffffff; --ink: #182238; --muted: #69758b;
+  --line: #e8ecf2; --row-line: #b9c6d8; --pixel-accent: #0755ff; --pixel-on-accent: #ffffff;
+  --pixel-soft: #edf3ff; --pixel-edge: #d8dfeb; --pixel-shadow: transparent;
+  --theme-sidebar: #fbfcfe; --theme-board: #f5f7fa; --green-50: #f5f7fa;
+  --green-800: #0755ff; --green-700: #0755ff; --green-950: #182238;
+  --shadow: none;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cream: #151a24; --paper: #1b2230; --ink: #e8edf7; --muted: #a1aec4;
+  --line: #2d3748; --row-line: #4a5a73; --pixel-accent: #729bff; --pixel-on-accent: #101a30;
+  --pixel-soft: #263650; --pixel-edge: #39465a; --pixel-shadow: transparent;
+  --theme-sidebar: #171e2a; --theme-board: #202938; --green-50: #202938;
+  --green-800: #9ab7ff; --green-700: #729bff; --green-950: #e8edf7;
+  --toast-bg: #e8edf7; --toast-text: #151a24; --shadow: none;
+}
+body { background: var(--cream); }
+body, body :is(button,input,textarea,select,h1,h2,h3,h4,strong,small,p,span,a,label) {
+  font-family: "Pretendard Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif !important;
+  font-synthesis: none;
+}
+body .brand, body .brand > span, body #focusTime, body #farmPage :is(h1,h2,h3,strong) { font-family: "Mulmaru", monospace !important; }
+body .app-shell { display: grid; grid-template-columns: 224px minmax(0,1fr); padding: 0; min-height: 100dvh; }
+body .sidebar { position: sticky; top: 0; display: flex; flex-direction: column; width: 224px; height: 100dvh; padding: 24px 16px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--theme-sidebar); box-shadow: none; overflow: auto; }
+body .brand { min-width: 0; width: 100%; justify-content: flex-start; padding: 0 4px; margin: 0 0 30px; gap: 9px; border: 0; color: var(--pixel-accent); font-size: 25px; }
+body .brand-mark { order: 0; width: 28px; height: 32px; flex: 0 0 28px; }
+body .main-nav { display: flex; flex: 0; flex-direction: column; gap: 6px; }
+body .main-nav::before, body .nav-index, body .nav-motto { display: none !important; }
+body .main-nav .nav-item { min-height: 46px; flex: 0 0 auto; justify-content: flex-start; gap: 14px; padding: 10px 14px; border: 0 !important; box-shadow: none !important; font-size: 15px; color: var(--ink); border-radius: 8px !important; }
+body .main-nav .nav-item:hover { background: var(--theme-board); }
+body .main-nav .nav-item.active { background: var(--pixel-soft); color: var(--pixel-accent); }
+body .main-nav .nav-item.active :is(.nav-label,.nav-icon) { color: var(--pixel-accent); }
+body .main-nav .nav-icon { display: grid !important; width: 22px; height: 22px; color: var(--muted); background: transparent; }
+body .main-nav .nav-icon::before { display: none; }
+body .main-nav .nav-icon svg { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+body .sidebar-spacer { display: block !important; flex: 1; min-height: 32px; }
+body .theme-toggle { display: flex; align-items: center; justify-content: flex-start; gap: 12px; min-height: 44px; width: 100%; padding: 10px 14px; margin-bottom: 14px; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px !important; box-shadow: none; font-size: 13px; cursor: pointer; }
+body .theme-toggle:hover { background: var(--pixel-soft); color: var(--ink); }
+body .nav-account { order: initial; flex-direction: column; align-items: stretch; gap: 12px; }
+body .profile-button { display: flex; width: 100%; padding: 8px; gap: 10px; border: 0; background: transparent; box-shadow: none; }
+body .profile-button .profile-copy { display: block; text-align: left; min-width: 0; }
+body .profile-copy strong { display: block; font-size: 13px; color: var(--ink); }
+body .profile-copy small { display: block; font-size: 11px; color: var(--muted); }
+body .avatar { width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 6px !important; }
+body .nav-wallet { padding: 0 8px; margin: 0; border: 0; justify-content: start; }
+body .nav-balance { background: transparent; border: 0; box-shadow: none; color: var(--ink); font-size: 12px; padding: 0; min-height: 24px; }
+body .main-content { min-width: 0; width: 100%; max-width: none; margin: 0; padding: 30px 32px; }
+body .page-view :is(.topbar,.page-header) { min-height: 0; padding: 0 0 20px; margin-bottom: 22px; border: 0 !important; }
+body .page-view :is(.topbar h1,.page-header h1) { font-size: 30px; letter-spacing: -1px; line-height: 1.3; }
+body #todayPage.active { display: grid; grid-template-columns: minmax(0,1fr) 24px var(--today-right-width,30%); grid-template-rows: auto auto auto 1fr; align-items: start; gap: 20px 0; }
+body .today-splitter { position: relative; grid-column: 2; grid-row: 1 / 5; align-self: stretch; min-height: 280px; cursor: col-resize; touch-action: none; user-select: none; }
+body .today-splitter::before { content: ''; position: absolute; inset: 0 11px; width: 1px; background: var(--line); transition: background .15s; }
+body .today-splitter::after { content: ''; position: absolute; top: 180px; left: 9px; width: 6px; height: 32px; border-radius: 3px; background: var(--row-line); }
+body .today-splitter:is(:hover,:focus-visible)::before, body.resizing-today .today-splitter::before { background: var(--pixel-accent); }
+body .today-splitter:is(:hover,:focus-visible)::after, body.resizing-today .today-splitter::after { background: var(--pixel-accent); }
+body.resizing-today, body.resizing-today * { cursor: col-resize !important; user-select: none !important; }
+body #todayPage .topbar { grid-column: 1; grid-row: 1; display: flex; justify-content: space-between; min-height: 0; margin: 0; padding: 0; }
+body #todayPage :is(.today-welcome,.today-description,.mobile-menu) { display: none; }
+body #todayPage .topbar-actions { position: static; }
+body #todayWorkspace { display: contents; }
+body #todayPage #taskSection { grid-column: 1; grid-row: 2 / 5; min-width: 0; container: today-tasks / inline-size; }
+body #todayPage #habitSection { grid-column: 3; grid-row: 3; }
+body :is(.task-section,.habit-section,.habit-heatmap,#summaryGrid) { border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+body :is(.task-section,.habit-section,#summaryGrid)::after { display: none; }
+body :is(#todayPage,#tasksPage,#habitsPage) :is(.task-section,.habit-section) { padding: 0 !important; background: transparent; }
+body .section-header { margin: 0 0 18px; align-items: center; }
+body .section-header h2 { font-size: 20px; letter-spacing: -.5px; }
+body .section-header h2::before { display: none !important; }
+body :is(.section-description,.habit-encouragement) { display: none; }
+body #todayPage .task-section .section-header h2 { font-size: 16px; color: var(--muted); }
+body .section-header > button { min-height: 38px; padding: 8px 12px; border: 0 !important; border-radius: 6px !important; box-shadow: none !important; font-size: 13px; background: var(--pixel-accent); color: var(--pixel-on-accent); }
+body :is(#todayPage,#tasksPage) .task-filter-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; padding: 0; }
+body :is(#todayPage,#tasksPage) .task-filter-list button { min-height: 32px; padding: 6px 14px; border: 0 !important; border-radius: 18px !important; box-shadow: none !important; background: var(--theme-board); color: var(--muted); font-size: 12px; }
+body :is(#todayPage,#tasksPage) .task-filter-list button.active { color: var(--pixel-on-accent); background: var(--pixel-accent); }
+body :is(#todayPage,#tasksPage) #taskBoard { display: flex !important; flex-direction: column; gap: 0; }
+body :is(#todayPage,#tasksPage) :is(.board-column,.task-list) { display: flex !important; flex-direction: column; gap: 0; border: 0 !important; background: transparent; padding: 0; }
+body :is(#todayPage,#tasksPage) .board-column > header { display: none; }
+body :is(#todayPage,#tasksPage) .board-column[data-status="done"] > header { display: flex; justify-content: flex-start; gap: 8px; min-height: 40px; margin-top: 18px; padding: 0; border: 0; font-size: 12px; color: var(--muted); }
+body :is(#todayPage,#tasksPage) .board-column > header h3 { font-size: 13px; }
+body :is(#todayPage,#tasksPage) .task-card:not(.editing) { display: grid; grid-template-columns: 24px minmax(0,1fr) auto 64px !important; grid-template-areas: 'check title meta actions'; min-height: 54px !important; width: 100%; padding: 8px 2px !important; gap: 12px !important; border: 0 !important; border-bottom: 1px solid var(--row-line) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+body :is(#todayPage,#tasksPage) .task-top { grid-area: title; min-width: 0; padding: 0; }
+body :is(#todayPage,#tasksPage) .task-top h4 { font-size: 15px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; color: var(--ink); }
+body :is(#todayPage,#tasksPage) .task-card.done h4 { color: var(--muted); text-decoration: line-through; }
+body :is(#todayPage,#tasksPage) .task-meta { grid-area: meta; margin: 0; gap: 8px; justify-content: end; }
+body :is(#todayPage,#tasksPage) .task-category { background: transparent !important; padding: 0; font-size: 11px; }
+body :is(#todayPage,#tasksPage) .task-focus-pill { border: 0; background: transparent !important; box-shadow: none !important; padding: 3px; min-height: 28px; font-size: 11px; color: var(--muted); }
+body :is(#todayPage,#tasksPage) .today-task-check { display: grid; grid-area: check; place-items: center; width: 22px !important; height: 22px !important; padding: 0; border: 1.5px solid var(--muted) !important; border-radius: 5px !important; background: var(--paper); box-shadow: none !important; font-size: 15px; color: var(--pixel-on-accent); }
+body :is(#todayPage,#tasksPage) .today-task-check[aria-pressed="true"] { border-color: var(--pixel-accent) !important; background: var(--pixel-accent); }
+body :is(#todayPage,#tasksPage) .task-actions { grid-area: actions; position: static; opacity: 0; pointer-events: none; display: flex; flex-direction: row !important; gap: 4px !important; }
+body :is(#todayPage,#tasksPage) .task-card:is(:hover,:focus-within) .task-actions { opacity: 1; pointer-events: auto; }
+body :is(#todayPage,#tasksPage) .task-actions button { width: 30px !important; height: 30px !important; min-height: 30px !important; padding: 0; border: 0; background: var(--theme-board); color: var(--muted); box-shadow: none; border-radius: 5px !important; }
+body :is(#todayPage,#habitsPage) .habit-list { gap: 0; }
+body :is(#todayPage,#habitsPage) .habit-item { grid-template-columns: 22px minmax(0,1fr) auto !important; grid-template-areas: 'check copy actions'; min-height: 60px !important; padding: 10px 0 !important; gap: 10px !important; border: 0 !important; border-bottom: 1px solid var(--row-line) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+body :is(#todayPage,#habitsPage) .habit-check { width: 22px !important; height: 22px !important; border: 1.5px solid var(--muted) !important; border-radius: 5px !important; box-shadow: none !important; background: var(--paper); }
+body :is(#todayPage,#habitsPage) .habit-item.complete .habit-check { background: var(--pixel-accent); border-color: var(--pixel-accent) !important; }
+body :is(#todayPage,#habitsPage) .habit-item.complete .habit-check::after { filter: none; }
+body :is(#todayPage,#habitsPage) .habit-copy strong { font-size: 15px; font-weight: 550; color: var(--ink); }
+body :is(#todayPage,#habitsPage) .habit-summary { font-size: 11px; color: var(--muted); line-height: 1.5; }
+body :is(#todayPage,#habitsPage) .habit-focus-button { color: var(--pixel-accent); background: var(--pixel-soft); border: 0; box-shadow: none; font-size: 11px; padding: 4px 6px; }
+body :is(#todayPage,#habitsPage) .habit-copy { display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; text-align: left; }
+body :is(#todayPage,#habitsPage) .habit-actions { display: flex; align-items: center; }
+body :is(#todayPage,#habitsPage) .habit-item .habit-actions .habit-focus-button {
+  flex: 0 0 auto; width: auto !important; height: 32px !important; min-height: 32px !important;
+  margin: 0; padding: 6px 10px; white-space: nowrap; border-radius: 6px !important;
+  border: 1px solid var(--row-line) !important; box-shadow: none !important;
+  background: var(--pixel-soft) !important; color: var(--pixel-accent) !important;
+}
+body :is(#todayPage,#habitsPage) .habit-actions :is(.habit-delete,.habit-edit) { width: 28px; height: 28px; min-height: 28px; padding: 0; border: 0; background: var(--theme-board); color: var(--muted); box-shadow: none; opacity: 0; pointer-events: none; }
+body :is(#todayPage,#habitsPage) .habit-item:is(:hover,:focus-within) .habit-actions button { opacity: 1; pointer-events: auto; }
+body #todayPage #summaryGrid { grid-column: 3; grid-row: 1 / 3; display: flex; flex-direction: column; min-height: 0; margin: 0; padding: 20px; gap: 20px; background: var(--paper); border: 1px solid var(--line) !important; border-radius: 10px !important; }
+body #todayPage #focusCard { display: flex; flex-direction: column; align-items: stretch; gap: 16px; width: 100%; padding: 0; }
+body #todayPage .focus-strip-heading { gap: 8px; }
+body #todayPage .focus-strip-heading .pixel-clock, body #todayPage .focus-strip-heading small { display: none; }
+body #todayPage .focus-strip-heading strong { font-size: 17px; }
+body #todayPage .focus-visual { order: 1; width: 100%; height: auto; margin: 0; }
+body #todayPage .timer-ring { width: 100%; height: auto; margin: 0; border: 0; box-shadow: none; background: transparent; }
+body #todayPage .timer-ring > div { position: static; padding: 8px 0; }
+body #todayPage #focusTime { color: var(--pixel-accent) !important; font-size: 58px !important; line-height: 1.2; text-shadow: none !important; letter-spacing: -2px; }
+body #todayPage :is(.timer-progress,.timer-ring > div > span,.sprout) { display: none; }
+body #todayPage .focus-copy { order: 2; display: flex; width: 100%; gap: 10px; }
+body #todayPage .focus-mode-row { order: 0; justify-content: center; }
+body #todayPage .focus-mode-switch { border: 0; background: var(--theme-board); box-shadow: none; padding: 3px; }
+body #todayPage .focus-mode-switch button { min-height: 28px; font-size: 11px; background: transparent; color: var(--muted); box-shadow: none; border: 0; }
+body #todayPage .focus-mode-switch button.active { background: var(--pixel-soft); color: var(--pixel-accent); }
+body #todayPage #focusTarget { font-size: 12px !important; text-align: center; color: var(--muted) !important; white-space: normal; }
+body #todayPage .focus-controls { order: 2; width: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+body #todayPage #focusButton { width: 100%; min-height: 44px; font-size: 15px; border: 0 !important; border-radius: 7px !important; box-shadow: none !important; background: var(--pixel-accent); color: var(--pixel-on-accent); }
+body #todayPage .progress-card { width: 100%; padding: 0; border: 0 !important; border-top: 1px solid var(--line) !important; background: transparent; box-shadow: none; }
+body #todayPage .progress-card :is(.card-heading,.large-progress) { display: none; }
+body #todayPage .progress-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0 0; }
+body #todayPage .progress-stats > div { display: flex; flex-wrap: wrap; padding: 0; border: 0; gap: 6px; }
+body #todayPage .progress-stats > div:last-child, body #todayPage .stat-dot { display: none; }
+body #todayPage .progress-stats p { font-size: 12px; color: var(--muted); margin: 0; }
+body #todayPage .progress-stats strong { font-size: 13px; margin-left: auto; }
+body #todayPage .progress-stats .strip-progress { height: 5px; flex: 0 0 100%; margin: 4px 0 0; gap: 2px; }
+body .strip-progress i { background: var(--line); }
+body .strip-progress i.complete { background: var(--pixel-accent); }
+body .today-farm-preview { grid-column: 3; grid-row: 4; display: block; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); text-decoration: none; background: var(--paper); }
+body .today-farm-preview header { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 14px; font-size: 16px; }
+body .today-farm-preview header span { color: var(--pixel-accent); font-size: 12px; }
+body .today-farm-preview > small { display: block; margin-top: 10px; color: var(--muted); font-size: 11px; }
+body .today-farm-landscape { position: relative; display: flex; align-items: end; justify-content: space-around; height: 118px; padding: 12px; border-radius: 5px; background: url('./assets/farm-b-v1/terrain/meadow.png') center / cover; image-rendering: pixelated; overflow: hidden; }
+body .preview-house { width: 95px; height: 88px; object-fit: contain; image-rendering: pixelated; }
+body #todayFarmPlots { display: grid; grid-template-columns: repeat(3,32px); gap: 2px; }
+body .preview-plot { display: grid; place-items: center; width: 32px; height: 32px; background: url('./assets/farm-b-v1/plots/default.png') center / contain; }
+body .preview-plot .crop-pixel { width: 26px; height: 26px; }
+body :is(.task-create-panel,.market-modal-panel,.habit-modal-panel,.focus-settings,.themed-date-calendar) { background: var(--paper); color: var(--ink); border-color: var(--line) !important; box-shadow: 0 16px 60px #0003 !important; }
+body :is(#todayPage,#tasksPage) .task-card.editing { background: var(--paper); border: 1px solid var(--line) !important; box-shadow: none !important; }
+body .page-view.active, body :is(#todayPage,#tasksPage) .task-card { animation: none; }
+body :is(#todayPage,#tasksPage) .board-column .task-card:not(.editing) .task-top h4 { font-size: 15px !important; }
+body :is(#todayPage,#tasksPage) .board-column .task-card:not(.editing) .today-task-check { width: 22px !important; height: 22px !important; min-height: 22px !important; }
+body :is(#todayPage,#tasksPage) .board-column .task-card:not(.editing) .task-actions button { width: 30px !important; height: 30px !important; min-height: 30px !important; border: 0 !important; box-shadow: none !important; background: var(--theme-board) !important; }
+body :is(#todayPage,#tasksPage) .board-column .task-card:not(.editing) :is(.task-category,.task-focus-pill,.task-archived-label,.task-completed-date) { font-size: 12px !important; }
+body :is(#todayPage,#habitsPage) .habit-item .habit-copy strong { font-size: 15px !important; }
+body :is(#todayPage,#habitsPage) .habit-item .habit-actions :is(.habit-edit,.habit-delete) { width: 28px !important; height: 28px !important; min-height: 28px !important; }
+body :is(#todayPage,#habitsPage) .habit-item :is(.habit-summary,.habit-focus-button) { font-size: 12px !important; }
+body #todayPage :is(#taskSection,#habitSection) .section-header > div { padding-left: 0; }
+body #todayPage :is(#taskSection,#habitSection) .section-header > div::before { display: none; }
+body #todayPage #focusCard .focus-visual { height: auto; }
+body #todayPage #focusCard .timer-ring { height: auto; }
+body #todayPage #focusCard .focus-mode-switch button.active { background: var(--pixel-soft) !important; color: var(--pixel-accent) !important; }
+body #todayPage #focusCard .focus-controls { order: 2; }
+body #todayPage #focusCard #focusTarget { order: 1; }
+body :is(#todayPage,#tasksPage) .board-column { min-height: 0 !important; }
+body :is(#todayPage,#tasksPage) .task-list { min-height: 0 !important; }
+body #todayPage .progress-stats > div { min-height: 0; }
+:root[data-theme] body .main-content :is(#todayPage,#tasksPage,#habitsPage) :is(.task-section,.habit-section,.board-column,.task-list) { background: transparent !important; box-shadow: none !important; }
+:root[data-theme] body :is(#todayPage,#tasksPage) .task-card:not(.editing) { background: transparent !important; }
+:root[data-theme] body :is(#todayPage,#tasksPage) .task-card:hover { background: var(--theme-board) !important; }
+:root[data-theme] body .main-content :is(#todayPage,#habitsPage) .habit-item .habit-check { width: 22px !important; height: 22px !important; min-height: 22px !important; background: var(--paper); }
+:root[data-theme] body .main-content :is(#todayPage,#habitsPage) .habit-item.complete .habit-check { background: var(--pixel-accent); }
+:root[data-theme] body :is(#todayPage,#tasksPage) .task-category { color: var(--muted) !important; }
+:root[data-theme] body .main-nav .nav-item .nav-icon { color: var(--muted); }
+:root[data-theme] body .main-nav .nav-item.active .nav-icon { color: var(--pixel-accent); }
+:root[data-theme] body .nav-balance :is(strong,small) { color: var(--ink); }
+:root[data-theme] body #todayPage .progress-card { min-height: 0; border-left: 0 !important; }
+:root[data-theme] body #todayPage .progress-stats { height: auto; min-height: 0; }
+:root[data-theme] body #todayPage .progress-stats > div { flex-direction: row; align-items: center; }
+:root[data-theme] body #todayPage .progress-stats .strip-progress { flex-basis: 100%; height: 5px; display: grid; }
+body #todayPage #todayLabel { color: var(--muted); font-size: 12px; margin-top: 6px; }
+body #todayPage .timer-ring > div::after { display: none; }
+body :is(#todayPage,#tasksPage) .count { border: 0; background: var(--theme-board); color: var(--muted); box-shadow: none; }
+body :is(#todayPage,#tasksPage) .board-column[data-status="waiting"]:has(.task-empty) { min-height: 120px !important; }
+body :is(#todayPage,#tasksPage) .board-column[data-status="done"]:has(.task-empty) { display: none !important; }
+body .task-empty { color: var(--muted); font-size: 13px; background: transparent; }
+body #todayPage .focus-mode-row { max-width: 100%; }
+body #tasksPage #tasksPageSlot { width: 100%; min-width: 0; }
+body #tasksPage #taskSection { width: 100%; min-width: 0; }
+body #tasksPage #taskBoard,
+body #tasksPage #taskBoard:not(.archive-view) {
+  display: flex !important; flex-direction: column; align-items: stretch;
+  justify-content: start; width: 100%; gap: 0;
+}
+body #tasksPage #taskBoard :is(.board-column,.task-list) {
+  display: flex !important; flex-direction: column; align-items: stretch;
+  width: 100%; min-width: 0; min-height: 0; padding: 0; gap: 0;
+}
+body #tasksPage #taskBoard.archive-view .board-column:not([data-status="done"]) { display: none !important; }
+body #tasksPage #taskBoard .task-card:not(.editing) {
+  display: grid; grid-template-columns: 24px minmax(0,1fr) auto 64px !important;
+  grid-template-areas: 'check title meta actions';
+  width: 100%; max-width: none; min-height: 54px !important;
+  padding: 8px 2px !important; gap: 12px !important;
+  border: 0 !important; border-bottom: 1px solid var(--row-line) !important;
+  border-radius: 0 !important; box-shadow: none !important;
+}
+body #tasksPage #taskBoard .task-card .task-top { grid-area: title; }
+body #tasksPage #taskBoard .task-card .task-meta { grid-area: meta; justify-content: end; margin: 0; }
+body #tasksPage #taskBoard .task-card .task-actions {
+  grid-area: actions; align-self: center; flex-direction: row !important;
+}
+body #tasksPage #taskBoard .task-card .task-top h4 { margin: 0; font-size: 15px !important; font-weight: 500; }
+body #tasksPage #taskBoard .board-column[data-status="done"] > header {
+  display: flex; justify-content: start; gap: 8px; min-height: 40px;
+  margin-top: 18px; padding: 0; border: 0; color: var(--muted);
+}
+body #tasksPage #taskBoard.archive-view .board-column > header { display: none; }
+body #tasksPage #taskBoard .task-card.archived {
+  grid-template-columns: 24px minmax(0,1fr) auto auto 64px !important;
+  grid-template-areas: 'check title meta restore actions';
+}
+body #tasksPage #taskBoard .task-archive-button {
+  grid-area: restore; justify-self: end; min-height: 32px; margin: 0;
+  padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px !important;
+  background: var(--paper); color: var(--ink); box-shadow: none; font-size: 12px;
+}
+body #tasksPage #taskBoard .task-archive-button:hover { background: var(--pixel-soft); color: var(--pixel-accent); }
+body #tasksPage #taskBoard .task-card :is(.task-archived-label,.task-completed-date) {
+  padding: 0; border: 0; background: transparent; color: var(--muted); box-shadow: none;
+}
+body #tasksPage #taskSection .section-header > button {
+  border: 0 !important; box-shadow: none !important; background: var(--pixel-accent); color: var(--pixel-on-accent);
+}
+:root[data-theme] body #tasksPage .task-page-tools {
+  display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px 20px;
+  padding: 0 0 20px; margin: 0 0 24px;
+  border: 0 !important; border-bottom: 1px solid var(--line) !important;
+  border-radius: 0 !important; background: transparent; box-shadow: none !important;
+}
+body #tasksPage #taskGroupFilters { grid-column: 1; grid-row: 1; margin: 0; align-items: center; }
+body #tasksPage #taskArchivePolicy {
+  grid-column: 1 / -1; grid-row: 2; min-width: 0; flex: none;
+  margin: 0; text-align: left; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.6;
+}
+:root[data-theme] body #tasksPage #toggleArchiveView {
+  grid-column: 2; grid-row: 1; display: inline-flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 36px; padding: 7px 12px;
+  border: 1px solid var(--line) !important; border-radius: 7px !important;
+  background: var(--paper); color: var(--ink); box-shadow: none !important;
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+}
+body #tasksPage #toggleArchiveView::before {
+  content: ''; width: 16px; height: 16px; background: currentColor;
+  clip-path: polygon(0 0,100% 0,100% 25%,92% 25%,92% 100%,8% 100%,8% 25%,0 25%,0 0,12% 8%,12% 17%,88% 17%,88% 8%,12% 8%,20% 33%,20% 88%,80% 88%,80% 33%,20% 33%,35% 44%,65% 44%,65% 55%,35% 55%);
+}
+:root[data-theme] body #tasksPage #toggleArchiveView:is(:hover,.active) { background: var(--pixel-soft); color: var(--pixel-accent); border-color: var(--pixel-accent) !important; }
+@media (prefers-reduced-motion: reduce) {
+  body .nav-item { transition: none; }
+}
+body :is(#taskCreateModal,#habitModal,#userSettingsModal) :is(input,textarea,select) { background: var(--paper); color: var(--ink); }
+@media (max-width: 1100px) and (min-width: 701px) {
+  body .app-shell { grid-template-columns: 76px minmax(0,1fr); }
+  body .sidebar { width: 76px; padding: 22px 10px; }
+  body .brand { justify-content: center; padding: 0; }
+  body .brand > span:last-child, body .nav-label, body .profile-copy, body .nav-wallet, body #themeToggleLabel { display: none !important; }
+  body .main-nav .nav-item, body .theme-toggle { justify-content: center; padding: 10px; }
+  body .profile-button { justify-content: center; padding: 0; }
+  body .main-content { padding: 24px; }
+  body :is(#todayPage,#tasksPage) .task-card:not(.editing) { grid-template-columns: 24px minmax(0,1fr) 64px !important; grid-template-areas: 'check title actions' 'check meta actions'; gap: 3px 10px !important; }
+  body :is(#todayPage,#tasksPage) .task-meta { justify-content: start; }
+  body #tasksPage #taskBoard .task-card:not(.editing) {
+    grid-template-columns: 24px minmax(0,1fr) 64px !important;
+    grid-template-areas: 'check title actions' 'check meta actions'; gap: 3px 10px !important;
+  }
+  body #tasksPage #taskBoard .task-card.archived {
+    grid-template-columns: 24px minmax(0,1fr) auto 64px !important;
+    grid-template-areas: 'check title restore actions' 'check meta restore actions';
+  }
+  body #tasksPage #taskBoard .task-card .task-meta { justify-content: start; }
+}
+@media (hover: none) {
+  body :is(#todayPage,#tasksPage) .task-actions, body :is(#todayPage,#habitsPage) .habit-actions :is(.habit-edit,.habit-delete) { opacity: 1; pointer-events: auto; }
+}
+@container today-tasks (max-width: 560px) {
+  body #todayPage #taskBoard .task-card:not(.editing) {
+    grid-template-columns: 24px minmax(0,1fr) 64px !important;
+    grid-template-areas: 'check title actions' 'check meta actions'; gap: 3px 10px !important;
+  }
+  body #todayPage #taskBoard .task-meta { min-width: 0; justify-content: start; }
+  body #todayPage #taskBoard .task-category { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+}
+@media (max-width: 700px) {
+  body .app-shell { display: block; padding: 0; }
+  body .sidebar { position: fixed; inset: auto 0 0; width: 100%; height: auto; min-height: 0; padding: 6px 8px max(8px,env(safe-area-inset-bottom)); overflow: visible; border: 0; border-top: 1px solid var(--line); background: var(--paper); }
+  body .sidebar > .brand, body .sidebar-spacer, body .nav-account { display: none !important; }
+  body .main-nav { flex-direction: row; justify-content: space-around; gap: 0; }
+  body .main-nav .nav-item { flex: 1; flex-direction: column; gap: 4px; min-width: 0; min-height: 48px; padding: 4px 2px; font-size: 10px; }
+  body .main-nav .nav-label { display: block !important; }
+  body #openMobileUserSettings { display: flex !important; }
+  body .theme-toggle { position: fixed; top: 12px; right: 16px; width: 36px; min-height: 36px; justify-content: center; margin: 0; padding: 6px; background: var(--paper); z-index: 101; }
+  body #themeToggleLabel { display: none; }
+  body .main-content { padding: 22px 18px 96px; }
+  body #todayPage.active { display: flex; flex-direction: column; gap: 22px; }
+  body .today-splitter { display: none; }
+  body #todayPage .topbar { width: 100%; min-height: 32px; padding-right: 42px; }
+  body #todayPage .topbar h1 { font-size: 25px; }
+  body #todayPage #summaryGrid { order: 1; width: 100%; padding: 14px; gap: 12px; }
+  body #todayPage #focusCard { display: grid; grid-template-columns: 100px minmax(0,1fr); gap: 10px; }
+  body #todayPage .focus-strip-heading { display: none; }
+  body #todayPage .focus-visual { grid-column: 1; grid-row: 1; }
+  body #todayPage #focusTime { font-size: 32px !important; letter-spacing: -1px; }
+  body #todayPage .focus-copy { grid-column: 2; grid-row: 1; gap: 6px; }
+  body #todayPage .focus-mode-row { justify-content: start; }
+  body #todayPage #focusTarget { text-align: left; font-size: 11px !important; }
+  body #todayPage #focusButton { min-height: 36px; font-size: 13px; }
+  body #todayPage .progress-stats { margin-top: 10px; }
+  body #todayPage #taskSection { order: 2; width: 100%; }
+  body #todayPage #habitSection { order: 3; width: 100%; }
+  body .today-farm-preview { order: 4; width: 100%; }
+  body :is(#todayPage,#tasksPage) .task-card:not(.editing) { grid-template-columns: 22px minmax(0,1fr) 64px !important; grid-template-areas: 'check title actions' 'check meta actions'; min-height: 64px !important; padding: 8px 0 !important; gap: 3px 9px !important; }
+  body :is(#todayPage,#tasksPage) .task-actions { opacity: 1; pointer-events: auto; }
+  body :is(#todayPage,#tasksPage) .task-top h4 { font-size: 14px; }
+  body :is(#todayPage,#tasksPage) .task-meta { justify-content: start; }
+  body #tasksPage #taskBoard .task-card:not(.editing) {
+    grid-template-columns: 22px minmax(0,1fr) 64px !important;
+    grid-template-areas: 'check title actions' 'check meta actions';
+    min-height: 64px !important; padding: 8px 0 !important; gap: 3px 9px !important;
+  }
+  body #tasksPage #taskBoard .task-card .task-meta { justify-content: start; }
+  body #tasksPage #taskBoard .task-card.archived { grid-template-areas: 'check title actions' 'check meta actions' '. restore restore'; }
+  body #tasksPage #taskBoard .task-card .task-archive-button { justify-self: start; margin: 4px 0 0; }
+  :root[data-theme] body #tasksPage .task-page-tools { grid-template-columns: minmax(0,1fr); padding-top: 40px; gap: 12px; }
+  body #tasksPage #taskGroupFilters { grid-row: 2; }
+  :root[data-theme] body #tasksPage #toggleArchiveView { grid-column: 1; grid-row: 1; justify-self: start; }
+  body #tasksPage #taskArchivePolicy { grid-row: 3; }
+  body :is(#todayPage,#habitsPage) .habit-actions :is(.habit-edit,.habit-delete) { opacity: 1; pointer-events: auto; }
+  body .section-header h2 { font-size: 18px; }
+}

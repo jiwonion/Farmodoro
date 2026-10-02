@@ -1,0 +1,213 @@
+/* Focus and farm fit the available workspace, including laptop browser zoom. */
+:root { --workspace-viewport-inset: 60px; }
+
+body #focusPage .focus-page-stage {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: calc(100dvh - var(--workspace-viewport-inset)) !important;
+  min-height: 0 !important;
+  aspect-ratio: auto !important;
+  overflow: auto;
+}
+
+body #focusPage .focus-page-stage:fullscreen {
+  width: 100%;
+  height: 100dvh !important;
+  min-height: 0 !important;
+}
+
+body #focusPage .focus-page-stage .focus-stage-toolbar {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: clamp(12px, 1.5cqw, 24px);
+}
+
+body #focusPage .focus-item-picker {
+  flex: 1 1 240px;
+  width: auto;
+  max-width: 340px;
+  min-width: 0;
+}
+
+body #focusPage .focus-stage-actions {
+  display: flex;
+  flex: 1 1 410px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: auto;
+  max-width: 100%;
+  gap: 6px;
+}
+
+body #focusPage .focus-stage-actions :is(button, label) {
+  width: auto;
+  min-height: clamp(38px, 3.5cqw, 46px);
+  padding-inline: clamp(8px, .9cqw, 16px);
+  font-size: clamp(12px, 1cqw, 14px);
+}
+
+body #focusPage .focus-page-stage .focus-page-slot {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex: 1 0 auto;
+  height: auto;
+  min-height: 0 !important;
+  overflow: visible;
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone {
+  --focus-stage-visual-size: clamp(176px, min(23cqw, 29dvh), 310px);
+  --focus-stage-visual-radius: calc(var(--focus-stage-visual-size) / 2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 2dvh, 28px);
+  width: 100%;
+  height: auto;
+  min-height: 0 !important;
+  padding: 20px clamp(16px, 3cqw, 48px) 36px;
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
+  position: relative;
+  inset: auto;
+  order: -1;
+  flex: 0 0 var(--focus-stage-visual-size);
+  width: var(--focus-stage-visual-size);
+  height: var(--focus-stage-visual-size);
+  min-width: 0;
+  transform: none;
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .timer-ring {
+  width: calc(var(--focus-stage-visual-size) * .9);
+  height: calc(var(--focus-stage-visual-size) * .9);
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong {
+  font-size: clamp(34px, min(5cqw, 6dvh), 62px);
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-copy {
+  position: static;
+  width: min(560px, 100%);
+  max-width: 100%;
+  transform: none;
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-copy h2 {
+  margin-block: 0 10px;
+  font-size: clamp(22px, 2.5cqw, 32px);
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-copy p {
+  font-size: clamp(13px, 1.1cqw, 15px);
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-controls {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
+  width: min(360px, 100%);
+  max-width: 100%;
+}
+
+/* Preserve each terrain's plot coordinates while fitting its 3:2 map. */
+@media (min-width: 701px) {
+  body #farmPage .farm-layout {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+    height: calc(100dvh - var(--workspace-viewport-inset));
+    min-height: 0;
+    margin: 0;
+  }
+
+  body #farmPage .farm-panel {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+  }
+
+  body #farmPage :is(.farm-panel-header, .farm-set-bonuses, .farm-protection-status, .farm-world-footer) {
+    flex: 0 0 auto;
+  }
+
+  body #farmPage .farm-scene[data-scenery] {
+    container-type: size;
+    display: grid;
+    flex: 1 1 auto;
+    place-items: center;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  body #farmPage .farm-scene[data-scenery] .farm-scene-grid {
+    width: min(100cqw, 150cqh);
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    aspect-ratio: 3 / 2;
+  }
+
+  body #farmPage .farm-world-hint span,
+  body #farmPage #toggleFarmOverview { display: none; }
+}
+
+@media (max-width: 1100px) {
+  :root { --workspace-viewport-inset: 48px; }
+}
+
+@media (max-width: 900px) {
+  body #focusPage .focus-item-picker { max-width: none; }
+  body #focusPage .focus-stage-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 700px) {
+  body #focusPage .focus-page-stage {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  body #focusPage .focus-page-stage .focus-stage-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  body #focusPage .focus-item-picker { flex: 0 0 auto; width: 100%; }
+  body #focusPage .focus-stage-actions {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  body #focusPage .focus-stage-actions :is(button, label) { width: 100%; min-height: 40px; }
+  body #focusPage .focus-page-stage .focus-card.standalone {
+    --focus-stage-visual-size: clamp(150px, 44cqw, 210px);
+    padding: 24px 14px 32px;
+    gap: 20px;
+  }
+  body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong { font-size: clamp(32px, 9cqw, 42px); }
+}

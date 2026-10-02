@@ -11,8 +11,14 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="./assets/icons/pixel-clock-192.png?v=268" />
     <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/pixel-clock-apple-touch.png?v=268" />
+    <link rel="preload" href="./assets/fonts/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin />
     <title>Farmodoro</title>
     <script>
+      try {
+        document.documentElement.dataset.theme = localStorage.getItem("farmodoro-ui-theme") === "dark" ? "dark" : "white";
+      } catch {
+        document.documentElement.dataset.theme = "white";
+      }
       window.setTimeout(() => {
         document.documentElement.classList.remove("app-initializing");
       }, 1500);
@@ -42,6 +48,10 @@
     <link rel="stylesheet" href="./farm-scenery.css?v=298" />
     <link rel="stylesheet" href="./farm-rpg.css?v=287" />
     <link rel="stylesheet" href="./farm-nameplates.css?v=1" />
+    <link rel="stylesheet" href="./workspace.css?v=6" />
+    <link rel="stylesheet" href="./workspace-controls.css?v=2" />
+    <link rel="stylesheet" href="./workspace-responsive.css?v=2" />
+    <link rel="stylesheet" href="./workspace-forms.css?v=2" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -165,6 +175,7 @@
         </nav>
 
         <div class="sidebar-spacer"></div>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="다크 테마로 전환" aria-pressed="false"><span aria-hidden="true">◐</span><span id="themeToggleLabel">다크 테마</span></button>
         <div class="nav-account">
           <button class="profile-button" id="openUserSettings" type="button" aria-label="내 정보 및 사용자 설정 열기" title="사용자 설정">
             <span class="avatar" id="profileAvatar">F</span>
@@ -192,10 +203,12 @@
 
       <main class="main-content">
         <section class="page-view" id="todayPage" data-view="today">
+        <div class="today-splitter" id="todaySplitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="할 일과 오른쪽 영역 너비 조절" aria-controls="taskSection summaryGrid habitSection" aria-valuemin="20" aria-valuemax="60" aria-valuenow="30" aria-valuetext="할 일 70%, 오른쪽 30%" title="드래그 또는 방향키로 너비 조절 · 더블클릭으로 초기화"></div>
         <header class="topbar">
           <button class="mobile-menu" type="button" aria-label="메뉴 열기">☰</button>
           <div>
-            <h1 id="todayLabel"></h1>
+            <h1>오늘</h1>
+            <p id="todayLabel"></p>
             <p class="today-description">오늘도, 꾸준히 한 걸음씩 <span class="pixel-sprout" aria-hidden="true"></span></p>
           </div>
           <div class="today-welcome">
@@ -319,16 +332,17 @@
                 <h2>오늘의 할 일</h2>
                 <p class="section-description">오늘도 하나씩, 해내는 하루!</p>
               </div>
-              <button class="add-button" id="openTaskForm" type="button">
+              <div class="section-header-actions">
+              <button class="secondary-button" id="toggleGroupManager" type="button" aria-controls="groupManager" aria-expanded="false">그룹 관리</button>
+              <button class="add-button" id="openTaskForm" type="button" aria-controls="taskCreateModal" aria-expanded="false">
                 <span aria-hidden="true">＋</span><span>할 일 추가</span>
               </button>
+              </div>
             </div>
 
             <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="오늘의 할 일 그룹 필터"></div>
 
-            <div id="taskCreateModal" class="task-create-modal" role="dialog" aria-modal="true" aria-labelledby="taskCreateTitle">
-            <div class="task-create-backdrop" data-close-task-create></div>
-            <section class="task-create-panel">
+            <section id="taskCreateModal" class="inline-composer hidden" aria-labelledby="taskCreateTitle">
             <header><h2 id="taskCreateTitle">할 일 추가</h2><button class="pixel-close-button" type="button" data-close-task-create aria-label="할 일 추가 닫기">×</button></header>
             <form class="quick-form hidden" id="taskForm">
               <div class="task-input-wrap">
@@ -351,7 +365,8 @@
                   class="custom-group-trigger"
                   id="taskGroupTrigger"
                   type="button"
-                  aria-haspopup="dialog"
+                  aria-haspopup="listbox"
+                  aria-controls="taskGroupMenu"
                   aria-expanded="false"
                 >
                   <span id="taskGroupLabel">그룹 없음</span>
@@ -359,11 +374,12 @@
                 </button>
                 <div class="custom-group-menu hidden" id="taskGroupMenu" role="listbox"></div>
               </div>
-              <button class="secondary-button" id="toggleGroupManager" type="button" aria-haspopup="dialog" aria-controls="taskGroupManagerDialog" aria-expanded="false">그룹 관리</button>
               <button class="primary-button compact" id="taskFormSubmit" type="submit">추가</button>
             </form>
+            </section>
 
-            <div class="group-manager hidden" id="groupManager">
+            <section class="group-manager inline-composer hidden" id="groupManager" aria-labelledby="groupManagerTitle">
+              <header><h2 id="groupManagerTitle">그룹 관리</h2><button class="pixel-close-button" type="button" data-close-group-manager aria-label="그룹 관리 닫기">×</button></header>
               <div class="group-list" id="groupList"></div>
               <div class="group-add">
                 <input
@@ -376,10 +392,7 @@
                 />
                 <button class="primary-button compact" id="addGroupButton" type="button">추가</button>
               </div>
-            </div>
-
             </section>
-            </div>
             <div class="board" id="taskBoard">
               <section class="board-column" data-status="waiting">
                 <header>
@@ -412,18 +425,14 @@
                 <h2>오늘의 습관</h2>
                 <p class="section-description">작은 습관이, 큰 변화를 키워요.</p>
               </div>
-              <button class="text-button" id="openHabitForm" type="button">＋ 습관 추가</button>
+              <button class="text-button" id="openHabitForm" type="button" aria-controls="habitModal" aria-expanded="false">＋ 습관 추가</button>
             </div>
 
             <div
-              class="habit-modal hidden"
+              class="inline-composer hidden"
               id="habitModal"
-              role="dialog"
-              aria-modal="true"
               aria-labelledby="habitModalTitle"
             >
-              <div class="habit-modal-backdrop" data-close-habit-modal></div>
-              <section class="habit-modal-panel">
                 <header>
                   <div>
                     <span class="section-kicker">NEW ROUTINE</span>
@@ -482,7 +491,6 @@
               <button class="primary-button compact habit-submit" type="submit">습관 추가</button>
                   </form>
                 </div>
-              </section>
             </div>
 
             <nav class="heatmap-nav habit-date-nav" id="habitDateNav" aria-label="습관 조회 날짜" hidden>
@@ -496,6 +504,11 @@
 
           </aside>
         </section>
+        <a class="today-farm-preview" href="#farm" aria-label="내 농장 열기">
+          <header><strong>내 농장</strong><span><b id="previewFarmMoney">0</b> Farm ›</span></header>
+          <div class="today-farm-landscape" aria-hidden="true"><img class="preview-house" src="./assets/farm-b-v1/objects/rustic/house.png" alt="" /><div id="todayFarmPlots"></div></div>
+          <small id="todayFarmStatus">내 농장을 둘러봐</small>
+        </a>
         </section>
 
         <section class="page-view" id="tasksPage" data-view="tasks">
@@ -1197,7 +1210,7 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=300"></script>
+    <script src="./app.js?v=307"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>
