@@ -6,3 +6,8 @@ output/imagegen/*/*.png
 # Local browser profile left behind by screenshot runs.
 .tmp-chrome-*/
 .tmp-*.png
+
+# Screenshots written by the UI smoke tests on every run.
+docs/previews/workspace/
+output/*.png
+output/*-preview.md
