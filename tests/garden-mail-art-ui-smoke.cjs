@@ -89,7 +89,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
           {id:'mail-harvest-'+itemId,category:'harvest',itemId,quantity:2},
           {id:'mail-seed-'+itemId,category:'seed',itemId,quantity:1}
         ])}],
-      sentToday:[],ownedCosmetics:[],marketRotation:{}
+      sentToday:[],ownedCosmetics:[]
     };
     __mailRpcHandler=async(name,params)=>{
       if(name==='get_my_farm_state_v6')return {data:structuredClone(__mailServer),error:null};

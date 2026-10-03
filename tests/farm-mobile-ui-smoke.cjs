@@ -98,12 +98,11 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const focusFits=copy.getBoundingClientRect().bottom <= card.getBoundingClientRect().bottom+1;
       showPage('farm');
       const field=document.querySelector('#farmPage .farm-scene').getBoundingClientRect();
-      const market=document.querySelector('#npcMarket').getBoundingClientRect();
-      const marketMatches=document.querySelector('#farmMarketModal').classList.contains('hidden') && field.width>0;
-      return {sample,theme,label,timer,hidden,focusFits,marketMatches,overflow:document.documentElement.scrollWidth>innerWidth};
+      const fieldVisible=field.width>0 && !document.querySelector('#farmMarketModal');
+      return {sample,theme,label,timer,hidden,focusFits,fieldVisible,overflow:document.documentElement.scrollWidth>innerWidth};
     })()`);
     console.log(width, result);
-    for (const key of ['sample','theme','label','timer','hidden','marketMatches']) assert.equal(result[key],true,key+' '+width);
+    for (const key of ['sample','theme','label','timer','hidden','fieldVisible']) assert.equal(result[key],true,key+' '+width);
     if(width<=700) assert.equal(result.focusFits,true,'focusFits '+width);
     assert.equal(result.overflow,false,'overflow '+width);
     await evaluate(`state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:['carrot','strawberry','corn','eggplant','tomato','lavender','watermelon','sunflower','lemon'][id],growth:100,lastCaredAt:Date.now(),lastWateredAt:Date.now()})); renderFarm(); focusRuntimeByMode.quick.started=false; runningFocusMode=null; updateMiniFocusTimer();`);
@@ -324,13 +323,6 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         }
         await evaluate(`document.getElementById(${JSON.stringify(id)}).classList.add('hidden')`);
       }
-      await evaluate(`setFarmMarketOpen(true)`);
-      assert.equal(await evaluate(`(() => {const market=document.querySelector('#npcMarket'); return !market.hasAttribute('data-farm-rpg') && market.scrollWidth<=market.clientWidth+1;})()`),true);
-      if(process.env.FARM_RPG_SCREENSHOTS && width!==320 && [null,'galaxyNight'].includes(theme)) {
-        const shot=await call('Page.captureScreenshot',{format:'png'});
-        fs.writeFileSync(path.join(process.env.FARM_RPG_SCREENSHOTS,`market-${theme || 'meadow'}-${width}.png`),Buffer.from(shot.data,'base64'));
-      }
-      await evaluate(`setFarmMarketOpen(false)`);
     }
     await evaluate(`state.equippedFarmTheme=null; state.farmPlots=Array.from({length:9},(_,id)=>({id,crop:'carrot',growth:id===0?0:3,wilted:id===3,lastCaredAt:Date.now()-(id===2?23:0)*3600000,lastFreeWaterAt:0})); renderFarm();`);
     assert.deepEqual(await evaluate(`[...document.querySelectorAll('[data-plot-status]')].slice(0,4).map(e=>e.dataset.urgency)`),['water','harvest','urgent','wilted']);
@@ -424,20 +416,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const planted=state.farmPlots[0].crop==='carrot' && state.seedInventory.carrot===1;
       selectedSeed=null; action('discard',1); await Promise.resolve();
       const discarded=!state.farmPlots[1].crop;
-      const marketTrigger=document.createElement('button');marketTrigger.type='button';marketTrigger.dataset.openFarmCustomization='';document.querySelector('.farm-workspace-toolbar').append(marketTrigger);marketTrigger.focus();marketTrigger.click();
-      const marketOpen=!document.querySelector('#farmMarketModal').classList.contains('hidden');
-      document.querySelector('button[data-close-farm-market]').click();
-      const marketClosed=document.querySelector('#farmMarketModal').classList.contains('hidden');
-      marketTrigger.focus();marketTrigger.click();
-      document.querySelector('#npcMarket').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-      const keyboardClose=!document.querySelector('#farmPage').classList.contains('farm-market-open') && document.querySelector('#farmMarketModal').classList.contains('hidden') && document.activeElement===marketTrigger;marketTrigger.remove();
-      return {selection,growth,water,supply,harvested,seedsOpened,planted,discarded,marketOpen,marketClosed,keyboardClose,calls};
+      return {selection,growth,water,supply,harvested,seedsOpened,planted,discarded,calls};
     } finally {runFarmAction=originalAction;activeAuthUser=originalUser;farmDataHydrated=originalHydrated;window.__farmMobileRPCHandler=originalRpc;}
   })()`);
   assert.ok(Object.entries(interactions).filter(([key])=>key!=='calls').every(([,value])=>value),JSON.stringify(interactions));
   assert.deepEqual(interactions.calls.map(call=>call.rpc),['grow_farm_plot_with_coin','water_farm_plot','apply_farm_plot_item','harvest_farm_plot','buy_and_plant_farm_seed','discard_farm_plot']);
   assert.ok(interactions.calls.every(call=>[0,1].includes(call.params.p_plot_index)));
-  console.log('Visible plot status, direct actions, supplies, seed picker, market and keyboard close PASS (local RPC stub)');
+  console.log('Visible plot status, direct actions, supplies and seed picker PASS (local RPC stub)');
   assert.deepEqual(exceptions, []);
   console.log('Farm/mobile regression checks PASS');
 })().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => {

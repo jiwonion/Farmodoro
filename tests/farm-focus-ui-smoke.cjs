@@ -100,7 +100,6 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
     state.habits = [mapDatabaseHabit({ id: 'habit-today', title: '독서', measure_type: 'check', target_value: 1, weekdays: [1, 2, 3, 4, 5, 6, 7], unit: '회' }, [{ record_date: getFarmDashboardDate(), completed_at: new Date().toISOString(), progress_value: 1, focus_seconds: 0 }])];
     state.ownedCosmetics = [{ type: 'farm_theme', id: 'springMeadow' }];
     state.equippedFarmTheme = null;
-    state.dailyCosmeticOffers = [{ type: 'farm_theme', id: 'cherryBlossom' }, { type: 'plot_skin', id: 'cherryPetalFall' }];
     window.__farmServer = { plots: structuredClone(state.farmPlots), selected: 0, dailySeconds: 0,
       coins: 12, harvests: state.harvestInventory.carrot ?? 0 };
     window.__farmRpcHandler = async (name, params) => {
@@ -213,7 +212,6 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       openFarmPlotId = null;
       state.equippedFarmTheme = 'cherryBlossom'; state.equippedPlotSkin = null;
       state.ownedCosmetics = [{ type: 'farm_theme', id: 'springMeadow' }, { type: 'farm_theme', id: 'cherryBlossom' }];
-      state.dailyCosmeticOffers = [{ type: 'plot_skin', id: 'cherryPetalFall' }, { type: 'farm_theme', id: 'galaxyNight' }];
       renderFarm(); showPage('farm');
     `);
     fs.mkdirSync(path.join(root, 'output'), { recursive: true });

@@ -975,27 +975,11 @@ body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::after {
   body #farmPage .farm-header-money :is(i, b) { font-size: 15px; }
   body #farmPage .farm-header-money strong,
   body #farmPage .farm-wallet strong { font-size: 18px; }
-  body #farmPage .open-permanent-market span { font-size: 24px; }
-  body #farmPage .open-permanent-market small { font-size: 14px; line-height: 1.5; }
-  body #farmPage :is(.rachel-tabs) button {
-    min-height: 44px;
-    font-size: 16px;
-    line-height: 1.4;
-  }
   body #farmPage .market-section-title { font-size: 20px; }
-  body #farmPage .npc-panel > .market-section-title small { font-size: 13px; }
-  body #farmPage :is(.rachel-cosmetic-card) strong {
-    font-size: 18px;
-    line-height: 1.5;
-  }
-  body #farmPage :is(.rachel-cosmetic-card) small,
-  body #farmPage :is(.rachel-status, .rachel-equipped-badge, .farm-protection-status) {
+  
+  body #farmPage :is(.farm-protection-status) {
     font-size: 14px;
     line-height: 1.5;
-  }
-  body #farmPage :is(.rachel-cosmetic-card) button:not(.rachel-preview-button) {
-    min-height: 40px;
-    font-size: 16px;
   }
   body #farmPage .farm-scene .crop-info :is(strong, small) { font-size: 15px; }
   body #farmPage .farm-scene .crop-wilt-countdown { font-size: 13px; }
@@ -1887,23 +1871,6 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
   }
   body #farmPage .farm-scene .empty-plot { font-size: 18px; }
   body #farmPage .npc-market { padding: 6px; }
-  body #farmPage .npc-market > .open-permanent-market {
-    min-height: 54px;
-    margin-bottom: 5px;
-    padding: 17px 7px 6px;
-    overflow: visible;
-  }
-  body #farmPage .open-permanent-market span {
-    display: block;
-    font-size: 12px;
-    line-height: 1.25;
-    white-space: normal;
-  }
-  body #farmPage .open-permanent-market small {
-    display: block;
-    font-size: 12px;
-    line-height: 1.25;
-  }
   body #farmPage .market-section-title { padding: 4px 5px; font-size: 12px; }
 }
 
@@ -1965,8 +1932,6 @@ body .cosmetic-farm-preview .farm-panel-header { grid-column: 1 / -1; padding: 1
 body .cosmetic-farm-preview .farm-header-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 12px; }
 body .cosmetic-farm-preview .cosmetic-preview-farm-scene { min-height: 0; padding: 8px; }
 body .cosmetic-farm-preview .npc-market { min-width: 0; padding: 8px; border: 3px solid #67452f; }
-body .cosmetic-farm-preview .open-permanent-market { display: grid; gap: 5px; padding: 8px; font-size: 15px; }
-body .cosmetic-farm-preview .open-permanent-market small { font-size: 12px; }
 body .cosmetic-farm-preview .crop-info strong { font-size: 12px; }
 
 /* Opening and browsing mail should not repaint a moving storefront. */
@@ -2221,15 +2186,4 @@ body #farmPage:not([data-farm-theme]) .npc-market {
   box-shadow: inset 0 0 0 3px #a9c0f7, 4px 4px 0 #315bf1;
   scrollbar-color: #315bf1 #dfe9ff;
 }
-body #farmPage:not([data-farm-theme]) .npc-market > .open-permanent-market {
-  border-color: #283754;
-  background: #fff;
-  box-shadow: inset 0 -5px #d4e0fa, 3px 3px 0 #bcc9e8;
-  color: #283754;
-}
-body #farmPage:not([data-farm-theme]) .npc-market > .open-permanent-market::before {
-  border-color: #283754;
-  background: repeating-linear-gradient(90deg, #315bf1 0 28px, #fff 28px 56px);
-}
-body #farmPage:not([data-farm-theme]) .open-permanent-market span { color: #283754; }
 body #farmPage:not([data-farm-theme]) .market-section-title { border-left-color: #315bf1; background: #dfe9ff; color: #283754; }

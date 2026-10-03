@@ -1185,8 +1185,7 @@ button {
   gap: 22px;
 }
 
-.farm-panel,
-.seed-shop {
+.farm-panel{
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--paper);
@@ -1252,8 +1251,7 @@ button {
   font-size: 11px;
 }
 
-.farm-panel-header h2,
-.seed-shop h2 {
+.farm-panel-header h2{
   margin: 4px 0 0;
   font-size: 20px;
 }
@@ -1739,10 +1737,6 @@ button {
   background: #8e4f45;
 }
 
-.seed-shop {
-  padding: 20px;
-}
-
 .npc-profile {
   display: flex;
   align-items: center;
@@ -1800,128 +1794,11 @@ button {
   background: var(--green-50);
 }
 
-.npc-market-panels {
-  min-width: 0;
-}
-
-.npc-panel[hidden] {
-  display: none;
-}
-
 .npc-placeholder {
   padding: 20px 0;
   color: var(--muted);
   font-size: 12px;
   text-align: center;
-}
-
-.rachel-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.rachel-tabs [data-rachel-tab] {
-  flex: 1;
-  padding: 7px 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--muted);
-  background: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.rachel-tabs [data-rachel-tab][aria-selected="true"] {
-  color: #fff;
-  background: var(--green-700);
-  border-color: var(--green-700);
-}
-
-.rachel-status {
-  margin: 4px 0;
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
-}
-
-.rachel-cosmetic-list {
-  display: grid;
-  gap: 7px;
-}
-
-.rachel-cosmetic-list.hidden {
-  display: none;
-}
-
-.rachel-cosmetic-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.rachel-cosmetic-card strong {
-  display: block;
-  font-size: 14px;
-}
-
-.rachel-cosmetic-card small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.rachel-cosmetic-card button {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid #d8c7a0;
-  border-radius: 8px;
-  color: #6d5b23;
-  background: #fff9df;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.rachel-cosmetic-card button:disabled {
-  color: var(--muted);
-  background: #f1efe4;
-  cursor: not-allowed;
-}
-
-/* Owned tab: an equipped item shows a quiet badge plus an unequip button
- * that returns the slot to the default farm look. */
-.rachel-cosmetic-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rachel-equipped-badge {
-  padding: 4px 9px;
-  border-radius: 999px;
-  color: #4b6b52;
-  background: #e4ecdd;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.rachel-cosmetic-card.equipped {
-  border-color: #c3d2ae;
-  background: #fbfcf7;
-}
-
-.rachel-cosmetic-card button.rachel-unequip {
-  border-color: #d7d2c4;
-  color: #6d6558;
-  background: #f6f4ed;
 }
 
 .market-balance {
@@ -2022,13 +1899,6 @@ button {
   font-size: 11px;
 }
 
-/* A title following a card list (not the profile header) needs more
-   breathing room above it than the profile's own dashed border gives. */
-
-.rachel-cosmetic-list + .market-section-title {
-  margin-top: 24px;
-}
-
 .open-farm-kitchen{
   display: inline-flex;
   align-items: center;
@@ -2114,29 +1984,6 @@ button {
   max-height: 430px;
   padding-right: 3px;
   overflow-y: auto;
-}
-
-.open-permanent-market {
-  display: grid;
-  width: 100%;
-  gap: 3px;
-  margin-bottom: 16px;
-  padding: 13px;
-  border: 1px solid #dce3d7;
-  border-radius: 11px;
-  color: var(--ink);
-  background: #f7faf5;
-  text-align: left;
-  cursor: pointer;
-}
-
-.open-permanent-market span {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.open-permanent-market small {
-  font-size: 11px;
 }
 
 .market-modal {
@@ -4410,8 +4257,7 @@ button {
 }
 
 /* Larger type and crop visuals within My Farm */
-#farmPage .farm-panel-header h2,
-#farmPage .seed-shop h2 {
+#farmPage .farm-panel-header h2{
   font-size: 24px;
 }
 
@@ -4425,10 +4271,6 @@ button {
 
 #farmPage .market-section-title {
   font-size: 15px;
-}
-
-#farmPage .seed-shop > header p {
-  font-size: 12px;
 }
 
 #farmPage .inventory-seed > span {
@@ -7197,8 +7039,7 @@ input.themed-date-native {
   box-shadow: 3px 3px 0 #173727;
 }
 
-#farmPage .farm-panel,
-#farmPage .seed-shop {
+#farmPage .farm-panel{
   border: 2px solid #294c3a;
   border-radius: 15px;
   background:
@@ -7214,10 +7055,6 @@ input.themed-date-native {
 
 #farmPage .farm-panel {
   box-shadow: 6px 6px 0 #294c3a;
-}
-
-#farmPage .seed-shop {
-  box-shadow: 6px 6px 0 #d4b95f;
 }
 
 #farmPage .farm-panel-header,
@@ -7274,16 +7111,10 @@ input.themed-date-native {
 }
 
 #farmPage .market-balance,
-#farmPage .farm-weekly-ranking-button,
-#farmPage .open-permanent-market {
+#farmPage .farm-weekly-ranking-button{
   border: 2px solid #294c3a;
   border-radius: 8px;
   box-shadow: 3px 3px 0 #294c3a;
-}
-
-#farmPage .open-permanent-market {
-  color: #294c3a;
-  background: #e8eddc;
 }
 
 #farmPage .market-section-title {
@@ -8101,10 +7932,6 @@ body #habitForm #habitFocusEnabled {
   .farm-layout {
     grid-template-columns: 1fr;
   }
-
-  .seed-shop {
-    order: -1;
-  }
 }
 
 @media (max-width: 560px) {
@@ -8225,8 +8052,7 @@ body #habitForm #habitFocusEnabled {
     min-height: 0;
   }
 
-  .farm-panel,
-  .seed-shop {
+  .farm-panel{
     padding: 14px;
   }
 
@@ -8759,7 +8585,7 @@ body #habitForm #habitFocusEnabled {
   box-shadow: none;
 }
 
-:root[data-theme="dark"] #farmPage :is(.farm-panel, .seed-shop) {
+:root[data-theme="dark"] #farmPage :is(.farm-panel) {
   border-color: #52685a;
   color: var(--ink);
   background:
@@ -9588,8 +9414,8 @@ canvas {
   .page-header p, .topbar p, .card-heading p, .farm-panel-header p { font-size: 12px; }
   .summary-grid, .workspace-grid, .farm-layout, .habit-list, #habitsPage .habit-list { gap: 10px; }
   .progress-card, .board-column, #tasksPage .board-column,
-  .task-card, #tasksPage .task-card, .farm-panel, .seed-shop { padding: 10px; }
-  .board-column, #tasksPage .board-column, .task-list, .farm-panel, .seed-shop { gap: 7px; }
+  .task-card, #tasksPage .task-card, .farm-panel{ padding: 10px; }
+  .board-column, #tasksPage .board-column, .task-list, .farm-panel{ gap: 7px; }
   .card-heading h2, .farm-panel-header h2, .market-modal-panel h2, .habit-modal-panel h2 { font-size: 18px; }
   .task-card h4, .farm-mail-inbox-copy > strong { font-size: 13px; }
   .task-card:not(.editing) .task-top { padding-right: 28px; }

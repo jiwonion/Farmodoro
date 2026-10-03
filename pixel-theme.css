@@ -188,8 +188,8 @@ body .habit-modal .weekday-field input:checked + span { background: var(--pixel-
 body :is(.mini-focus-timer,.mini-focus-music) { background: var(--paper); border-color: var(--pixel-edge); color: var(--ink); box-shadow: 3px 3px 0 var(--pixel-shadow); }
 body .focus-settings :is(label,span) { color: var(--ink) !important; }
 body .focus-settings input { background: var(--paper) !important; color: var(--ink) !important; }
-:root[data-theme="dark"] #farmPage :is(.farm-panel,.npc-market,.rachel-cosmetic-card,.npc-profile,.farm-storage-toolbar button) { background-color: var(--paper); color: var(--ink); border-color: var(--pixel-edge); }
-:root[data-theme="dark"] #farmPage :is(.farm-panel h2,.npc-profile h2,.rachel-cosmetic-card strong) { color: var(--ink); }
+:root[data-theme="dark"] #farmPage :is(.farm-panel,.npc-market,.npc-profile,.farm-storage-toolbar button) { background-color: var(--paper); color: var(--ink); border-color: var(--pixel-edge); }
+:root[data-theme="dark"] #farmPage :is(.farm-panel h2,.npc-profile h2) { color: var(--ink); }
 body #todayCoinDisplay.golden-festival-active { background: #ffdf85; animation: none; box-shadow: 3px 3px 0 var(--pixel-shadow); }
 body #todayCoinDisplay.golden-festival-active::before, body #todayCoinDisplay.golden-festival-active::after { content: none; }
 @media (max-width: 900px) {

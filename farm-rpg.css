@@ -48,8 +48,7 @@ body [data-farm-rpg] {
 }
 body [data-farm-rpg] .market-modal-backdrop { background: #121b19b5; backdrop-filter: blur(3px); }
 body .market-modal[data-farm-rpg] { padding: 12px; }
-body [data-farm-rpg] .market-modal-panel,
-body #farmPage #npcMarket[data-farm-rpg] {
+body [data-farm-rpg] .market-modal-panel{
   border: 4px solid var(--rpg-frame) !important; border-radius: 7px;
   padding: 9px; background: var(--rpg-wood) !important;
   box-shadow: inset 0 0 0 2px var(--rpg-rim), 0 5px 0 var(--rpg-frame), 0 20px 60px #10170f70 !important;
@@ -61,30 +60,25 @@ body [data-farm-rpg] .market-modal-panel > .modal-scroll-area {
   scrollbar-color: var(--rpg-wood) var(--rpg-paper);
 }
 body [data-farm-rpg] .modal-scroll-area::-webkit-scrollbar-thumb { background: var(--rpg-wood); border-color: var(--rpg-paper); }
-body [data-farm-rpg] .modal-scroll-area > header,
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading {
+body [data-farm-rpg] .modal-scroll-area > header{
   position: relative; min-height: 100px; margin: -16px -16px 18px; padding: 18px 14px 16px 92px;
   gap: 12px; border: 0; border-bottom: 3px solid var(--rpg-rim); border-radius: 0;
   background: linear-gradient(90deg, #15251ee8 0%, #15251edb 62%, #15251e70), var(--rpg-landscape) center 24% / cover;
   box-shadow: 0 2px 0 var(--rpg-frame); color: #fff3d5;
 }
-body [data-farm-rpg] .modal-scroll-area > header::before,
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading::before {
+body [data-farm-rpg] .modal-scroll-area > header::before{
   content: ''; position: absolute; left: 14px; top: 16px; width: 64px; height: 68px;
   background: var(--rpg-icon) center / contain no-repeat; image-rendering: pixelated;
   filter: drop-shadow(0 3px 1px #0007); pointer-events: none; border: 0; box-shadow: none;
 }
 body [data-farm-rpg] :is(h2, h3, h4, label, .section-kicker) { color: var(--rpg-ink) !important; text-shadow: none !important; }
 body [data-farm-rpg] :is(p, small) { color: var(--rpg-muted); }
-body [data-farm-rpg] .modal-scroll-area > header :is(h2, .section-kicker, p),
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading :is(h2, .section-kicker, p) { color: #fff1d0 !important; }
-body [data-farm-rpg] .modal-scroll-area > header h2,
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading h2 { font-size: 23px; margin: 5px 0; line-height: 1.3; }
+body [data-farm-rpg] .modal-scroll-area > header :is(h2, .section-kicker, p){ color: #fff1d0 !important; }
+body [data-farm-rpg] .modal-scroll-area > header h2{ font-size: 23px; margin: 5px 0; line-height: 1.3; }
 body [data-farm-rpg] .modal-scroll-area > header p { line-height: 1.6; font-size: 12px; }
 body [data-farm-rpg] .section-kicker { font-size: 9px; letter-spacing: .13em; }
 body [data-farm-rpg] :is(button, input, select, textarea) { font-family: inherit; }
-body [data-farm-rpg] button,
-body #farmPage #npcMarket[data-farm-rpg] button {
+body [data-farm-rpg] button{
   border: 1px solid var(--rpg-rim) !important; border-radius: 3px;
   background: var(--rpg-slot) !important; color: var(--rpg-ink) !important;
   box-shadow: inset 0 1px #ffffff30, 0 2px 0 var(--rpg-frame) !important;
@@ -98,13 +92,11 @@ body [data-farm-rpg] :is(input, select, textarea) {
   box-shadow: inset 0 2px 2px #0001 !important;
 }
 body [data-farm-rpg] input::placeholder { color: var(--rpg-muted); opacity: 1; }
-body [data-farm-rpg] :is(button.active, button.selected, button[aria-selected="true"], button[aria-pressed="true"], .farm-mail-send),
-body #farmPage #npcMarket[data-farm-rpg] :is(button.active, button[aria-selected="true"]) {
+body [data-farm-rpg] :is(button.active, button.selected, button[aria-selected="true"], button[aria-pressed="true"], .farm-mail-send){
   background: var(--rpg-accent) !important; color: var(--rpg-on-accent) !important; border-color: var(--rpg-frame) !important;
 }
 body [data-farm-rpg] :is(button.active, button.selected, button[aria-selected="true"]) :is(strong, small, span) { color: inherit !important; }
-body [data-farm-rpg] .pixel-close-button,
-body #farmPage #npcMarket[data-farm-rpg] .farm-market-close {
+body [data-farm-rpg] .pixel-close-button{
   flex-shrink: 0; width: 38px; height: 38px; min-width: 38px; min-height: 38px;
   background: var(--rpg-wood) !important; color: #fff1d0 !important; border: 2px solid var(--rpg-rim) !important; font-size: 24px;
 }
@@ -168,30 +160,6 @@ body #supplyStorageModal .supply-card-actions > :is(em, button) { grid-column: a
 body #supplyStorageModal .supply-card-actions em { justify-self: start; color: var(--rpg-muted); }
 body #supplyStorageModal .supply-card-actions button { min-height: 40px; min-width: 58px; padding: 6px 10px; font-size: 12px; }
 body #supplyStorageModal .supply-inventory-summary { font-size: 12px; line-height: 1.6; }
-
-body #farmPage #npcMarket[data-farm-rpg] { padding: 12px; background: var(--rpg-paper) !important; }
-body #farmPage #npcMarket[data-farm-rpg]::before { display: none !important; }
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading { margin: -12px -12px 16px; padding: 17px 48px 16px 76px; }
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading::before { left: 8px; width: 60px; }
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading h2 { font-size: 20px; }
-body #farmPage #npcMarket[data-farm-rpg] .rpg-market-heading p { font-size: 11px; line-height: 1.6; }
-body #farmPage #npcMarket[data-farm-rpg] .farm-market-close { z-index: 2; top: 12px; right: 10px; }
-body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card) {
-  background: var(--rpg-slot) !important; border-color: var(--rpg-rim) !important; color: var(--rpg-ink) !important; box-shadow: none !important;
-}
-body #farmPage #npcMarket[data-farm-rpg] :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small, .market-section-title) { color: var(--rpg-ink) !important; }
-/* The article is the card; preview and purchase are separate actions inside it. */
-body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card {
-  grid-template-columns: minmax(0, 1fr); gap: 10px;
-}
-body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card .rachel-preview-button {
-  padding: 0; border: 0 !important; background: transparent !important;
-  box-shadow: none !important; white-space: normal;
-}
-body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-card > button:not(.rachel-preview-button),
-body #farmPage #npcMarket[data-farm-rpg] .rachel-cosmetic-actions {
-  grid-column: 1; justify-self: stretch;
-}
 
 body #farmPage .farm-scene[data-scenery] .farm-grid .farm-plot.is-open::before {
   background: var(--rpg-paper); border-color: var(--rpg-rim); box-shadow: 0 3px 0 var(--rpg-frame), inset 0 0 0 2px var(--rpg-soft);

@@ -166,7 +166,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   await evaluate(`document.querySelector('#farmThemeChoices [data-preview-farm-theme="auroraNight"]').click();`);
   assert.equal(await evaluate(`document.querySelector('#cosmeticPreviewTitle').textContent`),'오로라');
   assert.equal(await evaluate(`document.querySelector('.farm-theme-preview-actions [data-purchase-cosmetic="farm_theme:auroraNight"]').disabled`),true,'theme purchase respects the current Farm Money balance');
-  await evaluate(`closeCosmeticPreview();state.farmMoney=5000;state.dailyCosmeticOffers=[];renderFarm();
+  await evaluate(`closeCosmeticPreview();state.farmMoney=5000;renderFarm();
     window.__themePreviousHandler=__seedRpcHandler;window.__themeMoney=5000;
     window.__seedRpcHandler=async(name,params)=>{
       if(name==='purchase_farm_cosmetic'){__themeMoney-=2000;return {data:{farmMoneyBalance:__themeMoney},error:null};}
@@ -190,7 +190,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   for (const width of [1440,390]) {
     await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<=700});
     await evaluate(`state.ownedCosmetics=state.ownedCosmetics.filter(entry=>entry.type!=='plot_skin');state.equippedPlotSkin=null;
-      state.farmMoney=0;state.dailyCosmeticOffers=[];window.__fieldMoney=12000;window.__fieldOwned=[];window.__fieldFailure=false;
+      state.farmMoney=0;window.__fieldMoney=12000;window.__fieldOwned=[];window.__fieldFailure=false;
       window.__seedRpcHandler=async(name,params)=>{
         if(name==='purchase_farm_cosmetic'&&params.p_cosmetic_type==='plot_skin'){
           const field=PLOT_SKINS.find(entry=>entry.id===params.p_cosmetic_id);

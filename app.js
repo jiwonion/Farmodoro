@@ -1649,8 +1649,6 @@ const defaultState = {
   farmName: "햇살 밭",
   productionBoostUntil: 0,
   wiltProtectionUntil: 0,
-  marketRotationDate: "",
-  dailyCosmeticOffers: [],
   ownedCosmetics: [],
   equippedFarmTheme: null,
   equippedPlotSkin: null,
@@ -1696,8 +1694,6 @@ const FARM_STATE_KEYS = [
   "farmName",
   "productionBoostUntil",
   "wiltProtectionUntil",
-  "marketRotationDate",
-  "dailyCosmeticOffers",
   "ownedCosmetics",
   "equippedFarmTheme",
   "equippedPlotSkin",
@@ -1789,7 +1785,6 @@ let selectedSeed = null;
 let openFarmPlotId = null;
 let selectedFarmItem = null;
 let supplyFocusItem = null;
-let rachelActiveTab = "offers";
 let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
 let selectedMailItemId = null;
@@ -2019,7 +2014,6 @@ function startFarmMailRealtime(user) {
       "farms",
       "farm_plots",
       "farm_inventory",
-      "farm_market_rotations",
       "farm_weekly_earnings",
     ],
     user.id,
@@ -2084,10 +2078,6 @@ function farmRenderSignatureState(snapshot = state) {
       fertilizer: plot.fertilizer ?? "",
     })),
     inventory,
-    marketRotation: {
-      date: snapshot.marketRotationDate,
-      cosmeticOffers: snapshot.dailyCosmeticOffers.map((entry) => ({ ...entry })),
-    },
   };
 }
 
@@ -2221,16 +2211,6 @@ function applyServerFarmInventoryEntry(entry) {
   }
 }
 
-function applyServerMarketRotation(rotation) {
-  if (!rotation) return;
-  if (rotation.date !== undefined) state.marketRotationDate = rotation.date ?? "";
-  if (rotation.cosmeticOffers !== undefined) {
-    state.dailyCosmeticOffers = rotation.cosmeticOffers.filter(
-      (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
-    );
-  }
-}
-
 async function loadFarmDataFromDatabase(user) {
   if (!supabaseClient || !user) return;
   if (farmDataLoadPending?.userId === user.id) return farmDataLoadPending.promise;
@@ -2313,9 +2293,6 @@ async function fetchFarmDataFromDatabase(user) {
   state.foodInventory = structuredClone(defaultState.foodInventory);
   (data?.inventory ?? []).forEach(applyServerFarmInventoryEntry);
 
-  // An absent cosmeticOffers key leaves the local offers alone rather than
-  // emptying the skin stand until the next rotation arrives.
-  applyServerMarketRotation(data?.marketRotation ?? {});
   state.farmRankingWeekStart = getFarmWeekStart();
   state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
   state.farmInbox = mapFarmInboxFromDatabase(data?.inbox ?? []);
@@ -2391,7 +2368,6 @@ function applyFarmActionResult(result) {
   if (!result) return;
   (result.plots ?? []).forEach(applyServerFarmPlot);
   (result.inventory ?? []).forEach(applyServerFarmInventoryEntry);
-  if (result.marketRotation) applyServerMarketRotation(result.marketRotation);
   if (Number.isFinite(result.weeklyFarmMoneyEarned)) state.weeklyFarmMoneyEarned = result.weeklyFarmMoneyEarned;
   if (result.farm) {
     if (result.farm.productionBoostUntil !== undefined) {
@@ -2526,8 +2502,6 @@ function loadState(savedState = null) {
       farmName: saved.farmName ?? defaultState.farmName,
       productionBoostUntil: saved.productionBoostUntil ?? 0,
       wiltProtectionUntil: saved.wiltProtectionUntil ?? 0,
-      marketRotationDate: saved.marketRotationDate ?? "",
-      dailyCosmeticOffers: saved.dailyCosmeticOffers ?? [],
       ownedCosmetics: savedOwnedCosmetics,
       // Same ownership gate as the database load: a cached equipped id must
       // not resurrect a cosmetic that is no longer owned, even for the moment
@@ -5851,90 +5825,6 @@ function cosmeticPixelPreview(type, id) {
   return "";
 }
 
-function renderRachelPanel() {
-  renderFarmSetBonuses();
-  const offersList = document.querySelector("#rachelOffersList");
-  const ownedList = document.querySelector("#rachelOwnedList");
-  if (!offersList || !ownedList) return;
-
-  offersList.classList.toggle("hidden", rachelActiveTab !== "offers");
-  ownedList.classList.toggle("hidden", rachelActiveTab !== "owned");
-  document.querySelectorAll("[data-rachel-tab]").forEach((tab) => {
-    tab.setAttribute("aria-selected", String(tab.dataset.rachelTab === rachelActiveTab));
-  });
-
-  // Field appearances stay available year-round; daily offers only mark
-  // recommendations and never hide a field the user wants to buy.
-  const availableOffers = [...state.dailyCosmeticOffers, ...PLOT_SKINS.map(({ id }) => ({ type: "plot_skin", id }))]
-    .filter(({ type, id }, index, offers) => getCosmeticEntry(type, id) && !isCosmeticOwned(type, id)
-      && offers.findIndex((entry) => entry.type === type && entry.id === id) === index);
-  offersList.innerHTML = availableOffers.length
-    ? availableOffers
-        .map(({ type, id }) => {
-          const entry = getCosmeticEntry(type, id);
-          if (!entry) return "";
-          return `
-            <article class="rachel-cosmetic-card">
-              <button class="rachel-preview-button" type="button" data-preview-cosmetic="${type}:${id}" aria-label="${entry.name} 미리보기">
-                ${cosmeticPixelPreview(type, id)}
-                <span class="rachel-preview-copy">
-                  <strong>${entry.name}</strong>
-                  <small>${COSMETIC_TYPE_LABELS[type]}</small>
-                  ${getFarmSceneryDescription(type, id) ? `<small>${getFarmSceneryDescription(type, id)}</small>` : ""}
-                  <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
-                  <small class="rachel-preview-hint">눌러서 미리보기</small>
-                </span>
-              </button>
-              <button
-                type="button"
-                data-purchase-cosmetic="${type}:${id}"
-                ${state.farmMoney < entry.price ? "disabled" : ""}
-              >
-                ✦ ${entry.price}
-              </button>
-            </article>
-          `;
-        })
-        .join("")
-    : '<p class="rachel-status">오늘 진열된 소품을 모두 가지고 있어!</p>';
-
-  const ownedByType = ["farm_theme", "plot_skin"].flatMap((type) =>
-    state.ownedCosmetics
-      .filter((entry) => entry.type === type)
-      .map((entry) => ({ type, ...getCosmeticEntry(type, entry.id), id: entry.id }))
-      .filter((entry) => entry.name),
-  );
-  ownedList.innerHTML = ownedByType.length
-    ? ownedByType
-        .map(({ type, id, name }) => {
-          const equipped = isCosmeticEquipped(type, id);
-          // An empty id in data-equip-cosmetic means "unequip this slot" --
-          // equip_farm_cosmetic accepts a null cosmetic id and clears the
-          // column, which puts the farm back on its default look.
-          const action = equipped
-            ? `<span class="rachel-equipped-badge">장착됨</span>
-               <button type="button" class="rachel-unequip" data-equip-cosmetic="${type}:">해제</button>`
-            : `<button type="button" data-equip-cosmetic="${type}:${id}">장착</button>`;
-          return `
-            <article class="rachel-cosmetic-card${equipped ? " equipped" : ""}">
-              <button class="rachel-preview-button" type="button" data-preview-cosmetic="${type}:${id}" aria-label="${name} 미리보기">
-                ${cosmeticPixelPreview(type, id)}
-                <span class="rachel-preview-copy">
-                  <strong>${name}</strong>
-                  <small>${COSMETIC_TYPE_LABELS[type]}</small>
-                  ${getFarmSceneryDescription(type, id) ? `<small>${getFarmSceneryDescription(type, id)}</small>` : ""}
-                  <small class="rachel-set-description">${getCosmeticSetDescription(type, id)}</small>
-                  <small class="rachel-preview-hint">눌러서 미리보기</small>
-                </span>
-              </button>
-              <div class="rachel-cosmetic-actions">${action}</div>
-            </article>
-          `;
-        })
-        .join("")
-    : '<p class="rachel-status">아직 보유한 소품이 없어</p>';
-}
-
 function decorateFarmTheme(root, themeId) {
   const layout = root.querySelector(".farm-layout");
   if (!layout) return;
@@ -6042,7 +5932,6 @@ const FARM_OBJECT_SLOTS = {
   ".facility-harvest": "produce-crate", ".facility-seed": "seed-chest",
   ".facility-supply": "tool-rack", ".facility-mail": "mailbox",
   ".facility-kitchen": "kitchen", ".facility-ranking": "noticeboard",
-  ".farm-building-market": "market",
   ".farm-decor-house": "house", ".farm-decor-well": "well", ".farm-decor-bridge": "bridge",
 };
 const TERRAIN_WEATHER = {
@@ -6143,9 +6032,8 @@ function renderFarmDashboard() {
     themeChoices.innerHTML = themes.map((theme) => {
       const owned = !theme.id || isCosmeticOwned("farm_theme", theme.id);
       const equipped = (state.equippedFarmTheme || "") === theme.id;
-      const offered = state.dailyCosmeticOffers.some((entry) => entry.type === "farm_theme" && entry.id === theme.id);
       const action = owned ? `data-equip-cosmetic="farm_theme:${theme.id}"` : `data-preview-farm-theme="${theme.id}"`;
-      const caption = equipped ? "사용 중" : owned ? "보유 · 눌러서 적용" : offered ? `오늘 추천 · ✦ ${theme.price.toLocaleString()}` : `✦ ${theme.price.toLocaleString()} · 미리보기`;
+      const caption = equipped ? "사용 중" : owned ? "보유 · 눌러서 적용" : `✦ ${theme.price.toLocaleString()} · 미리보기`;
       const art = window.FarmGardenArt?.theme(theme.id);
       const preview = art ? `<span class="garden-theme-thumb" aria-hidden="true" style="background-image:url('${art.url}');background-size:${art.size};background-position:${art.x}% ${art.thumbnailY}%"></span>` : `<img src="${FARM_ART_ROOT}/terrain/${theme.id || "meadow"}.png" alt="" loading="lazy" />`;
       return `<button type="button" class="farm-theme-choice" ${action} aria-pressed="${equipped}" aria-label="${escapeHtml(theme.name)} ${owned ? "테마 적용" : "미리보기"}">
@@ -6210,7 +6098,7 @@ function renderFarm() {
     return;
   }
 
-  renderRachelPanel();
+  renderFarmSetBonuses();
   ensureWeeklyFarmRanking();
   farmBalance.textContent = state.coins;
   marketFarmMoney.textContent = state.farmMoney;
@@ -9356,35 +9244,6 @@ document.querySelector("#toggleFarmOverview").addEventListener("click", (event) 
   });
 });
 
-let farmMarketReturnFocus = null;
-function setFarmMarketOpen(open) {
-  const modal = document.querySelector("#farmMarketModal");
-  const visible = (element) => element?.isConnected && element.getBoundingClientRect().width > 0
-    && element.getBoundingClientRect().height > 0 && getComputedStyle(element).visibility !== "hidden";
-  if (open && modal.classList.contains("hidden")) {
-    const opener = document.activeElement;
-    farmMarketReturnFocus = opener?.matches("button,a,summary,input,select,textarea,[tabindex]") && visible(opener)
-      && !modal.contains(opener) ? opener : null;
-  }
-  document.querySelector("#farmPage").classList.toggle("farm-market-open", open);
-  modal.classList.toggle("hidden", !open);
-  document.querySelector("#toggleFarmMarket").setAttribute("aria-expanded", String(open));
-  if (open) document.querySelector("button[data-close-farm-market]").focus({ preventScroll: true });
-  else {
-    const target = visible(farmMarketReturnFocus) ? farmMarketReturnFocus
-      : document.querySelector(".farm-equipment-details > summary");
-    farmMarketReturnFocus = null;
-    target?.focus({ preventScroll: true });
-  }
-}
-
-document.querySelector("#farmPage").addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  if (document.querySelector("#farmPage").classList.contains("farm-market-open")) {
-    setFarmMarketOpen(false);
-  }
-});
-
 window.openGardenMailbox = () => document.querySelector("#openFarmMail")?.click();
 document.querySelector("#farmPage").addEventListener("click", async (event) => {
   const collectionTab = event.target.closest("[data-farm-collection-tab]");
@@ -9402,19 +9261,6 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
   }
   if (event.target.closest("#openGardenRanking")) {
     document.querySelector("#openFarmRanking")?.click();
-    return;
-  }
-  const customizationButton = event.target.closest("[data-open-farm-customization], [data-open-farm-goal]");
-  if (customizationButton) {
-    rachelActiveTab = customizationButton.dataset.openFarmCustomization === "owned" ? "owned" : "offers";
-    renderRachelPanel();
-    setFarmMarketOpen(true);
-    if (customizationButton.dataset.openFarmGoal) {
-      const target = [...document.querySelectorAll("#rachelOffersList [data-purchase-cosmetic]")]
-        .find((button) => button.dataset.purchaseCosmetic === customizationButton.dataset.openFarmGoal);
-      target?.closest(".rachel-cosmetic-card")?.scrollIntoView({ block: "nearest" });
-      target?.focus({ preventScroll: true });
-    }
     return;
   }
   if (event.target.closest("#openFarmShop")) {
@@ -9439,14 +9285,6 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
     } else if (themeChoice.dataset.equipCosmetic !== `farm_theme:${state.equippedFarmTheme || ""}`) {
       await equipFarmCosmetic(themeChoice);
     }
-    return;
-  }
-  if (event.target.closest("#toggleFarmMarket, [data-open-farm-market]")) {
-    setFarmMarketOpen(!document.querySelector("#farmPage").classList.contains("farm-market-open"));
-    return;
-  }
-  if (event.target.closest("[data-close-farm-market]")) {
-    setFarmMarketOpen(false);
     return;
   }
 
@@ -9829,14 +9667,6 @@ function openCosmeticPreview(type, id) {
   cosmeticPreviewModal.querySelector("button[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
 }
 
-document.querySelector("#npcMarket").addEventListener("click", (event) => {
-  const previewCard = event.target.closest("[data-preview-cosmetic]");
-  if (previewCard) {
-    const [type, id] = previewCard.dataset.previewCosmetic.split(":");
-    openCosmeticPreview(type, id);
-    return;
-  }
-});
 cosmeticPreviewModal.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-cosmetic-preview]")) { closeCosmeticPreview(); return; }
   const purchase = event.target.closest("[data-purchase-cosmetic]");
@@ -9855,12 +9685,6 @@ cosmeticPreviewModal.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   event.preventDefault();
   closeCosmeticPreview();
-});
-document.querySelector(".rachel-tabs").addEventListener("click", (event) => {
-  const tab = event.target.closest("[data-rachel-tab]");
-  if (!tab) return;
-  rachelActiveTab = tab.dataset.rachelTab;
-  renderRachelPanel();
 });
 
 async function purchaseFarmCosmetic(button) {
@@ -9901,9 +9725,6 @@ async function purchaseFarmCosmetic(button) {
   return true;
 }
 
-document.querySelector("#rachelOffersList").addEventListener("click", async (event) => {
-  await purchaseFarmCosmetic(event.target.closest("[data-purchase-cosmetic]"));
-});
 
 async function equipFarmCosmetic(button) {
   if (!button || button.disabled) return;
@@ -9936,9 +9757,6 @@ async function equipFarmCosmetic(button) {
   render();
 }
 
-document.querySelector("#rachelOwnedList").addEventListener("click", async (event) => {
-  await equipFarmCosmetic(event.target.closest("[data-equip-cosmetic]"));
-});
 
 const farmRankingModal = document.querySelector("#farmRankingModal");
 document.querySelector("#openFarmRanking").addEventListener("click", async () => {

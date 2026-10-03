@@ -270,51 +270,6 @@
 #farmPage .farm-weekly-ranking-button::after { content: none; }
 #farmPage .farm-weekly-ranking-button span { grid-column: 2; color: #dceaff; }
 #farmPage .farm-weekly-ranking-button strong { grid-column: 2; color: #fff; }
-#farmPage .open-permanent-market { background: #315bf1; color: white; border: 2px solid #26334b; }
-#farmPage .open-permanent-market small { color: #eef2ff; }
-#farmPage .npc-market > .open-permanent-market { margin-bottom: 8px; }
-#farmPage .npc-market-panels { margin-top: 0; }
-#farmPage .npc-panel > .market-section-title:first-child { margin-top: 4px; }
-#farmPage .npc-panel > .market-section-title small {
-  float: right;
-  padding: 2px 5px;
-  border: 1px solid #315bf1;
-  background: #fff;
-  color: #2549bd;
-  font-size: 9px;
-}
-#farmPage .rachel-tabs button { background: #e5edff; color: #26334b; }
-#farmPage .rachel-tabs button[aria-selected="true"] { background: #315bf1; color: white; }
-#farmPage .rachel-cosmetic-card { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 9px; border: 1px solid #b7c6e4; border-radius: 2px; background: white; padding: 10px; }
-#farmPage .rachel-cosmetic-card > button:not(.rachel-preview-button), #farmPage .rachel-cosmetic-actions { grid-column: 2; justify-self: start; }
-#farmPage .rachel-cosmetic-card > div:not(.rachel-cosmetic-actions) { min-width: 0; }
-#farmPage .rachel-cosmetic-card strong { display: block; font-size: 13px; line-height: 1.5; }
-#farmPage .rachel-cosmetic-card small { color: #65718a; font-size: 11px; }
-#farmPage .rachel-cosmetic-card.equipped { border: 2px solid #315bf1; background: #f3f6ff; }
-#farmPage .rachel-preview-button {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 64px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #26334b;
-  text-align: left;
-  cursor: pointer;
-}
-#farmPage .rachel-preview-button:hover { background: #edf3ff; }
-#farmPage .rachel-preview-button:focus-visible {
-  outline: 3px solid #315bf1;
-  outline-offset: 2px;
-}
-#farmPage .rachel-preview-copy { display: grid; min-width: 0; gap: 1px; }
-#farmPage .rachel-cosmetic-card .rachel-preview-hint { color: #315bf1; }
 .cosmetic-preview { display: block; width: 64px; height: 64px; border: 2px solid #35415a; border-radius: 1px; image-rendering: pixelated; grid-row: span 2; }
 .cosmetic-preview.theme-preview { background: url('./assets/pixel/themes-atlas.png') var(--theme-x) var(--theme-y) / 300% 300% no-repeat; }
 .plot-preview { background: url('./assets/pixel/plots-atlas.png') var(--plot-x) var(--plot-y) / 400% 300% no-repeat; }
@@ -648,7 +603,6 @@
 }
 .farm-set-bonuses { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 10px; margin: 0; border: 2px solid var(--farm-edge, #749768); background: var(--farm-surface, #f5ffef); color: var(--farm-ink, #324c2d); font-size: 11px; line-height: 1.6; }
 .farm-set-bonuses > strong { flex-basis: 100%; }
-.rachel-preview-copy .rachel-set-description { white-space: normal; overflow-wrap: anywhere; font-size: 10px; line-height: 1.5; }
 
 /* Witch kitchen: the existing recipe system presented as a playable pixel workbench. */
 .kitchen-modal-panel {
@@ -807,28 +761,6 @@
     scrollbar-width: thin;
   }
 }
-#farmPage .npc-market > .open-permanent-market {
-  position: relative;
-  min-height: 74px;
-  margin: 0 0 10px;
-  padding: 15px 12px 10px;
-  border: 3px solid #1b3152;
-  background: #f9f1dd;
-  box-shadow: inset 0 -5px #d9c59f, 3px 3px 0 #533a2b;
-  color: #203957;
-}
-#farmPage .npc-market > .open-permanent-market::before {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  left: -3px;
-  height: 13px;
-  border: 3px solid #1b3152;
-  background: repeating-linear-gradient(90deg, #3c76b2 0 28px, #fff4d8 28px 56px);
-  content: '';
-}
-#farmPage .open-permanent-market span { color: #203957; font-size: 18px; }
-#farmPage .open-permanent-market small { color: #52708d; }
 #farmPage .market-section-title {
   padding: 7px 8px;
   border: 0;

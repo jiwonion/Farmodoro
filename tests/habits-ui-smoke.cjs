@@ -346,8 +346,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       ];
       state.equippedFarmTheme = 'springMeadow'; state.equippedPlotSkin = null;
       state.ownedCosmetics = [{type:'farm_theme', id:'springMeadow'}, {type:'plot_skin', id:'cherryPetalFall'}, {type:'label_effect', id:'cherryDrift'}];
-      state.dailyCosmeticOffers = [{type:'farm_theme',id:'cherryBlossom'}, {type:'plot_skin',id:'lavenderField'}, {type:'label_effect',id:'galaxySparkle'}];
-      rachelActiveTab = 'offers'; showPage('farm'); renderFarm();
+      showPage('farm'); renderFarm();
       const expected = Object.keys(CROPS).sort();
       const mapping = PIXEL_CROP_IDS.slice().sort();
       const matureArt = Object.keys(CROPS).map(id => FarmGardenArt.plantedCrop(id, 'mature'));
@@ -387,7 +386,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       return { mappingOK: JSON.stringify(expected) === JSON.stringify(mapping), allStages, cosmetics,
         farmMainExpanded: document.body.classList.contains('farm-page-active') && getComputedStyle(document.querySelector('.main-content')).maxWidth === 'none',
         plots: tiles.length, sprites: document.querySelectorAll('#farmGrid .garden-plant-art').length,
-        previews: [...document.querySelectorAll('#rachelOffersList .rachel-cosmetic-card')].every(card => card.querySelector('.cosmetic-preview,.garden-soil-art')),
+        previews: [...document.querySelectorAll('#farmPlotSkinChoices .farm-plot-skin-choice')].every(card => card.querySelector('.cosmetic-preview,.garden-soil-art')),
         bulletin: !!document.querySelector('[id*=Bulletin]'),
         noNpcProfiles: !document.querySelector('.npc-profile,.npc-avatar'),
         headerUtilities: !document.querySelector('#openGardenEditor') && ['openFarmShop','openFarmStorage','openGardenRanking','openGardenMail'].every(id => document.querySelector('.farm-workspace-toolbar #' + id)),
@@ -438,14 +437,12 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       applyFarmTheme(null);
       const defaultTheme = !document.querySelector('#farmPage').hasAttribute('data-farm-theme') && matchesTheme(document.querySelector('#farmPage .garden-terrain'),'');
       applyFarmTheme(state.equippedFarmTheme);
-      document.querySelector('[data-rachel-tab="owned"]').click();
-      const owned = !document.querySelector('#rachelOwnedList').classList.contains('hidden') && document.querySelectorAll('#rachelOwnedList :is(.cosmetic-preview,.garden-soil-art)').length === 2 && !document.querySelector('#rachelOwnedList [data-preview-cosmetic^="label_effect"]');
-      document.querySelector('#rachelOwnedList [data-preview-cosmetic="plot_skin:cherryPetalFall"]').click();
+      const owned = !!document.querySelector('#farmPlotSkinChoices [data-equip-cosmetic="plot_skin:cherryPetalFall"]') && !!document.querySelector('#farmThemeChoices [data-equip-cosmetic="farm_theme:springMeadow"]');
+      openCosmeticPreview('plot_skin','cherryPetalFall');
       const ownedPlotPopup = !document.querySelector('#cosmeticPreviewModal').classList.contains('hidden') &&
         [...document.querySelectorAll('.cosmetic-preview-farm-scene .farm-plot')].every(plot => plot.dataset.previewPlot === 'cherryPetalFall');
       closeCosmeticPreview();
-      document.querySelector('[data-rachel-tab="offers"]').click();
-      document.querySelector('#rachelOffersList [data-preview-cosmetic="farm_theme:cherryBlossom"]').click();
+      openCosmeticPreview('farm_theme','cherryBlossom');
       const popup = !document.querySelector('#cosmeticPreviewModal').classList.contains('hidden');
       const themePreview = matchesTheme(document.querySelector('.cosmetic-preview-farm-scene .garden-terrain'),'cherryBlossom') &&
         document.querySelectorAll('.cosmetic-preview-farm-scene .garden-plant-art').length===9;

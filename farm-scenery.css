@@ -193,7 +193,6 @@ body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] :is(.facil
 body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-harvest { left: 60%; top: 16%; width: 8.7%; height: 11%; }
 body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-seed { left: 20%; top: 28%; width: 8.7%; height: 12%; }
 body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-supply { left: 20%; top: 9%; width: 8%; height: 13%; }
-body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .farm-building-market { left: 70%; top: 8%; width: 14.7%; height: 20%; }
 body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-mail { left: 17%; top: 44%; width: 5.3%; height: 13%; }
 body :is(#farmPage, .focus-farm-background) .farm-scene[data-scenery] .facility-ranking { left: calc(var(--clearing-right, 71%) + 2%); top: 42%; width: 8%; height: 13%; }
 /* galaxyNight has no night-lit prop set, so the daylight props get dimmed. */
@@ -230,35 +229,15 @@ body #farmPage .farm-scene.is-overview .farm-building > span { font-size: clamp(
 body #farmPage .farm-scene[data-scenery] .facility-mail.has-unread small { background: #ad3c32; color: #fff6da; }
 body #farmPage .farm-world-hint { margin: 0; padding: 7px 12px; text-align: center; background: #30462b; color: #eadfbd; font-size: 12px; }
 .farm-world-hint span { display: none; }
-
-/* The shop shares the centered dialog and scrolling panel used by farm tools. */
-body #farmPage.farm-market-open { isolation: auto; }
-body #farmPage #farmMarketModal .npc-market {
-  display: block; position: relative; inset: auto; z-index: 1;
-  grid-area: 1 / 1; place-self: center; margin: 0;
-  width: min(680px, 100%); height: auto !important;
-  max-height: min(760px, calc(100dvh - 24px)); min-height: 0;
-  contain: none; overflow: hidden;
-}
-body #farmPage #farmMarketModal .npc-market > .modal-scroll-area {
-  max-height: calc(min(760px, calc(100dvh - 24px)) - 26px);
-}
 body #farmPage .npc-market::before { display: none; }
 body #farmPage .npc-market .farm-market-close {
   position: absolute; right: 8px; top: 6px; width: 30px; height: 28px;
   border: 1px solid #765238; background: #f4dfb1 !important; color: #543820 !important;
   font-size: 22px; line-height: 1;
 }
-body #farmPage .npc-market :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card) {
+body #farmPage .npc-market :is(.market-section-title) {
   border-color: #9b7e52 !important; background: #fff5db !important;
   color: #503b25 !important; box-shadow: none !important;
-}
-body #farmPage .npc-market :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small) { color: #624d30 !important; }
-body #farmPage .npc-market :is(.rachel-tabs) button {
-  border-color: #94794f !important; background: #f4e4be !important; color: #5d442b !important; box-shadow: 0 2px #ad9064 !important;
-}
-body #farmPage .npc-market :is(.rachel-tabs button[aria-selected="true"]) {
-  background: #466a3e !important; color: #fff0c6 !important;
 }
 
 .farm-weather { position: absolute; inset: 0; z-index: 3; overflow: hidden; pointer-events: none; }
