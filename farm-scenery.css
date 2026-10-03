@@ -1,9 +1,10 @@
-/* Fit the entire farm normally; fill the screen in fullscreen mode. */
-@media (min-width: 901px) {
-  body #focusPage .focus-page-stage:has(.focus-farm-background):not(:fullscreen) {
-    aspect-ratio: 3 / 2;
-    min-height: 0;
-  }
+/* Scale the complete 3:2 farm as one layer so terrain, fields and crops stay
+   aligned. Cover the focus frame in both normal and fullscreen views. */
+body #focusPage .focus-page-stage:has(.focus-farm-background) {
+  scrollbar-width: none;
+}
+body #focusPage .focus-page-stage:has(.focus-farm-background)::-webkit-scrollbar {
+  display: none;
 }
 body #focusPage .focus-farm-background {
   position: absolute; inset: 0; z-index: 0; container-type: size;
@@ -12,11 +13,8 @@ body #focusPage .focus-farm-background {
 }
 body #focusPage .focus-farm-background .farm-scene[data-scenery] {
   position: absolute; left: 50%; top: 50%; z-index: 0; transform: translate(-50%, -50%);
-  width: min(100cqw, 150cqh); max-width: none; margin: 0;
+  width: max(100cqw, 150cqh); max-width: none; margin: 0;
   overflow: hidden;
-}
-body #focusPage .focus-page-stage:fullscreen .focus-farm-background .farm-scene[data-scenery] {
-  width: max(100cqw, 150cqh);
 }
 body #focusPage .focus-farm-background .farm-scene[data-scenery] .farm-scene-grid {
   min-width: 0;
@@ -251,15 +249,15 @@ body #farmPage .npc-market .farm-market-close {
   border: 1px solid #765238; background: #f4dfb1 !important; color: #543820 !important;
   font-size: 22px; line-height: 1;
 }
-body #farmPage .npc-market :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card, .seed-shop-card, .noah-buy-card) {
+body #farmPage .npc-market :is(.open-permanent-market, .market-section-title, .rachel-cosmetic-card) {
   border-color: #9b7e52 !important; background: #fff5db !important;
   color: #503b25 !important; box-shadow: none !important;
 }
 body #farmPage .npc-market :is(.open-permanent-market span, .open-permanent-market small, .rachel-preview-copy strong, .rachel-preview-copy small) { color: #624d30 !important; }
-body #farmPage .npc-market :is(.market-category-tabs, .rachel-tabs) button {
+body #farmPage .npc-market :is(.rachel-tabs) button {
   border-color: #94794f !important; background: #f4e4be !important; color: #5d442b !important; box-shadow: 0 2px #ad9064 !important;
 }
-body #farmPage .npc-market :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"]) {
+body #farmPage .npc-market :is(.rachel-tabs button[aria-selected="true"]) {
   background: #466a3e !important; color: #fff0c6 !important;
 }
 

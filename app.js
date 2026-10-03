@@ -213,6 +213,7 @@ let farmWalletMutationChain = Promise.resolve();
 let farmWalletMutationVersion = 0;
 let farmWalletRealtimeRefreshTimer = null;
 let farmDataHydrated = false;
+let farmSessionGeneration = 0;
 let farmDataUserId = null;
 let lastFarmRenderSignature = "";
 let farmDataLoadRequest = 0;
@@ -452,6 +453,8 @@ async function loadFarmWallet(
   { background = false, expectedMutationVersion = null } = {},
 ) {
   if (!supabaseClient || !user) return;
+  const sessionGeneration = farmSessionGeneration;
+  const walletMutationVersion = farmWalletMutationVersion;
   const previousCoins = Number(state.coins ?? 0);
   const previousFarmMoney = Number(state.farmMoney ?? 0);
   if (background) {
@@ -463,7 +466,7 @@ async function loadFarmWallet(
 
   const { data, error } = await supabaseClient.rpc("get_my_farm_wallet");
 
-  if (activeAuthUser?.id !== user.id || farmWalletUserId !== user.id) return;
+  if (farmSessionGeneration !== sessionGeneration || farmWalletMutationVersion !== walletMutationVersion || activeAuthUser?.id !== user.id || farmWalletUserId !== user.id) return;
   if (
     background &&
     expectedMutationVersion !== null &&
@@ -551,11 +554,15 @@ async function applyAuthSession(session) {
   const isSignedIn = Boolean(session?.user);
   const previousUserId = activeAuthUser?.id ?? null;
   activeAuthUser = session?.user ?? null;
+  if (previousUserId !== (session?.user?.id ?? null)) {
+    farmSessionGeneration += 1;
+    window.FarmSeeds?.reset();
+    window.FarmKitchen?.reset();
+  }
   authGate.hidden = isSignedIn;
   document.body.classList.toggle("auth-gated", !isSignedIn);
 
   if (isSignedIn) {
-    if (previousUserId && previousUserId !== session.user.id) stopFocusYoutube();
     currentProfile = getProfileFallback(session.user);
     updateProfileFromUser(session.user, currentProfile);
     if (
@@ -596,7 +603,6 @@ async function applyAuthSession(session) {
     await loadFocusTimerFromDatabase(session.user);
     startFocusRealtime(session.user);
   } else {
-    stopFocusYoutube();
     resetTaskDatabaseState();
     resetAppStateDatabaseState();
     resetFocusTimerDatabaseState();
@@ -1414,76 +1420,62 @@ const FARM_ITEMS = {
     name: "행운 비료",
     icon: "✦",
     price: 70,
-    description: "다음 수확량이 2개가 되고, 5% 확률로 5개를 수확해",
+    description: "다음 수확량 2개, 5% 확률로 5개 수확",
     type: "plot",
   },
   moistureFertilizer: {
     name: "보습 비료",
     icon: "💧",
     price: 55,
-    description: "다음 수확까지 물 1회당 2단계 성장해",
+    description: "다음 수확까지 물 1회당 2단계 성장",
     type: "plot",
   },
   premiumFertilizer: {
     name: "프리미엄 비료",
     icon: "♛",
     price: 110,
-    description: "행운 비료와 보습 비료 효과를 함께 적용해",
+    description: "행운 비료와 보습 비료 효과 함께 적용",
     type: "plot",
   },
   goldenFestivalPass: {
     name: "황금 수확제 초대장",
     icon: "🎟",
     price: 190,
-    description: "사용 후 24시간 동안 생산으로 얻는 Coin이 2배가 돼",
+    description: "사용 후 24시간 동안 생산 Coin 2배",
     type: "instant",
   },
   farmFestivalPass: {
     name: "푸른 들판 축제권",
     icon: "🎐",
     price: 130,
-    description: "사용 후 24시간 동안 모든 작물이 시들지 않아",
+    description: "사용 후 24시간 동안 모든 작물 시듦 방지",
     type: "instant",
   },
   freePass: {
     name: "농부의 프리패스",
     icon: "✓",
     price: 120,
-    description: "완료하지 않은 할 일 또는 오늘의 습관 하나를 완료 처리해",
+    description: "미완료 할 일 또는 오늘의 습관 하나 완료 처리",
     type: "target",
   },
   revivalTonic: {
     name: "새벽이슬 회복제",
     icon: "☘",
     price: 50,
-    description: "시든 작물 하나를 되살려",
+    description: "시든 작물 하나 회복",
     type: "plot",
   },
   growthTonic: {
     name: "햇살 성장제",
     icon: "☀",
     price: 220,
-    description: "성장 중인 작물 하나를 즉시 완전히 성장시켜",
+    description: "성장 중인 작물 하나 즉시 완전 성장",
     type: "plot",
-  },
-  seedMarketRefresh: {
-    name: "씨앗 진열 교환권",
-    icon: "↻",
-    price: 40,
-    description: "오늘의 씨앗 판매대 7종을 즉시 새로 뽑아",
-    type: "market",
-  },
-  foodMarketRefresh: {
-    name: "매입 목록 교환권",
-    icon: "▤",
-    price: 55,
-    description: "음식·작물 매입 목록을 즉시 새로 뽑아",
-    type: "market",
   },
 };
 
 const FARM_THEMES = [
-  { id: "volcano", name: "화산", price: 2000 },
+  { id: "volcano", name: "용암", price: 2000 },
   { id: "iceKingdom", name: "얼음 왕국", price: 2000 },
   { id: "goldenHarvest", name: "황금 들판", price: 2000 },
   { id: "cherryBlossom", name: "벚꽃", price: 2000 },
@@ -1495,61 +1487,50 @@ const FARM_THEMES = [
   { id: "galaxyNight", name: "은하수 밤", price: 2000 },
   { id: "ocean", name: "바다", price: 2000 },
   { id: "bubbleField", name: "거품 밭", price: 2000 },
+  { id: "peperoDay", name: "빼빼로데이", price: 2000 },
+  { id: "auroraNight", name: "오로라", price: 2000 },
+  { id: "lavenderField", name: "라벤더 정원", price: 2000 },
+  { id: "rainyGarden", name: "비 오는 정원", price: 2000 },
+  { id: "desertOasis", name: "사막 오아시스", price: 2000 },
+  { id: "moonGarden", name: "달빛 정원", price: 2000 },
 ];
 
 const PLOT_SKINS = [
-  { id: "cherryPetalFall", name: "벚꽃 낙화", price: 800 },
-  { id: "frostbite", name: "결빙", price: 800 },
-  { id: "chocolate", name: "초콜릿", price: 800 },
-  { id: "candy", name: "사탕", price: 800 },
-  { id: "starCandy", name: "별사탕", price: 800 },
-  { id: "mapleLeaf", name: "단풍잎", price: 800 },
+  { id: "cherryPetalFall", name: "벚꽃밭", price: 800 },
+  { id: "frostbite", name: "얼음밭", price: 800 },
+  { id: "chocolate", name: "초콜릿밭", price: 800 },
+  { id: "candy", name: "사탕밭", price: 800 },
+  { id: "starCandy", name: "별빛밭", price: 800 },
+  { id: "mapleLeaf", name: "낙엽밭", price: 800 },
   { id: "snowField", name: "눈밭", price: 800 },
-  { id: "sandDune", name: "모래사장", price: 800 },
-  { id: "lava", name: "용암", price: 800 },
-  { id: "rainbow", name: "무지개", price: 800 },
-  { id: "golden", name: "황금", price: 800 },
-  { id: "lavenderField", name: "라벤더", price: 800 },
-];
-
-const LABEL_EFFECTS = [
-  { id: "iceCrystal", name: "얼음 결정 명패", price: 1200 },
-  { id: "candyRibbon", name: "사탕 리본 명패", price: 1200 },
-  { id: "pumpkinLantern", name: "호박 등불 명패", price: 1200 },
-  { id: "pearlShell", name: "진주 조개 명패", price: 1200 },
-  { id: "goldenSparkle", name: "황금 도트 명패", price: 1200 },
-  { id: "confetti", name: "컬러 블록 명패", price: 1200 },
-  { id: "cherryDrift", name: "벚꽃 도트 명패", price: 1200 },
-  { id: "snowSparkle", name: "설원 도트 명패", price: 1200 },
-  { id: "rainbowGradient", name: "무지개 블록 명패", price: 1200 },
-  { id: "starAurora", name: "오로라 도트 명패", price: 1200 },
-  { id: "heartPop", name: "하트 도트 명패", price: 1200 },
-  { id: "flameBorder", name: "불 명패", price: 1200 },
-  { id: "butterflyFlutter", name: "나비 정원 명패", price: 1200 },
-  { id: "galaxySparkle", name: "밤하늘 도트 명패", price: 1200 },
+  { id: "sandDune", name: "모래밭", price: 800 },
+  { id: "lava", name: "용암밭", price: 800 },
+  { id: "rainbow", name: "무지개밭", price: 800 },
+  { id: "golden", name: "황금밭", price: 800 },
+  { id: "lavenderField", name: "라벤더밭", price: 800 },
 ];
 
 const COSMETIC_CATALOGS = {
   farm_theme: FARM_THEMES,
   plot_skin: PLOT_SKINS,
-  label_effect: LABEL_EFFECTS,
 };
 
 const FARM_COSMETIC_SETS = [
-  { id: "cherry", name: "벚꽃", effect: "wilt", farm_theme: ["cherryBlossom"], plot_skin: ["cherryPetalFall"], label_effect: ["cherryDrift"] },
-  { id: "frost", name: "얼음", effect: "fertilizerReturn", farm_theme: ["iceKingdom"], plot_skin: ["frostbite"], label_effect: ["iceCrystal"] },
-  { id: "valentine", name: "발렌타인", effect: "cookDouble", farm_theme: ["valentine"], plot_skin: ["chocolate"], label_effect: ["heartPop"] },
-  { id: "candy", name: "화이트데이", effect: "ingredientSave", farm_theme: ["whiteDay"], plot_skin: ["candy"], label_effect: ["candyRibbon"] },
-  { id: "galaxy", name: "은하수", effect: "focusCoinDouble", farm_theme: ["galaxyNight"], plot_skin: ["starCandy"], label_effect: ["starAurora", "galaxySparkle"] },
-  { id: "halloween", name: "할로윈", effect: "harvestCoin", farm_theme: ["halloween"], plot_skin: ["mapleLeaf"], label_effect: ["pumpkinLantern"] },
-  { id: "snow", name: "크리스마스", effect: "seedReturn", farm_theme: ["christmas"], plot_skin: ["snowField"], label_effect: ["snowSparkle"] },
-  { id: "ocean", name: "바다", effect: "waterGrowth", farm_theme: ["ocean"], plot_skin: ["sandDune"], label_effect: ["pearlShell"] },
-  { id: "volcano", name: "용암", effect: "water", farm_theme: ["volcano"], plot_skin: ["lava"], label_effect: ["flameBorder"] },
-  { id: "rainbow", name: "무지개", effect: "seedDouble", farm_theme: ["bubbleField"], plot_skin: ["rainbow"], label_effect: ["rainbowGradient", "confetti"] },
-  { id: "golden", name: "황금", effect: "saleDouble", farm_theme: ["goldenHarvest"], plot_skin: ["golden"], label_effect: ["goldenSparkle"] },
-  { id: "garden", name: "봄 정원", effect: "harvestDouble", farm_theme: ["springMeadow"], plot_skin: ["lavenderField"], label_effect: ["butterflyFlutter"] },
+  { id: "cherry", name: "벚꽃", effect: "wilt", farm_theme: ["cherryBlossom"], plot_skin: ["cherryPetalFall"] },
+  { id: "frost", name: "얼음", effect: "fertilizerReturn", farm_theme: ["iceKingdom"], plot_skin: ["frostbite"] },
+  { id: "valentine", name: "발렌타인", effect: "cookDouble", farm_theme: ["valentine", "peperoDay"], plot_skin: ["chocolate"] },
+  { id: "candy", name: "화이트데이", effect: "ingredientSave", farm_theme: ["whiteDay"], plot_skin: ["candy"] },
+  { id: "galaxy", name: "은하수", effect: "focusCoinDouble", farm_theme: ["galaxyNight", "auroraNight", "moonGarden"], plot_skin: ["starCandy"] },
+  { id: "halloween", name: "할로윈", effect: "harvestCoin", farm_theme: ["halloween"], plot_skin: ["mapleLeaf"] },
+  { id: "snow", name: "크리스마스", effect: "seedReturn", farm_theme: ["christmas"], plot_skin: ["snowField"] },
+  { id: "ocean", name: "바다", effect: "waterGrowth", farm_theme: ["ocean", "desertOasis"], plot_skin: ["sandDune"] },
+  { id: "volcano", name: "용암", effect: "water", farm_theme: ["volcano"], plot_skin: ["lava"] },
+  { id: "rainbow", name: "무지개", effect: "seedDouble", farm_theme: ["bubbleField"], plot_skin: ["rainbow"] },
+  { id: "golden", name: "황금", effect: "saleDouble", farm_theme: ["goldenHarvest"], plot_skin: ["golden"] },
+  { id: "garden", name: "봄 정원", effect: "harvestDouble", farm_theme: ["springMeadow", "lavenderField", "rainyGarden"], plot_skin: ["lavenderField"] },
 ];
-const FARM_SET_PERCENT = [0, 1, 5, 10];
+// A set counts its equipped theme and field: one piece is tier 1, both are tier 2.
+const FARM_SET_PERCENT = [0, 5, 10];
 
 const FARM_SET_EFFECTS = {
   wilt: { name: "작물 시들기 시간", suffix: "증가" },
@@ -1567,7 +1548,7 @@ const FARM_SET_EFFECTS = {
 };
 
 function getFarmSetBonuses(equipment = state) {
-  const equipped = { farm_theme: equipment.equippedFarmTheme, plot_skin: equipment.equippedPlotSkin, label_effect: equipment.equippedLabelEffect };
+  const equipped = { farm_theme: equipment.equippedFarmTheme, plot_skin: equipment.equippedPlotSkin };
   const sets = FARM_COSMETIC_SETS.map((set) => {
     const count = Object.entries(equipped).filter(([type, id]) => id && set[type].includes(id)).length;
     return { ...set, count, percent: FARM_SET_PERCENT[count] };
@@ -1586,7 +1567,7 @@ function farmSetEffectText(effect, percent = null) {
 function getCosmeticSetDescription(type, id) {
   const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
   if (!set) return "";
-  return `${set.name} 세트 · ${farmSetEffectText(set.effect)} · 1%/5%/10%`;
+  return `${set.name} 세트 · ${farmSetEffectText(set.effect)} · ${FARM_SET_PERCENT[1]}%/${FARM_SET_PERCENT[2]}%`;
 }
 
 function farmBonusMessage(event) {
@@ -1669,20 +1650,15 @@ const defaultState = {
   productionBoostUntil: 0,
   wiltProtectionUntil: 0,
   marketRotationDate: "",
-  dailySeedOffers: [],
-  dailyFoodOffers: [],
-  dailyCropSellOffers: [],
   dailyCosmeticOffers: [],
   ownedCosmetics: [],
   equippedFarmTheme: null,
   equippedPlotSkin: null,
-  equippedLabelEffect: null,
   foodInventory: Object.fromEntries(Object.keys(RECIPES).map((recipeId) => [recipeId, 0])),
   farmItemInventory: Object.fromEntries(
     Object.keys(FARM_ITEMS).map((itemId) => [itemId, 0]),
   ),
   focusRewardSeconds: 0,
-  focusYoutubePlaylists: [],
   settings: {
     linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
     quick: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
@@ -1721,14 +1697,10 @@ const FARM_STATE_KEYS = [
   "productionBoostUntil",
   "wiltProtectionUntil",
   "marketRotationDate",
-  "dailySeedOffers",
-  "dailyFoodOffers",
-  "dailyCropSellOffers",
   "dailyCosmeticOffers",
   "ownedCosmetics",
   "equippedFarmTheme",
   "equippedPlotSkin",
-  "equippedLabelEffect",
   "foodInventory",
   "farmItemInventory",
   "seedInventory",
@@ -1801,19 +1773,22 @@ let focusRealtimeChannel = null;
 let focusRealtimeRefreshTimer = null;
 const pendingFocusSeconds = { linked: 0, quick: 0 };
 const focusProgressEventQueue = [];
+const pendingFarmFocusBatches = [];
+let focusOutboxUserId = null;
+let focusRecoveryTimerCheckpoint = null;
 let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
 let taskArchiveView = false;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let lastHabitHeatmapDate = "";
 let selectedHabitDate = null;
 let selectedSeed = null;
 // The farm map keeps plot controls hidden until a plot is tapped, so the
 // scene reads as a game map rather than a grid of panels.
 let openFarmPlotId = null;
 let selectedFarmItem = null;
-const NPC_PANELS = ["morrison", "food", "crop", "rachel"];
-let activeNpcPanel = "morrison";
+let supplyFocusItem = null;
 let rachelActiveTab = "offers";
 let selectedMailFriendCode = "";
 let selectedMailCategory = "harvest";
@@ -1833,7 +1808,6 @@ let farmMailRealtimeRefreshTimer = null;
 let farmContentRealtimeRefreshTimer = null;
 let activeRankingRewardMailId = null;
 let selectedFreePassTarget = null;
-const selectedRecipeIngredients = ["", "", ""];
 let farmLeaderboard = [];
 let farmLeaderboardStatus = "idle";
 ensureDailyFarmMail();
@@ -1900,6 +1874,9 @@ let editingTaskFocusMinutes = "";
 let editingHabitId = null;
 
 function resetFarmDataDatabaseState() {
+  farmSessionGeneration += 1;
+  window.FarmSeeds?.reset();
+  window.FarmKitchen?.reset();
   stopFarmMailRealtime();
   farmDataHydrated = false;
   farmDataUserId = null;
@@ -2109,9 +2086,6 @@ function farmRenderSignatureState(snapshot = state) {
     inventory,
     marketRotation: {
       date: snapshot.marketRotationDate,
-      seedOffers: [...snapshot.dailySeedOffers],
-      foodOffers: [...snapshot.dailyFoodOffers],
-      cropSellOffers: snapshot.dailyCropSellOffers.map((entry) => ({ ...entry })),
       cosmeticOffers: snapshot.dailyCosmeticOffers.map((entry) => ({ ...entry })),
     },
   };
@@ -2250,17 +2224,6 @@ function applyServerFarmInventoryEntry(entry) {
 function applyServerMarketRotation(rotation) {
   if (!rotation) return;
   if (rotation.date !== undefined) state.marketRotationDate = rotation.date ?? "";
-  if (rotation.seedOffers !== undefined) {
-    state.dailySeedOffers = rotation.seedOffers.filter((cropId) => CROPS[cropId]);
-  }
-  if (rotation.foodOffers !== undefined) {
-    state.dailyFoodOffers = rotation.foodOffers.filter((recipeId) => RECIPES[recipeId]);
-  }
-  if (rotation.cropSellOffers !== undefined) {
-    state.dailyCropSellOffers = rotation.cropSellOffers.filter(
-      (entry) => CROPS[entry?.cropId] && (entry.bundleSize === 5 || entry.bundleSize === 10),
-    );
-  }
   if (rotation.cosmeticOffers !== undefined) {
     state.dailyCosmeticOffers = rotation.cosmeticOffers.filter(
       (entry) => COSMETIC_CATALOGS[entry?.type]?.some((item) => item.id === entry.id),
@@ -2340,7 +2303,6 @@ async function fetchFarmDataFromDatabase(user) {
   const equippedIfOwned = (type, id) => (id && ownedCosmeticKeys.has(`${type}:${id}`) ? id : null);
   state.equippedFarmTheme = equippedIfOwned("farm_theme", farm.equippedFarmTheme);
   state.equippedPlotSkin = equippedIfOwned("plot_skin", farm.equippedPlotSkin);
-  state.equippedLabelEffect = equippedIfOwned("label_effect", farm.equippedLabelEffect);
 
   state.farmPlots = defaultState.farmPlots.map((fallback) => structuredClone(fallback));
   (data?.plots ?? []).forEach(applyServerFarmPlot);
@@ -2351,11 +2313,8 @@ async function fetchFarmDataFromDatabase(user) {
   state.foodInventory = structuredClone(defaultState.foodInventory);
   (data?.inventory ?? []).forEach(applyServerFarmInventoryEntry);
 
-  // rotation.cropSellOffers/cosmeticOffers are only present once the backend
-  // has the 042/043 migrations applied (returned via get_my_farm_state_v3/v4).
-  // On an unmigrated backend the key is simply absent (undefined) -- leave
-  // whatever's already local alone in that case, rather than resetting it to
-  // empty and forcing a fresh, unsaved reroll on every reload.
+  // An absent cosmeticOffers key leaves the local offers alone rather than
+  // emptying the skin stand until the next rotation arrives.
   applyServerMarketRotation(data?.marketRotation ?? {});
   state.farmRankingWeekStart = getFarmWeekStart();
   state.weeklyFarmMoneyEarned = Math.max(0, Number(data?.weeklyFarmMoneyEarned ?? 0));
@@ -2414,6 +2373,10 @@ const FARM_ACTION_ERROR_MESSAGES = {
   FARM_INVALID_INGREDIENTS: "재료를 2~3개 골라야 해.",
   FARM_UNSUPPORTED_BUNDLE: "지원하지 않는 판매 단위야.",
   FARM_UNSUPPORTED_TARGET: "지원하지 않는 대상이야.",
+  FARM_INSUFFICIENT_COINS: "Coin이 부족해.",
+  FARM_INSUFFICIENT_INGREDIENTS: "요리 재료가 부족해.",
+  FARM_INVALID_QUANTITY: "수량을 다시 확인해줘.",
+  FARM_CROP_SALE_RETIRED: "수확한 작물은 주방에서 요리 재료로 사용해요.",
 };
 
 function farmActionErrorSentinel(error) {
@@ -2439,6 +2402,11 @@ function applyFarmActionResult(result) {
     }
   }
   if (result.wallet) {
+    farmWalletMutationVersion += 1;
+    if (activeAuthUser && (result.wallet.coinBalance != null || result.wallet.farmMoneyBalance != null)) {
+      farmWalletHydrated = true;
+      farmWalletUserId = activeAuthUser.id;
+    }
     if (result.wallet.coinBalance !== undefined && result.wallet.coinBalance !== null) {
       state.coins = Number(result.wallet.coinBalance);
     }
@@ -2452,18 +2420,21 @@ function applyFarmActionResult(result) {
 // on failure. `apply`/`revert` touch only what this one action means to
 // change (never a whole-state snapshot), so a failure here can't take
 // anything else down with it.
-async function runFarmAction({ rpc, params, apply, revert, failureMessage }) {
+async function runFarmAction({ rpc, params, apply, revert, failureMessage, requestId, onError, skipReconciliation = false }) {
   if (!activeAuthUser || !farmDataHydrated) {
     showToast("농장 데이터를 불러오는 중이야");
     return null;
   }
   const userId = activeAuthUser.id;
+  const sessionGeneration = farmSessionGeneration;
+  const stillCurrent = () => activeAuthUser?.id === userId && farmSessionGeneration === sessionGeneration;
   apply();
   renderFarm();
   renderSummary();
 
   const call = farmActionChain.then(async () => {
-    const { data, error } = await supabaseClient.rpc(rpc, { ...params, p_request_id: createUuid() });
+    if (!stillCurrent()) throw new Error("FARM_ACCOUNT_CHANGED");
+    const { data, error } = await supabaseClient.rpc(rpc, { ...params, p_request_id: requestId || createUuid() });
     if (error) throw error;
     return data;
   });
@@ -2471,14 +2442,15 @@ async function runFarmAction({ rpc, params, apply, revert, failureMessage }) {
 
   try {
     const result = await call;
-    if (activeAuthUser?.id === userId) {
-      applyFarmActionResult(result);
+    if (stillCurrent()) {
+      if (!skipReconciliation) applyFarmActionResult(result);
       renderFarm();
       renderSummary();
     }
     return result;
   } catch (error) {
-    if (activeAuthUser?.id !== userId) return null;
+    if (!stillCurrent()) return null;
+    onError?.(error);
     console.error(`Farmodoro farm action ${rpc} failed`, error);
     revert();
     renderFarm();
@@ -2493,6 +2465,13 @@ async function runFarmAction({ rpc, params, apply, revert, failureMessage }) {
 }
 
 function loadState(savedState = null) {
+  // Retired placement requests must not remain queued in this browser.
+  try {
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("farmodoro-garden-pending:")) localStorage.removeItem(key);
+    }
+  } catch (_) { /* Restricted storage does not prevent loading the farm. */ }
   try {
     const saved = savedState && typeof savedState === "object" ? savedState : null;
     if (!saved) return structuredClone(defaultState);
@@ -2502,6 +2481,9 @@ function loadState(savedState = null) {
     delete saved.farmRankingBoxExperienceReady;
     delete saved.farmRankingSecondPlaceDemoSent;
     delete saved.tutorialCompleted;
+    delete saved.focusFarmPlotId;
+    delete saved.farmDailyFocusDate;
+    delete saved.farmDailyFocusSeconds;
     const migratedCoins = Number(saved.coins ?? 0);
     const migratedFarmMoney = Number(saved.farmMoney ?? 0);
     const migratedFarmPlots =
@@ -2545,9 +2527,6 @@ function loadState(savedState = null) {
       productionBoostUntil: saved.productionBoostUntil ?? 0,
       wiltProtectionUntil: saved.wiltProtectionUntil ?? 0,
       marketRotationDate: saved.marketRotationDate ?? "",
-      dailySeedOffers: saved.dailySeedOffers ?? [],
-      dailyFoodOffers: saved.dailyFoodOffers ?? [],
-      dailyCropSellOffers: saved.dailyCropSellOffers ?? [],
       dailyCosmeticOffers: saved.dailyCosmeticOffers ?? [],
       ownedCosmetics: savedOwnedCosmetics,
       // Same ownership gate as the database load: a cached equipped id must
@@ -2555,7 +2534,6 @@ function loadState(savedState = null) {
       // before the server state arrives.
       equippedFarmTheme: savedEquipped("farm_theme", saved.equippedFarmTheme),
       equippedPlotSkin: savedEquipped("plot_skin", saved.equippedPlotSkin),
-      equippedLabelEffect: savedEquipped("label_effect", saved.equippedLabelEffect),
       foodInventory: {
         ...structuredClone(defaultState.foodInventory),
         ...(saved.foodInventory ?? {}),
@@ -2658,36 +2636,16 @@ function applyLoadedAppStateRuntime(isInitialLoad = true) {
   syncFocusSettingsForm();
 }
 
-// Settings and playlists each live in their own row(s) now (migration 050)
-// instead of one shared JSON document, so this only ever reads -- every
-// mutation goes out immediately through its own dedicated RPC at the moment
-// the user does it. There is nothing left to debounce or flush.
+// Settings live in their own row (migration 050), so this only ever reads --
+// every mutation goes out immediately through its own dedicated RPC at the
+// moment the user does it. There is nothing left to debounce or flush.
 async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
   appStateHydrated = false;
   appStateUserId = requestedUserId;
 
-  let { data, error } = await supabaseClient.rpc("get_my_preferences");
-  if (error?.code === "PGRST202" || error?.code === "42883") {
-    // Backend hasn't run migration 050 yet -- read the legacy blob so the
-    // app still works during the rollout window, just without the new RPCs.
-    const fallback = await supabaseClient
-      .from("user_app_state")
-      .select("state")
-      .eq("user_id", requestedUserId)
-      .maybeSingle();
-    error = fallback.error;
-    const legacy = fallback.data?.state ?? null;
-    data = legacy
-      ? {
-          settings: legacy.settings,
-          playlists: Array.isArray(legacy.focusYoutubePlaylists)
-            ? legacy.focusYoutubePlaylists
-            : [],
-        }
-      : null;
-  }
+  const { data, error } = await supabaseClient.rpc("get_my_preferences");
 
   if (activeAuthUser?.id !== requestedUserId || appStateUserId !== requestedUserId) return;
   const productivityState = {
@@ -2708,9 +2666,7 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
     return;
   }
 
-  const previousPlaylistsSignature = JSON.stringify(state.focusYoutubePlaylists ?? []);
   state = loadState({ settings: data?.settings });
-  state.focusYoutubePlaylists = Array.isArray(data?.playlists) ? data.playlists : [];
   state.coins = previousCoins;
   state.farmMoney = previousFarmMoney;
   restoreFarmState(farmState);
@@ -2720,9 +2676,7 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
 
   applyLoadedAppStateRuntime(isInitialLoad);
   appStateHydrated = true;
-  const playlistsChanged =
-    JSON.stringify(state.focusYoutubePlaylists) !== previousPlaylistsSignature;
-  if (isInitialLoad || playlistsChanged) render();
+  if (isInitialLoad) render();
 }
 
 function stopAppStateRealtime() {
@@ -2753,7 +2707,7 @@ function startAppStateRealtime(user) {
   if (!supabaseClient || !user) return;
   appStateRealtimeChannel = subscribeToUserTables(
     supabaseClient.channel(`app-state:${user.id}`),
-    ["user_preferences", "user_focus_playlists"],
+    ["user_preferences"],
     user.id,
     () => {
       if (Date.now() < appStateRealtimeMutedUntil) return;
@@ -2783,26 +2737,6 @@ async function saveMyFocusSettings(mode, focusMinutes, breakEnabled, breakMinute
   });
   if (error) throw error;
   return data;
-}
-
-async function upsertMyFocusPlaylist(id, title, url) {
-  const { data, error } = await callPreferencesRpc("upsert_my_focus_playlist", {
-    p_id: id,
-    p_title: title,
-    p_url: url,
-  });
-  if (error) throw error;
-  return data;
-}
-
-async function deleteMyFocusPlaylist(id) {
-  const { error } = await callPreferencesRpc("delete_my_focus_playlist", { p_id: id });
-  if (error) throw error;
-}
-
-async function touchMyFocusPlaylist(id) {
-  const { error } = await callPreferencesRpc("touch_my_focus_playlist", { p_id: id });
-  if (error) console.error("Farmodoro playlist play could not be recorded", error);
 }
 
 function isFocusTimerOwner() {
@@ -2870,12 +2804,18 @@ function startFocusRealtime(user) {
 }
 
 function getFocusTimerDatabasePayload() {
+  const item = activeFocus ? getFocusItem() : null;
   return {
     version: 1,
     ownerId: runningFocusMode ? focusTimerOwnerId : "",
     runningMode: runningFocusMode,
     focusMode,
     activeFocus: activeFocus ? { ...activeFocus } : null,
+    focusItemProgress: item && activeFocus?.type === "task"
+      ? { type: "task", id: item.id, seconds: Math.max(0, Number(item.focusSeconds) || 0) }
+      : item && activeFocus?.type === "habit"
+      ? { type: "habit", id: item.id, secondsByDate: { ...item.focusSecondsByDate } }
+      : null,
     rewardSeconds: Math.max(0, Math.floor(Number(state.focusRewardSeconds) || 0)),
     runtimes: {
       linked: { ...focusRuntimeByMode.linked },
@@ -2908,6 +2848,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
 
 function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   if (!payload || Number(payload.version) !== 1) return;
+  payload = resolveFocusTimerRecoveryPayload(payload);
   focusTimerStateGeneration += 1;
   clearInterval(focusInterval);
   focusInterval = null;
@@ -2942,6 +2883,20 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     : null;
   if (staleQuickRuntime && runningFocusMode === "quick") runningFocusMode = null;
   focusTimerOwnerId = runningFocusMode ? String(payload.ownerId || "") : "";
+  if (isFocusTimerOwner() && payload.focusItemProgress?.id === activeFocus?.id) {
+    const item = getFocusItem();
+    const progress = payload.focusItemProgress;
+    if (item && activeFocus.type === "task" && progress.type === "task") {
+      item.focusSeconds = Math.max(Number(item.focusSeconds) || 0, Number(progress.seconds) || 0);
+    } else if (item && activeFocus.type === "habit" && progress.type === "habit") {
+      item.focusSecondsByDate ??= {};
+      for (const [date, seconds] of Object.entries(progress.secondsByDate ?? {})) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          item.focusSecondsByDate[date] = Math.max(Number(item.focusSecondsByDate[date]) || 0, Number(seconds) || 0);
+        }
+      }
+    }
+  }
   if (focusProgressApiUnavailable && Number.isFinite(Number(payload.rewardSeconds))) {
     state.focusRewardSeconds = Math.max(0, Math.floor(Number(payload.rewardSeconds))) % 3600;
   }
@@ -2978,7 +2933,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       if (item && activeFocus?.type === "task") {
         const savedTaskSeconds = Math.max(0, Math.floor(Number(item.focusSeconds) || 0));
         item.focusSeconds = Math.max(savedTaskSeconds, runtime.seconds);
-        recoveredFocusSeconds = item.focusSeconds - savedTaskSeconds;
+        recoveredFocusSeconds = appliedSeconds;
       } else if (item && activeFocus?.type === "habit") {
         if (habitCountdown) {
           recoveredFocusSeconds = appliedSeconds;
@@ -2994,6 +2949,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       }
 
       if (recoveredFocusSeconds > 0) {
+        focusLastTickAt = Number.isFinite(syncedAt) ? syncedAt + elapsedSeconds * 1000 : Date.now();
         addFocusSecond(recoveredFocusSeconds, runningFocusMode);
         scheduleTaskDatabaseSync(0);
         void flushFocusTime();
@@ -3147,6 +3103,7 @@ async function writeFocusTimerDatabase(userId, payload) {
 }
 
 function scheduleFocusTimerDatabaseSync(delay = 300) {
+  persistFocusTimerCheckpoint();
   if (
     !focusTimerDatabaseHydrated ||
     focusTimerDatabaseUnavailable ||
@@ -3927,8 +3884,8 @@ function renderTaskFilters() {
   archiveButton.textContent = archiveActive ? "← 할 일로 돌아가기" : "보관함";
   if (currentPage === "tasks") taskSection.querySelector(".section-header h2").textContent = archiveActive ? "보관함" : "전체 할 일";
   archivePolicy.textContent = archiveActive
-    ? "보관된 할 일은 보관 후 30일이 지나면 자동으로 삭제돼"
-    : "완료한 할 일은 다음 날 자동으로 보관함으로 이동해";
+    ? "보관된 할 일은 보관 후 30일이 지나면 자동으로 삭제"
+    : "완료한 할 일은 다음 날 자동으로 보관함으로 이동";
   document.querySelector("#taskBoard").classList.toggle("archive-view", archiveActive);
   document.querySelector('[data-status="done"] h3').textContent =
     archiveActive ? "보관된 할 일" : "완료";
@@ -4086,13 +4043,12 @@ function getFarmWeekStart(date = new Date()) {
 
 function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
   if (farmLeaderboard.length) return farmLeaderboard.map((farmer) => farmer.isMe
-    ? { ...farmer, farmName: state.farmName || "내 농장", labelEffect: state.equippedLabelEffect || null }
+    ? { ...farmer, farmName: state.farmName || "내 농장" }
     : farmer);
   return [
     {
       farmName: state.farmName || "내 농장",
       displayName: currentProfile?.display_name || "농부",
-      labelEffect: state.equippedLabelEffect || null,
       score: userScore,
       isMe: true,
     },
@@ -4238,6 +4194,69 @@ function getCropGrowthCost(cropId) {
   return CROP_GROWTH_COSTS[cropId] ?? 4;
 }
 
+function persistPendingFocusEvents() {
+  if (!activeAuthUser) return;
+  try {
+    if (isFocusTimerOwner()) {
+      focusRecoveryTimerCheckpoint = { clientId: FOCUS_TIMER_CLIENT_ID, timer: getFocusTimerDatabasePayload() };
+    }
+    const key = `farmodoro-focus-outbox:${activeAuthUser.id}:${FOCUS_TIMER_CLIENT_ID}`;
+    if (!focusProgressEventQueue.length && !pendingFarmFocusBatches.length && !focusRecoveryTimerCheckpoint) {
+      localStorage.removeItem(key);
+      return;
+    }
+    localStorage.setItem(key, JSON.stringify({
+      events: focusProgressEventQueue, batches: pendingFarmFocusBatches,
+      timerCheckpoint: focusRecoveryTimerCheckpoint,
+    }));
+  } catch (error) {
+    console.warn("Farmodoro focus recovery could not be saved", error);
+  }
+}
+
+function persistFocusTimerCheckpoint() {
+  if (activeAuthUser && isFocusTimerOwner()) persistPendingFocusEvents();
+}
+
+function resolveFocusTimerRecoveryPayload(payload) {
+  const checkpoint = focusRecoveryTimerCheckpoint;
+  if (checkpoint?.clientId !== FOCUS_TIMER_CLIENT_ID ||
+      (payload.ownerId && payload.ownerId !== FOCUS_TIMER_CLIENT_ID)) return payload;
+  const local = checkpoint.timer;
+  const localAt = Date.parse(local?.syncedAt || "");
+  const remoteAt = Date.parse(payload.syncedAt || "");
+  return Number(local?.version) === 1 && Number.isFinite(localAt) &&
+    Number.isFinite(remoteAt) && localAt > remoteAt ? local : payload;
+}
+
+function restorePendingFocusEvents(userId) {
+  if (!userId || focusOutboxUserId === userId) return;
+  focusOutboxUserId = userId;
+  try {
+    const saved = JSON.parse(localStorage.getItem(`farmodoro-focus-outbox:${userId}:${FOCUS_TIMER_CLIENT_ID}`) || "null");
+    if (!saved) return;
+    focusRecoveryTimerCheckpoint = saved.timerCheckpoint?.clientId === FOCUS_TIMER_CLIENT_ID
+      ? saved.timerCheckpoint : null;
+    const normalize = (event, queued) => {
+      const seconds = Math.floor(Number(event?.seconds));
+      if (!(seconds > 0) || !["linked", "quick"].includes(event.mode) || (queued && !event.id)) return null;
+      return { ...(queued ? { id: event.id } : {}), mode: event.mode, seconds };
+    };
+    for (const event of saved.events ?? []) {
+      const value = normalize(event, true);
+      if (value && !focusProgressEventQueue.some((entry) => entry.id === value.id)) focusProgressEventQueue.push(value);
+    }
+    for (const batch of saved.batches ?? []) {
+      const value = normalize(batch, false);
+      if (!value) continue;
+      pendingFarmFocusBatches.push(value);
+      pendingFocusSeconds[value.mode] += value.seconds;
+    }
+  } catch (error) {
+    console.warn("Farmodoro saved focus recovery could not be restored", error);
+  }
+}
+
 function isProductionBoostActive() {
   return state.productionBoostUntil > Date.now();
 }
@@ -4258,12 +4277,6 @@ function updateFarmItemEffects() {
   if (protectionStatus) protectionStatus.hidden = !isWiltProtectionActive();
 }
 
-function getCropBundlePrice(cropId, bundleSize) {
-  const crop = CROPS[cropId];
-  const growCost = crop.seedPrice + getCropGrowthCost(cropId);
-  return growCost * bundleSize + 2;
-}
-
 function launchHarvestCelebration() {
   const celebration = document.createElement("div");
   celebration.className = "harvest-celebration";
@@ -4274,21 +4287,6 @@ function launchHarvestCelebration() {
   ).join("");
   document.body.append(celebration);
   setTimeout(() => celebration.remove(), 1800);
-}
-
-function launchCraftWasteEffect() {
-  const poof = document.createElement("div");
-  poof.className = "craft-waste-poof";
-  const dust = Array.from({ length: 18 }, (_, index) => {
-    const angle = (index / 18) * Math.PI * 2;
-    const distance = 100 + (index % 4) * 26;
-    const tx = Math.round(Math.cos(angle) * distance);
-    const ty = Math.round(Math.sin(angle) * distance + 55);
-    return `<i style="--tx:${tx}px;--ty:${ty}px;--delay:${(index % 5) * 0.03}s"></i>`;
-  }).join("");
-  poof.innerHTML = `<span class="poof-icon">💥</span>${dust}`;
-  document.body.append(poof);
-  setTimeout(() => poof.remove(), 1500);
 }
 
 function clearFarmPlot(plot) {
@@ -4729,6 +4727,153 @@ function renderHabitHeatmap() {
     .join("");
 
   grid.innerHTML = `<span></span>${dayHeaders}${rows}`;
+  renderHabitMonthlySummary();
+  lastHabitHeatmapDate = toLocalDateString();
+}
+
+function refreshHabitHeatmapDay() {
+  if (lastHabitHeatmapDate !== toLocalDateString()) renderHabitHeatmap();
+}
+
+function getHabitMonthlySummary(habits = state.habits, monthDate = habitCalendarDate, today = new Date()) {
+  const year = monthDate.getFullYear();
+  const monthIndex = monthDate.getMonth();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const monthStart = toLocalDateString(new Date(year, monthIndex, 1));
+  const monthEnd = toLocalDateString(new Date(year, monthIndex, daysInMonth));
+  const todayString = toLocalDateString(today);
+  const period = todayString < monthStart ? "future" : todayString > monthEnd ? "past" : "current";
+  const cutoffDate = period === "future" ? null : period === "past" ? monthEnd : todayString;
+  const weeks = Array.from({ length: Math.ceil(daysInMonth / 7) }, (_, index) => ({
+    index: index + 1,
+    label: `${index + 1}주`,
+    startDate: toLocalDateString(new Date(year, monthIndex, index * 7 + 1)),
+    endDate: toLocalDateString(new Date(year, monthIndex, Math.min((index + 1) * 7, daysInMonth))),
+    eligible: 0,
+    completed: 0,
+    percentage: null,
+  }));
+  const recordedDates = new Set();
+  const rankings = habits.map((habit, originalIndex) => ({ habit, originalIndex }))
+    .filter(({ habit }) => (!habit.startDate || habit.startDate <= monthEnd)
+      && (!habit.endDate || habit.endDate >= monthStart))
+    .map(({ habit, originalIndex }) => {
+      let eligible = 0;
+      let completed = 0;
+      const lastDay = period === "future" ? 0 : period === "current" ? today.getDate() : daysInMonth;
+      for (let day = 1; day <= lastDay; day += 1) {
+        const date = new Date(year, monthIndex, day, 12);
+        if (!isHabitScheduledOn(habit, date)) continue;
+        const dateString = toLocalDateString(date);
+        const week = weeks[Math.floor((day - 1) / 7)];
+        eligible += 1;
+        week.eligible += 1;
+        if (getHabitProgressRatio(habit, dateString) >= 1) {
+          completed += 1;
+          week.completed += 1;
+          recordedDates.add(dateString);
+        }
+      }
+      return {
+        id: habit.id,
+        title: habit.title,
+        eligible,
+        completed,
+        percentage: eligible ? Math.round(completed / eligible * 100) : null,
+        originalIndex,
+      };
+    });
+  const eligible = rankings.reduce((sum, habit) => sum + habit.eligible, 0);
+  const completed = rankings.reduce((sum, habit) => sum + habit.completed, 0);
+  weeks.forEach((week) => {
+    week.percentage = week.eligible ? Math.round(week.completed / week.eligible * 100) : null;
+  });
+  rankings.sort((first, second) => {
+    if (!first.eligible || !second.eligible) return Number(Boolean(second.eligible)) - Number(Boolean(first.eligible))
+      || first.originalIndex - second.originalIndex;
+    return second.completed / second.eligible - first.completed / first.eligible
+      || second.completed - first.completed || first.originalIndex - second.originalIndex;
+  });
+  return {
+    year,
+    month: monthIndex + 1,
+    monthStart,
+    monthEnd,
+    cutoffDate,
+    period,
+    habitCount: rankings.length,
+    eligible,
+    completed,
+    recordedDays: recordedDates.size,
+    percentage: eligible ? Math.round(completed / eligible * 100) : null,
+    weeks,
+    rankings,
+  };
+}
+
+function renderHabitMonthlySummary() {
+  const panel = document.querySelector("#habitMonthlySummary");
+  if (!panel) return;
+  const summary = getHabitMonthlySummary();
+  const percentage = summary.percentage ?? 0;
+  const periodLabel = summary.period === "future"
+    ? "아직 시작하지 않은 달이에요"
+    : summary.period === "current" ? "오늘까지의 달성률" : "월간 달성률";
+  const emptyLabel = summary.period === "future"
+    ? "기록이 쌓이면 여기에 보여요"
+    : !summary.habitCount ? "이 달에 등록된 습관이 없어요"
+      : !summary.eligible ? "집계할 예정이 아직 없어요" : "완료한 습관이 아직 없어요";
+  const weekBars = summary.weeks.map((week) => {
+    const dateRange = `${summary.month}월 ${Number(week.startDate.slice(-2))}일–${Number(week.endDate.slice(-2))}일`;
+    const weekValue = week.percentage ?? 0;
+    const description = week.eligible
+      ? `${dateRange} · ${week.completed} / ${week.eligible}회 완료 · 달성률 ${weekValue}%`
+      : `${dateRange} · 집계할 예정 없음`;
+    return `
+      <div class="habit-week${week.eligible ? "" : " is-empty"}" title="${escapeHtml(description)}">
+        <div class="habit-week-track" role="progressbar" aria-label="${escapeHtml(dateRange)} 달성률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${weekValue}" aria-valuetext="${escapeHtml(description)}">
+          <span style="height: ${weekValue}%"></span>
+        </div>
+        <span>${week.label}</span>
+      </div>
+    `;
+  }).join("");
+  const topHabits = summary.rankings.filter((habit) => habit.completed > 0).slice(0, 3);
+  const ranking = topHabits.length
+    ? `<ol class="habit-summary-top">${topHabits.map((habit, index) => `
+        <li>
+          <div class="habit-top-heading">
+            <span class="habit-top-rank">${index + 1}</span>
+            <span class="habit-top-name" title="${escapeHtml(habit.title)}">${escapeHtml(habit.title)}</span>
+            <span class="habit-top-rate">${habit.percentage}%</span>
+          </div>
+          <div class="habit-top-progress" role="progressbar" aria-label="${escapeHtml(habit.title)} 달성률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${habit.percentage}" aria-valuetext="${habit.completed} / ${habit.eligible}회 완료">
+            <span style="width: ${habit.percentage}%"></span>
+          </div>
+        </li>
+      `).join("")}</ol>`
+    : `<p class="habit-summary-empty">${emptyLabel}</p>`;
+  panel.innerHTML = `
+    <div class="habit-summary-overview">
+      <span class="section-kicker">MONTHLY SUMMARY</span>
+      <h3 id="habitMonthlySummaryTitle">월간 요약</h3>
+      <div class="habit-summary-rate">${summary.percentage == null ? "—" : `${summary.percentage}%`}</div>
+      <p class="habit-summary-period">${periodLabel}</p>
+      <div class="habit-summary-progress" role="progressbar" aria-label="월간 습관 달성률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percentage}" aria-valuetext="${summary.eligible ? `${summary.completed} / ${summary.eligible}회 완료` : "집계할 예정 없음"}">
+        <span style="width: ${percentage}%"></span>
+      </div>
+      <p class="habit-summary-count"><strong>${summary.completed} / ${summary.eligible}회</strong> 완료</p>
+      <div class="habit-summary-weekly">
+        <h4>주차별 달성률</h4>
+        <div class="habit-week-bars" role="group" aria-label="주차별 습관 달성률">${weekBars}</div>
+      </div>
+    </div>
+    <div class="habit-summary-ranking">
+      <h3>꾸준히 지킨 습관</h3>
+      ${ranking}
+      <p class="habit-summary-footnote">예정된 날짜 기준</p>
+    </div>
+  `;
 }
 
 function canEditHabitRecord(habit, dateString) {
@@ -4808,6 +4953,15 @@ function cropPixel(cropId, stage = "mature") {
 }
 
 const PIXEL_FOOD_IDS = Object.keys(RECIPES).filter((id) => !RECIPES[id].pixelRecipe);
+
+// Mail and reward boxes show the same garden artwork as the kitchen and seed picker.
+function gardenCropArt(cropId) {
+  return window.FarmGardenArt?.crop?.(cropId) || cropPixel(cropId);
+}
+
+function gardenFoodArt(recipeId) {
+  return window.FarmGardenArt?.food?.(recipeId) || foodPixel(recipeId);
+}
 
 function foodPixel(recipeId) {
   const index = PIXEL_FOOD_IDS.indexOf(RECIPES[recipeId]?.pixelRecipe ?? recipeId);
@@ -5050,7 +5204,6 @@ async function loadFarmLeaderboard() {
       farmCode: String(farmer.farm_code || "").toUpperCase(),
       farmName: farmer.farm_name || "이름 없는 농장",
       displayName: farmer.display_name || "농부",
-      labelEffect: farmer.equipped_label_effect || null,
       score: Number(farmer.earned_farm_money ?? 0),
       isMe: Boolean(farmer.is_me),
     }));
@@ -5104,9 +5257,6 @@ function renderFarmRanking() {
 
   ensureWeeklyFarmRanking();
   const rankings = getFarmRankings();
-  const myNameplate = document.querySelector("#farmRankingMyNameplate");
-  myNameplate.textContent = state.farmName || "내 농장";
-  myNameplate.dataset.labelEffect = state.equippedLabelEffect || "";
 
   weekLabel.textContent = formatFarmRankingWeek();
   weeklyEarned.textContent = state.weeklyFarmMoneyEarned.toLocaleString("ko-KR");
@@ -5130,7 +5280,7 @@ function renderFarmRanking() {
         <article class="farm-podium-place ${farmer.isMe ? "is-me" : ""}" data-rank="${rank}">
           <span class="farm-podium-medal">${rank === 1 ? "🏆" : rank === 2 ? "🥈" : "🥉"}</span>
           <div class="farm-podium-farmer">
-            <strong class="farm-ranking-farm-name" data-label-effect="${farmer.labelEffect ?? ""}">${escapeHtml(farmer.farmName)}</strong>
+            <strong class="farm-ranking-farm-title">${escapeHtml(farmer.farmName)}</strong>
             <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
           </div>
           <strong class="farm-podium-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
@@ -5149,7 +5299,7 @@ function renderFarmRanking() {
         <li class="farm-ranking-row ${farmer.isMe ? "is-me" : ""}">
           <span class="farm-ranking-rank">${rank}</span>
           <span class="farm-ranking-name">
-            <strong class="farm-ranking-farm-name" data-label-effect="${farmer.labelEffect ?? ""}">${escapeHtml(farmer.farmName)}</strong>
+            <strong class="farm-ranking-farm-title">${escapeHtml(farmer.farmName)}</strong>
             <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
           </span>
           <strong class="farm-ranking-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
@@ -5187,14 +5337,14 @@ function getFarmGiftDetails(category, itemId, mail = null) {
   if (category === "food") {
     const recipe = RECIPES[itemId];
     return recipe
-      ? { name: recipe.name, icon: foodPixel(itemId), inventory: state.foodInventory, categoryName: "만든 음식" }
+      ? { name: recipe.name, icon: gardenFoodArt(itemId), inventory: state.foodInventory, categoryName: "만든 음식" }
       : null;
   }
   const crop = CROPS[itemId];
   if (!crop) return null;
   return {
     name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
-    icon: cropPixel(itemId),
+    icon: gardenCropArt(itemId),
     inventory: category === "seed" ? state.seedInventory : state.harvestInventory,
     categoryName: category === "seed" ? "씨앗" : "수확물",
   };
@@ -5243,7 +5393,7 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
         >
           <i class="reward-box-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</i>
           ${opened
-            ? `<span class="reward-chest is-open" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i><span class="reward-prize">${cropPixel(cropId)}</span></span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1 GET!</small>`
+            ? `<span class="reward-chest is-open" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i><span class="reward-prize">${gardenCropArt(cropId)}</span></span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1 GET!</small>`
             : `<span class="reward-chest" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i></span><strong>미스터리 박스</strong><small>PRESS TO OPEN</small>`}
         </button>
       `;
@@ -5350,7 +5500,7 @@ function getFarmMailItems(category = selectedMailCategory) {
       .map(([recipeId, recipe]) => ({
         id: recipeId,
         name: recipe.name,
-        icon: foodPixel(recipeId),
+        icon: gardenFoodArt(recipeId),
         count: state.foodInventory[recipeId],
         inventory: state.foodInventory,
       }));
@@ -5362,7 +5512,7 @@ function getFarmMailItems(category = selectedMailCategory) {
     .map(([cropId, crop]) => ({
       id: cropId,
       name: category === "seed" ? `${crop.name} 씨앗` : crop.name,
-      icon: cropPixel(cropId),
+      icon: gardenCropArt(cropId),
       count: inventory[cropId],
       inventory,
     }));
@@ -5433,6 +5583,12 @@ function renderFarmMail() {
   unreadCount.hidden = unclaimedCount === 0;
   headerUnreadCount.textContent = unclaimedCount > 99 ? "99+" : unclaimedCount;
   headerUnreadCount.hidden = unclaimedCount === 0;
+  const gardenMailBadge = document.querySelector("#gardenMailUnreadCount");
+  if (gardenMailBadge) {
+    gardenMailBadge.textContent = unclaimedCount > 99 ? "99+" : unclaimedCount;
+    gardenMailBadge.hidden = unclaimedCount === 0;
+    document.querySelector("#openGardenMail")?.setAttribute("aria-label", unclaimedCount ? `우편함 · 받지 않은 우편 ${unclaimedCount}통` : "우편함");
+  }
   openMailButton.classList.toggle("has-unread", unclaimedCount > 0);
   openMailButton.setAttribute(
     "aria-label",
@@ -5549,127 +5705,9 @@ function renderFarmMail() {
   sendButton.textContent = remainingCount ? `선물 보내기 · 오늘 ${remainingCount}회 남음` : "오늘 발송을 모두 사용했어";
 }
 
-function renderRecipeIngredientPicker(select) {
-  const picker = select.closest(".recipe-ingredient-select");
-  const label = picker?.querySelector("[data-recipe-ingredient-label]");
-  const menu = picker?.querySelector(".recipe-ingredient-menu");
-  if (!picker || !label || !menu) return;
-
-  const selectedCrop = CROPS[select.value];
-  label.textContent = selectedCrop ? selectedCrop.name : "재료 선택";
-  menu.innerHTML = [
-    `
-      <button class="recipe-ingredient-option custom-group-option ${select.value ? "" : "selected"}" type="button" role="option" aria-selected="${!select.value}" data-recipe-ingredient-value="">
-        <i aria-hidden="true"></i><span>재료 선택</span><b>✓</b>
-      </button>
-    `,
-    ...getSortedKitchenCropEntries().map(
-      ([cropId, crop]) => `
-        <button class="recipe-ingredient-option custom-group-option ${select.value === cropId ? "selected" : ""}" type="button" role="option" aria-selected="${select.value === cropId}" data-recipe-ingredient-value="${cropId}">
-          <i aria-hidden="true">${cropPixel(cropId)}</i>
-          <span><strong>${escapeHtml(crop.name)}</strong><small>${state.harvestInventory[cropId] ?? 0}개 보유</small></span>
-          <b>✓</b>
-        </button>
-      `,
-    ),
-  ].join("");
-}
-
-function getRecipeAvailability(recipe, inventory = state.harvestInventory) {
-  const required = recipe.ingredients.reduce((counts, id) => {
-    counts[id] = (counts[id] ?? 0) + 1;
-    return counts;
-  }, {});
-  const missing = Object.entries(required)
-    .filter(([id, count]) => (inventory[id] ?? 0) < count)
-    .map(([id, count]) => `${CROPS[id].name} ${count - (inventory[id] ?? 0)}개 부족`);
-  const count = Math.min(...Object.entries(required).map(([id, quantity]) => Math.floor((inventory[id] ?? 0) / quantity)));
-  return { count, missing };
-}
-
-function renderAvailableRecipes() {
-  const list = document.querySelector("#availableRecipes");
-  if (!list) return;
-  const selected = selectedRecipeIngredients.filter(Boolean);
-  const recipes = Object.entries(RECIPES).filter(([, recipe]) => {
-    if (!getRecipeAvailability(recipe).count) return false;
-    const remaining = [...recipe.ingredients];
-    return selected.every((id) => {
-      const index = remaining.indexOf(id);
-      if (index < 0) return false;
-      remaining.splice(index, 1);
-      return true;
-    });
-  });
-  document.querySelector("#availableRecipeCount").textContent = `${recipes.length}종`;
-  list.innerHTML = recipes.length ? recipes.map(([id, recipe]) => `
-    <button type="button" class="available-recipe" data-select-recipe="${id}">
-      ${foodPixel(id)}<span><strong>${recipe.name}</strong><small>최대 ${getRecipeAvailability(recipe).count}개 · 재료 선택</small></span>
-    </button>`).join("") : `<p class="empty-food-message">${selected.length ? "선택한 재료로 만들 수 있는 요리가 없어. 재료를 비우거나 아래 레시피를 골라." : "재료가 부족해. 아래 레시피에서 필요한 작물을 확인해."}</p>`;
-  document.querySelector("#clearRecipeIngredients").disabled = selected.length === 0;
-}
-
-function selectKitchenRecipe(recipeId) {
-  const recipe = RECIPES[recipeId];
-  if (!recipe || !getRecipeAvailability(recipe).count) return;
-  selectedRecipeIngredients.splice(0, 3, ...recipe.ingredients, ...Array(3 - recipe.ingredients.length).fill(""));
-  [1, 2, 3].forEach((slot) => {
-    const select = document.querySelector(`#recipeIngredient${slot}`);
-    select.value = selectedRecipeIngredients[slot - 1];
-    renderRecipeIngredientPicker(select);
-  });
-  closeRecipeIngredientMenus();
-  renderKitchenCauldron();
-  document.querySelector("#cookRecipeButton").focus({ preventScroll: true });
-}
-
-function renderKitchenCauldron() {
-  const cauldron = document.querySelector("#recipeCauldron");
-  const ingredientStage = document.querySelector("#recipeCauldronIngredients");
-  const status = document.querySelector("#recipeCauldronStatus");
-  if (!cauldron || !ingredientStage || !status) return;
-
-  renderAvailableRecipes();
-  const ingredientIds = selectedRecipeIngredients.filter((cropId) => CROPS[cropId]);
-  cauldron.classList.toggle("has-ingredients", ingredientIds.length > 0);
-  ingredientStage.innerHTML = ingredientIds.length
-    ? ingredientIds
-        .map(
-          (cropId, index) => `
-            <span class="cauldron-ingredient" style="animation-delay:${index * 70}ms" title="${escapeHtml(CROPS[cropId].name)}">
-              ${cropPixel(cropId)}
-            </span>
-          `,
-        )
-        .join("")
-    : '<span class="cauldron-empty-mark" aria-hidden="true">?</span>';
-  status.textContent = ingredientIds.length >= 2
-    ? `${ingredientIds.map((cropId) => CROPS[cropId].name).join(" + ")} · 조합 준비 완료!`
-    : ingredientIds.length === 1
-      ? `${CROPS[ingredientIds[0]].name} 투입 완료 · 재료를 하나 더 골라주세요`
-      : "빈 가마솥 · 재료를 2개 이상 골라주세요";
-}
-
-function getSortedKitchenCropEntries() {
-  return Object.entries(CROPS).sort(([firstId], [secondId]) => {
-    const firstAvailable = (state.harvestInventory[firstId] ?? 0) > 0;
-    const secondAvailable = (state.harvestInventory[secondId] ?? 0) > 0;
-    return Number(secondAvailable) - Number(firstAvailable);
-  });
-}
-
-function closeRecipeIngredientMenus(exceptPicker = null) {
-  document.querySelectorAll(".recipe-ingredient-select").forEach((picker) => {
-    if (picker === exceptPicker) return;
-    picker.querySelector(".recipe-ingredient-menu")?.classList.add("hidden");
-    picker.querySelector(".recipe-ingredient-trigger")?.setAttribute("aria-expanded", "false");
-  });
-}
-
 const COSMETIC_TYPE_LABELS = {
   farm_theme: "농장 테마",
   plot_skin: "밭 스킨",
-  label_effect: "도트 명패",
 };
 
 function getCosmeticEntry(type, id) {
@@ -5683,7 +5721,7 @@ function isCosmeticOwned(type, id) {
 function isCosmeticEquipped(type, id) {
   if (type === "farm_theme") return state.equippedFarmTheme === id;
   if (type === "plot_skin") return state.equippedPlotSkin === id;
-  return state.equippedLabelEffect === id;
+  return false;
 }
 
 const PIXEL_THEME_IDS = "cherryBlossom valentine halloween christmas whiteDay springMeadow galaxyNight ocean bubbleField".split(" ");
@@ -5692,9 +5730,7 @@ const PIXEL_PLOT_IDS = "cherryPetalFall frostbite chocolate candy starCandy mapl
 // The farm map is composited from separate layers instead of one baked atlas:
 // an empty terrain background, facility sprites, plot tiles and crop sprites.
 const FARM_ART_ROOT = "./assets/farm-b-v1";
-const FARM_TERRAIN_IDS = new Set(
-  "springMeadow cherryBlossom christmas iceKingdom galaxyNight halloween valentine whiteDay bubbleField volcano ocean goldenHarvest lavender meadow".split(" "),
-);
+const FARM_TERRAIN_IDS = new Set([...FARM_THEMES.map(({ id }) => id), "lavender", "meadow"]);
 // These plot skins are sold as "changes the area around the field", so they
 // still override the terrain on top of swapping the plot tiles themselves.
 const PLOT_SKIN_TERRAIN = {
@@ -5763,6 +5799,8 @@ function farmGridRect(terrain) {
 const FIELD_STAGE_SPRITES = { seed: "seed", sprout: "sprout", growing: "growing", flower: "flower", wilted: "wilted" };
 
 function fieldCropSprite(cropId, stage = "mature") {
+  if (window.FarmGardenArt?.plantedCrop) return window.FarmGardenArt.plantedCrop(cropId, stage);
+  if (stage === "mature" && window.FarmGardenArt?.hasCrop(cropId)) return window.FarmGardenArt.crop(cropId);
   const name = stage === "mature"
     ? (PIXEL_CROP_IDS.includes(cropId) ? cropId : "")
     : FIELD_STAGE_SPRITES[stage];
@@ -5781,24 +5819,9 @@ function getFarmPlotStatus(plot) {
   return { kind: "growing", text: `${plot.growth}/${getCropGrowthCost(plot.crop)}`, detail: `성장 ${plot.growth}/${getCropGrowthCost(plot.crop)}` };
 }
 
-// Popups live outside #farmPage. Share the actual terrain (including plot-skin
-// overrides), without letting a shop preview change the equipped palette.
-function applyFarmRpgTheme(terrain, objectSkin) {
-  const windows = {
-    npcMarket: "market", farmMarketModal: "market", farmKitchenModal: "kitchen",
-    farmMailModal: "mailbox", harvestStorageModal: "produce-crate", seedStorageModal: "seed-chest",
-    supplyStorageModal: "tool-rack", farmRankingModal: "noticeboard", farmRewardBoxModal: "seed-chest",
-    cosmeticPreviewModal: "house", freePassTargetModal: "tool-rack",
-  };
+// Farm popups use the workspace white/dark UI; only the map follows the farm theme.
+function applyFarmRpgTheme(terrain) {
   document.querySelector("#farmPage").dataset.rpgTheme = terrain;
-  Object.entries(windows).forEach(([id, prop]) => {
-    const root = document.getElementById(id);
-    if (!root) return;
-    root.dataset.farmRpg = "";
-    root.dataset.rpgTheme = terrain;
-    root.style.setProperty("--rpg-icon", `url('${FARM_ART_ROOT}/objects/${objectSkin}/${prop}.png')`);
-    root.style.setProperty("--rpg-landscape", `url('${FARM_ART_ROOT}/terrain/${terrain}.png')`);
-  });
 }
 
 function fieldPlotSprite(plot, skin) {
@@ -5814,9 +5837,14 @@ function pixelAtlasPosition(ids, id, columns, rows, prefix) {
 }
 
 function cosmeticPixelPreview(type, id) {
-  if (type === "farm_theme") return `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="background-image:url('./assets/farm-themes/${id}.svg');background-size:contain;background-position:center;background-repeat:no-repeat"></span>`;
-  if (type === "plot_skin") return `<span aria-hidden="true" class="cosmetic-preview plot-preview" style="${pixelAtlasPosition(PIXEL_PLOT_IDS, id, 4, 3, "plot")}"></span>`;
-  return `<span aria-hidden="true" class="cosmetic-preview label-preview" data-label-effect="${id}">FARM</span>`;
+  if (type === "farm_theme") {
+    const art = window.FarmGardenArt?.theme(id);
+    return art ? `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="background-image:url('${art.url}');background-size:200% 200%;background-position:${art.x}% ${art.y}%;background-repeat:no-repeat"></span>`
+      : `<span aria-hidden="true" class="cosmetic-preview theme-preview" style="background-image:url('./assets/farm-themes/${id}.svg');background-size:contain;background-position:center;background-repeat:no-repeat"></span>`;
+  }
+  if (type === "plot_skin") return window.FarmGardenArt?.plotSkin(id)
+    || `<span aria-hidden="true" class="cosmetic-preview plot-preview" style="${pixelAtlasPosition(PIXEL_PLOT_IDS, id, 4, 3, "plot")}"></span>`;
+  return "";
 }
 
 function renderRachelPanel() {
@@ -5831,9 +5859,11 @@ function renderRachelPanel() {
     tab.setAttribute("aria-selected", String(tab.dataset.rachelTab === rachelActiveTab));
   });
 
-  const availableOffers = state.dailyCosmeticOffers.filter(
-    ({ type, id }) => getCosmeticEntry(type, id) && !isCosmeticOwned(type, id),
-  );
+  // Field appearances stay available year-round; daily offers only mark
+  // recommendations and never hide a field the user wants to buy.
+  const availableOffers = [...state.dailyCosmeticOffers, ...PLOT_SKINS.map(({ id }) => ({ type: "plot_skin", id }))]
+    .filter(({ type, id }, index, offers) => getCosmeticEntry(type, id) && !isCosmeticOwned(type, id)
+      && offers.findIndex((entry) => entry.type === type && entry.id === id) === index);
   offersList.innerHTML = availableOffers.length
     ? availableOffers
         .map(({ type, id }) => {
@@ -5864,7 +5894,7 @@ function renderRachelPanel() {
         .join("")
     : '<p class="rachel-status">오늘 진열된 소품을 모두 가지고 있어!</p>';
 
-  const ownedByType = ["farm_theme", "plot_skin", "label_effect"].flatMap((type) =>
+  const ownedByType = ["farm_theme", "plot_skin"].flatMap((type) =>
     state.ownedCosmetics
       .filter((entry) => entry.type === type)
       .map((entry) => ({ type, ...getCosmeticEntry(type, entry.id), id: entry.id }))
@@ -5926,6 +5956,12 @@ function decorateFarmTheme(root, themeId) {
     springMeadow: "꽃과 나비가 쉬어 가는 초록 정원",
     galaxyNight: "달과 별 사이에 펼쳐진 작은 우주",
     ocean: "조개와 진주를 품은 바닷속 정원",
+    peperoDay: "초콜릿 지붕과 과자 나무가 반기는 달콤한 정원",
+    auroraNight: "초록빛 오로라가 펼쳐지는 고요한 밤",
+    lavenderField: "보랏빛 라벤더 향기로 물든 작은 정원",
+    rainyGarden: "빗소리를 들으며 쉬어 가는 촉촉한 정원",
+    desertOasis: "야자수와 맑은 물이 만나는 사막 오아시스",
+    moonGarden: "은빛 달과 푸른 꽃이 빛나는 밤의 정원",
   };
   if (!banner) {
     banner = document.createElement("div");
@@ -5935,6 +5971,13 @@ function decorateFarmTheme(root, themeId) {
   }
   banner.querySelector("strong").textContent = entry.name;
   banner.querySelector(".farm-theme-banner-copy > span").textContent = captions[themeId] || "";
+  const art = window.FarmGardenArt?.theme(themeId);
+  if (art) {
+    const illustration = banner.querySelector("i");
+    illustration.style.backgroundImage = `url('${art.url}')`;
+    illustration.style.backgroundSize = "200% 200%";
+    illustration.style.backgroundPosition = `${art.x}% ${art.y}%`;
+  }
 }
 
 function getFarmSceneryDescription(type, id) {
@@ -5944,10 +5987,31 @@ function getFarmSceneryDescription(type, id) {
     "farm_theme:christmas": "눈 덮인 오두막 · 내리는 눈",
     "farm_theme:iceKingdom": "하얀 겨울 정원 · 내리는 눈",
     "farm_theme:galaxyNight": "달빛 아래 잠든 오두막과 정원",
-    "plot_skin:lavenderField": "밭 주변을 라벤더 꽃밭으로 변경",
-    "plot_skin:cherryPetalFall": "밭 주변에 벚꽃과 꽃잎 효과 적용",
-    "plot_skin:snowField": "밭 주변을 눈밭으로 변경 · 내리는 눈",
-    "plot_skin:frostbite": "밭 주변을 겨울 정원으로 변경 · 내리는 눈",
+    "farm_theme:volcano": "용암 시냇물 · 반짝이는 화산석 오두막",
+    "farm_theme:valentine": "하트 나무 · 분홍빛 초콜릿 정원",
+    "farm_theme:whiteDay": "사탕 나무 · 민트빛 리본 오두막",
+    "farm_theme:halloween": "호박 등불 · 보랏빛 가을 밤",
+    "farm_theme:goldenHarvest": "황금빛 이삭 · 따뜻한 가을 들판",
+    "farm_theme:ocean": "푸른 바다 · 조개가 놓인 해변 정원",
+    "farm_theme:bubbleField": "무지개 거품 · 꿈결 같은 작은 정원",
+    "farm_theme:peperoDay": "초콜릿 과자 나무 · 포근한 카카오 정원",
+    "farm_theme:auroraNight": "초록빛 오로라 · 별이 빛나는 겨울 밤",
+    "farm_theme:lavenderField": "라벤더 꽃밭 · 보랏빛 오두막",
+    "farm_theme:rainyGarden": "빗방울과 수국 · 촉촉한 초록 정원",
+    "farm_theme:desertOasis": "야자수와 맑은 연못 · 햇살 가득한 오아시스",
+    "farm_theme:moonGarden": "은빛 달 · 푸른 꽃이 피어나는 밤",
+    "plot_skin:lavenderField": "라벤더 밭 · 테마가 없으면 꽃밭 풍경도 적용",
+    "plot_skin:cherryPetalFall": "벚꽃 밭 · 테마가 없으면 벚꽃 풍경도 적용",
+    "plot_skin:snowField": "눈밭 · 테마가 없으면 눈 내리는 풍경도 적용",
+    "plot_skin:frostbite": "결빙 밭 · 테마가 없으면 겨울 풍경도 적용",
+    "plot_skin:chocolate": "초콜릿밭 · 발렌타인과 빼빼로데이에 어울려요",
+    "plot_skin:candy": "사탕밭 · 화이트데이의 달콤한 색감",
+    "plot_skin:starCandy": "별빛밭 · 은하수와 오로라, 달빛 정원에 어울려요",
+    "plot_skin:mapleLeaf": "낙엽밭 · 가을 잎이 쌓인 할로윈 밭",
+    "plot_skin:sandDune": "모래밭 · 바다와 사막 오아시스에 어울려요",
+    "plot_skin:lava": "용암밭 · 붉은 용암이 빛나는 화산석",
+    "plot_skin:rainbow": "무지개밭 · 거품 밭의 알록달록한 색감",
+    "plot_skin:golden": "황금밭 · 황금 들판에 어울리는 따뜻한 흙",
   };
   return descriptions[`${type}:${id}`] || "";
 }
@@ -5958,12 +6022,14 @@ function getFarmScenery(themeId, plotSkin) {
     iceKingdom: "snow", galaxyNight: "night", halloween: "night",
     valentine: "tulip", whiteDay: "tulip", bubbleField: "lavender",
     volcano: "volcano", ocean: "ocean", goldenHarvest: "goldenHarvest",
+    peperoDay: "peperoDay", auroraNight: "auroraNight", lavenderField: "lavender",
+    rainyGarden: "rainyGarden", desertOasis: "desertOasis", moonGarden: "moonGarden",
   };
   const skins = {
     lavenderField: "lavender", cherryPetalFall: "cherry",
     snowField: "snow", frostbite: "snow",
   };
-  const scenery = skins[plotSkin] || themes[themeId] || "meadow";
+  const scenery = themes[themeId] || skins[plotSkin] || "meadow";
   return { scenery };
 }
 
@@ -5981,6 +6047,8 @@ const TERRAIN_WEATHER = {
   cherryBlossom: "petals", valentine: "petals", whiteDay: "petals",
   volcano: "embers", halloween: "leaves", goldenHarvest: "leaves",
   ocean: "bubbles", bubbleField: "bubbles", lavender: "lavender",
+  peperoDay: "leaves", auroraNight: "none", lavenderField: "lavender",
+  rainyGarden: "rain", desertOasis: "none", moonGarden: "none",
 };
 const WEATHER_PARTICLES = {
   grass: ["grass"],
@@ -5990,6 +6058,7 @@ const WEATHER_PARTICLES = {
   leaves: ["leaf-autumn", "leaf-golden"],
   bubbles: ["bubble", "foam", "water-glint"],
   lavender: ["lavender"],
+  rain: ["water-glint"],
 };
 
 function renderFarmScenery(root, themeId, plotSkin) {
@@ -5997,12 +6066,13 @@ function renderFarmScenery(root, themeId, plotSkin) {
   if (!scene) return;
   const { scenery } = getFarmScenery(themeId, plotSkin);
   scene.dataset.scenery = scenery;
-  const terrain = PLOT_SKIN_TERRAIN[plotSkin]
-    || (FARM_TERRAIN_IDS.has(themeId) ? themeId : "meadow");
+  const terrain = FARM_TERRAIN_IDS.has(themeId) ? themeId
+    : PLOT_SKIN_TERRAIN[plotSkin] || "meadow";
   const objectSkin = TERRAIN_OBJECT_SKINS[terrain] || "rustic";
   if (root.id === "farmPage") applyFarmRpgTheme(terrain, objectSkin);
   scene.dataset.terrain = terrain;
   scene.dataset.objectSkin = objectSkin;
+  window.FarmGardenArt?.renderTerrain(scene.querySelector(".farm-scene-grid"), themeId || terrain);
   scene.style.setProperty("--terrain", `url('${FARM_ART_ROOT}/terrain/${terrain}.png')`);
   const grid = farmGridRect(terrain);
   // Props that stand just off the field follow the clearing edges, so they stay
@@ -6049,33 +6119,72 @@ function applyFarmTheme(themeId) {
   renderFarmScenery(farmPage, themeId, state.equippedPlotSkin);
 }
 
-function renderNpcMarketCarousel() {
-  const market = document.querySelector("#npcMarket");
-  if (!market) return;
-  market.dataset.activeNpc = activeNpcPanel;
-  market.querySelectorAll("[data-npc-panel]").forEach((panel) => {
-    panel.hidden = panel.dataset.npcPanel !== activeNpcPanel;
-  });
-  market.querySelectorAll("[data-npc-dot]").forEach((dot) => {
-    dot.classList.toggle("active", dot.dataset.npcDot === activeNpcPanel);
+function getFarmDashboardDate(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(date);
+}
+
+function renderFarmDashboard() {
+  const coinBalance = document.querySelector("#farmWorkspaceCoinBalance");
+  const moneyBalance = document.querySelector("#farmWorkspaceMoneyBalance");
+  const themeLabel = document.querySelector("#farmActiveThemeLabel");
+  if (coinBalance) coinBalance.textContent = state.coins.toLocaleString();
+  if (moneyBalance) moneyBalance.textContent = state.farmMoney.toLocaleString();
+  if (themeLabel) themeLabel.textContent = getCosmeticEntry("farm_theme", state.equippedFarmTheme)?.name || "초록 농장";
+
+  const themeChoices = document.querySelector("#farmThemeChoices");
+  if (themeChoices) {
+    const themes = [{ id: "", name: "초록 농장", price: 0 }, ...FARM_THEMES];
+    themeChoices.innerHTML = themes.map((theme) => {
+      const owned = !theme.id || isCosmeticOwned("farm_theme", theme.id);
+      const equipped = (state.equippedFarmTheme || "") === theme.id;
+      const offered = state.dailyCosmeticOffers.some((entry) => entry.type === "farm_theme" && entry.id === theme.id);
+      const action = owned ? `data-equip-cosmetic="farm_theme:${theme.id}"` : `data-preview-farm-theme="${theme.id}"`;
+      const caption = equipped ? "사용 중" : owned ? "보유 · 눌러서 적용" : offered ? `오늘 추천 · ✦ ${theme.price.toLocaleString()}` : `✦ ${theme.price.toLocaleString()} · 미리보기`;
+      const art = window.FarmGardenArt?.theme(theme.id);
+      const preview = art ? `<span class="garden-theme-thumb" aria-hidden="true" style="background-image:url('${art.url}');background-size:${art.size};background-position:${art.x}% ${art.thumbnailY}%"></span>` : `<img src="${FARM_ART_ROOT}/terrain/${theme.id || "meadow"}.png" alt="" loading="lazy" />`;
+      return `<button type="button" class="farm-theme-choice" ${action} aria-pressed="${equipped}" aria-label="${escapeHtml(theme.name)} ${owned ? "테마 적용" : "미리보기"}">
+        ${preview}
+        <span>${escapeHtml(theme.name)}</span><small>${caption}</small></button>`;
+    }).join("");
+  }
+
+  const fieldChoices = document.querySelector("#farmPlotSkinChoices");
+  const matchingSet = FARM_COSMETIC_SETS.find((set) => set.farm_theme.includes(state.equippedFarmTheme));
+  const matchingFieldId = matchingSet?.plot_skin[0] || null;
+  if (fieldChoices) {
+    const fields = [{ id: "", name: "기본 흙밭", price: 0 }, ...PLOT_SKINS];
+    fieldChoices.innerHTML = fields.map((field) => {
+      const owned = !field.id || isCosmeticOwned("plot_skin", field.id);
+      const equipped = (state.equippedPlotSkin || "") === field.id;
+      const recommended = field.id === matchingFieldId;
+      const action = owned ? `data-equip-cosmetic="plot_skin:${field.id}"` : `data-preview-farm-plot="${field.id}"`;
+      const caption = equipped ? "사용 중" : owned ? "보유 · 눌러서 적용" : `✦ ${field.price.toLocaleString()} · 미리보기`;
+      const preview = field.id ? cosmeticPixelPreview("plot_skin", field.id)
+        : window.FarmGardenArt?.plotSkin("") || `<span class="cosmetic-preview plot-preview default-plot-preview" aria-hidden="true" style="background-image:url('${FARM_ART_ROOT}/plots/default.png');background-size:contain;background-position:center;background-repeat:no-repeat"></span>`;
+      return `<button type="button" class="farm-theme-choice farm-plot-skin-choice${recommended ? " recommended" : ""}" ${action} aria-pressed="${equipped}" aria-label="${escapeHtml(field.name)} ${owned ? "밭 적용" : "미리보기"}">
+        ${preview}<span>${escapeHtml(field.name)}</span><small>${caption}</small>${recommended ? '<em class="farm-field-match">현재 테마와 어울려요</em>' : ""}</button>`;
+    }).join("");
+  }
+}
+
+function selectFarmCollectionTab(tab) {
+  document.querySelectorAll("[data-farm-collection-tab]").forEach((button) => {
+    const selected = button.dataset.farmCollectionTab === tab;
+    button.setAttribute("aria-selected", String(selected));
+    document.getElementById(button.getAttribute("aria-controls")).hidden = !selected;
   });
 }
 
 function renderFarm() {
   renderTodayFarmPreview();
   const inventory = document.querySelector("#seedInventory");
-  const shop = document.querySelector("#seedShop");
   const grid = document.querySelector("#farmGrid");
   const farmBalance = document.querySelector("#farmCoinBalance");
-  const harvestInventory = document.querySelector("#harvestInventory");
-  const noahBuyList = document.querySelector("#noahBuyList");
-  const noahCropBundleList = document.querySelector("#noahCropBundleList");
   const marketFarmMoney = document.querySelector("#marketFarmMoneyBalance");
   const supplyFarmMoney = document.querySelector("#supplyFarmMoneyBalance");
   const farmItemInventory = document.querySelector("#farmItemInventory");
-  const foodInventory = document.querySelector("#foodInventory");
-  const recipeBook = document.querySelector("#recipeBook");
-  const recipeBookProgress = document.querySelector("#recipeBookProgress");
   const harvestStorageCount = document.querySelector("#harvestStorageCount");
   const seedStorageCount = document.querySelector("#seedStorageCount");
   const supplyStorageCount = document.querySelector("#supplyStorageCount");
@@ -6083,18 +6192,11 @@ function renderFarm() {
   const farmNameLabel = document.querySelector("#farmNameLabel");
   if (
     !inventory ||
-    !shop ||
     !grid ||
     !farmBalance ||
-    !harvestInventory ||
-    !noahBuyList ||
-    !noahCropBundleList ||
     !marketFarmMoney ||
     !supplyFarmMoney ||
     !farmItemInventory ||
-    !foodInventory ||
-    !recipeBook ||
-    !recipeBookProgress ||
     !harvestStorageCount ||
     !seedStorageCount ||
     !supplyStorageCount ||
@@ -6104,7 +6206,6 @@ function renderFarm() {
     return;
   }
 
-  renderNpcMarketCarousel();
   renderRachelPanel();
   ensureWeeklyFarmRanking();
   farmBalance.textContent = state.coins;
@@ -6125,48 +6226,45 @@ function renderFarm() {
   );
   supplyModalCount.textContent = supplyStorageCount.textContent;
   farmNameLabel.textContent = state.farmName;
-  if (state.equippedLabelEffect) {
-    farmNameLabel.dataset.labelEffect = state.equippedLabelEffect;
-  } else {
-    delete farmNameLabel.dataset.labelEffect;
-  }
   applyFarmTheme(state.equippedFarmTheme);
   renderFarmRanking();
   renderFarmMail();
 
-  farmItemInventory.innerHTML = Object.entries(FARM_ITEMS)
-    .map(([itemId, item]) => {
+  const supplyIds = Object.keys(FARM_ITEMS);
+  const focusId = FARM_ITEMS[supplyFocusItem] ? supplyFocusItem : supplyIds[0];
+  const supplyStatus = (itemId) => itemId === "goldenFestivalPass" && isProductionBoostActive() ? "2배 효과 진행 중"
+    : itemId === "farmFestivalPass" && isWiltProtectionActive() ? "시듦 방지 진행 중" : "";
+  const focusItem = FARM_ITEMS[focusId];
+  const focusCount = state.farmItemInventory[focusId] ?? 0;
+  const focusStatus = supplyStatus(focusId);
+  farmItemInventory.innerHTML = `
+    <div class="supply-v2-list" role="listbox" aria-label="농장 용품">${supplyIds.map((itemId) => {
+      const item = FARM_ITEMS[itemId];
       const count = state.farmItemInventory[itemId] ?? 0;
-      const boostStatus =
-        itemId === "goldenFestivalPass" && isProductionBoostActive()
-          ? `<small class="boost-status">2배 효과 진행 중</small>`
-          : itemId === "farmFestivalPass" && isWiltProtectionActive()
-            ? `<small class="boost-status">시듦 방지 진행 중</small>`
-          : "";
-      return `
-        <article
-          class="farm-item-card farm-supply-item ${getCropNameLengthClass(item.name)} ${selectedFarmItem === itemId ? "selected" : ""}"
-        >
+      return `<button type="button" role="option" class="farm-item-card farm-supply-item ${getCropNameLengthClass(item.name)} ${itemId === focusId ? "is-selected" : ""} ${selectedFarmItem === itemId ? "selected" : ""}"
+          data-focus-farm-item="${itemId}" aria-selected="${itemId === focusId}">
           <span class="supply-card-icon farm-supply-pixel-icon" data-farm-item-icon="${itemId}" aria-hidden="true"></span>
-          <div class="supply-card-copy">
-            <strong>${item.name}</strong>
-            <small>${item.description}</small>
-            ${boostStatus}
-          </div>
-          <div class="supply-card-actions">
-            <em>보유 ${count}개</em>
-            <button type="button" data-buy-farm-item="${itemId}" aria-label="${item.name} 1개 구매, ${item.price} Farm Money" ${state.farmMoney < item.price ? "disabled" : ""}>구매 ✦ ${item.price}</button>
-            <button
-              type="button"
-              data-use-farm-item="${itemId}"
-              aria-label="${item.name} 사용, ${count}개 보유"
-              ${count ? "" : "disabled"}
-            >사용</button>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+          <strong>${item.name}</strong>
+          <span class="supply-v2-price">✦ ${item.price}</span>
+          ${count ? `<em class="supply-v2-owned">${count}개 보유</em>` : ""}
+          ${supplyStatus(itemId) ? '<i class="supply-v2-active" aria-label="효과 진행 중"></i>' : ""}
+        </button>`;
+    }).join("")}</div>
+    <section class="supply-v2-detail" aria-live="polite">
+      <div class="supply-v2-art"><span class="supply-card-icon farm-supply-pixel-icon" data-farm-item-icon="${focusId}" aria-hidden="true"></span></div>
+      <span class="supply-v2-eyebrow">${focusItem.type === "plot" ? "밭에 사용하는 용품" : "바로 사용하는 용품"}</span>
+      <h3>${focusItem.name}</h3>
+      <p class="supply-v2-description">${focusItem.description}</p>
+      ${focusStatus ? `<p class="supply-v2-status boost-status">${focusStatus}</p>` : ""}
+      <dl class="supply-v2-facts">
+        <div><dt>가격</dt><dd>✦ ${focusItem.price} Farm Money</dd></div>
+        <div><dt>보유</dt><dd>${focusCount}개</dd></div>
+      </dl>
+      <div class="supply-v2-actions">
+        <button type="button" class="supply-v2-buy" data-buy-farm-item="${focusId}" aria-label="${focusItem.name} 1개 구매, ${focusItem.price} Farm Money" ${state.farmMoney < focusItem.price ? "disabled" : ""}>✦ ${focusItem.price} · 1개 구매</button>
+        <button type="button" class="supply-v2-use" data-use-farm-item="${focusId}" aria-label="${focusItem.name} 사용, ${focusCount}개 보유" ${focusCount ? "" : "disabled"}>${focusItem.type === "plot" ? "밭 골라서 사용" : "사용하기"}</button>
+      </div>
+    </section>`;
 
   inventory.innerHTML = Object.entries(CROPS)
     .map(([cropId, crop]) => {
@@ -6184,125 +6282,6 @@ function renderFarm() {
       `;
     })
     .join("");
-
-  shop.innerHTML = state.dailySeedOffers
-    .slice(0, 7)
-    .map((cropId) => [cropId, CROPS[cropId]])
-    .map(([cropId, crop]) => {
-      return `
-        <article class="seed-shop-card">
-          <span class="seed-shop-emoji">${cropPixel(cropId)}</span>
-          <div>
-            <strong>${crop.name} 씨앗</strong>
-            <small>보유 씨앗 ${state.seedInventory[cropId] ?? 0}개 · 작물 ${state.harvestInventory[cropId] ?? 0}개 · 재배 중 ${state.farmPlots.filter((plot) => plot.crop === cropId).length}개</small>
-          </div>
-          <button type="button" data-buy-seed="${cropId}">
-            ● ${crop.seedPrice}
-          </button>
-        </article>
-      `;
-    })
-    .join("");
-
-  harvestInventory.innerHTML = Object.entries(CROPS)
-    .map(
-      ([cropId, crop]) => `
-        <span class="harvest-item ${getCropNameLengthClass(crop.name)} ${state.harvestInventory[cropId] ? "" : "empty"}">
-          <i>${cropPixel(cropId)}</i>
-          <strong>${crop.name}</strong>
-          <small>${state.harvestInventory[cropId] ?? 0}개</small>
-        </span>
-      `,
-    )
-    .join("");
-
-  noahBuyList.innerHTML = state.dailyFoodOffers
-    .map(
-      (recipeId) => {
-        const recipe = RECIPES[recipeId];
-        return `
-        <article class="noah-buy-card">
-          <span>${foodPixel(recipeId)}</span>
-          <div>
-            <strong>${recipe.name}</strong>
-            <small>보유 ${state.foodInventory[recipeId] ?? 0}개</small>
-          </div>
-          <button type="button" data-sell-food="${recipeId}">
-            ✦ ${recipe.sellPrice}
-          </button>
-        </article>
-      `;
-      },
-    )
-    .join("");
-
-  noahCropBundleList.innerHTML = state.dailyCropSellOffers
-    .slice(0, 7)
-    .map(({ cropId, bundleSize }) => {
-      const crop = CROPS[cropId];
-      const owned = state.harvestInventory[cropId] ?? 0;
-      return `
-        <article class="noah-buy-card">
-          <span>${cropPixel(cropId)}</span>
-          <div>
-            <strong>${crop.name} ${bundleSize}개 묶음</strong>
-            <small>보유 ${owned}개</small>
-          </div>
-          <button
-            type="button"
-            data-sell-crop-bundle="${cropId}"
-            data-bundle-size="${bundleSize}"
-            ${owned < bundleSize ? "disabled" : ""}
-          >
-            ✦ ${getCropBundlePrice(cropId, bundleSize)}
-          </button>
-        </article>
-      `;
-    })
-    .join("");
-
-  const ingredientOptions = [
-    '<option value="">재료 선택</option>',
-    ...getSortedKitchenCropEntries().map(
-      ([cropId, crop]) =>
-        `<option value="${cropId}">${crop.name}</option>`,
-    ),
-  ].join("");
-  ["recipeIngredient1", "recipeIngredient2", "recipeIngredient3"].forEach((id) => {
-    const select = document.querySelector(`#${id}`);
-    if (!select) return;
-    const index = Number(id.at(-1)) - 1;
-    select.innerHTML = ingredientOptions;
-    select.value = CROPS[selectedRecipeIngredients[index]] ? selectedRecipeIngredients[index] : "";
-    renderRecipeIngredientPicker(select);
-  });
-  renderKitchenCauldron();
-
-  const storedFoods = Object.entries(RECIPES)
-    .filter(([recipeId]) => state.foodInventory[recipeId])
-    .map(
-      ([recipeId, recipe]) => `
-        <span class="food-item">
-          <i>${foodPixel(recipeId)}</i><strong>${recipe.name}</strong><small>${state.foodInventory[recipeId]}개</small>
-        </span>
-      `,
-    )
-    .join("");
-  foodInventory.innerHTML =
-    storedFoods ||
-    '<span class="empty-food-message">완성된 음식이 아직 없어</span>';
-
-  const recipeEntries = Object.entries(RECIPES).map(([id, recipe]) => ({ id, recipe, ...getRecipeAvailability(recipe) }));
-  recipeEntries.sort((a, b) => Number(b.count > 0) - Number(a.count > 0));
-  recipeBookProgress.textContent = `${recipeEntries.length}종 · 제작 가능 ${recipeEntries.filter(({ count }) => count > 0).length}종`;
-  recipeBook.innerHTML = recipeEntries.map(({ id, recipe, count, missing }) => `
-    <article class="recipe-entry ${count ? "craftable" : ""}">
-      <span>${foodPixel(id)}</span>
-      <strong>${recipe.name}</strong>
-      <small>${recipe.ingredients.map((cropId) => CROPS[cropId].name).join(" + ")}</small>
-      <small class="recipe-availability">${count ? `제작 가능 · 최대 ${count}개` : missing.join(" · ")}</small>
-      <button type="button" data-select-recipe="${id}" ${count ? "" : "disabled"}>재료 선택</button>
-    </article>`).join("");
 
   const focusedPlotButton = document.activeElement?.closest("#farmGrid button");
   const focusedPlotId = focusedPlotButton?.closest("[data-plot-id]")?.dataset.plotId;
@@ -6411,6 +6390,8 @@ function renderFarm() {
   grid.querySelectorAll("[data-plot-skin]").forEach((tile) => {
     const plot = state.farmPlots.find((entry) => entry.id === Number(tile.dataset.plotId));
     tile.style.cssText = `--plot-src:url('${FARM_ART_ROOT}/plots/${fieldPlotSprite(plot, tile.dataset.plotSkin)}.png')`;
+    const soil = window.FarmGardenArt?.soil(plot, tile.dataset.plotSkin);
+    if (soil) tile.insertAdjacentHTML("afterbegin", soil);
     if (!plot?.crop) return;
     tile.setAttribute("aria-label", `${plot.id + 1}번 밭 · ${CROPS[plot.crop].name}`);
     if (selectedFarmItem) {
@@ -6427,7 +6408,10 @@ function renderFarm() {
     const action = focusedPlotAction && tile?.querySelector(`[${focusedPlotAction}]:not(:disabled)`);
     (action || tile?.querySelector("button:not(:disabled)") || (tile?.matches("button") ? tile : null))?.focus({ preventScroll: true });
   }
+  window.FarmKitchen?.render();
+  window.FarmSeeds?.render();
   renderFocusFarmBackground();
+  renderFarmDashboard();
 }
 
 function renderFocusPicker() {
@@ -7294,11 +7278,15 @@ function resetFocusProgressState() {
   pendingFocusSeconds.linked = 0;
   pendingFocusSeconds.quick = 0;
   focusProgressEventQueue.length = 0;
+  pendingFarmFocusBatches.length = 0;
+  focusOutboxUserId = null;
+  focusRecoveryTimerCheckpoint = null;
 }
 
 async function loadFocusProgress(user) {
   if (!supabaseClient || !user) return;
   const requestedUserId = user.id;
+  restorePendingFocusEvents(requestedUserId);
   const { data, error } = await supabaseClient.rpc("get_my_focus_progress");
   if (activeAuthUser?.id !== requestedUserId) return;
   if (error) {
@@ -7312,20 +7300,30 @@ async function loadFocusProgress(user) {
   }
   focusProgressApiUnavailable = false;
   focusProgressServerSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0)) % 3600;
-  state.focusRewardSeconds = focusProgressServerSeconds;
-  renderSummary();
+  refreshFocusProgress();
+  renderFarm();
+  if (focusProgressEventQueue.length || pendingFarmFocusBatches.length) void flushFocusTime();
 }
 
 function stagePendingFocusEvents() {
-  ["linked", "quick"].forEach((mode) => {
-    let remaining = pendingFocusSeconds[mode];
+  const batches = pendingFarmFocusBatches.splice(0);
+  // Preserve accrued seconds from older callers and saved outboxes.
+  for (const mode of ["linked", "quick"]) {
+    const captured = batches.filter((batch) => batch.mode === mode).reduce((sum, batch) => sum + batch.seconds, 0);
+    if (pendingFocusSeconds[mode] > captured) {
+      batches.push({ mode, seconds: pendingFocusSeconds[mode] - captured });
+    }
     pendingFocusSeconds[mode] = 0;
+  }
+  for (const batch of batches) {
+    let remaining = batch.seconds;
     while (remaining > 0) {
       const seconds = Math.min(600, remaining);
-      focusProgressEventQueue.push({ id: crypto.randomUUID(), mode, seconds });
+      focusProgressEventQueue.push({ id: crypto.randomUUID(), mode: batch.mode, seconds });
       remaining -= seconds;
     }
-  });
+  }
+  persistPendingFocusEvents();
 }
 
 async function flushFocusTime() {
@@ -7338,13 +7336,23 @@ async function flushFocusTime() {
   focusProgressSyncPromise = (async () => {
     while (focusProgressEventQueue.length && activeAuthUser?.id === userId) {
       const event = focusProgressEventQueue[0];
-      const { data, error } = await supabaseClient.rpc("record_my_focus_time", {
+      const baseParams = {
         p_event_id: event.id,
         p_focus_mode: event.mode,
         p_elapsed_seconds: event.seconds,
+      };
+      let { data, error } = await supabaseClient.rpc("record_my_focus_time_v2", {
+        // Explicit nulls prevent crop growth on servers still running migration 075,
+        // including retries of saved events from before the feature was removed.
+        ...baseParams, p_plot_index: null, p_crop_instance_id: null,
       });
+      if (["42883", "PGRST202"].includes(error?.code)) {
+        ({ data, error } = await supabaseClient.rpc("record_my_focus_time", baseParams));
+      }
       if (error) throw error;
+      if (activeAuthUser?.id !== userId) return;
       focusProgressEventQueue.shift();
+      persistPendingFocusEvents();
       focusProgressServerSeconds = Math.max(0, Math.floor(Number(data?.progressSeconds) || 0)) % 3600;
       if (Number.isFinite(Number(data?.coinBalance))) state.coins = Number(data.coinBalance);
       const awardedCoins = Math.max(0, Number(data?.awardedCoins) || 0);
@@ -7378,12 +7386,21 @@ function addLegacyFocusRewardSeconds(elapsedSeconds) {
 }
 
 function addFocusSecond(elapsedSeconds = 1, mode = focusMode) {
+  elapsedSeconds = Math.max(0, Math.floor(Number(elapsedSeconds) || 0));
+  if (!elapsedSeconds) return;
   if (focusProgressApiUnavailable) {
     addLegacyFocusRewardSeconds(elapsedSeconds);
     return;
   }
   const progressMode = mode === "quick" ? "quick" : "linked";
   pendingFocusSeconds[progressMode] += elapsedSeconds;
+  const previous = pendingFarmFocusBatches.at(-1);
+  if (previous?.mode === progressMode) {
+    previous.seconds += elapsedSeconds;
+  } else {
+    pendingFarmFocusBatches.push({ mode: progressMode, seconds: elapsedSeconds });
+  }
+  persistPendingFocusEvents();
   state.focusRewardSeconds = Math.max(0, (focusProgressServerSeconds + getPendingFocusSeconds()) % 3600);
 }
 
@@ -9194,40 +9211,6 @@ document.querySelector("#habitList").addEventListener("click", async (event) => 
   }
 });
 
-document.querySelector("#seedShop").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-buy-seed]");
-  if (!button) return;
-
-  const cropId = button.dataset.buySeed;
-  const crop = CROPS[cropId];
-  if (!crop) return;
-  if (state.coins < crop.seedPrice) {
-    showToast(`${crop.name} 씨앗을 사려면 ${crop.seedPrice} Coin이 필요해`);
-    return;
-  }
-
-  const previousCoins = state.coins;
-  const previousSeedCount = state.seedInventory[cropId];
-  const previousSelectedSeed = selectedSeed;
-
-  const result = await runFarmAction({
-    rpc: "buy_farm_seed",
-    params: { p_crop_id: cropId },
-    apply: () => {
-      state.coins -= crop.seedPrice;
-      state.seedInventory[cropId] += 1;
-      if (!selectedSeed) selectedSeed = cropId;
-    },
-    revert: () => {
-      state.coins = previousCoins;
-      state.seedInventory[cropId] = previousSeedCount;
-      selectedSeed = previousSelectedSeed;
-    },
-    failureMessage: "씨앗 구매 저장에 실패해서 되돌렸어.",
-  });
-  if (result) showToast(`${crop.name} 씨앗을 ${result.event?.seedAmount ?? 1}개 샀어${farmBonusMessage(result.event)}`);
-});
-
 document.querySelector("#seedInventory").addEventListener("click", (event) => {
   const button = event.target.closest("[data-select-seed]");
   if (!button) return;
@@ -9241,6 +9224,15 @@ document.querySelector("#seedInventory").addEventListener("click", (event) => {
   selectedSeed = selectedSeed === cropId ? null : cropId;
   document.querySelector("#seedStorageModal").classList.add("hidden");
   renderFarm();
+});
+
+document.querySelector("#farmItemInventory").addEventListener("click", (event) => {
+  const card = event.target.closest("[data-focus-farm-item]");
+  if (!card) return;
+  supplyFocusItem = card.dataset.focusFarmItem;
+  renderFarm();
+  document.querySelector(`#farmItemInventory [data-focus-farm-item="${supplyFocusItem}"]`)?.focus({ preventScroll: true });
+  if (matchMedia("(max-width: 900px)").matches) document.querySelector("#farmItemInventory .supply-v2-detail")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
 
 document.querySelector("#farmItemInventory").addEventListener("click", async (event) => {
@@ -9285,30 +9277,6 @@ document.querySelector("#farmItemInventory").addEventListener("click", async (ev
     showToast(selectedFarmItem ? `${item.name}을 적용할 밭을 골라` : "용품 선택을 취소했어");
     document.querySelector("#supplyStorageModal").classList.add("hidden");
     renderFarm();
-    return;
-  }
-
-  if (itemId === "seedMarketRefresh" || itemId === "foodMarketRefresh") {
-    const previousItemCount = state.farmItemInventory[itemId];
-    // No optimistic local reroll here (unlike the old getRefreshedMarketSelection
-    // call) -- the server does its own roll and applyFarmActionResult renders it
-    // once, instead of showing a local guess that then gets replaced.
-    await runFarmAction({
-      rpc: "use_farm_market_refresh",
-      params: { p_item_id: itemId },
-      apply: () => {
-        state.farmItemInventory[itemId] -= 1;
-        showToast(
-          itemId === "seedMarketRefresh"
-            ? "씨앗 판매대가 새로 바뀌었어"
-            : "매입 목록이 새로 바뀌었어",
-        );
-      },
-      revert: () => {
-        state.farmItemInventory[itemId] = previousItemCount;
-      },
-      failureMessage: "새로고침 저장에 실패해서 되돌렸어.",
-    });
     return;
   }
 
@@ -9384,12 +9352,26 @@ document.querySelector("#toggleFarmOverview").addEventListener("click", (event) 
   });
 });
 
+let farmMarketReturnFocus = null;
 function setFarmMarketOpen(open) {
+  const modal = document.querySelector("#farmMarketModal");
+  const visible = (element) => element?.isConnected && element.getBoundingClientRect().width > 0
+    && element.getBoundingClientRect().height > 0 && getComputedStyle(element).visibility !== "hidden";
+  if (open && modal.classList.contains("hidden")) {
+    const opener = document.activeElement;
+    farmMarketReturnFocus = opener?.matches("button,a,summary,input,select,textarea,[tabindex]") && visible(opener)
+      && !modal.contains(opener) ? opener : null;
+  }
   document.querySelector("#farmPage").classList.toggle("farm-market-open", open);
-  document.querySelector("#farmMarketModal").classList.toggle("hidden", !open);
+  modal.classList.toggle("hidden", !open);
   document.querySelector("#toggleFarmMarket").setAttribute("aria-expanded", String(open));
   if (open) document.querySelector("button[data-close-farm-market]").focus({ preventScroll: true });
-  else document.querySelector("#toggleFarmMarket").focus({ preventScroll: true });
+  else {
+    const target = visible(farmMarketReturnFocus) ? farmMarketReturnFocus
+      : document.querySelector(".farm-equipment-details > summary");
+    farmMarketReturnFocus = null;
+    target?.focus({ preventScroll: true });
+  }
 }
 
 document.querySelector("#farmPage").addEventListener("keydown", (event) => {
@@ -9399,7 +9381,62 @@ document.querySelector("#farmPage").addEventListener("keydown", (event) => {
   }
 });
 
+window.openGardenMailbox = () => document.querySelector("#openFarmMail")?.click();
 document.querySelector("#farmPage").addEventListener("click", async (event) => {
+  const collectionTab = event.target.closest("[data-farm-collection-tab]");
+  if (collectionTab) {
+    selectFarmCollectionTab(collectionTab.dataset.farmCollectionTab);
+    return;
+  }
+  if (event.target.closest("#openFarmStorage")) {
+    document.querySelector("#supplyStorageModal").classList.remove("hidden");
+    return;
+  }
+  if (event.target.closest("#openGardenMail")) {
+    window.openGardenMailbox();
+    return;
+  }
+  if (event.target.closest("#openGardenRanking")) {
+    document.querySelector("#openFarmRanking")?.click();
+    return;
+  }
+  const customizationButton = event.target.closest("[data-open-farm-customization], [data-open-farm-goal]");
+  if (customizationButton) {
+    rachelActiveTab = customizationButton.dataset.openFarmCustomization === "owned" ? "owned" : "offers";
+    renderRachelPanel();
+    setFarmMarketOpen(true);
+    if (customizationButton.dataset.openFarmGoal) {
+      const target = [...document.querySelectorAll("#rachelOffersList [data-purchase-cosmetic]")]
+        .find((button) => button.dataset.purchaseCosmetic === customizationButton.dataset.openFarmGoal);
+      target?.closest(".rachel-cosmetic-card")?.scrollIntoView({ block: "nearest" });
+      target?.focus({ preventScroll: true });
+    }
+    return;
+  }
+  if (event.target.closest("#openFarmShop")) {
+    if (window.FarmKitchen) window.FarmKitchen.open();
+    else document.querySelector("#openFarmKitchen")?.click();
+    return;
+  }
+  const fieldPreview = event.target.closest("[data-preview-farm-plot]");
+  if (fieldPreview) {
+    openCosmeticPreview("plot_skin", fieldPreview.dataset.previewFarmPlot);
+    return;
+  }
+  const fieldChoice = event.target.closest("#farmPlotSkinChoices [data-equip-cosmetic]");
+  if (fieldChoice) {
+    if (fieldChoice.dataset.equipCosmetic !== `plot_skin:${state.equippedPlotSkin || ""}`) await equipFarmCosmetic(fieldChoice);
+    return;
+  }
+  const themeChoice = event.target.closest("#farmThemeChoices .farm-theme-choice");
+  if (themeChoice) {
+    if (themeChoice.hasAttribute("data-preview-farm-theme")) {
+      openCosmeticPreview("farm_theme", themeChoice.dataset.previewFarmTheme);
+    } else if (themeChoice.dataset.equipCosmetic !== `farm_theme:${state.equippedFarmTheme || ""}`) {
+      await equipFarmCosmetic(themeChoice);
+    }
+    return;
+  }
   if (event.target.closest("#toggleFarmMarket, [data-open-farm-market]")) {
     setFarmMarketOpen(!document.querySelector("#farmPage").classList.contains("farm-market-open"));
     return;
@@ -9516,6 +9553,10 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
   }
 
   if (plantButton) {
+    if (window.FarmSeeds) {
+      window.FarmSeeds.open(Number(plantButton.dataset.plantPlot));
+      return;
+    }
     if (!selectedSeed || !state.seedInventory[selectedSeed]) {
       document.querySelector("#seedStorageModal").classList.remove("hidden");
       return;
@@ -9698,152 +9739,6 @@ document.querySelector("#farmPage").addEventListener("click", async (event) => {
   }
 });
 
-document.querySelector("#noahBuyList").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-sell-food]");
-  if (!button) return;
-
-  const recipeId = button.dataset.sellFood;
-  const recipe = RECIPES[recipeId];
-  if (!recipe || !state.foodInventory[recipeId]) {
-    showToast("오늘 팔 수 있는 음식이 없어");
-    return;
-  }
-
-  const previousFoodCount = state.foodInventory[recipeId];
-  const previousFarmMoney = state.farmMoney;
-  const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
-
-  const result = await runFarmAction({
-    rpc: "sell_farm_food",
-    params: { p_recipe_id: recipeId },
-    apply: () => {
-      state.foodInventory[recipeId] -= 1;
-      state.farmMoney += recipe.sellPrice;
-      ensureWeeklyFarmRanking();
-      state.weeklyFarmMoneyEarned += recipe.sellPrice;
-    },
-    revert: () => {
-      state.foodInventory[recipeId] = previousFoodCount;
-      state.farmMoney = previousFarmMoney;
-      state.weeklyFarmMoneyEarned = previousWeeklyFarmMoneyEarned;
-    },
-    failureMessage: "음식 판매 저장에 실패해서 되돌렸어.",
-  });
-  if (result) showToast(`${recipe.name}을 팔고 ${result.event?.saleAmount ?? recipe.sellPrice} Farm Money를 받았어${farmBonusMessage(result.event)}`);
-});
-
-document.querySelector("#noahCropBundleList").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-sell-crop-bundle]");
-  if (!button) return;
-
-  const cropId = button.dataset.sellCropBundle;
-  const bundleSize = Number(button.dataset.bundleSize);
-  const crop = CROPS[cropId];
-  if (!crop || (state.harvestInventory[cropId] ?? 0) < bundleSize) {
-    showToast("판매할 작물이 부족해");
-    return;
-  }
-
-  const totalPrice = getCropBundlePrice(cropId, bundleSize);
-  const previousHarvestCount = state.harvestInventory[cropId];
-  const previousFarmMoney = state.farmMoney;
-  const previousWeeklyFarmMoneyEarned = state.weeklyFarmMoneyEarned;
-
-  const result = await runFarmAction({
-    rpc: "sell_farm_crop_bundle",
-    params: { p_crop_id: cropId, p_bundle_size: bundleSize },
-    apply: () => {
-      state.harvestInventory[cropId] -= bundleSize;
-      state.farmMoney += totalPrice;
-      ensureWeeklyFarmRanking();
-      state.weeklyFarmMoneyEarned += totalPrice;
-    },
-    revert: () => {
-      state.harvestInventory[cropId] = previousHarvestCount;
-      state.farmMoney = previousFarmMoney;
-      state.weeklyFarmMoneyEarned = previousWeeklyFarmMoneyEarned;
-    },
-    failureMessage: "작물 판매 저장에 실패해서 되돌렸어.",
-  });
-  if (result) showToast(`${crop.name} ${bundleSize}개를 팔고 ${result.event?.saleAmount ?? totalPrice} Farm Money를 받았어${farmBonusMessage(result.event)}`);
-});
-
-document.querySelector("#cookRecipeButton").addEventListener("click", async (event) => {
-  const ingredientIds = selectedRecipeIngredients.filter(Boolean);
-  if (ingredientIds.length < 2) {
-    showToast("재료를 두 가지 이상 골라");
-    return;
-  }
-
-  const requiredCounts = ingredientIds.reduce((counts, cropId) => {
-    counts[cropId] = (counts[cropId] ?? 0) + 1;
-    return counts;
-  }, {});
-  const missingIngredient = Object.entries(requiredCounts).find(
-    ([cropId, count]) => (state.harvestInventory[cropId] ?? 0) < count,
-  );
-  if (missingIngredient) {
-    showToast(`${CROPS[missingIngredient[0]].name}이 부족해`);
-    return;
-  }
-
-  const cookButton = event.currentTarget;
-  const cauldron = document.querySelector("#recipeCauldron");
-  cookButton.classList.remove("mixing");
-  cauldron?.classList.remove("mixing");
-  void cookButton.offsetWidth;
-  cookButton.classList.add("mixing");
-  if (cauldron) {
-    void cauldron.offsetWidth;
-    cauldron.classList.add("mixing");
-  }
-
-  const previousHarvestCounts = Object.fromEntries(
-    Object.keys(requiredCounts).map((cropId) => [cropId, state.harvestInventory[cropId]]),
-  );
-
-  const result = await runFarmAction({
-    rpc: "cook_farm_recipe",
-    params: { p_crop_ids: ingredientIds },
-    apply: () => {
-      Object.entries(requiredCounts).forEach(([cropId, count]) => {
-        state.harvestInventory[cropId] -= count;
-      });
-      selectedRecipeIngredients.fill("");
-    },
-    revert: () => {
-      Object.entries(previousHarvestCounts).forEach(([cropId, count]) => {
-        state.harvestInventory[cropId] = count;
-      });
-    },
-    failureMessage: "요리 저장에 실패해서 되돌렸어.",
-  });
-  if (!result) return;
-
-  if (!result.event?.matched) {
-    launchCraftWasteEffect();
-    showToast("도감에 없는 조합이야 재료가 사라졌어");
-    return;
-  }
-
-  const recipe = RECIPES[result.event.recipeId];
-  showToast(`${recipe.name}을 ${result.event.foodAmount ?? 1}개 만들었어${farmBonusMessage(result.event)}`);
-});
-
-document.querySelector("#toggleRecipeBook").addEventListener("click", (event) => {
-  const recipeBookPanel = document.querySelector("#recipeBookPanel");
-  const collapsed = recipeBookPanel.classList.toggle("collapsed");
-  event.currentTarget.textContent = collapsed ? "펼치기" : "접기";
-  event.currentTarget.setAttribute("aria-expanded", String(!collapsed));
-});
-
-function stepNpcPanel(step) {
-  const currentIndex = NPC_PANELS.indexOf(activeNpcPanel);
-  const nextIndex = (currentIndex + step + NPC_PANELS.length) % NPC_PANELS.length;
-  activeNpcPanel = NPC_PANELS[nextIndex];
-  renderNpcMarketCarousel();
-}
-
 const cosmeticPreviewModal = document.querySelector("#cosmeticPreviewModal");
 const cosmeticTryonStage = document.querySelector("#cosmeticTryonStage");
 
@@ -9857,13 +9752,12 @@ function openCosmeticPreview(type, id) {
 
   const previewTheme = type === "farm_theme" ? id : state.equippedFarmTheme;
   const previewPlot = type === "plot_skin" ? id : state.equippedPlotSkin;
-  const previewLabel = type === "label_effect" ? id : state.equippedLabelEffect;
   // Independent sample plots: preview every skin even on an empty or locked farm.
   const scene = document.createElement("section");
-  scene.className = "farm-scene cosmetic-preview-farm-scene";
+  scene.className = "farm-scene cosmetic-preview-farm-scene garden-scene";
   scene.innerHTML = `<div class="farm-scene-grid"><div class="farm-grid">${
     ["carrot", "strawberry", "corn", "eggplant", "tomato", "lavender", "watermelon", "sunflower", "lemon"]
-      .map((crop) => `<div class="farm-plot crop-plot"><div class="crop-visual">${cropPixel(crop)}</div><div class="crop-info"><strong>${escapeHtml(CROPS[crop].name)}</strong></div></div>`).join("")
+      .map((crop) => `<div class="farm-plot crop-plot"><div class="crop-visual">${window.FarmGardenArt?.plantedCrop(crop) || cropPixel(crop)}</div><div class="crop-info"><strong>${escapeHtml(CROPS[crop].name)}</strong></div></div>`).join("")
   }</div></div>`;
 
   cosmeticTryonStage.replaceChildren();
@@ -9878,40 +9772,55 @@ function openCosmeticPreview(type, id) {
   }
 
   scene.querySelectorAll(".farm-plot").forEach((plot) => {
-    plot.removeAttribute("data-plot-skin");
+    plot.dataset.plotSkin = previewPlot || "";
     const skinned = previewPlot && PIXEL_PLOT_IDS.includes(previewPlot);
     plot.style.setProperty("--plot-src", `url('${FARM_ART_ROOT}/plots/${skinned ? previewPlot : "default"}.png')`);
+    const soil = window.FarmGardenArt?.soil(null, previewPlot);
+    if (soil) plot.insertAdjacentHTML("afterbegin", soil);
     if (!skinned) return;
     plot.dataset.previewPlot = previewPlot;
   });
 
-  const nameplate = document.createElement("strong");
-  nameplate.className = "cosmetic-preview-nameplate";
-  nameplate.textContent = state.farmName || "내 농장";
-  if (previewLabel) nameplate.dataset.labelEffect = previewLabel;
   const farmPreview = document.createElement("div");
   farmPreview.className = "cosmetic-farm-preview";
   if (previewTheme) farmPreview.dataset.farmTheme = previewTheme;
   farmPreview.innerHTML = `<div class="farm-layout">
     <div class="farm-window-chrome">FARMODORO · FARM DESK</div>
-    <header class="farm-panel-header"><div class="preview-name-slot"></div></header>
     <div class="preview-field-slot"></div>
     <aside class="npc-market">
-      <div class="market-category-tabs"><span>씨앗 판매대</span><span>음식 매입</span><span>작물 매입</span><span>스킨 판매대</span></div>
-      <h3 class="market-section-title">씨앗 판매대</h3>
-      ${["carrot", "strawberry"].map(crop => `<div class="seed-shop-card"><span class="seed-shop-emoji">${cropPixel(crop)}</span><div><strong>${escapeHtml(CROPS[crop].name)} 씨앗</strong><small>샘플 상품</small></div></div>`).join("")}
+      <h3 class="market-section-title">나만의 농장</h3><p>요리를 팔아 테마와 밭을 모으고, 어울리는 모습으로 바꿔보세요.</p>
     </aside></div>`;
-  farmPreview.querySelector(".preview-name-slot").append(nameplate);
   farmPreview.querySelector(".preview-field-slot").replaceWith(scene);
   decorateFarmTheme(farmPreview, previewTheme);
   renderFarmScenery(farmPreview, previewTheme, previewPlot);
   cosmeticTryonStage.append(farmPreview);
 
   document.querySelector("#cosmeticPreviewTitle").textContent = entry.name;
+  document.querySelector("#cosmeticPreviewKind").textContent = COSMETIC_TYPE_LABELS[type];
   document.querySelector("#cosmeticPreviewDescription").textContent =
-    [getFarmSceneryDescription(type, id) || `${COSMETIC_TYPE_LABELS[type]} 적용 예시`, getCosmeticSetDescription(type, id)].join(" · ");
+    getFarmSceneryDescription(type, id) || `${COSMETIC_TYPE_LABELS[type]} 적용 예시`;
   const set = FARM_COSMETIC_SETS.find((entry) => entry[type].includes(id));
-  document.querySelector("#cosmeticPreviewSetMembers").textContent = set ? ["farm_theme", "plot_skin", "label_effect"].map((slot) => `${COSMETIC_TYPE_LABELS[slot]}: ${set[slot].map((member) => getCosmeticEntry(slot, member)?.name).join(" / ")}`).join(" · ") : "";
+  document.querySelector("#cosmeticPreviewSet").hidden = !set;
+  document.querySelector("#cosmeticPreviewSetEffect").textContent = set ? getCosmeticSetDescription(type, id) : "";
+  document.querySelector("#cosmeticPreviewSetMembers").innerHTML = set ? ["farm_theme", "plot_skin"].map((slot) =>
+    `<li><small>${COSMETIC_TYPE_LABELS[slot]}</small><strong>${escapeHtml(set[slot].map((member) => getCosmeticEntry(slot, member)?.name).join(" / "))}</strong></li>`).join("") : "";
+  let themeActions = cosmeticPreviewModal.querySelector(".farm-theme-preview-actions");
+  if (!themeActions) {
+    themeActions = document.createElement("div");
+    themeActions.className = "farm-theme-preview-actions";
+    cosmeticPreviewModal.querySelector(".cosmetic-preview-modal-panel").append(themeActions);
+  }
+  themeActions.hidden = !["farm_theme", "plot_skin"].includes(type);
+  if (["farm_theme", "plot_skin"].includes(type)) {
+    const owned = isCosmeticOwned(type, id);
+    const equipped = isCosmeticEquipped(type, id);
+    const kind = type === "plot_skin" ? "밭" : "테마";
+    const subject = type === "plot_skin" ? "밭은" : "테마는";
+    const status = equipped ? "사용 중" : owned ? "보유 중" : `✦ ${entry.price.toLocaleString()}`;
+    themeActions.innerHTML = `<div class="cosmetic-preview-price"><span>${owned ? "상태" : "가격"}</span><strong>${status}</strong></div>` + (owned
+      ? `<p>한 번 구매한 ${subject} 언제든 바꿀 수 있어요.</p><button type="button" class="farm-goal-action" data-equip-cosmetic="${type}:${id}" ${equipped ? "disabled" : ""}>${equipped ? `사용 중인 ${kind}` : `이 ${kind} 적용하기`}</button>`
+      : `<p>보유 ✦ ${state.farmMoney.toLocaleString()} Farm Money</p><button type="button" class="farm-goal-action" data-purchase-cosmetic="${type}:${id}" ${state.farmMoney < entry.price ? "disabled" : ""}>✦ ${entry.price.toLocaleString()} · ${kind} 구매하고 적용</button>`);
+  }
   cosmeticPreviewModal.classList.remove("hidden");
   cosmeticPreviewModal.querySelector("button[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
 }
@@ -9923,24 +9832,26 @@ document.querySelector("#npcMarket").addEventListener("click", (event) => {
     openCosmeticPreview(type, id);
     return;
   }
-  if (event.target.closest(".npc-carousel-prev")) stepNpcPanel(-1);
-  else if (event.target.closest(".npc-carousel-next")) stepNpcPanel(1);
 });
-cosmeticPreviewModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-close-cosmetic-preview]")) closeCosmeticPreview();
+cosmeticPreviewModal.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-close-cosmetic-preview]")) { closeCosmeticPreview(); return; }
+  const purchase = event.target.closest("[data-purchase-cosmetic]");
+  if (purchase) {
+    if (await purchaseFarmCosmetic(purchase)) closeCosmeticPreview();
+    return;
+  }
+  const equip = event.target.closest("[data-equip-cosmetic]");
+  if (equip && !equip.disabled) {
+    await equipFarmCosmetic(equip);
+    const [type, id] = equip.dataset.equipCosmetic.split(":");
+    if (isCosmeticEquipped(type, id)) closeCosmeticPreview();
+  }
 });
 cosmeticPreviewModal.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   event.preventDefault();
   closeCosmeticPreview();
 });
-document.querySelector(".npc-market-dots").addEventListener("click", (event) => {
-  const dot = event.target.closest("[data-npc-dot]");
-  if (!dot) return;
-  activeNpcPanel = dot.dataset.npcDot;
-  renderNpcMarketCarousel();
-});
-
 document.querySelector(".rachel-tabs").addEventListener("click", (event) => {
   const tab = event.target.closest("[data-rachel-tab]");
   if (!tab) return;
@@ -9948,19 +9859,18 @@ document.querySelector(".rachel-tabs").addEventListener("click", (event) => {
   renderRachelPanel();
 });
 
-document.querySelector("#rachelOffersList").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-purchase-cosmetic]");
-  if (!button || button.disabled) return;
+async function purchaseFarmCosmetic(button) {
+  if (!button || button.disabled) return false;
   if (!supabaseClient || !activeAuthUser) {
     showToast("로그인 후 구매할 수 있어");
-    return;
+    return false;
   }
   const [type, id] = button.dataset.purchaseCosmetic.split(":");
   const entry = getCosmeticEntry(type, id);
-  if (!entry) return;
+  if (!entry) return false;
 
   button.disabled = true;
-  const { error } = await supabaseClient.rpc("purchase_farm_cosmetic", {
+  const { data, error } = await supabaseClient.rpc("purchase_farm_cosmetic", {
     p_cosmetic_type: type,
     p_cosmetic_id: id,
     p_price: entry.price,
@@ -9973,21 +9883,25 @@ document.querySelector("#rachelOffersList").addEventListener("click", async (eve
         : "구매하지 못했어. 잠시 후 다시 시도해줘.",
     );
     button.disabled = false;
-    return;
+    return false;
   }
 
-  state.farmMoney -= entry.price;
-  state.ownedCosmetics.push({ type, id });
+  const balance = Number(data?.farmMoneyBalance);
+  state.farmMoney = Number.isFinite(balance) && balance >= 0 ? balance : state.farmMoney - entry.price;
+  if (!isCosmeticOwned(type, id)) state.ownedCosmetics.push({ type, id });
   if (type === "farm_theme") state.equippedFarmTheme = id;
   if (type === "plot_skin") state.equippedPlotSkin = id;
-  if (type === "label_effect") state.equippedLabelEffect = id;
   refreshFarmWaterReminders();
   showToast(`${entry.name}을 구매해서 바로 장착했어`);
   render();
+  return true;
+}
+
+document.querySelector("#rachelOffersList").addEventListener("click", async (event) => {
+  await purchaseFarmCosmetic(event.target.closest("[data-purchase-cosmetic]"));
 });
 
-document.querySelector("#rachelOwnedList").addEventListener("click", async (event) => {
-  const button = event.target.closest("[data-equip-cosmetic]");
+async function equipFarmCosmetic(button) {
   if (!button || button.disabled) return;
   if (!supabaseClient || !activeAuthUser) {
     showToast("로그인 후 장착할 수 있어");
@@ -10013,10 +9927,13 @@ document.querySelector("#rachelOwnedList").addEventListener("click", async (even
 
   if (type === "farm_theme") state.equippedFarmTheme = targetId;
   if (type === "plot_skin") state.equippedPlotSkin = targetId;
-  if (type === "label_effect") state.equippedLabelEffect = targetId;
   refreshFarmWaterReminders();
   showToast(targetId ? `${entry.name}을 장착했어` : `${COSMETIC_TYPE_LABELS[type]}를 해제했어`);
   render();
+}
+
+document.querySelector("#rachelOwnedList").addEventListener("click", async (event) => {
+  await equipFarmCosmetic(event.target.closest("[data-equip-cosmetic]"));
 });
 
 const farmRankingModal = document.querySelector("#farmRankingModal");
@@ -10343,67 +10260,19 @@ farmRewardBoxModal.addEventListener("click", async (event) => {
   }
 });
 const farmKitchenModal = document.querySelector("#farmKitchenModal");
-document.querySelector("#openFarmKitchen").addEventListener("click", () => {
-  closeRecipeIngredientMenus();
-  farmKitchenModal.classList.remove("hidden");
-});
-farmKitchenModal.addEventListener("click", (event) => {
-  const recipeButton = event.target.closest("[data-select-recipe]");
-  if (recipeButton) {
-    selectKitchenRecipe(recipeButton.dataset.selectRecipe);
-    return;
-  }
-  if (event.target.closest("#clearRecipeIngredients")) {
-    selectedRecipeIngredients.fill("");
-    renderFarm();
-    return;
-  }
-  if (event.target.closest("[data-close-kitchen]")) {
-    closeRecipeIngredientMenus();
-    farmKitchenModal.classList.add("hidden");
-    return;
-  }
-
-  const trigger = event.target.closest(".recipe-ingredient-trigger");
-  if (trigger) {
-    const picker = trigger.closest(".recipe-ingredient-select");
-    const menu = picker.querySelector(".recipe-ingredient-menu");
-    const willOpen = menu.classList.contains("hidden");
-    closeRecipeIngredientMenus(picker);
-    menu.classList.toggle("hidden", !willOpen);
-    trigger.setAttribute("aria-expanded", String(willOpen));
-    return;
-  }
-
-  const option = event.target.closest("[data-recipe-ingredient-value]");
-  if (option) {
-    const picker = option.closest(".recipe-ingredient-select");
-    const select = picker.querySelector("select");
-    const triggerButton = picker.querySelector(".recipe-ingredient-trigger");
-    select.value = option.dataset.recipeIngredientValue;
-    selectedRecipeIngredients[Number(select.id.at(-1)) - 1] = select.value;
-    renderRecipeIngredientPicker(select);
-    renderKitchenCauldron();
-    closeRecipeIngredientMenus();
-    triggerButton.focus();
-    if (select.value) {
-      triggerButton.classList.remove("ingredient-pop");
-      void triggerButton.offsetWidth;
-      triggerButton.classList.add("ingredient-pop");
-    }
-    return;
-  }
-
-  if (!event.target.closest(".recipe-ingredient-select")) closeRecipeIngredientMenus();
-});
 const storageModals = {
-  harvest: document.querySelector("#harvestStorageModal"),
   seed: document.querySelector("#seedStorageModal"),
   supply: document.querySelector("#supplyStorageModal"),
 };
 document.querySelector("#farmPage").addEventListener("click", (event) => {
   const button = event.target.closest("[data-open-storage]");
   if (!button) return;
+  if (button.dataset.openStorage === "harvest" && window.FarmKitchen) {
+    window.FarmKitchen.open();
+    const pantry = document.querySelector("#kitchenPantry");
+    if (pantry?.tagName === "DETAILS") pantry.open = true;
+    return;
+  }
   storageModals[button.dataset.openStorage]?.classList.remove("hidden");
 });
 Object.values(storageModals).forEach((modal) => {
@@ -10558,16 +10427,6 @@ const focusFullscreenButton = document.querySelector("#toggleFocusFullscreen");
 let focusWakeLock = null;
 let focusWakeLockRequest = null;
 const focusAudioButton = document.querySelector("#toggleFocusAudio");
-const focusYoutubeButton = document.querySelector("#toggleFocusYoutube");
-const focusYoutubePanel = document.querySelector("#focusYoutubePanel");
-const focusYoutubePlayerWrap = document.querySelector("#focusYoutubePlayerWrap");
-const focusYoutubeForm = document.querySelector("#focusYoutubeForm");
-const focusYoutubeNameInput = document.querySelector("#focusYoutubeName");
-const focusYoutubeUrlInput = document.querySelector("#focusYoutubeUrl");
-const focusYoutubeLibrary = document.querySelector("#focusYoutubeLibrary");
-const focusYoutubeStatus = document.querySelector("#focusYoutubeStatus");
-const closeFocusYoutubeButton = document.querySelector("#closeFocusYoutube");
-let editingFocusYoutubeId = null;
 const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
 const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
 const FOCUS_PLAYLIST = [
@@ -10587,7 +10446,6 @@ const FOCUS_PLAYLIST = [
 let focusAudioPlayer = null;
 let focusPlaylistQueue = [];
 let currentFocusTrack = null;
-let currentFocusYoutubeTitle = null;
 let focusBackgroundObjectUrl = null;
 
 function shouldHoldFocusWakeLock() {
@@ -10634,10 +10492,6 @@ async function syncFocusWakeLock() {
   await releaseFocusWakeLock();
 }
 
-function isFocusYoutubePlaying() {
-  return false;
-}
-
 function updateFocusMusicIndicator() {
   const defaultMusicPlaying = Boolean(
     focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
@@ -10656,19 +10510,19 @@ function renderFocusFarmBackground() {
 
   const source = document.querySelector("#farmPage .farm-scene");
   const scene = source.cloneNode(true);
-  scene.className = "farm-scene cosmetic-preview-farm-scene";
+  scene.className = "farm-scene cosmetic-preview-farm-scene garden-scene";
   scene.querySelectorAll(".plot-hit, .plot-status, .crop-info, .crop-wilt-countdown, .plot-growth-actions, .harvest-button, .discard-button, .farm-apply-item, .fertilizer-badge")
     .forEach((element) => element.remove());
-  scene.querySelectorAll(".farm-building").forEach((building) => building.replaceChildren());
+  scene.querySelectorAll(".farm-building, .farm-decor").forEach((element) => element.remove());
   scene.querySelectorAll("button").forEach((button) => {
-    const decoration = document.createElement("div");
-    decoration.className = button.className;
-    decoration.style.cssText = button.style.cssText;
-    button.replaceWith(decoration);
+    const tile = document.createElement("div");
+    for (const attribute of [...button.attributes]) tile.setAttribute(attribute.name, attribute.value);
+    tile.append(...button.childNodes);
+    button.replaceWith(tile);
   });
   [scene, ...scene.querySelectorAll("*")].forEach((element) => {
     element.removeAttribute("id");
-    element.classList.remove("is-open", "ready");
+    element.classList.remove("is-open", "ready", "is-selected");
     for (const attribute of [...element.attributes]) {
       if (attribute.name.startsWith("data-") && !["data-scenery", "data-terrain", "data-object-skin", "data-plot-skin", "data-weather"].includes(attribute.name)) {
         element.removeAttribute(attribute.name);
@@ -10920,308 +10774,6 @@ focusAudioButton.addEventListener("click", async () => {
   else await startFocusAudio();
 });
 
-function parseFocusYoutubeUrl(value) {
-  const rawValue = value.trim();
-  if (!rawValue) return null;
-
-  let url;
-  try {
-    url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
-  } catch {
-    return null;
-  }
-
-  const hostname = url.hostname.toLowerCase().replace(/^(www\.|m\.)/, "");
-  if (!["youtube.com", "music.youtube.com", "youtu.be"].includes(hostname)) return null;
-
-  const playlistId = url.searchParams.get("list");
-  const validPlaylistId =
-    playlistId && /^[A-Za-z0-9_-]{10,}$/.test(playlistId) ? playlistId : "";
-
-  let videoId = url.searchParams.get("v") || "";
-  if (hostname === "youtu.be") videoId = url.pathname.split("/").filter(Boolean)[0] || "";
-  if (!videoId) {
-    const [kind, pathId] = url.pathname.split("/").filter(Boolean);
-    if (["embed", "shorts", "live"].includes(kind)) videoId = pathId || "";
-  }
-  if (/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
-    return { type: "video", id: videoId, playlistId: validPlaylistId, url: url.href };
-  }
-  if (validPlaylistId) return { type: "playlist", id: validPlaylistId, url: url.href };
-  return null;
-}
-
-function getFocusYoutubePlaylists() {
-  if (!Array.isArray(state.focusYoutubePlaylists)) state.focusYoutubePlaylists = [];
-  return state.focusYoutubePlaylists;
-}
-
-function renderFocusYoutubeLibrary() {
-  const playlists = getFocusYoutubePlaylists();
-  focusYoutubeLibrary.replaceChildren();
-  if (!playlists.length) {
-    const empty = document.createElement("p");
-    empty.className = "focus-youtube-library-empty";
-    empty.textContent = "저장한 음악이 없어. 최대 5개까지 저장돼.";
-    focusYoutubeLibrary.appendChild(empty);
-    return;
-  }
-
-  playlists.forEach((playlist) => {
-    const row = document.createElement("div");
-    row.className = "focus-youtube-library-item";
-
-    const title = document.createElement("strong");
-    title.textContent = playlist.title;
-    title.title = playlist.url;
-    row.appendChild(title);
-
-    [
-      ["play", "열기"],
-      ["edit", "수정"],
-      ["delete", "삭제"],
-    ].forEach(([action, label]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.action = action;
-      button.dataset.id = playlist.id;
-      button.textContent = label;
-      row.appendChild(button);
-    });
-    focusYoutubeLibrary.appendChild(row);
-  });
-}
-
-// Most videos allow embedding, but a video's owner can disable playback on
-// other sites entirely (common for official music videos) -- that specific
-// video will never play in an embed no matter what site tries it. The
-// YouTube player reports this as error 101/150 (embedding disallowed) or
-// 100 (video missing/private). There's no way around that from here, so we
-// fall back to opening the video directly on YouTube instead.
-const FOCUS_YOUTUBE_UNEMBEDDABLE_ERROR_CODES = [100, 101, 150];
-
-let youtubeIframeApiPromise = null;
-function loadYoutubeIframeApi() {
-  if (window.YT?.Player) return Promise.resolve();
-  if (youtubeIframeApiPromise) return youtubeIframeApiPromise;
-  youtubeIframeApiPromise = new Promise((resolve, reject) => {
-    const previousCallback = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      previousCallback?.();
-      resolve();
-    };
-    const script = document.createElement("script");
-    script.src = "https://www.youtube.com/iframe_api";
-    script.async = true;
-    script.onerror = () => reject(new Error("YouTube 플레이어를 불러오지 못했어"));
-    document.head.appendChild(script);
-  });
-  return youtubeIframeApiPromise;
-}
-
-let focusYoutubePlayer = null;
-let focusYoutubePlayerReadyPromise = null;
-let pendingFocusYoutubeFallback = null;
-
-function ensureFocusYoutubePlayer() {
-  if (focusYoutubePlayerReadyPromise) return focusYoutubePlayerReadyPromise;
-  focusYoutubePlayerReadyPromise = loadYoutubeIframeApi().then(
-    () =>
-      new Promise((resolve) => {
-        focusYoutubePlayer = new YT.Player("focusYoutubePlayer", {
-          width: "100%",
-          height: "100%",
-          playerVars: { rel: 0, modestbranding: 1 },
-          events: {
-            onReady: () => resolve(focusYoutubePlayer),
-            onError: (event) => handleFocusYoutubePlayerError(event.data),
-            onStateChange: () => updateFocusMusicIndicator(),
-          },
-        });
-      }),
-  );
-  return focusYoutubePlayerReadyPromise;
-}
-
-function handleFocusYoutubePlayerError(code) {
-  const fallback = pendingFocusYoutubeFallback;
-  pendingFocusYoutubeFallback = null;
-  if (!FOCUS_YOUTUBE_UNEMBEDDABLE_ERROR_CODES.includes(code)) return;
-  focusYoutubePlayerWrap.classList.add("hidden");
-  currentFocusYoutubeTitle = null;
-  updateFocusMusicIndicator();
-  if (!fallback) return;
-  window.open(fallback.source.url, "_blank", "noopener,noreferrer");
-  focusYoutubeStatus.textContent =
-    `${fallback.title}은(는) 소유자가 다른 사이트 재생을 막아둬서 여기서 재생할 수 없어. ` +
-    "YouTube 새 탭으로 열었어.";
-}
-
-async function openFocusYoutubeLink(source, title) {
-  stopFocusAudio();
-  focusYoutubePanel.classList.remove("minimized");
-  focusYoutubeButton.classList.add("active");
-  focusYoutubeButton.setAttribute("aria-expanded", "true");
-  renderFocusYoutubeLibrary();
-  focusYoutubeStatus.textContent = `${title} 불러오는 중…`;
-
-  pendingFocusYoutubeFallback = { source, title };
-  try {
-    const player = await ensureFocusYoutubePlayer();
-    focusYoutubePlayerWrap.classList.remove("hidden");
-    if (source.type === "playlist") {
-      player.loadPlaylist({ list: source.id });
-    } else {
-      player.loadVideoById(source.id);
-    }
-    focusYoutubeStatus.textContent = `${title} 재생 중.`;
-    currentFocusYoutubeTitle = title;
-    updateFocusMusicIndicator();
-  } catch (error) {
-    console.error("Farmodoro YouTube player could not load", error);
-    pendingFocusYoutubeFallback = null;
-    focusYoutubePlayerWrap.classList.add("hidden");
-    currentFocusYoutubeTitle = null;
-    updateFocusMusicIndicator();
-    window.open(source.url, "_blank", "noopener,noreferrer");
-    focusYoutubeStatus.textContent = `${title} 링크를 새 탭으로 열었어.`;
-  }
-}
-
-function stopFocusYoutube() {
-  focusYoutubePlayer?.stopVideo?.();
-  focusYoutubePlayerWrap?.classList.add("hidden");
-  focusYoutubePanel?.classList.add("hidden");
-  focusYoutubeButton?.classList.remove("active");
-  focusYoutubeButton?.setAttribute("aria-expanded", "false");
-  currentFocusYoutubeTitle = null;
-  updateFocusMusicIndicator();
-}
-
-function updateFocusYoutubePanelPosition() {
-  if (!focusYoutubePanel) return;
-  if (
-    focusYoutubePanel.classList.contains("hidden")
-  ) {
-    return;
-  }
-  const stageRect = focusPageStage.getBoundingClientRect();
-  const toolbarRect = focusPageStage
-    .querySelector(".focus-stage-toolbar")
-    .getBoundingClientRect();
-  const panelTop = Math.max(2, Math.ceil(toolbarRect.bottom - stageRect.top + 2));
-  focusYoutubePanel.style.setProperty("--focus-youtube-panel-top", `${panelTop}px`);
-}
-
-function openFocusYoutube() {
-  focusYoutubePanel.classList.remove("hidden");
-  focusYoutubeButton.classList.add("active");
-  focusYoutubeButton.setAttribute("aria-expanded", "true");
-  editingFocusYoutubeId = null;
-  focusYoutubeNameInput.value = "";
-  focusYoutubeUrlInput.value = "";
-  focusYoutubeStatus.textContent = "제목과 YouTube 주소를 넣어. 최대 5개까지 저장돼.";
-  renderFocusYoutubeLibrary();
-  requestAnimationFrame(() => {
-    updateFocusYoutubePanelPosition();
-    // Focus the panel itself, not the text input -- focusing an <input>
-    // here pops the on-screen keyboard on mobile/tablet just from tapping
-    // the toolbar button, before the user asked to type anything.
-    focusYoutubePanel.focus({ preventScroll: true });
-  });
-}
-
-function minimizeFocusYoutube() {
-  focusYoutubePanel.classList.add("hidden");
-  focusYoutubeButton.classList.remove("active");
-  focusYoutubeButton.setAttribute("aria-expanded", "false");
-}
-
-focusYoutubeButton?.addEventListener("click", () => {
-  if (focusYoutubePanel.classList.contains("hidden")) openFocusYoutube();
-  else minimizeFocusYoutube();
-});
-
-closeFocusYoutubeButton?.addEventListener("click", minimizeFocusYoutube);
-
-focusYoutubeLibrary?.addEventListener("click", async (event) => {
-  const button = event.target.closest("button[data-action][data-id]");
-  if (!button) return;
-  const playlists = getFocusYoutubePlaylists();
-  const playlist = playlists.find((item) => item.id === button.dataset.id);
-  if (!playlist) return;
-
-  if (button.dataset.action === "play") {
-    const source = parseFocusYoutubeUrl(playlist.url);
-    if (!source) {
-      focusYoutubeStatus.textContent = "저장된 주소가 올바르지 않아. 수정해.";
-      return;
-    }
-    openFocusYoutubeLink(source, playlist.title);
-    void touchMyFocusPlaylist(playlist.id);
-    return;
-  }
-
-  if (button.dataset.action === "edit") {
-    editingFocusYoutubeId = playlist.id;
-    focusYoutubeNameInput.value = playlist.title;
-    focusYoutubeUrlInput.value = playlist.url;
-    focusYoutubeStatus.textContent = "수정한 뒤 저장하고 열기를 눌러.";
-    focusYoutubeNameInput.focus();
-    return;
-  }
-
-  const index = playlists.findIndex((item) => item.id === playlist.id);
-  const [removed] = playlists.splice(index, 1);
-  if (editingFocusYoutubeId === playlist.id) {
-    editingFocusYoutubeId = null;
-    focusYoutubeForm.reset();
-  }
-  renderFocusYoutubeLibrary();
-  focusYoutubeStatus.textContent = "삭제했어.";
-  try {
-    await deleteMyFocusPlaylist(playlist.id);
-  } catch (error) {
-    console.error("Farmodoro playlist could not be deleted", error);
-    playlists.splice(index, 0, removed);
-    renderFocusYoutubeLibrary();
-    focusYoutubeStatus.textContent = "삭제하지 못했어. 다시 시도해줘.";
-  }
-});
-
-focusYoutubeForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const source = parseFocusYoutubeUrl(focusYoutubeUrlInput.value);
-  if (!source) {
-    focusYoutubeStatus.textContent = "올바른 YouTube 영상 또는 플레이리스트 URL을 넣어.";
-    focusYoutubeUrlInput.focus();
-    return;
-  }
-
-  const title = focusYoutubeNameInput.value.trim().slice(0, 30);
-  const editingId = editingFocusYoutubeId;
-  const submitButton = focusYoutubeForm.querySelector('[type="submit"]');
-  if (submitButton) submitButton.disabled = true;
-  try {
-    const saved = await upsertMyFocusPlaylist(editingId, title, source.url);
-    const playlists = getFocusYoutubePlaylists();
-    const index = playlists.findIndex((item) => item.id === saved.id);
-    if (index === -1) playlists.push(saved);
-    else playlists[index] = saved;
-    editingFocusYoutubeId = null;
-    openFocusYoutubeLink(source, saved.title);
-    renderFocusYoutubeLibrary();
-  } catch (error) {
-    console.error("Farmodoro playlist could not be saved", error);
-    focusYoutubeStatus.textContent =
-      error?.message === "PLAYLIST_LIMIT"
-        ? "5개까지 저장할 수 있어. 하나 지우고 추가해."
-        : "저장하지 못했어. 다시 시도해줘.";
-  } finally {
-    if (submitButton) submitButton.disabled = false;
-  }
-});
-
 const focusSettings = document.querySelector("#focusSettings");
 const focusSettingsBackdrop = document.querySelector("#focusSettingsBackdrop");
 const focusSettingsButton = document.querySelector("#toggleFocusSettings");
@@ -11371,7 +10923,6 @@ function closePageModals() {
   closeTaskDeleteModal();
   closeFocusItemMenu();
   closeTaskGroupMenu();
-  closeRecipeIngredientMenus();
   document
     .querySelectorAll(".market-modal, .habit-modal")
     .forEach((modal) => modal.classList.add("hidden"));
@@ -11537,6 +11088,7 @@ async function flushFarmodoroDataOnExit() {
 }
 
 document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshHabitHeatmapDay();
   if (!activeAuthUser) return;
   if (document.visibilityState === "hidden") {
     void flushFarmodoroDataOnExit();
@@ -11634,6 +11186,7 @@ initializeModalScrollAreas();
 maintainTaskArchive();
 
 setInterval(() => {
+  refreshHabitHeatmapDay();
   updateDailyFocusQuote();
   updateFarmWaterCooldowns();
   updateFarmItemEffects();

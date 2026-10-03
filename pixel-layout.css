@@ -600,18 +600,6 @@ body .cosmetic-tryon-stage {
   box-shadow: inset 0 0 0 3px #bfd3ef;
   overflow: hidden;
 }
-body .cosmetic-preview-nameplate {
-  display: table;
-  position: relative;
-  z-index: 2;
-  margin: 0 auto 10px;
-  padding: 7px 12px;
-  border: 2px solid #14264a;
-  background: #fff;
-  color: #14264a;
-  box-shadow: 3px 3px 0 #7e9dcc;
-  font-size: 16px;
-}
 body .cosmetic-preview-farm-scene {
   min-height: 360px;
   padding: 18px;
@@ -813,8 +801,6 @@ body .farm-supply-pixel-icon[data-farm-item-icon="farmFestivalPass"] { backgroun
 body .farm-supply-pixel-icon[data-farm-item-icon="freePass"] { background-position: 0 100% !important; }
 body .farm-supply-pixel-icon[data-farm-item-icon="revivalTonic"] { background-position: 25% 100% !important; }
 body .farm-supply-pixel-icon[data-farm-item-icon="growthTonic"] { background-position: 50% 100% !important; }
-body .farm-supply-pixel-icon[data-farm-item-icon="seedMarketRefresh"] { background-position: 75% 100% !important; }
-body .farm-supply-pixel-icon[data-farm-item-icon="foodMarketRefresh"] { background-position: 100% 100% !important; }
 
 /* Card delete actions share a centered cross and red treatment. */
 body :is(#todayPage,#tasksPage) .task-actions .delete-button,
@@ -991,24 +977,23 @@ body :is(#todayPage,#habitsPage) .habit-actions .habit-delete::after {
   body #farmPage .farm-wallet strong { font-size: 18px; }
   body #farmPage .open-permanent-market span { font-size: 24px; }
   body #farmPage .open-permanent-market small { font-size: 14px; line-height: 1.5; }
-  body #farmPage .market-category-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  body #farmPage :is(.market-category-tabs, .rachel-tabs) button {
+  body #farmPage :is(.rachel-tabs) button {
     min-height: 44px;
     font-size: 16px;
     line-height: 1.4;
   }
   body #farmPage .market-section-title { font-size: 20px; }
   body #farmPage .npc-panel > .market-section-title small { font-size: 13px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) strong {
+  body #farmPage :is(.rachel-cosmetic-card) strong {
     font-size: 18px;
     line-height: 1.5;
   }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) small,
+  body #farmPage :is(.rachel-cosmetic-card) small,
   body #farmPage :is(.rachel-status, .rachel-equipped-badge, .farm-protection-status) {
     font-size: 14px;
     line-height: 1.5;
   }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) button:not(.rachel-preview-button) {
+  body #farmPage :is(.rachel-cosmetic-card) button:not(.rachel-preview-button) {
     min-height: 40px;
     font-size: 16px;
   }
@@ -1919,21 +1904,7 @@ body :is(#todayPage, #habitsPage) .habit-actions button {
     font-size: 12px;
     line-height: 1.25;
   }
-  body #farmPage .market-category-tabs { gap: 3px; margin: 5px 0; }
-  body #farmPage .market-category-tabs button { min-height: 28px; padding: 2px; font-size: 12px; }
   body #farmPage .market-section-title { padding: 4px 5px; font-size: 12px; }
-  body #farmPage .seed-shop-list { gap: 4px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) {
-    min-height: 48px;
-    padding: 5px 6px;
-  }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) strong { font-size: 12px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) small { font-size: 12px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) button {
-    min-height: 27px;
-    padding: 2px 5px;
-    font-size: 12px;
-  }
 }
 
 /* Keep all nine farm plots square at every viewport size. */
@@ -1996,12 +1967,6 @@ body .cosmetic-farm-preview .cosmetic-preview-farm-scene { min-height: 0; paddin
 body .cosmetic-farm-preview .npc-market { min-width: 0; padding: 8px; border: 3px solid #67452f; }
 body .cosmetic-farm-preview .open-permanent-market { display: grid; gap: 5px; padding: 8px; font-size: 15px; }
 body .cosmetic-farm-preview .open-permanent-market small { font-size: 12px; }
-body .cosmetic-farm-preview .market-category-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 12px; }
-body .cosmetic-farm-preview .market-category-tabs span { padding: 5px; border: 1px solid currentColor; }
-body .cosmetic-farm-preview .seed-shop-card { grid-template-columns: 34px minmax(0, 1fr); gap: 6px; padding: 6px; margin-top: 8px; }
-body .cosmetic-farm-preview .seed-shop-emoji { width: 32px; height: 32px; }
-body .cosmetic-farm-preview .seed-shop-card :is(strong, small) { font-size: 12px; }
-body .cosmetic-farm-preview .seed-shop-emoji .crop-pixel { width: 30px; height: 30px; }
 body .cosmetic-farm-preview .crop-info strong { font-size: 12px; }
 
 /* Opening and browsing mail should not repaint a moving storefront. */
@@ -2077,13 +2042,6 @@ body #farmMailModal .farm-mail-inbox-row::before { animation: none !important; }
   body #farmPage .farm-scene .plot-growth-actions { position: absolute; bottom: 2px; left: 2px; right: 2px; z-index: 2; }
   body #farmPage .farm-scene .plot-growth-actions button,
   body #farmPage .farm-scene .crop-plot > button { min-height: 26px; font-size: 11px; padding: 1px; }
-  body #farmPage .market-category-tabs button { min-height: 40px; font-size: 13px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 6px; min-height: 58px; padding: 6px; }
-  body #farmPage :is(.seed-shop-emoji, .noah-buy-card > span) { width: 32px; height: 32px; }
-  body #farmPage :is(.seed-shop-emoji, .noah-buy-card > span) :is(.crop-pixel, .food-pixel) { width: 30px; height: 30px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) strong { font-size: 13px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) small { font-size: 12px; }
-  body #farmPage :is(.seed-shop-card, .noah-buy-card) button { min-height: 36px; padding: 4px 8px; font-size: 13px; }
   body .cosmetic-tryon-stage { padding: 5px; }
   body .cosmetic-farm-preview .farm-layout { grid-template-columns: minmax(0, 1fr); padding: 6px; }
   body .cosmetic-farm-preview .cosmetic-preview-farm-scene .farm-plot { min-height: 85px; }
@@ -2274,27 +2232,4 @@ body #farmPage:not([data-farm-theme]) .npc-market > .open-permanent-market::befo
   background: repeating-linear-gradient(90deg, #315bf1 0 28px, #fff 28px 56px);
 }
 body #farmPage:not([data-farm-theme]) .open-permanent-market span { color: #283754; }
-body #farmPage:not([data-farm-theme]) .market-category-tabs button {
-  border-color: #283754;
-  background: #fff;
-  box-shadow: inset 0 -3px #d4e0fa, 2px 2px 0 #bcc9e8;
-  color: #283754;
-}
-body #farmPage:not([data-farm-theme]) .market-category-tabs button.active {
-  background: #315bf1;
-  box-shadow: inset 0 3px #78a0ff, inset 0 -4px #173bb5, 2px 2px 0 #283754;
-  color: #fff;
-}
 body #farmPage:not([data-farm-theme]) .market-section-title { border-left-color: #315bf1; background: #dfe9ff; color: #283754; }
-body #farmPage:not([data-farm-theme]) :is(.seed-shop-card, .noah-buy-card) {
-  border-color: #283754;
-  background: #fff;
-  box-shadow: inset 0 -3px #d4e0fa, 2px 2px 0 #bcc9e8;
-}
-body #farmPage:not([data-farm-theme]) :is(.seed-shop-emoji, .noah-buy-card > span) { background: #eaf1ff; }
-body #farmPage:not([data-farm-theme]) :is(.seed-shop-card, .noah-buy-card) button {
-  border-color: #283754;
-  background: #315bf1;
-  color: #fff;
-  box-shadow: inset 0 3px #78a0ff, inset 0 -3px #173bb5, 2px 2px 0 #283754;
-}

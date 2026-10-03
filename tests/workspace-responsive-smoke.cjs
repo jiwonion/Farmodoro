@@ -27,7 +27,7 @@ let ws;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 (async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0",
+  chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-sandbox", "--disable-crash-reporter", "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, "about:blank"], { windowsHide: true, stdio: "ignore" });
   chrome.on("error", (error) => { throw error; });
   const portFile = path.join(profile, "DevToolsActivePort");
@@ -112,19 +112,23 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const farm=await evaluate(`(() => {
         const layout=document.querySelector('#farmPage .farm-layout').getBoundingClientRect(),scene=document.querySelector('#farmPage .farm-scene').getBoundingClientRect(),map=document.querySelector('#farmPage .farm-scene-grid').getBoundingClientRect();
         return {overflow:document.documentElement.scrollWidth>innerWidth,
-          frameFits:layout.left>=0&&layout.right<=innerWidth+1&&(innerWidth<=700||layout.bottom<=innerHeight+1),
+          frameFits:layout.left>=0&&layout.right<=innerWidth+1,
           mapFits:map.width<=scene.width+1&&map.height<=scene.height+1,
+          fillsWidth:Math.abs(map.width-scene.width)<1,
           ratio:Math.abs(map.width/map.height-1.5)<.01,
           tiles:document.querySelectorAll('#farmGrid .farm-plot').length,mapWidth:map.width,mapHeight:map.height};
       })()`);
       assert.equal(farm.overflow,false,`${width} ${height} ${theme} farm page overflow`);
       assert.equal(farm.frameFits,true,`${width} ${height} ${theme} farm frame bounds ${JSON.stringify(farm)}`);
-      if(width>700) assert.equal(farm.mapFits,true,`${width} ${height} ${theme} farm map fit ${JSON.stringify(farm)}`);
+      if(width>700) {
+        assert.equal(farm.mapFits,true,`${width} ${height} ${theme} farm map fit ${JSON.stringify(farm)}`);
+        assert.equal(farm.fillsWidth,true,`${width} ${height} ${theme} farm has no side gutters ${JSON.stringify(farm)}`);
+      }
       assert.equal(farm.ratio,true,`${width} ${height} ${theme} undistorted map`);
       assert.equal(farm.tiles,9);
       if(theme==='white') Object.assign(dimensions.at(-1),{farmWidth:farm.mapWidth,farmHeight:farm.mapHeight});
       if(width<=700) {
-        await evaluate(`document.querySelector('#toggleFarmOverview').click()`);
+        await evaluate(`if (!document.querySelector('#farmPage .farm-scene').classList.contains('is-overview')) document.querySelector('#toggleFarmOverview').click()`);
         await pause(60);
         assert.equal(await evaluate(`(() => { const scene=document.querySelector('#farmPage .farm-scene'),map=scene.querySelector('.farm-scene-grid');return map.getBoundingClientRect().width<=scene.clientWidth+1})()`),true,`${width} mobile farm overview fits`);
       }
@@ -132,7 +136,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
         fs.writeFileSync(path.join(root,'docs/previews/workspace',`farm-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
-      if(width<=700) await evaluate(`document.querySelector('#toggleFarmOverview').click()`);
+      if(width<=700) await evaluate(`if (document.querySelector('#farmPage .farm-scene').classList.contains('is-overview')) document.querySelector('#toggleFarmOverview').click()`);
     }
     console.log(`${width}x${height} white/dark focus & farm responsive PASS`);
   }

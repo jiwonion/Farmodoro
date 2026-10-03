@@ -106,6 +106,143 @@ body :is(#todayPage,#habitsPage) .habit-summary { font-size: 11px; color: var(--
 body :is(#todayPage,#habitsPage) .habit-focus-button { color: var(--pixel-accent); background: var(--pixel-soft); border: 0; box-shadow: none; font-size: 11px; padding: 4px 6px; }
 body :is(#todayPage,#habitsPage) .habit-copy { display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-width: 0; text-align: left; }
 body :is(#todayPage,#habitsPage) .habit-actions { display: flex; align-items: center; }
+/* The monthly log keeps its compact cells; the summary uses the remaining space. */
+body #habitsPage .habit-heatmap { container: habit-log / inline-size; }
+body #habitsPage .habit-monthly-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+body #habitsPage .habit-monthly-body > .heatmap-scroll { min-width: 0; }
+body #habitsPage .habit-monthly-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  min-width: 0;
+  gap: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+}
+body #habitsPage .habit-summary-overview { min-width: 0; }
+body #habitsPage .habit-monthly-summary .section-kicker {
+  display: block;
+  padding: 0;
+  background: transparent !important;
+  color: var(--muted) !important;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+body #habitsPage .habit-monthly-summary h3 {
+  margin: 5px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -.4px;
+  line-height: 1.4;
+}
+body #habitsPage .habit-summary-rate {
+  display: block;
+  margin-top: 18px;
+  font-size: 46px;
+  font-weight: 750;
+  letter-spacing: -2px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+body #habitsPage .habit-summary-period,
+body #habitsPage .habit-summary-count,
+body #habitsPage .habit-summary-footnote,
+body #habitsPage .habit-summary-empty {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+body #habitsPage :is(.habit-summary-progress, .habit-top-progress) {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--pixel-soft);
+}
+body #habitsPage .habit-summary-progress { margin-top: 12px; }
+body #habitsPage :is(.habit-summary-progress, .habit-top-progress) > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pixel-accent);
+}
+body #habitsPage .habit-summary-count { margin-top: 8px; }
+body #habitsPage .habit-summary-count strong { font-weight: 550; }
+body #habitsPage .habit-summary-weekly { margin-top: 20px; }
+body #habitsPage .habit-summary-weekly h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 650;
+}
+body #habitsPage .habit-week-bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+body #habitsPage .habit-week { min-width: 0; text-align: center; }
+body #habitsPage .habit-week-track {
+  display: flex;
+  align-items: flex-end;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 2px 2px 0 0;
+  background: var(--pixel-soft);
+}
+body #habitsPage .habit-week-track > span {
+  display: block;
+  width: 100%;
+  background: var(--pixel-accent);
+}
+body #habitsPage .habit-week > span {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+body #habitsPage .habit-summary-ranking {
+  min-width: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--line);
+}
+body #habitsPage .habit-summary-ranking h3 { margin-top: 18px; font-size: 16px; }
+body #habitsPage .habit-summary-top {
+  display: grid;
+  gap: 24px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+body #habitsPage .habit-summary-top > li { min-width: 0; }
+body #habitsPage .habit-top-heading {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+body #habitsPage .habit-top-rank { color: var(--muted); font-weight: 500; }
+body #habitsPage .habit-top-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body #habitsPage .habit-top-rate { white-space: nowrap; font-variant-numeric: tabular-nums; }
+body #habitsPage .habit-top-progress { margin: 8px 0 0 30px; }
+body #habitsPage .habit-summary-footnote { margin-top: 16px; text-align: right; font-size: 11px; }
+body #habitsPage .habit-summary-ranking .habit-summary-empty { margin-top: 22px; }
 body :is(#todayPage,#habitsPage) .habit-item .habit-actions .habit-focus-button {
   flex: 0 0 auto; width: auto !important; height: 32px !important; min-height: 32px !important;
   margin: 0; padding: 6px 10px; white-space: nowrap; border-radius: 6px !important;

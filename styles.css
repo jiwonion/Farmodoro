@@ -1815,25 +1815,6 @@ button {
   text-align: center;
 }
 
-.npc-market-dots {
-  display: flex;
-  justify-content: center;
-  gap: 7px;
-  margin-top: 14px;
-}
-
-.npc-market-dots [data-npc-dot] {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--line);
-  cursor: pointer;
-}
-
-.npc-market-dots [data-npc-dot].active {
-  background: var(--green-700);
-}
-
 .rachel-tabs {
   display: flex;
   gap: 6px;
@@ -2043,36 +2024,9 @@ button {
 
 /* A title following a card list (not the profile header) needs more
    breathing room above it than the profile's own dashed border gives. */
-.seed-shop-list + .market-section-title,
-.noah-buy-list + .market-section-title,
-.noah-crop-bundle-list + .market-section-title,
+
 .rachel-cosmetic-list + .market-section-title {
   margin-top: 24px;
-}
-
-.seed-shop-list {
-  display: grid;
-  gap: 8px;
-}
-
-.crop-storage-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
-  min-width: 0;
-  width: 100%;
-  gap: 6px;
-}
-
-.farm-kitchen {
-  display: grid;
-  gap: 12px;
-  width: 100%;
-  max-width: 590px;
-  margin: 0 auto 18px;
-  padding: 15px;
-  border: 1px solid #ddd6bf;
-  border-radius: 15px;
-  background: #fffaf0;
 }
 
 .open-farm-kitchen{
@@ -2152,212 +2106,6 @@ button {
 
 .kitchen-modal-panel {
   width: min(980px, 100%);
-}
-
-.kitchen-modal-panel .farm-kitchen {
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.kitchen-modal-panel .recipe-lab > #cookRecipeButton {
-  min-height: 42px;
-  font-size: 14px;
-}
-
-.kitchen-modal-panel .recipe-book-heading {
-  font-size: 15px;
-}
-
-.kitchen-modal-panel .recipe-entry strong,
-.kitchen-modal-panel .food-item strong {
-  font-size: 14px;
-}
-
-.kitchen-modal-panel .recipe-entry small,
-.kitchen-modal-panel .food-item small,
-.kitchen-modal-panel .empty-food-message {
-  font-size: 12px;
-}
-
-.farm-kitchen > header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.farm-kitchen h3 {
-  margin: 3px 0 0;
-  font-size: 16px;
-}
-
-.farm-kitchen > header > span {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.recipe-lab {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  gap: 7px;
-}
-
-.recipe-lab > #cookRecipeButton {
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--green-700);
-  font-size: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.food-inventory {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.food-item {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  gap: 1px 6px;
-  padding: 7px 9px;
-  border: 1px solid #e0d9c5;
-  border-radius: 9px;
-  background: #fff;
-}
-
-.food-item i {
-  grid-row: 1 / 3;
-  font-size: 20px;
-  font-style: normal;
-}
-
-.food-item strong {
-  font-size: 11px;
-}
-
-.food-item small,
-.empty-food-message {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.recipe-book {
-  border-top: 1px solid #e7dfca;
-  padding-top: 10px;
-}
-
-.recipe-book-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.recipe-book-heading > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.recipe-book-heading > button {
-  padding: 4px 7px;
-  border: 1px solid #9eafa0;
-  border-radius: 6px;
-  color: #315f46;
-  background: #e8eddc;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.recipe-book-heading > button:hover {
-  background: #dfe9db;
-}
-
-.recipe-book.collapsed > #recipeBook {
-  display: none;
-}
-
-.recipe-book > #recipeBook {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 10px;
-}
-
-.recipe-entry {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 2px 7px;
-  padding: 8px;
-  border: 1px solid #e1dac8;
-  border-radius: 9px;
-  background: #fff;
-}
-
-.recipe-entry > span {
-  grid-row: 1 / 3;
-  font-size: 20px;
-}
-
-.recipe-entry strong {
-  font-size: 11px;
-}
-
-.recipe-entry small {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-
-.harvest-item {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  gap: 0 5px;
-  min-width: 65px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #fff;
-}
-
-.harvest-item i {
-  grid-row: 1 / 3;
-  font-size: 17px;
-  font-style: normal;
-}
-
-.harvest-item strong {
-  font-size: 10px;
-}
-
-.harvest-item small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.harvest-item.empty {
-  opacity: 0.45;
-}
-
-.noah-buy-list,
-.noah-crop-bundle-list {
-  display: grid;
-  gap: 7px;
 }
 
 .farm-item-shop {
@@ -3828,16 +3576,14 @@ button {
   gap: 8px;
 }
 
-.storage-grid-44 .inventory-seed,
-.storage-grid-44 .harvest-item {
+.storage-grid-44 .inventory-seed{
   width: 100%;
   min-width: 0;
   min-height: 66px;
   padding: 8px;
 }
 
-.storage-grid-44 .inventory-seed strong,
-.storage-grid-44 .harvest-item strong {
+.storage-grid-44 .inventory-seed strong{
   min-width: 0;
   max-width: 100%;
   overflow: visible;
@@ -3861,8 +3607,7 @@ button {
 .supply-storage-modal .farm-supply-item.long-name strong { font-size: 11px; letter-spacing: -0.04em; }
 .supply-storage-modal .farm-supply-item.very-long-name strong { font-size: 9px; letter-spacing: -0.05em; }
 
-.storage-grid-44 .inventory-seed > span,
-.storage-grid-44 .harvest-item i {
+.storage-grid-44 .inventory-seed > span{
   font-size: 28px;
 }
 
@@ -4207,124 +3952,6 @@ button {
     transform:
       translate(calc(-50% + var(--tx)), calc(-50% + 260px))
       rotate(620deg);
-  }
-}
-
-.craft-waste-poof {
-  position: fixed;
-  z-index: 9000;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.craft-waste-poof .poof-icon {
-  position: absolute;
-  top: 48%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 84px;
-  filter: drop-shadow(0 6px 14px rgba(20, 15, 5, 0.35));
-  animation: craft-poof-burst 0.85s ease-out forwards;
-}
-
-.craft-waste-poof i {
-  --dust-color: #7a6247;
-  position: absolute;
-  top: 48%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--dust-color);
-  box-shadow: 0 0 0 1px rgba(20, 15, 5, 0.12);
-  animation: craft-dust-fly 1.2s var(--delay) ease-out forwards;
-}
-
-.craft-waste-poof i:nth-child(3n + 2) {
-  --dust-color: #5a4a35;
-}
-
-.craft-waste-poof i:nth-child(3n) {
-  --dust-color: #c7ac80;
-}
-
-@keyframes craft-poof-burst {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.2);
-  }
-  30% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.3);
-  }
-  60% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.05);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.4);
-  }
-}
-
-@keyframes craft-dust-fly {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.7);
-  }
-  18% {
-    opacity: 1;
-  }
-  65% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform:
-      translate(calc(-50% + var(--tx)), calc(-50% + var(--ty)))
-      scale(0.4);
-  }
-}
-
-#cookRecipeButton.mixing {
-  animation: cook-mix-shake 0.4s ease-in-out;
-}
-
-@keyframes cook-mix-shake {
-  0%,
-  100% {
-    transform: rotate(0deg) scale(1);
-  }
-  20% {
-    transform: rotate(-6deg) scale(0.97);
-  }
-  40% {
-    transform: rotate(5deg) scale(1.03);
-  }
-  60% {
-    transform: rotate(-4deg) scale(0.98);
-  }
-  80% {
-    transform: rotate(3deg) scale(1.02);
-  }
-}
-
-.recipe-ingredient-trigger.ingredient-pop {
-  animation: ingredient-pop-bounce 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes ingredient-pop-bounce {
-  0% {
-    transform: scale(1);
-  }
-  45% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
   }
 }
 
@@ -4782,102 +4409,6 @@ button {
   height: 6px;
 }
 
-.noah-buy-card {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 13px;
-  padding: 12px 13px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.noah-buy-card > span {
-  display: grid;
-  place-items: center;
-  font-size: 24px;
-}
-
-.noah-buy-card > div {
-  display: grid;
-  gap: 3px;
-}
-
-.noah-buy-card strong {
-  font-size: 13px;
-}
-
-.noah-buy-card small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.noah-buy-card button {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid #d8d1b6;
-  border-radius: 8px;
-  color: #6d5b23;
-  background: #fff9df;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.noah-buy-card button:disabled {
-  color: var(--muted);
-  background: #f1efe4;
-  cursor: not-allowed;
-}
-
-.seed-shop-card {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.seed-shop-emoji {
-  display: grid;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  border-radius: 12px;
-  background: var(--green-50);
-  font-size: 26px;
-}
-
-.seed-shop-card > div {
-  display: grid;
-  gap: 3px;
-}
-
-.seed-shop-card strong {
-  font-size: 13px;
-}
-
-.seed-shop-card small {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.seed-shop-card button {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 8px;
-  color: #fff;
-  background: var(--green-700);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
 /* Larger type and crop visuals within My Farm */
 #farmPage .farm-panel-header h2,
 #farmPage .seed-shop h2 {
@@ -4904,13 +4435,11 @@ button {
   font-size: 32px;
 }
 
-#farmPage .inventory-seed strong,
-#farmPage .harvest-item strong {
+#farmPage .inventory-seed strong{
   font-size: 13px;
 }
 
-#farmPage .inventory-seed small,
-#farmPage .harvest-item small {
+#farmPage .inventory-seed small{
   font-size: 11px;
 }
 
@@ -4951,32 +4480,8 @@ button {
   font-size: 10px;
 }
 
-#farmPage .seed-shop-card small,
-#farmPage .noah-buy-card small {
-  font-size: 12px;
-}
-
 #farmPage .market-balance strong {
   font-size: 14px;
-}
-
-#farmPage .seed-shop-card strong,
-#farmPage .noah-buy-card strong {
-  font-size: 15px;
-}
-
-#farmPage .seed-shop-emoji,
-#farmPage .noah-buy-card > span {
-  font-size: 36px;
-}
-
-#farmPage .seed-shop-card button,
-#farmPage .noah-buy-card button {
-  font-size: 13px;
-}
-
-#farmPage .harvest-item i {
-  font-size: 30px;
 }
 
 #farmPage .farm-supply-item strong {
@@ -6304,64 +5809,6 @@ body.touch-reordering {
 .custom-group-option.group-color-5 i { background: #c9879c; }
 .custom-group-option.group-color-6 i { background: #69a398; }
 .custom-group-option.group-color-7 i { background: #a88668; }
-
-.recipe-ingredient-trigger {
-  height: 42px;
-  font-size: 14px;
-}
-
-.recipe-ingredient-trigger > span:first-child {
-  overflow: hidden;
-  min-width: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recipe-ingredient-menu {
-  z-index: 100;
-  max-height: 290px;
-  overflow-y: auto;
-}
-
-.recipe-ingredient-option {
-  grid-template-columns: 30px minmax(0, 1fr) 14px;
-  min-height: 45px;
-  font-size: 13px;
-}
-
-.recipe-ingredient-option > i {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border-radius: 7px;
-  background: #eef3e7;
-  font-style: normal;
-}
-
-.recipe-ingredient-option > i:empty {
-  background: transparent;
-}
-
-.recipe-ingredient-option > i svg {
-  width: 27px;
-  height: 27px;
-}
-
-.recipe-ingredient-option > span {
-  display: grid;
-  gap: 2px;
-}
-
-.recipe-ingredient-option > span strong {
-  font-size: 13px;
-}
-
-.recipe-ingredient-option > span small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 500;
-}
 
 
 #todayPage #toggleGroupManager,
@@ -7844,22 +7291,6 @@ input.themed-date-native {
   border-bottom: 1px dashed #9ca594;
 }
 
-#farmPage .seed-shop-card,
-#farmPage .noah-buy-card {
-  border: 1px solid #899987;
-  border-radius: 8px;
-  background: #fffdf6;
-  box-shadow: 2px 2px 0 #d8d0ba;
-}
-
-#farmPage .seed-shop-card button,
-#farmPage .noah-buy-card button {
-  border: 1px solid #294c3a;
-  border-radius: 5px;
-  color: #fffaf0;
-  background: #294c3a;
-}
-
 .habit-modal {
   position: fixed;
   z-index: 1100;
@@ -8813,23 +8244,6 @@ body #habitForm #habitFocusEnabled {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .crop-storage-list {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .recipe-lab {
-    grid-template-columns: 1fr;
-  }
-
-  .recipe-lab > #cookRecipeButton {
-    min-height: 36px;
-  }
-
-  .recipe-book > #recipeBook {
-    grid-template-columns: 1fr;
-  }
-
   .market-modal {
     padding: 10px;
   }
@@ -9039,11 +8453,7 @@ body #habitForm #habitFocusEnabled {
   .farm-wallet,
   .farm-supply-item,
   .inventory-seed,
-  .food-item,
-  .recipe-entry,
   .farm-item-card,
-  .noah-buy-card,
-  .seed-shop-card,
   .weekday-field span,
   .habit-count-control,
   .quick-form input,
@@ -9070,9 +8480,7 @@ body #habitForm #habitFocusEnabled {
 
 :root[data-theme="dark"] :is(
   .count,
-  .farm-item-card > span,
-  .seed-shop-emoji
-) {
+  .farm-item-card > span) {
   color: var(--ink);
   background: var(--green-50);
 }
@@ -9295,13 +8703,6 @@ body #habitForm #habitFocusEnabled {
   color: #173727;
 }
 
-:root[data-theme="dark"] .kitchen-modal-panel .recipe-ingredient-trigger,
-:root[data-theme="dark"] .kitchen-modal-panel .recipe-ingredient-trigger > span,
-:root[data-theme="dark"] .kitchen-modal-panel #cookRecipeButton,
-:root[data-theme="dark"] .kitchen-modal-panel #cookRecipeButton:hover {
-  color: #173727;
-}
-
 :root[data-theme="dark"] #farmPage .crop-plot > .harvest-button,
 :root[data-theme="dark"] #farmPage .crop-plot > .harvest-button:hover,
 :root[data-theme="dark"] #farmPage .crop-plot > .harvest-button:active {
@@ -9317,43 +8718,6 @@ body #habitForm #habitFocusEnabled {
 :root[data-theme="dark"] #tasksPage .task-archive-button:hover {
   color: #0d291b;
   background: #e5f3e8;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .storage-modal-panel {
-  color: var(--ink);
-}
-
-:root[data-theme="dark"] #harvestStorageModal .storage-modal-panel header h2 {
-  color: #edf3ef;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .storage-modal-panel header p {
-  color: #b8c8be;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .storage-modal-panel header > button {
-  border: 1px solid #61766a;
-  color: #edf3ef;
-  background: #26372e;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .harvest-item {
-  border-color: #75867b;
-  color: #172d22;
-  background: #cbd3cd;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .harvest-item :is(strong, small) {
-  color: #172d22;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .harvest-item.empty {
-  color: #33483c;
-  background: #aeb9b1;
-}
-
-:root[data-theme="dark"] #harvestStorageModal .harvest-item.empty :is(strong, small) {
-  color: #33483c;
 }
 
 :root[data-theme="dark"] #habitsPage .heatmap-cell.progress-1 {
@@ -9407,13 +8771,6 @@ body #habitForm #habitFocusEnabled {
       transparent 5px
     ),
     var(--paper);
-}
-
-:root[data-theme="dark"] #farmPage :is(.seed-shop-card, .noah-buy-card) {
-  border-color: #46584e;
-  color: var(--ink);
-  background: #1d2922;
-  box-shadow: 2px 2px 0 #0b110d;
 }
 
 :root[data-theme="dark"] #farmPage .farm-wallet {
@@ -9828,186 +9185,6 @@ canvas {
   background: transparent;
 }
 
-.focus-youtube-panel {
-  position: absolute;
-  z-index: 6;
-  top: var(--focus-youtube-panel-top, 88px);
-  right: 18px;
-  display: grid;
-  width: min(480px, calc(100% - 36px));
-  gap: 12px;
-  padding: 16px;
-  border: 2px solid rgba(255, 244, 207, 0.78);
-  border-radius: 13px;
-  color: #fff;
-  background: rgba(20, 49, 36, 0.94);
-  box-shadow: 5px 5px 0 rgba(12, 31, 23, 0.82);
-  backdrop-filter: blur(12px);
-}
-
-.focus-youtube-panel:focus {
-  outline: none;
-}
-
-#focusPage .focus-page-stage:fullscreen .focus-youtube-panel:not(.minimized) {
-  max-height: calc(100% - var(--focus-youtube-panel-top, 88px) - 18px);
-  overflow-y: auto;
-}
-
-.focus-youtube-panel.hidden {
-  display: none;
-}
-
-.focus-youtube-panel > header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.focus-youtube-panel h2 {
-  margin: 3px 0 0;
-  color: #fff;
-  font-size: 18px;
-}
-
-.focus-youtube-panel .section-kicker {
-  color: #f3cf63;
-  font-size: 10px;
-}
-
-.focus-youtube-panel header > button {
-  width: auto;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 7px;
-  color: #fff;
-  background: transparent;
-  font: inherit;
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.focus-youtube-player-wrap {
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 9px;
-  background: #000;
-}
-
-.focus-youtube-player-wrap.hidden {
-  display: none;
-}
-
-.focus-youtube-player-wrap iframe,
-.focus-youtube-player-wrap > div {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-.focus-youtube-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 7px;
-}
-
-#focusYoutubeName {
-  grid-column: 1 / -1;
-}
-
-.focus-youtube-form input,
-.focus-youtube-form button {
-  min-height: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 7px;
-  font: inherit;
-}
-
-.focus-youtube-form input {
-  min-width: 0;
-  padding: 0 11px;
-  color: #173727;
-  background: #fffdf4;
-  font-size: 11px;
-}
-
-.focus-youtube-form button {
-  padding: 0 13px;
-  color: #294c3a;
-  background: #f3cf63;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.focus-youtube-library {
-  display: grid;
-  gap: 6px;
-  max-height: 210px;
-  overflow-y: auto;
-}
-
-.focus-youtube-library-empty {
-  margin: 0;
-  padding: 10px;
-  border: 1px dashed rgba(255, 255, 255, 0.28);
-  border-radius: 7px;
-  color: #d9e9dd;
-  font-size: 10px;
-  text-align: center;
-}
-
-.focus-youtube-library-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 5px;
-  padding: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 7px;
-  background: rgba(8, 31, 22, 0.46);
-}
-
-.focus-youtube-library-item strong {
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.focus-youtube-library-item button {
-  min-height: 28px;
-  padding: 0 7px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 5px;
-  color: #fff;
-  background: rgba(32, 62, 47, 0.88);
-  font: inherit;
-  font-size: 9px;
-  cursor: pointer;
-}
-
-.focus-youtube-library-item button[data-action="play"] {
-  color: #294c3a;
-  background: #f3cf63;
-}
-
-.focus-youtube-panel > p {
-  margin: 0;
-  color: #d9e9dd;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
 @media (max-width: 900px), (max-height: 700px) {
   #focusPage .focus-page-stage,
   #focusPage .focus-page-stage:fullscreen {
@@ -10041,14 +9218,6 @@ canvas {
     display: grid;
     width: 100%;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-
-  #focusPage .focus-youtube-panel {
-    position: relative;
-    inset: auto;
-    width: auto;
-    flex: 0 0 auto;
-    margin: -20px 12px 12px;
   }
 
   #focusPage .focus-stage-actions button,
@@ -10907,7 +10076,6 @@ canvas {
     #permanentMarketModal,
     #farmKitchenModal,
     #farmMailModal,
-    #harvestStorageModal,
     #seedStorageModal,
     #supplyStorageModal
   ) .market-modal-panel {
@@ -10919,7 +10087,6 @@ canvas {
     #permanentMarketModal,
     #farmKitchenModal,
     #farmMailModal,
-    #harvestStorageModal,
     #seedStorageModal,
     #supplyStorageModal
   ) .market-modal-panel h2 {
@@ -10932,7 +10099,6 @@ canvas {
     #permanentMarketModal,
     #farmKitchenModal,
     #farmMailModal,
-    #harvestStorageModal,
     #seedStorageModal,
     #supplyStorageModal
   ) .market-modal-panel header p {
@@ -10945,7 +10111,6 @@ canvas {
     #permanentMarketModal,
     #farmKitchenModal,
     #farmMailModal,
-    #harvestStorageModal,
     #seedStorageModal,
     #supplyStorageModal
   ) .market-modal-panel .section-kicker { margin-bottom: 4px; font-size: 9px; }
@@ -10955,7 +10120,6 @@ canvas {
     #permanentMarketModal,
     #farmKitchenModal,
     #farmMailModal,
-    #harvestStorageModal,
     #seedStorageModal,
     #supplyStorageModal
   ) .market-modal-panel :is(button, input, select, textarea) {
@@ -10983,11 +10147,6 @@ canvas {
   #permanentMarketModal .farm-item-card small,
   #supplyStorageModal .farm-supply-item small { font-size: 8px; }
 
-  #farmKitchenModal :is(.recipe-entry, .food-item) strong { font-size: 10px; }
-  #farmKitchenModal :is(.recipe-entry, .food-item) small,
-  #farmKitchenModal .empty-food-message { font-size: 8px; }
-  #farmKitchenModal .recipe-book-heading h3 { font-size: 12px; }
-
   #farmMailModal .farm-mail-tabs button { min-height: 32px; font-size: 10px; }
   #farmMailModal .farm-mail-inbox-note,
   #farmMailModal .farm-mail-status,
@@ -10999,14 +10158,14 @@ canvas {
   #farmMailModal .farm-mail-inbox-copy > strong { font-size: 10px; }
   #farmMailModal :is(.farm-mail-item small, .farm-mail-sender > small, .farm-mail-history-row small) { font-size: 8px; }
 
-  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) strong {
+  :is(#seedStorageModal) .storage-grid-44 :is(.inventory-seed) strong {
     font-size: 9px;
   }
-  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 .very-long-name strong {
+  :is(#seedStorageModal) .storage-grid-44 .very-long-name strong {
     font-size: 7px;
     letter-spacing: -0.03em;
   }
-  :is(#harvestStorageModal, #seedStorageModal) .storage-grid-44 :is(.inventory-seed, .harvest-item) small {
+  :is(#seedStorageModal) .storage-grid-44 :is(.inventory-seed) small {
     font-size: 8px;
   }
 

@@ -1,0 +1,153 @@
+/* Theme scenery and field skins frame the growing crops. */
+.garden-food-art,.garden-crop-art,.garden-soil-art,.garden-plant-art { display:inline-block; width:100%;height:100%;background-image:var(--garden-art);background-size:calc(var(--garden-art-columns) * 100%) calc(var(--garden-art-rows) * 100%);background-position:var(--garden-art-x) var(--garden-art-y);background-repeat:no-repeat;image-rendering:pixelated; }
+.garden-soil-svg,.garden-plant-svg,.garden-crop-svg {background:none;overflow:hidden;pointer-events:none;}
+body #farmPage .farm-scene-grid { isolation:isolate; }
+.garden-terrain { position:absolute;inset:0;z-index:0;pointer-events:none;background-image:url('./assets/garden-v3/terrain-atlas.png');background-size:200% 200%;background-repeat:no-repeat;image-rendering:pixelated; }
+.garden-scene .farm-scene-grid { isolation:isolate;background-image:none !important; }
+.garden-scene .farm-scene-grid > :is(.farm-decor,.farm-building,.farm-facility) {display:none !important;}
+/* The planted field occupies the clearing. Individual soil
+   images retain their own aspect ratio inside the larger touch targets. */
+.garden-scene .farm-grid,
+body #farmPage #farmGrid {
+ left:14% !important;top:37.857143% !important;width:40.5% !important;
+ height:45.714286% !important;aspect-ratio:auto !important;z-index:3;gap:5% !important;
+}
+body #farmPage .farm-scene-grid > :is(.farm-decor,.farm-building,.farm-facility) { display:none !important; }
+body #farmPage .farm-scene-grid { background-image:none !important; }
+/* app.js supplies the real empty, watered, dry or purchased soil artwork. */
+.garden-scene .farm-grid .farm-plot,
+body #farmPage .farm-scene[data-scenery] #farmGrid .farm-plot {
+ background:var(--plot-src,url('./assets/farm-b-v1/plots/default.png')) center / contain no-repeat !important;
+ border:0 !important;border-radius:0;box-shadow:none !important;image-rendering:pixelated;
+}
+body :is(#cosmeticPreviewModal,#focusPage) .cosmetic-farm-preview .farm-scene[data-scenery] .farm-grid .farm-plot {background:var(--plot-src,url('./assets/farm-b-v1/plots/default.png')) center / contain no-repeat !important;}
+body :is(#cosmeticPreviewModal,#focusPage) .cosmetic-farm-preview .farm-scene[data-scenery] .farm-grid .farm-plot:has(.garden-soil-art) {background:none !important;}
+.garden-scene .farm-grid .farm-plot:has(.garden-soil-art),body #farmPage .farm-scene[data-scenery] #farmGrid .farm-plot:has(.garden-soil-art) {background:none !important;overflow:visible;}
+.garden-scene .farm-grid .garden-soil-art,body #farmPage #farmGrid .garden-soil-art {position:absolute;left:0;bottom:0;width:100%;height:auto;aspect-ratio:1;transform:translateY(16%);pointer-events:none;z-index:0;}
+body :is(#farmPage,.cosmetic-farm-preview) .farm-scene[data-scenery] .farm-grid .empty-plot > .garden-soil-art {inset:auto;left:0;bottom:0;display:block;opacity:1 !important;}
+/* Soil has a square frame, anchored 16% below the tile. Its painted area
+   centres at (51.7%, 50%) in that frame, or tile height minus 34% of width.
+   Crops use tightly clipped artwork, so their painted centres land here at
+   every growth stage instead of inheriting the atlas's transparent padding. */
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .farm-plot .crop-visual {
+ position:absolute;inset:0;width:auto;height:auto;min-height:0;margin:0;padding:0;display:block;pointer-events:none;
+}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .farm-plot .crop-visual > .garden-plant-art {
+ position:absolute;left:51.7%;top:calc(100% - 34cqw);right:auto;bottom:auto;
+ width:var(--garden-plant-width,68%);height:auto;aspect-ratio:1;min-width:0;min-height:0;
+ transform:translate(-50%,-50%);transform-origin:center;filter:none;pointer-events:none;z-index:1;
+}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .garden-plant-seed {--garden-plant-width:20%;}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .garden-plant-sprout {--garden-plant-width:32%;}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .garden-plant-growing {--garden-plant-width:52%;}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .garden-plant-flower {--garden-plant-width:60%;}
+body :is(#farmPage,#cosmeticPreviewModal,#focusPage) .farm-scene[data-scenery] .farm-grid .garden-plant-wilted {--garden-plant-width:54%;}
+body #cosmeticPreviewModal .cosmetic-farm-preview .farm-grid .crop-info {display:none;}
+body #farmPage #farmGrid .farm-plot[data-plot-skin=""]:hover { filter:brightness(1.05); }
+body #farmPage .farm-scene[data-scenery] #farmGrid .plot-status {opacity:0;transition:opacity .15s;}
+body #farmPage .farm-scene[data-scenery] #farmGrid :is(.farm-plot:hover,.farm-plot.is-open) .plot-status,body #farmPage .farm-scene[data-scenery] #farmGrid .plot-status:is([data-urgency="urgent"],[data-urgency="wilted"]) {opacity:1;}
+body #farmPage .farm-scene[data-scenery] #farmGrid .farm-plot.mature::after {top:5%;right:8%;font-size:15px;}
+/* Farm on the left, theme and field shop on the right at the same height,
+   so purchases stay reachable without scrolling the page. */
+body #farmPage .farm-workspace-body {grid-template-columns:minmax(0,3fr) minmax(300px,2fr);gap:20px;align-items:stretch;}
+body #farmPage .garden-map-column {min-width:0;display:flex;flex-direction:column;gap:14px;}
+body #farmPage .farm-collection-panel {position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--paper);overflow:hidden;}
+body #farmPage .farm-collection-tabs {display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid var(--line);}
+body #farmPage .farm-collection-panel .farm-collection-tabs button[role="tab"] {min-height:36px;padding:6px 16px;border:0 !important;border-bottom:2px solid transparent !important;border-radius:0 !important;background:none !important;box-shadow:none !important;color:var(--muted) !important;font-size:13px;font-weight:600;cursor:pointer;}
+body #farmPage .farm-collection-panel .farm-collection-tabs button[role="tab"][aria-selected="true"] {border-bottom-color:var(--pixel-accent) !important;color:var(--ink) !important;}
+body #farmPage .farm-collection-scroll {flex:1 1 auto;min-height:0;overflow-y:auto;padding:14px;}
+body #farmPage .farm-collection-panel .farm-theme-heading > span {display:none;}
+body #farmPage .farm-collection-panel .farm-theme-choices {grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+body #farmPage .farm-collection-panel #farmPlotSkinChoices {grid-template-columns:repeat(auto-fill,minmax(120px,1fr));}
+body #farmPage .farm-collection-panel #farmPlotSkinChoices .farm-plot-skin-choice {padding:10px;}
+body #farmPage .farm-collection-panel #farmPlotSkinChoices .farm-plot-skin-choice > .garden-soil-art {width:min(100%,96px);}
+@media (min-width:981px) {
+ body #farmPage .farm-collection-scroll {position:absolute;inset:45px 0 0;}
+}
+@media (max-width:980px) {
+ body #farmPage .farm-workspace-body {grid-template-columns:minmax(0,1fr);}
+}
+body #farmPage .farm-workspace-kicker {display:none;}
+body #farmPage #farmNameLabel {font-size:32px;}
+body #farmPage .farm-theme-choices {grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+body #farmPage #farmThemeChoices .farm-theme-choice {display:flex;flex-direction:column;gap:7px;padding:8px;align-items:flex-start;}
+body #farmPage #farmThemeChoices .farm-theme-choice > span:not(.garden-theme-thumb) {margin:0;font-size:12px;align-self:stretch;}
+body #farmPage #farmThemeChoices .farm-theme-choice > small {align-self:stretch;}
+body #farmPage .farm-map-heading {min-height:40px;padding:10px 14px;}
+@media (max-width:700px) {
+ body #farmPage #farmNameLabel {font-size:25px;}
+ body #farmPage .farm-theme-choices {grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+body #farmPage .garden-toolbar-button { display:inline-flex;align-items:center;justify-content:center;gap:6px;position:relative; }
+body #farmPage :is(#openGardenRanking,#openGardenMail) {display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:8px 12px;border:1px solid var(--line) !important;border-radius:8px !important;background:var(--paper) !important;box-shadow:none !important;color:var(--ink) !important;font:600 12px var(--farm-ui-font);white-space:nowrap;}
+body #farmPage #farmNameLabel {font-family:var(--farm-ui-font) !important;}
+body #farmPage .garden-mail-count { min-width:16px;height:16px;padding:0 4px;border-radius:9px;background:var(--pixel-accent);color:white;font-size:10px;line-height:16px; }
+body #farmPage .garden-mail-count[hidden] {display:none;}
+body #farmPage .garden-management { display:flex;gap:8px;flex-wrap:wrap;padding-top:12px; }
+body #farmPage .garden-management button { padding:8px 12px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);font:inherit;font-size:11px; }
+body #farmPage #farmThemeChoices .farm-theme-choice > .garden-theme-thumb {align-self:stretch;width:100%;height:auto;aspect-ratio:2.6;margin:0;border-radius:6px;background-image:url('./assets/garden-v3/terrain-atlas.png');background-size:200% auto;image-rendering:pixelated;}
+body #farmPage #farmThemeChoices .farm-theme-choice > .garden-theme-thumb + span {grid-column:2;grid-row:1;}
+body #farmPage #farmThemeChoices .farm-theme-choice > small {grid-column:2;grid-row:2;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice {display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:12px;min-width:0;text-align:left;border:1px solid var(--line) !important;border-radius:10px !important;background:var(--paper) !important;box-shadow:none !important;color:var(--ink);font-family:var(--farm-ui-font);cursor:pointer;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice::before,body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice::after {display:none !important;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice:hover {background:var(--theme-board) !important;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice[aria-pressed="true"] {border-color:var(--pixel-accent) !important;background:var(--pixel-soft) !important;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice > .garden-soil-art {width:min(100%,150px);height:auto;aspect-ratio:1;align-self:center;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice > :is(span:not(.garden-soil-art),small) {align-self:stretch;margin:0;font-size:12px;line-height:1.5;}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice > small {font-size:11px;color:var(--muted);}
+body #farmPage #farmPlotSkinChoices .farm-plot-skin-choice.recommended {border-color:var(--pixel-accent,#416de3) !important;}
+body #farmPage #farmPlotSkinChoices .farm-field-match {font-size:10px;font-style:normal;color:var(--pixel-accent,#416de3);background:var(--pixel-soft,#eef3ff);padding:4px 7px;border-radius:5px;}
+body .cosmetic-preview.theme-preview {height:auto;min-height:0;aspect-ratio:3/2;}
+#cosmeticPreviewModal .cosmetic-preview-modal-panel {display:flex;flex-direction:column;overflow:hidden;}
+#cosmeticPreviewModal .cosmetic-preview-modal-panel > .modal-scroll-area {min-height:0;flex:1;overflow:auto;}
+#cosmeticPreviewModal .farm-theme-preview-actions {display:flex;align-items:center;justify-content:space-between;gap:14px;flex-shrink:0;padding:16px 20px;border-top:1px solid var(--line);background:var(--paper);color:var(--ink);font-family:var(--farm-ui-font,"Pretendard Variable",sans-serif);}
+#cosmeticPreviewModal .farm-theme-preview-actions[hidden] {display:none;}
+#cosmeticPreviewModal .farm-theme-preview-actions p {margin:0;color:var(--muted);font-size:12px;line-height:1.6;}
+#cosmeticPreviewModal .farm-theme-preview-actions button {min-height:42px;padding:10px 16px;border:1px solid var(--pixel-accent) !important;border-radius:8px !important;background:var(--pixel-accent) !important;color:var(--pixel-on-accent) !important;box-shadow:none !important;font:600 12px var(--farm-ui-font,"Pretendard Variable",sans-serif);cursor:pointer;}
+#cosmeticPreviewModal .farm-theme-preview-actions button:disabled {opacity:.5;cursor:default;}
+.farm-weather[data-weather="rain"] i::before {width:1px;height:13px;border-radius:1px;background:#bfdce9aa;box-shadow:none;transform:rotate(12deg);}
+@media(max-width:700px) {#cosmeticPreviewModal .farm-theme-preview-actions {flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px;}#cosmeticPreviewModal .farm-theme-preview-actions button {width:100%;}}
+#gardenSeedModal {z-index:7300;padding:20px;}
+.garden-seed-panel { width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 40px);display:flex;flex-direction:column;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 80px #0002;overflow:hidden; }
+.garden-seed-panel > .modal-scroll-area {display:flex;flex-direction:column;max-height:calc(100dvh - 40px);padding:0;overflow:hidden;}
+#gardenSeedModal .garden-seed-panel {border:1px solid var(--line) !important;border-radius:16px !important;background:var(--paper) !important;box-shadow:0 20px 80px #0002 !important;}
+#gardenSeedModal .garden-seed-panel::before,#gardenSeedModal .garden-seed-panel::after {display:none !important;}
+#gardenSeedModal .garden-seed-panel header {background:transparent !important;border:0 !important;box-shadow:none !important;}
+#gardenSeedModal .garden-seed-panel .section-kicker {color:var(--pixel-accent);font:700 10px "Pretendard Variable",sans-serif;letter-spacing:1.3px;}
+#gardenSeedModal .garden-seed-panel button {box-shadow:none !important;border-radius:7px !important;font-family:"Pretendard Variable",sans-serif;}
+#gardenSeedModal .garden-seed-panel h2 {font-family:"Pretendard Variable",sans-serif !important;color:var(--ink) !important;text-shadow:none !important;}
+.garden-seed-panel header {display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:22px 24px 16px;flex-shrink:0;}
+.garden-seed-panel h2 {margin:0;font-size:22px;letter-spacing:-.6px;}
+.garden-seed-panel p {margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.6;}
+.garden-seed-panel [data-close-garden-seed] {border:0;background:transparent;color:var(--muted);font-size:25px;cursor:pointer;}
+.garden-seed-search {display:flex;align-items:center;gap:14px;padding:0 24px 16px;flex-shrink:0;}
+.garden-seed-search input {min-width:0;flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:12px;}
+.garden-seed-search span {font-size:12px;white-space:nowrap;}
+.garden-seed-choices {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0 24px 24px;overflow:auto;min-height:0;}
+.garden-seed-card {display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);color:var(--ink);min-width:0;}
+.garden-seed-card > .garden-seed-art {width:66px;height:66px;display:grid;place-items:center;}
+.garden-seed-card .crop-pixel {width:60px;height:60px;position:relative;inset:auto;}
+.garden-seed-card strong {font-size:13px;}
+.garden-seed-card small {font-size:11px;color:var(--muted);text-align:center;}
+.garden-seed-card button {width:100%;padding:8px 5px;border:1px solid var(--pixel-accent);border-radius:7px;background:var(--pixel-soft);color:var(--pixel-accent);font:inherit;font-size:11px;cursor:pointer;}
+.garden-seed-card button:disabled {opacity:.45;cursor:default;}
+.garden-seed-empty {grid-column:1 / -1;padding:24px;text-align:center;color:var(--muted);font-size:13px;}
+@media(max-width:700px) {
+ body #farmPage #farmThemeChoices .farm-theme-choice > .garden-theme-thumb {width:100%;height:auto;}
+ body #farmPage #farmThemeChoices .farm-theme-choice > .garden-theme-thumb + span {grid-column:1;grid-row:2;}
+ body #farmPage #farmThemeChoices .farm-theme-choice > small {grid-column:1;grid-row:3;}
+ .garden-seed-panel header {padding:20px 16px 14px;}
+ .garden-seed-search {padding:0 16px 14px;gap:8px;}
+ .garden-seed-choices {grid-template-columns:repeat(2,minmax(0,1fr));padding:0 16px 20px;gap:10px;}
+ body #farmPage .farm-workspace-toolbar {gap:8px;}
+ body #farmPage .farm-workspace-toolbar {grid-template-columns:repeat(4,minmax(0,1fr));}
+ body #farmPage .farm-workspace-wallet {grid-column:1 / 4;}
+ body #farmPage .farm-active-theme {grid-column:4;}
+ body #farmPage :is(#openGardenRanking,#openGardenMail,#openFarmShop,#openFarmStorage) {min-height:40px;padding:8px 4px;font-size:11px;gap:5px;}
+}
+
+/* Progress badge sits in the bed's top-left corner instead of over the crop. */
+body #farmPage .farm-scene[data-scenery] #farmGrid .plot-status {top:2%;bottom:auto !important;left:4%;right:auto;transform:none;padding:2px 7px;border-radius:999px;font-size:clamp(9px,.8vw,11px);font-weight:700;z-index:4;}
+@media(max-width:700px) {
+ body #farmPage .farm-scene[data-scenery].is-overview #farmGrid .plot-status {width:7px;height:7px;padding:0;font-size:0;border-radius:50%;}
+}

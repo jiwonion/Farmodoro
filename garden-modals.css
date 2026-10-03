@@ -1,0 +1,374 @@
+/* Farm popups (theme/field preview, supplies, ranking, mail, free pass) follow
+   the kitchen: a wide white/dark sheet, a list on the left and a large detail
+   panel on the right, generous type and one big blue action. */
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) {
+  --gm-paper: var(--paper, #fff);
+  --gm-soft: var(--paper-soft, #f7f9fc);
+  --gm-ink: var(--ink, #243247);
+  --gm-muted: var(--muted, #738196);
+  --gm-line: var(--line, #e6ebf2);
+  --gm-blue: #4878ed;
+  --gm-blue-soft: #4878ed12;
+  --gm-art: linear-gradient(125deg, #eef3ff, #f6f0ff);
+  --gm-warm: #fff5e6;
+  z-index: 7300;
+  padding: 18px;
+}
+:root[data-theme="dark"] body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) {
+  --gm-paper: #192333; --gm-soft: #202d40; --gm-ink: #e7edf7; --gm-muted: #a4b3c7; --gm-line: #344258; --gm-blue-soft: #4878ed26;
+  --gm-art: linear-gradient(125deg, #223150, #2b2a45); --gm-warm: #33302a;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-backdrop { background: #1b2a4466; backdrop-filter: none; }
+
+/* Sheet */
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel {
+  width: min(var(--gm-width, 1050px), calc(100vw - 32px));
+  max-height: calc(100dvh - 36px);
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--gm-line) !important;
+  border-radius: 22px !important;
+  background: var(--gm-paper) !important;
+  box-shadow: 0 18px 70px #12274626 !important;
+  color: var(--gm-ink);
+  font-family: inherit !important;
+}
+body #freePassTargetModal { --gm-width: 560px; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel::before,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel::after,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header::before,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header::after { display: none !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel > .modal-scroll-area {
+  max-height: calc(100dvh - 38px);
+  padding: 28px !important;
+  border: 0 !important;
+  background: var(--gm-paper) !important;
+  scrollbar-color: var(--gm-line) transparent;
+}
+
+/* Remove the old pixel frames from inner blocks; cards are rebuilt below. */
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :where(div, section, article, aside, header, ol, ul, li, details, summary, p, label, em, h3, dl, dt, dd) {
+  border-width: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  outline: 0;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :where(div, section, article, aside, header, ol, li, details, p, em, h3):not(.farm-scene):not(.farm-scene-grid):not(.farm-grid):not(.farm-plot):not(.garden-terrain) { background-image: none; }
+
+/* Header */
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header {
+  position: static !important;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+  min-height: 0 !important; margin: 0 0 20px !important; padding: 0 !important;
+  border: 0 !important; background: none !important; color: var(--gm-ink) !important;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .section-kicker {
+  display: block; margin: 0; color: var(--gm-blue) !important; font-family: inherit !important; font-size: 11px; font-weight: 750; letter-spacing: .12em;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header h2 {
+  margin: 6px 0 8px !important; color: var(--gm-ink) !important; font-family: inherit !important; font-size: 32px; font-weight: 780; letter-spacing: -.03em; line-height: 1.2;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header p {
+  margin: 0; color: var(--gm-muted) !important; font-family: inherit; font-size: 14px; line-height: 1.6;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) :is(h3, h4, strong, label, b, dd):not(.farm-scene *) { color: var(--gm-ink) !important; font-family: inherit !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) :is(p, small, em, dt):not(.farm-scene *) { color: var(--gm-muted); font-family: inherit; }
+
+/* Controls */
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button {
+  min-height: 40px; padding: 8px 14px;
+  border: 1px solid var(--gm-line) !important; border-radius: 10px !important;
+  background: var(--gm-paper) !important; color: var(--gm-ink) !important;
+  box-shadow: none !important; text-shadow: none !important; transform: none !important;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button:hover:not(:disabled) { background: var(--gm-soft) !important; filter: none; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button:disabled { opacity: .5; cursor: default; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(button, input, select, textarea):focus-visible { outline: 3px solid #4878ed66 !important; outline-offset: 2px; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(button.active, button[aria-pressed="true"]) {
+  border-color: var(--gm-blue) !important; background: var(--gm-blue-soft) !important; color: var(--gm-blue) !important;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button.active :is(span, small, strong) { color: inherit !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action) {
+  width: 100%; min-height: 54px !important; padding: 12px 18px !important;
+  border-color: var(--gm-blue) !important; background: var(--gm-blue) !important; color: #fff !important;
+  font-size: 16px !important; font-weight: 750 !important;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):hover:not(:disabled) { background: #3a69dc !important; color: #fff !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):disabled { opacity: 1; background: #a9c0f6 !important; border-color: transparent !important; }
+:root[data-theme="dark"] body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmMailModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):disabled { background: #2d3f63 !important; color: #8fa3c6 !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(input, select, textarea) {
+  min-height: 46px; padding: 10px 14px;
+  border: 1px solid var(--gm-line) !important; border-radius: 10px !important;
+  background: var(--gm-paper) !important; color: var(--gm-ink) !important; box-shadow: none !important;
+  font: inherit; font-size: 14px;
+}
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel input::placeholder { color: var(--gm-muted); opacity: 1; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .pixel-close-button {
+  flex: 0 0 auto; width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important;
+  padding: 0 !important; font-size: 22px !important; line-height: 1;
+}
+
+/* Shared two-column workspace (kitchen frame) */
+body #cosmeticPreviewModal .cosmetic-preview-body,
+body #supplyStorageModal #farmItemInventory,
+body #farmRankingModal .farm-ranking-layout,
+body #farmMailModal #farmMailSendPanel:not(.hidden) {
+  display: grid; gap: 28px; align-items: start;
+  padding: 20px !important; border: 1px solid var(--gm-line) !important; border-radius: 18px !important; background: var(--gm-paper) !important;
+}
+/* Big art tile used by detail panels */
+body :is(#cosmeticPreviewModal, #supplyStorageModal) :is(.supply-v2-art, .cosmetic-preview-set) { border-radius: 16px !important; background: var(--gm-art) !important; }
+
+/* ---------- Theme / field preview ---------- */
+body #cosmeticPreviewModal .market-modal-panel > .modal-scroll-area { padding-bottom: 28px !important; }
+body #cosmeticPreviewModal .cosmetic-preview-body { grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr); }
+body #cosmeticPreviewModal .cosmetic-tryon-stage { margin: 0; padding: 0 !important; overflow: hidden; border-radius: 16px !important; background: var(--gm-soft) !important; }
+body #cosmeticPreviewModal .cosmetic-farm-preview,
+body #cosmeticPreviewModal .cosmetic-farm-preview .farm-layout { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; background: none !important; }
+body #cosmeticPreviewModal .cosmetic-farm-preview :is(.farm-window-chrome, .npc-market, .farm-theme-banner) { display: none !important; }
+body #cosmeticPreviewModal .cosmetic-farm-preview .farm-panel-header { margin: 0 !important; padding: 12px 14px !important; min-height: 0 !important; background: var(--gm-paper) !important; border-bottom: 1px solid var(--gm-line) !important; }
+body #cosmeticPreviewModal .cosmetic-farm-preview .farm-panel-header::before,
+body #cosmeticPreviewModal .cosmetic-farm-preview .farm-panel-header::after { display: none !important; }
+body #cosmeticPreviewModal .cosmetic-farm-preview :is(.farm-scene, .farm-scene-grid) { width: 100% !important; max-width: none !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; }
+body #cosmeticPreviewModal .cosmetic-preview-farm-scene :is(strong, small, span, em, p) { color: #2f2418 !important; }
+body #cosmeticPreviewModal .cosmetic-preview-detail { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+body #cosmeticPreviewModal .cosmetic-preview-kind { align-self: flex-start; padding: 5px 12px; border-radius: 20px; background: var(--gm-blue-soft); color: var(--gm-blue); font-size: 12px; font-weight: 700; }
+body #cosmeticPreviewModal #cosmeticPreviewDescription { margin: 0; color: var(--gm-ink) !important; font-size: 15px; line-height: 1.65; }
+body #cosmeticPreviewModal .cosmetic-preview-set { padding: 16px !important; }
+body #cosmeticPreviewModal .cosmetic-preview-set[hidden] { display: none; }
+body #cosmeticPreviewModal .cosmetic-preview-set-heading { display: grid; gap: 4px; margin-bottom: 12px; }
+body #cosmeticPreviewModal .cosmetic-preview-set-heading strong { font-size: 14px; }
+body #cosmeticPreviewModal #cosmeticPreviewSetEffect { color: var(--gm-blue); font-size: 13px; font-weight: 650; line-height: 1.5; }
+body #cosmeticPreviewModal .cosmetic-preview-set-members { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+body #cosmeticPreviewModal .cosmetic-preview-set-members li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px !important; border-radius: 10px !important; background: var(--gm-paper) !important; font-size: 13px; }
+body #cosmeticPreviewModal .cosmetic-preview-set-members small { font-size: 12px; }
+body #cosmeticPreviewModal .cosmetic-preview-set-members strong { font-size: 13px; text-align: right; }
+body #cosmeticPreviewModal .cosmetic-preview-guide { margin: 0 !important; padding: 0 !important; background: none !important; color: var(--gm-muted) !important; font-size: 12px; text-align: center; }
+
+/* ---------- Supplies ---------- */
+body #supplyStorageModal .modal-market-balance {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin: 0 0 18px; padding: 14px 18px !important; border-radius: 12px; background: var(--gm-soft) !important; color: var(--gm-muted) !important; font-size: 13px;
+}
+body #supplyStorageModal .modal-market-balance strong { color: var(--gm-ink) !important; font-size: 17px; }
+body #supplyStorageModal .supply-inventory-summary { display: none; }
+body #supplyStorageModal #farmItemInventory { grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr); }
+body #supplyStorageModal .supply-v2-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 520px; overflow: auto; padding: 2px; }
+body #supplyStorageModal .supply-v2-list .farm-supply-item {
+  position: relative; display: flex !important; flex-direction: column; align-items: center; gap: 6px;
+  min-height: 0; padding: 16px 10px !important; border-radius: 14px !important; text-align: center; opacity: 1;
+}
+body #supplyStorageModal .supply-v2-list .farm-supply-item.is-selected { border-color: var(--gm-blue) !important; background: var(--gm-blue-soft) !important; box-shadow: 0 0 0 1px #4878ed55 !important; }
+body #supplyStorageModal .supply-v2-list .farm-supply-pixel-icon { width: 72px !important; height: 72px !important; }
+body #supplyStorageModal .supply-v2-list strong { font-size: 13px; line-height: 1.4; word-break: keep-all; }
+body #supplyStorageModal .supply-v2-price { color: var(--gm-blue); font-size: 12px; font-weight: 700; }
+body #supplyStorageModal .supply-v2-owned { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 20px !important; background: var(--gm-soft) !important; color: var(--gm-ink) !important; font-size: 10px; font-style: normal; font-weight: 650; }
+body #supplyStorageModal .supply-v2-active { position: absolute; top: 10px; left: 10px; width: 8px; height: 8px; border-radius: 50%; background: #329f58; }
+body #supplyStorageModal .supply-v2-detail { display: flex; flex-direction: column; min-width: 0; padding: 0 0 0 28px !important; border-left: 1px solid var(--gm-line) !important; }
+body #supplyStorageModal .supply-v2-art { display: grid; place-items: center; height: 190px; margin-bottom: 18px; }
+body #supplyStorageModal .supply-v2-art .farm-supply-pixel-icon { width: 150px !important; height: 150px !important; }
+body #supplyStorageModal .supply-v2-eyebrow { color: var(--gm-blue); font-size: 12px; font-weight: 700; }
+body #supplyStorageModal .supply-v2-detail h3 { margin: 4px 0 8px; font-size: 28px; font-weight: 760; letter-spacing: -.03em; line-height: 1.25; }
+body #supplyStorageModal .supply-v2-description { margin: 0 0 14px; color: var(--gm-ink) !important; font-size: 15px; line-height: 1.6; }
+body #supplyStorageModal .supply-v2-status { align-self: flex-start; margin: 0 0 14px; padding: 5px 12px !important; border-radius: 20px !important; background: #329f5822 !important; color: #2b8a4c !important; font-size: 12px; font-weight: 650; }
+body #supplyStorageModal .supply-v2-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; }
+body #supplyStorageModal .supply-v2-facts > div { padding: 12px 14px !important; border: 1px solid var(--gm-line) !important; border-radius: 12px !important; }
+body #supplyStorageModal .supply-v2-facts dt { margin-bottom: 4px; font-size: 12px; }
+body #supplyStorageModal .supply-v2-facts dd { margin: 0; font-size: 16px; font-weight: 700; }
+body #supplyStorageModal .supply-v2-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+body #supplyStorageModal .supply-v2-actions .supply-v2-use { min-height: 54px; font-size: 15px; }
+
+/* ---------- Ranking ---------- */
+body #farmRankingModal .farm-ranking-layout { grid-template-columns: minmax(280px, .9fr) minmax(0, 1.4fr); }
+body #farmRankingModal .farm-ranking-side { display: grid; gap: 14px; min-width: 0; }
+body #farmRankingModal .farm-ranking-my-score {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 20px !important; border-radius: 16px !important; background: var(--gm-art) !important;
+}
+body #farmRankingModal .farm-ranking-period { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; padding: 0 !important; background: none !important; }
+body #farmRankingModal .farm-ranking-period span { color: var(--gm-ink); font-size: 15px; font-weight: 700; }
+body #farmRankingModal .farm-ranking-period small { font-size: 12px; }
+body #farmRankingModal .farm-ranking-my-rank { margin: 12px 0 2px; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; color: var(--gm-blue) !important; font-size: 40px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+body #farmRankingModal .farm-ranking-my-score > span { color: var(--gm-muted); font-size: 13px; }
+body #farmRankingModal .farm-ranking-my-money { font-size: 24px; font-weight: 780; }
+body #farmRankingModal .farm-ranking-rewards { display: grid; gap: 10px; padding: 18px !important; border: 1px solid var(--gm-line) !important; border-radius: 16px !important; }
+body #farmRankingModal .farm-ranking-rewards > strong { font-size: 15px; }
+body #farmRankingModal .farm-ranking-rewards ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+body #farmRankingModal .farm-ranking-rewards li { display: flex; justify-content: space-between; padding: 10px 12px !important; border-radius: 10px !important; background: var(--gm-soft) !important; font-size: 13px; }
+body #farmRankingModal .farm-ranking-rewards li span { color: var(--gm-ink); }
+body #farmRankingModal .farm-ranking-rewards small { font-size: 12px; }
+body #farmRankingModal .farm-ranking-board { display: grid; gap: 16px; min-width: 0; }
+body #farmRankingModal .farm-ranking-podium { min-height: 250px; padding: 20px 14px 0 !important; margin: 0; border-radius: 16px !important; background: var(--gm-soft) !important; }
+body #farmRankingModal .farm-podium-place { background: none !important; }
+body #farmRankingModal .farm-podium-farmer { padding: 10px 6px !important; border: 1px solid var(--gm-line) !important; border-bottom: 0 !important; border-radius: 12px 12px 0 0 !important; background: var(--gm-paper) !important; }
+body #farmRankingModal .farm-podium-place.is-me .farm-podium-farmer { border-color: var(--gm-blue) !important; background: var(--gm-blue-soft) !important; }
+body #farmRankingModal .farm-podium-farmer strong:not(.farm-ranking-farm-title) { font-size: 14px; }
+body #farmRankingModal .farm-podium-score { color: var(--gm-ink) !important; font-size: 14px; }
+body #farmRankingModal .farm-podium-place > i { background: #c7d4ef !important; color: #2b3f66 !important; border-radius: 10px 10px 0 0 !important; font-size: 22px; font-style: normal; font-weight: 800; }
+body #farmRankingModal .farm-podium-place.is-me > i { background: var(--gm-blue) !important; color: #fff !important; }
+:root[data-theme="dark"] body #farmRankingModal .farm-podium-place:not(.is-me) > i { background: #2f4062 !important; color: #dce6f8 !important; }
+body #farmRankingModal .farm-ranking-table { overflow: hidden; padding: 0 !important; border: 1px solid var(--gm-line) !important; border-radius: 16px !important; }
+body #farmRankingModal .farm-ranking-table > header { display: grid; grid-template-columns: 70px 1fr auto; margin: 0 !important; padding: 12px 18px !important; background: var(--gm-soft) !important; }
+body #farmRankingModal .farm-ranking-table > header :is(strong, span) { color: var(--gm-muted) !important; font-size: 12px; font-weight: 600; }
+body #farmRankingModal .farm-ranking-list { margin: 0; padding: 4px 12px 8px !important; background: none !important; }
+body #farmRankingModal .farm-ranking-list > li { padding: 12px 6px !important; border-bottom: 1px solid var(--gm-line) !important; background: none !important; color: var(--gm-ink) !important; font-size: 14px; }
+body #farmRankingModal .farm-ranking-list > li:last-child { border-bottom: 0 !important; }
+body #farmRankingModal .farm-ranking-list > li.farm-ranking-empty { padding: 26px 6px !important; color: var(--gm-muted) !important; font-size: 13px; text-align: center; }
+body #farmRankingModal .farm-ranking-row.is-me { border-radius: 10px !important; background: var(--gm-blue-soft) !important; }
+
+/* ---------- Mail ---------- */
+body #farmMailModal .pixel-post-office-sign { display: none !important; }
+body #farmMailModal .farm-mail-tabs { display: flex; gap: 4px; margin: 0 0 18px; padding: 0 !important; border-bottom: 1px solid var(--gm-line) !important; background: none !important; }
+body #farmMailModal .farm-mail-tabs button {
+  flex: 0 0 auto; min-height: 44px; padding: 8px 18px !important; font-size: 15px;
+  border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; background: none !important; color: var(--gm-muted) !important;
+}
+body #farmMailModal .farm-mail-tabs button.active { border-bottom-color: var(--gm-blue) !important; background: none !important; color: var(--gm-ink) !important; }
+body #farmMailModal .farm-mail-tabs small { margin-left: 4px; padding: 1px 7px; border-radius: 10px; background: var(--gm-blue); color: #fff !important; font-size: 11px; }
+body #farmMailModal #farmMailSendPanel:not(.hidden) { grid-template-columns: minmax(0, 1.45fr) minmax(280px, 1fr); grid-template-rows: auto 1fr; }
+body #farmMailModal .farm-mail-compose { grid-column: 1; grid-row: 1 / 3; display: grid; gap: 22px; padding: 0 !important; background: none !important; }
+body #farmMailModal .farm-mail-status {
+  grid-column: 2; grid-row: 1;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: 20px !important; border-radius: 16px !important; background: var(--gm-art) !important;
+}
+body #farmMailModal .farm-mail-status span { color: var(--gm-muted); font-size: 13px; }
+body #farmMailModal .farm-mail-status strong { color: var(--gm-blue) !important; font-size: 32px; font-weight: 800; letter-spacing: -.02em; }
+body #farmMailModal .farm-mail-status strong span { color: inherit; font-size: inherit; }
+body #farmMailModal .farm-mail-history-section { grid-column: 2; grid-row: 2; padding: 18px !important; border: 1px solid var(--gm-line) !important; border-radius: 16px !important; }
+body #farmMailModal .farm-mail-history-section h3 { margin: 0 0 12px; font-size: 15px; }
+body #farmMailModal .farm-mail-step { padding: 0 !important; background: none !important; }
+body #farmMailModal .farm-mail-step h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 17px; font-weight: 750; }
+body #farmMailModal .farm-mail-step h3 > span { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 0 !important; border-radius: 50% !important; background: var(--gm-blue) !important; box-shadow: none !important; color: #fff !important; font-size: 13px; }
+body #farmMailModal .farm-mail-step h3 small { margin-left: auto; font-size: 12px; font-weight: 450; }
+body #farmMailModal .farm-mail-recipient-code input { width: 100%; }
+body #farmMailModal .farm-mail-recipient-code small { display: block; margin: 8px 0; font-size: 12px; }
+body #farmMailModal .farm-mail-ranking summary { color: var(--gm-muted) !important; font-size: 13px; cursor: pointer; background: none !important; }
+body #farmMailModal .farm-mail-categories { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0 !important; background: none !important; }
+body #farmMailModal .farm-mail-categories button { min-height: 46px; font-size: 14px; }
+body #farmMailModal :is(.farm-mail-items, .farm-mail-history, .farm-mail-inbox) { background: none !important; padding: 0 !important; }
+body #farmMailModal :is(.farm-mail-items, .farm-mail-history, .farm-mail-inbox) > :is(p, span, div):only-child:not(.farm-mail-item):not(.farm-mail-card):not(.farm-mail-history-item) {
+  padding: 22px !important; border-radius: 12px; background: var(--gm-soft) !important; color: var(--gm-muted) !important; font-size: 13px; text-align: center;
+}
+body #farmMailModal :is(.farm-mail-card, .farm-mail-history-item, .farm-mail-item) { border: 1px solid var(--gm-line) !important; border-radius: 12px !important; background: var(--gm-paper) !important; }
+body #farmMailModal :is(.farm-mail-quantity, .farm-mail-price, .farm-mail-message) { margin-top: 12px; padding: 0 !important; background: none !important; }
+body #farmMailModal .farm-mail-inbox-note { margin-bottom: 14px; padding: 14px 18px !important; border-radius: 12px; background: var(--gm-soft) !important; color: var(--gm-muted) !important; font-size: 13px; }
+body #farmMailModal #farmMailInboxPanel .farm-mail-inbox { display: grid; gap: 10px; }
+
+/* ---------- Free pass target picker ---------- */
+body #freePassTargetModal .market-modal-panel > :not(.modal-scroll-area) { padding-inline: 28px; }
+
+@media (max-width: 900px) {
+  body #cosmeticPreviewModal .cosmetic-preview-body,
+  body #supplyStorageModal #farmItemInventory,
+  body #farmRankingModal .farm-ranking-layout,
+  body #farmMailModal #farmMailSendPanel:not(.hidden) { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  body #supplyStorageModal .supply-v2-detail { padding: 22px 0 0 !important; border-left: 0 !important; border-top: 1px solid var(--gm-line) !important; }
+  body #supplyStorageModal .supply-v2-list { grid-template-columns: repeat(3, minmax(0, 1fr)); max-height: none; }
+  body #farmMailModal :is(.farm-mail-compose, .farm-mail-status, .farm-mail-history-section) { grid-column: 1; grid-row: auto; }
+  body #farmMailModal .farm-mail-status { order: -1; }
+}
+@media (max-width: 700px) {
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) { padding: 10px; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel { width: calc(100vw - 20px); border-radius: 18px !important; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel > .modal-scroll-area { padding: 20px 14px !important; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header h2 { font-size: 24px; }
+  body #cosmeticPreviewModal .cosmetic-preview-body,
+  body #supplyStorageModal #farmItemInventory,
+  body #farmRankingModal .farm-ranking-layout,
+  body #farmMailModal #farmMailSendPanel:not(.hidden) { padding: 12px !important; }
+  body #supplyStorageModal .supply-v2-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body #supplyStorageModal .supply-v2-art { height: 150px; }
+  body #supplyStorageModal .supply-v2-art .farm-supply-pixel-icon { width: 110px !important; height: 110px !important; }
+  body #supplyStorageModal .supply-v2-detail h3 { font-size: 23px; }
+  body #farmRankingModal .farm-ranking-my-rank { font-size: 32px; }
+  body #farmMailModal .farm-mail-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Overrides for older per-element pixel rules that set size, colour or width. */
+body #supplyStorageModal .supply-v2-list .supply-v2-price { padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; }
+body #farmRankingModal .farm-ranking-my-score > * { margin-left: 0 !important; padding-left: 0 !important; }
+body #farmRankingModal .farm-ranking-period > * { padding: 0 !important; margin: 0 !important; background: none !important; }
+body #farmRankingModal strong.farm-ranking-my-rank { margin: 14px 0 0 !important; font-size: 40px !important; line-height: 1.1 !important; }
+body #farmRankingModal .farm-ranking-rewards,
+body #farmMailModal .farm-mail-history-section { background: var(--gm-paper) !important; }
+@media (max-width: 700px) { body #farmRankingModal strong.farm-ranking-my-rank { font-size: 32px !important; } }
+body #cosmeticPreviewModal .cosmetic-preview-detail { align-items: stretch !important; align-self: stretch; }
+body #farmRankingModal .farm-ranking-table .farm-ranking-list,
+body #farmRankingModal .farm-ranking-table .farm-ranking-list > li { background: transparent !important; }
+body #farmRankingModal .farm-ranking-period span::before,
+body #farmRankingModal .farm-ranking-period span::after { display: none !important; }
+@media (max-width: 700px) {
+  body #supplyStorageModal .supply-v2-actions { grid-template-columns: minmax(0, 1fr); }
+  body #supplyStorageModal .supply-v2-facts dd { font-size: 14px; }
+  body #supplyStorageModal .supply-v2-actions .supply-v2-use { min-height: 46px; }
+}
+body #farmRankingModal .farm-ranking-table { background: var(--gm-paper) !important; }
+body #farmRankingModal :is(.farm-ranking-my-score, .farm-ranking-period, .farm-ranking-rewards) { text-align: left !important; }
+body #farmRankingModal .farm-ranking-period { align-items: flex-start !important; }
+
+/* Preview purchase bar stays pinned under the sheet at every size. */
+body #cosmeticPreviewModal .market-modal-panel { display: flex; flex-direction: column; }
+body #cosmeticPreviewModal .market-modal-panel > .modal-scroll-area { flex: 1 1 auto; min-height: 0; max-height: none; }
+body #cosmeticPreviewModal .farm-theme-preview-actions {
+  display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+  padding: 16px 28px !important; border-top: 1px solid var(--gm-line) !important; background: var(--gm-paper) !important;
+}
+body #cosmeticPreviewModal .farm-theme-preview-actions[hidden] { display: none !important; }
+body #cosmeticPreviewModal .cosmetic-preview-price { display: grid; gap: 2px; }
+body #cosmeticPreviewModal .cosmetic-preview-price span { color: var(--gm-muted); font-size: 12px; }
+body #cosmeticPreviewModal .cosmetic-preview-price strong { color: var(--gm-blue) !important; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+body #cosmeticPreviewModal .farm-theme-preview-actions > p { flex: 1; margin: 0; color: var(--gm-muted) !important; font-size: 13px; }
+body #cosmeticPreviewModal .farm-theme-preview-actions .farm-goal-action { width: auto !important; min-width: 320px; }
+@media (max-width: 700px) {
+  body #cosmeticPreviewModal .farm-theme-preview-actions { flex-wrap: wrap; gap: 8px 12px; padding: 12px 14px !important; }
+  body #cosmeticPreviewModal .farm-theme-preview-actions .farm-goal-action { flex: 1 1 100%; width: 100% !important; min-width: 0; min-height: 50px !important; }
+}
+@media (max-width: 700px) {
+  body #cosmeticPreviewModal .farm-theme-preview-actions { flex-direction: row !important; align-items: center !important; text-align: left; }
+  body #cosmeticPreviewModal .cosmetic-preview-price strong { font-size: 20px; }
+  body #cosmeticPreviewModal .farm-theme-preview-actions > p { font-size: 12px; text-align: right; }
+}
+body #farmRankingModal .farm-ranking-farm-title { display: block; color: var(--gm-ink) !important; font-size: 14px; font-weight: 700; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+body #farmRankingModal .farm-ranking-list .farm-ranking-farm-title { font-size: 15px; }
+/* Podium column heights (formerly in the retired nameplate stylesheet). */
+body #farmRankingModal .farm-podium-place { padding-bottom: 40px; }
+@media (max-width: 600px) {
+  body #farmRankingModal .farm-podium-place[data-rank="1"] { min-height: 226px; }
+  body #farmRankingModal .farm-podium-place[data-rank="2"] { min-height: 208px; }
+  body #farmRankingModal .farm-podium-place[data-rank="3"] { min-height: 192px; }
+}
+
+/* Inbox rows: card list with the garden artwork at a fixed size. */
+body #farmMailModal .farm-mail-inbox-row {
+  position: relative; display: grid !important; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 14px;
+  padding: 14px 16px !important; border: 1px solid var(--gm-line) !important; border-radius: 14px !important;
+  background: var(--gm-paper) !important; box-shadow: none !important;
+}
+body #farmMailModal .farm-mail-inbox-row::before,
+body #farmMailModal .farm-mail-inbox-row::after { display: none !important; }
+body #farmMailModal .farm-mail-inbox-row:not(.claimed) { border-color: #4878ed66 !important; background: var(--gm-blue-soft) !important; }
+body #farmMailModal .farm-mail-inbox-row.claimed { opacity: .65; }
+body #farmMailModal .farm-mail-inbox-avatar { display: grid; place-items: center; width: 48px; height: 48px; border: 0 !important; border-radius: 12px !important; background: var(--gm-soft) !important; box-shadow: none !important; font-size: 24px; }
+body #farmMailModal .farm-mail-inbox-copy { display: grid; gap: 6px; min-width: 0; }
+body #farmMailModal .farm-mail-sender { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+body #farmMailModal .farm-mail-sender strong { font-size: 14px; }
+body #farmMailModal .farm-mail-sender small { font-size: 12px; }
+body #farmMailModal .farm-mail-inbox-copy > strong { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+body #farmMailModal :is(.farm-mail-inbox, .farm-mail-history) :is(.garden-crop-art, .garden-food-art, .crop-pixel, .food-pixel) {
+  position: relative; inset: auto; flex: 0 0 40px; width: 40px !important; height: 40px !important; margin: 0;
+}
+body #farmMailModal .farm-mail-inbox-message { margin: 0; font-size: 13px; }
+body #farmMailModal .farm-mail-inbox-row > button { min-width: 88px; border-color: var(--gm-blue) !important; background: var(--gm-blue) !important; color: #fff !important; }
+body #farmMailModal .farm-mail-inbox-row > button:disabled { border-color: var(--gm-line) !important; background: var(--gm-soft) !important; color: var(--gm-muted) !important; }
+body #farmMailModal .farm-mail-history-row { display: flex; align-items: center; gap: 10px; padding: 10px 0 !important; border-bottom: 1px solid var(--gm-line) !important; background: none !important; }
+body #farmMailModal .farm-mail-history-row:last-child { border-bottom: 0 !important; }
+body #farmMailModal .farm-mail-history-row > span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #329f5822; color: #2b8a4c; font-size: 12px; }
+body #farmMailModal .farm-mail-history-row p { flex: 1; margin: 0; font-size: 13px; }
+@media (max-width: 700px) {
+  body #farmMailModal .farm-mail-inbox-row { grid-template-columns: 40px minmax(0, 1fr); }
+  body #farmMailModal .farm-mail-inbox-avatar { width: 40px; height: 40px; }
+  body #farmMailModal .farm-mail-inbox-row > button { grid-column: 1 / -1; width: 100%; }
+}

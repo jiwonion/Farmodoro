@@ -73,7 +73,7 @@ body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .farm-window-chrome
   color: var(--farm-on-accent);
   box-shadow: inset 0 4px #ffffff30, inset 0 -4px #00000026;
 }
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-panel-header, .farm-wallet, .farm-header-money, .seed-shop-card, .noah-buy-card, .rachel-cosmetic-card) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-panel-header, .farm-wallet, .farm-header-money, .rachel-cosmetic-card) {
   border-color: var(--farm-edge);
   background: var(--farm-surface) !important;
   color: var(--farm-ink);
@@ -104,12 +104,12 @@ body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:focus-visibl
   outline-color: var(--farm-accent);
 }
 body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] button:active:not(:disabled) { box-shadow: none; }
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.rachel-tabs button[aria-selected="true"], .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button) {
   background: var(--farm-accent) !important;
   color: var(--farm-on-accent) !important;
   box-shadow: inset 0 3px #ffffff30, inset 0 -3px #00000026, 2px 2px 0 var(--farm-shadow);
 }
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-category-tabs button.active, .rachel-tabs button[aria-selected="true"], .seed-shop-card button, .noah-buy-card button, .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button):hover:not(:disabled) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.rachel-tabs button[aria-selected="true"], .rachel-cosmetic-card > button:not(.rachel-preview-button), .rachel-cosmetic-actions button):hover:not(:disabled) {
   background: var(--farm-accent) !important;
   box-shadow: inset 0 0 0 2px var(--farm-on-accent), 2px 2px 0 var(--farm-shadow);
 }
@@ -117,10 +117,10 @@ body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .npc-market > .open
   border-color: var(--farm-edge);
   background: repeating-linear-gradient(90deg, var(--farm-accent) 0 28px, var(--farm-surface) 28px 56px);
 }
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-name-display h2:not([data-label-effect]), .farm-header-actions button span, .farm-header-money span, .farm-header-money b, .farm-wallet strong, .open-permanent-market span, .seed-shop-card strong, .noah-buy-card strong, .rachel-preview-button) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.farm-name-display h2, .farm-header-actions button span, .farm-header-money span, .farm-header-money b, .farm-wallet strong, .open-permanent-market span, .rachel-preview-button) {
   color: var(--farm-ink) !important;
 }
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.open-permanent-market small, .seed-shop-card small, .noah-buy-card small, .rachel-cosmetic-card small, .rachel-status) {
+body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.open-permanent-market small, .rachel-cosmetic-card small, .rachel-status) {
   color: var(--farm-muted) !important;
 }
 body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.section-kicker, .farm-header-money strong, .farm-header-money i, .rachel-cosmetic-card .rachel-preview-hint) {
@@ -135,9 +135,6 @@ body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.market-section
   border-color: var(--farm-edge);
   background: var(--farm-accent);
   color: var(--farm-on-accent);
-}
-body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] :is(.seed-shop-emoji, .noah-buy-card > span) {
-  background: var(--farm-soft);
 }
 body :is(#farmPage, .cosmetic-farm-preview)[data-farm-theme] .rachel-cosmetic-card.equipped {
   border-color: var(--farm-accent);

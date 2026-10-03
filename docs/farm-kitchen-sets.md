@@ -1,5 +1,7 @@
 # 주방과 스킨 세트 (272)
 
+이 문서는 초기 272 버전 기록이다. 현재 장착 부위는 테마·밭이며 모든 세트 효과는 1부위 5%, 2부위 10%다. `082_farm_set_percentages.sql`을 적용하며, 전체 적용 순서는 [내 정원과 간편 주방](garden-v2.md)을 따른다.
+
 ## 적용
 
 `071_public_recipes_and_cosmetic_sets.sql`, `072_diverse_cosmetic_set_effects.sql` 순서로 적용하고 프런트엔드를 함께 배포한다.

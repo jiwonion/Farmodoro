@@ -92,9 +92,17 @@ body :is(#todayPage, #focusPage) #focusSkipBreakButton {
   cursor: pointer;
 }
 body #focusPage .focus-item-picker {
+  border-color: var(--pixel-edge) !important;
   border-radius: 7px !important;
-  background: transparent !important;
+  background: var(--paper) !important;
+  color: var(--ink);
   box-shadow: none !important;
+}
+body #focusPage .focus-item-picker > span {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0;
 }
 body #focusPage .focus-stage-actions button:is(.active, [aria-pressed="true"]) {
   border-color: var(--pixel-accent) !important;

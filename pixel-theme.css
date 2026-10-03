@@ -93,7 +93,7 @@ body :is(.section-header h2,.habit-heatmap h2,.card-heading h2) { color: var(--i
 body :is(.board-column,.group-manager) { background: var(--pixel-soft) !important; border: 1px solid var(--line) !important; border-radius: 2px !important; box-shadow: none !important; }
 body .board-column > header { border-bottom: 2px solid var(--line); }
 body :is(.column-header,.board-column h3,.board-column header) { color: var(--ink) !important; }
-body :is(.task-card,.habit-item,.recipe-card,.farm-item-card,.seed-shop-card,.noah-buy-card) { border-color: var(--line) !important; border-radius: 2px !important; background-color: var(--paper) !important; box-shadow: 2px 2px 0 var(--pixel-shadow) !important; color: var(--ink); }
+body :is(.task-card,.habit-item,.recipe-card,.farm-item-card) { border-color: var(--line) !important; border-radius: 2px !important; background-color: var(--paper) !important; box-shadow: 2px 2px 0 var(--pixel-shadow) !important; color: var(--ink); }
 body :is(.task-card,.habit-item) strong { color: var(--ink) !important; }
 body :is(.task-card,.habit-item) :is(p,small) { color: var(--muted); }
 body .habit-item.complete { background: var(--pixel-soft) !important; }
@@ -158,14 +158,14 @@ body #focusPage .focus-page-stage::after { background: none !important; }
 body #focusPage .focus-card.standalone { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 body #focusPage :is(.focus-item-picker,.focus-stage-actions button,.focus-stage-actions label) { border-radius: 2px; background: #314782; color: #fff; border-color: #8498ce; box-shadow: 2px 2px 0 #121f48; backdrop-filter: none; }
 body #focusPage .focus-item-trigger { border-color: #8498ce; background: #25396f; }
-body :is(.market-modal-panel,.habit-modal-panel,.focus-settings,.custom-group-menu,.themed-date-calendar,.focus-youtube-panel) {
+body :is(.market-modal-panel,.habit-modal-panel,.focus-settings,.custom-group-menu,.themed-date-calendar) {
   background: var(--paper) !important; color: var(--ink) !important; border: 2px solid var(--pixel-edge) !important;
   border-radius: 2px !important; box-shadow: 5px 5px 0 var(--pixel-shadow) !important; backdrop-filter: none;
 }
 body :is(.market-modal-panel,.habit-modal-panel) > header { border-bottom: 2px solid var(--line); }
 body :is(.market-modal-panel,.habit-modal-panel,.focus-settings) :is(h2,h3,label,.section-kicker) { color: var(--ink) !important; text-shadow: none !important; }
 body :is(.market-modal-panel,.habit-modal-panel) :is(header p,small) { color: var(--muted); }
-body :is(.settings-section,.auth-benefits,.farm-mail-compose,.recipe-book) { border-radius: 2px; background: var(--pixel-soft); border-color: var(--line); }
+body :is(.settings-section,.auth-benefits,.farm-mail-compose) { border-radius: 2px; background: var(--pixel-soft); border-color: var(--line); }
 body :is(.custom-group-trigger,.custom-group-option,.themed-date-trigger,.themed-date-day) { color: var(--ink); background-color: var(--paper); border-color: var(--line); }
 body :is(.custom-group-option.selected,.themed-date-day.selected) { background: var(--pixel-accent); color: var(--pixel-on-accent); }
 body :is(.auth-gate,.auth-entry,.auth-boot) { background: var(--cream); }

@@ -105,10 +105,10 @@ test("focus reward retries the same event after a lost response", async () => {
     activeAuthUser: { id: "user" }, focusProgressApiUnavailable: false,
     focusProgressSyncPromise: null, focusProgressServerSeconds: 0,
     focusProgressEventQueue: [{ id: "event", mode: "quick", seconds: 60 }],
-    stagePendingFocusEvents: noop, state: { coins: 0 },
+    stagePendingFocusEvents: noop, persistPendingFocusEvents: noop, state: { coins: 0 },
     showToast: noop, farmBonusMessage: () => "", refreshFocusProgress: noop, renderFarm: noop,
     supabaseClient: { rpc: async (name, args) => {
-      assert.equal(name, "record_my_focus_time");
+      assert.equal(name, "record_my_focus_time_v2");
       attempts.push(args.p_event_id);
       if (!seen.has(args.p_event_id)) {
         seen.add(args.p_event_id);
@@ -272,8 +272,10 @@ for (const [year, month, endedDate, boundaryDate] of [
       "getHabitProgress", "getHabitProgressRatio",
     ], {
       state: { habits }, habitCalendarDate: new Date(year, month, 15),
+      lastHabitHeatmapDate: "",
       escapeHtml: String,
-      toLocalDateString: (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+      renderHabitMonthlySummary: noop,
+      toLocalDateString: (date = new Date(year, month, 15)) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
       document: { querySelector: (selector) => elements.get(selector) },
     });
     const renderedNames = () => [...elements.get("#habitHeatmapGrid").innerHTML.matchAll(/class="heatmap-habit-name" title="([^"]+)"/g)].map(match => match[1]);
@@ -306,9 +308,9 @@ test("checking a past habit saves the displayed date even if navigation changes 
       return new Promise((resolve) => { finishSave = resolve; });
     },
   });
-  const start = source.indexOf('document.querySelector("#habitList").addEventListener("click",');
-  const end = source.indexOf('\ndocument.querySelector("#seedShop")', start);
-  vm.runInContext(source.slice(start, end), ctx);
+  const handlerSource = source.match(/document\.querySelector\("#habitList"\)\.addEventListener\("click",[^]*?^\}\);/m);
+  assert.ok(handlerSource, "The habit click handler is available independently of farm controls");
+  vm.runInContext(handlerSource[0], ctx);
   const button = { dataset: { toggleHabit: "habit" }, disabled: false };
   const event = { target: { closest: (selector) => selector === "[data-toggle-habit]" ? button : null } };
   const pending = handler(event);
@@ -409,6 +411,9 @@ function timerContext(owner = false, mode = "quick") {
     activeFocus: mode === "linked" ? { type: "task", id: "task" } : null,
     toLocalDateString: () => "2026-09-13",
     getFocusItem: () => null,
+    getFocusFarmTarget: () => ({ plotId: null, cropInstanceId: null }),
+    resolveFocusTimerRecoveryPayload: (payload) => payload,
+    persistFocusTimerCheckpoint: noop,
     getFocusSettings: () => ({ focusMinutes: 1 }),
     updateActiveFocusCard: noop, updateFocusDisplay: noop,
     updateMiniFocusTimer: noop, updateFocusActionButton: noop,
@@ -775,6 +780,83 @@ test("a farm action during a slow reload prevents stale farm data from being app
   resolveRead({ data: { farm: { farmName: "old name" } }, error: null });
   await loading;
   assert.equal(state.farmName, "new name");
+});
+
+function preferencesContext(rpc) {
+  const effects = { renders: 0, runtimeLoads: [], toasts: [] };
+  const ctx = context(["loadUserPreferences"], {
+    console: { error: noop },
+    activeAuthUser: { id: "user" }, appStateUserId: "user", appStateHydrated: false,
+    state: {
+      settings: { quick: { focusMinutes: 25 } }, coins: 34, farmMoney: 250,
+      farmName: "Current farm", farmPlots: [{ id: 0, crop: "carrot" }],
+      groups: [{ id: "group" }], tasks: [{ id: "task" }], habits: [{ id: "habit" }],
+    },
+    supabaseClient: { rpc, from: () => assert.fail("Preferences must not read the retired app state table") },
+    captureFarmState: () => ({ farmName: ctx.state.farmName, farmPlots: ctx.state.farmPlots }),
+    restoreFarmState: farm => Object.assign(ctx.state, farm),
+    loadState: saved => ({ settings: saved.settings, coins: 0, farmMoney: 0, groups: [], tasks: [], habits: [] }),
+    applyLoadedAppStateRuntime: initial => effects.runtimeLoads.push(initial),
+    render: () => effects.renders++, showToast: message => effects.toasts.push(message),
+  });
+  return { ctx, effects };
+}
+
+test("settings-only preferences hydrate while preserving the latest farm, wallet and productivity data", async () => {
+  let finishRead;
+  const settings = { linked: { focusMinutes: 45, breakEnabled: false, breakMinutes: 5 }, quick: { focusMinutes: 15, breakEnabled: true, breakMinutes: 3 } };
+  const { ctx, effects } = preferencesContext(name => {
+    assert.equal(name, "get_my_preferences");
+    return new Promise(resolve => { finishRead = resolve; });
+  });
+  const loading = ctx.loadUserPreferences({ id: "user" });
+  ctx.state.coins = 39;
+  ctx.state.farmMoney = 280;
+  const plots = [{ id: 0, crop: "strawberry" }];
+  const tasks = [{ id: "new-task" }];
+  const groups = ctx.state.groups;
+  const habits = ctx.state.habits;
+  ctx.state.farmPlots = plots;
+  ctx.state.tasks = tasks;
+  finishRead({ data: { settings }, error: null });
+  await loading;
+  assert.deepEqual(plain(ctx.state.settings), settings);
+  assert.equal(ctx.state.coins, 39);
+  assert.equal(ctx.state.farmMoney, 280);
+  assert.equal(ctx.state.farmName, "Current farm");
+  assert.equal(ctx.state.farmPlots, plots);
+  assert.equal(ctx.state.tasks, tasks);
+  assert.equal(ctx.state.groups, groups);
+  assert.equal(ctx.state.habits, habits);
+  assert.equal(ctx.appStateHydrated, true);
+  assert.deepEqual(effects.runtimeLoads, [true]);
+  assert.equal(effects.renders, 1);
+  assert.equal("focusYoutubePlaylists" in ctx.state, false);
+});
+
+test("a preferences response from the previous account cannot replace current settings", async () => {
+  let finishRead;
+  const { ctx, effects } = preferencesContext(() => new Promise(resolve => { finishRead = resolve; }));
+  const loading = ctx.loadUserPreferences({ id: "user" });
+  ctx.activeAuthUser = { id: "next-user" };
+  ctx.appStateUserId = "next-user";
+  const currentState = ctx.state;
+  finishRead({ data: { settings: { quick: { focusMinutes: 60 } } }, error: null });
+  await loading;
+  assert.equal(ctx.state, currentState);
+  assert.equal(ctx.appStateHydrated, false);
+  assert.equal(effects.renders, 0);
+  assert.deepEqual(effects.runtimeLoads, []);
+});
+
+test("a missing preferences RPC preserves local data and does not query the retired fallback table", async () => {
+  const { ctx, effects } = preferencesContext(async () => ({ data: null, error: { code: "PGRST202" } }));
+  const currentState = ctx.state;
+  await ctx.loadUserPreferences({ id: "user" });
+  assert.equal(ctx.state, currentState);
+  assert.equal(ctx.appStateHydrated, false);
+  assert.equal(effects.toasts.length, 1);
+  assert.equal(effects.renders, 0);
 });
 
 test("queued timer writes cannot overwrite a remote state accepted after a conflict", async () => {

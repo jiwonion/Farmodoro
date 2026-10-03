@@ -1,5 +1,37 @@
-/* Focus and farm fit the available workspace, including laptop browser zoom. */
+/* Focus fits the viewport; the farm fills its width without cropping the map. */
 :root { --workspace-viewport-inset: 60px; }
+
+/* Keep all 31 day columns visible before using the right side for summaries. */
+@container habit-log (min-width: 1240px) {
+  body #habitsPage .habit-monthly-body {
+    grid-template-columns: minmax(0, 832px) minmax(380px, 1fr);
+    gap: 28px;
+  }
+  body #habitsPage .habit-monthly-summary {
+    min-height: 250px;
+    gap: 24px;
+    padding: 0 0 0 28px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  body #habitsPage .habit-summary-ranking { padding-left: 20px; }
+}
+
+@container habit-log (max-width: 440px) {
+  body #habitsPage .habit-monthly-body { gap: 18px; }
+  body #habitsPage .habit-monthly-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding-top: 18px;
+  }
+  body #habitsPage .habit-summary-ranking {
+    padding: 18px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  body #habitsPage .habit-summary-ranking h3 { margin-top: 0; }
+  body #habitsPage .habit-summary-top { margin-top: 16px; gap: 18px; }
+}
 
 body #focusPage .focus-page-stage {
   container-type: inline-size;
@@ -29,6 +61,10 @@ body #focusPage .focus-page-stage .focus-stage-toolbar {
   width: 100%;
   gap: 12px;
   padding: clamp(12px, 1.5cqw, 24px);
+}
+
+body #focusPage .focus-page-stage:fullscreen .focus-stage-toolbar {
+  inset: auto;
 }
 
 body #focusPage .focus-item-picker {
@@ -76,7 +112,7 @@ body #focusPage .focus-page-stage .focus-card.standalone {
   width: 100%;
   height: auto;
   min-height: 0 !important;
-  padding: 20px clamp(16px, 3cqw, 48px) 36px;
+  padding: 24px clamp(16px, 3cqw, 48px);
 }
 
 body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
@@ -101,6 +137,7 @@ body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong {
 
 body #focusPage .focus-page-stage .focus-card.standalone .focus-copy {
   position: static;
+  flex: 0 0 auto;
   width: min(560px, 100%);
   max-width: 100%;
   transform: none;
@@ -125,7 +162,7 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
   max-width: 100%;
 }
 
-/* Preserve each terrain's plot coordinates while fitting its 3:2 map. */
+/* Keep the full 3:2 artwork across the workspace and scroll taller maps naturally. */
 @media (min-width: 701px) {
   body #farmPage .farm-layout {
     display: flex !important;
@@ -133,7 +170,7 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
     align-items: stretch;
     width: 100%;
     max-width: none;
-    height: calc(100dvh - var(--workspace-viewport-inset));
+    height: auto;
     min-height: 0;
     margin: 0;
   }
@@ -151,10 +188,9 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
   }
 
   body #farmPage .farm-scene[data-scenery] {
-    container-type: size;
-    display: grid;
-    flex: 1 1 auto;
-    place-items: center;
+    container-type: inline-size;
+    display: block;
+    flex: 0 0 auto;
     width: 100%;
     height: auto;
     min-width: 0;
@@ -163,7 +199,7 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
   }
 
   body #farmPage .farm-scene[data-scenery] .farm-scene-grid {
-    width: min(100cqw, 150cqh);
+    width: 100%;
     height: auto;
     min-width: 0;
     min-height: 0;
