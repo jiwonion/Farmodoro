@@ -1,7 +1,7 @@
 /* Farm popups (theme/field preview, supplies, ranking, mail, free pass) follow
    the kitchen: a wide white/dark sheet, a list on the left and a large detail
    panel on the right, generous type and one big blue action. */
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) {
   --gm-paper: var(--paper, #fff);
   --gm-soft: var(--paper-soft, #f7f9fc);
   --gm-ink: var(--ink, #243247);
@@ -14,14 +14,14 @@ body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMai
   z-index: 7300;
   padding: 18px;
 }
-:root[data-theme="dark"] body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) {
+:root[data-theme="dark"] body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) {
   --gm-paper: #192333; --gm-soft: #202d40; --gm-ink: #e7edf7; --gm-muted: #a4b3c7; --gm-line: #344258; --gm-blue-soft: #4878ed26;
   --gm-art: linear-gradient(125deg, #223150, #2b2a45); --gm-warm: #33302a;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-backdrop { background: #1b2a4466; backdrop-filter: none; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-backdrop { background: #1b2a4466; backdrop-filter: none; }
 
 /* Sheet */
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel {
   width: min(var(--gm-width, 1050px), calc(100vw - 32px));
   max-height: calc(100dvh - 36px);
   padding: 0 !important;
@@ -34,11 +34,11 @@ body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMai
   font-family: inherit !important;
 }
 body #freePassTargetModal { --gm-width: 560px; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel::before,
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel::after,
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header::before,
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header::after { display: none !important; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel > .modal-scroll-area {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel::before,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel::after,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header::before,
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header::after { display: none !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel > .modal-scroll-area {
   max-height: calc(100dvh - 38px);
   padding: 28px !important;
   border: 0 !important;
@@ -47,65 +47,65 @@ body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMai
 }
 
 /* Remove the old pixel frames from inner blocks; cards are rebuilt below. */
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :where(div, section, article, aside, header, ol, ul, li, details, summary, p, label, em, h3, dl, dt, dd) {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :where(div, section, article, aside, header, ol, ul, li, details, summary, p, label, em, h3, dl, dt, dd) {
   border-width: 0 !important;
   border-radius: 0;
   box-shadow: none !important;
   text-shadow: none !important;
   outline: 0;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :where(div, section, article, aside, header, ol, li, details, p, em, h3):not(.farm-scene):not(.farm-scene-grid):not(.farm-grid):not(.farm-plot):not(.garden-terrain) { background-image: none; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :where(div, section, article, aside, header, ol, li, details, p, em, h3):not(.farm-scene):not(.farm-scene-grid):not(.farm-grid):not(.farm-plot):not(.garden-terrain) { background-image: none; }
 
 /* Header */
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header {
   position: static !important;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
   min-height: 0 !important; margin: 0 0 20px !important; padding: 0 !important;
   border: 0 !important; background: none !important; color: var(--gm-ink) !important;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .section-kicker {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .section-kicker {
   display: block; margin: 0; color: var(--gm-blue) !important; font-family: inherit !important; font-size: 11px; font-weight: 750; letter-spacing: .12em;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header h2 {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header h2 {
   margin: 6px 0 8px !important; color: var(--gm-ink) !important; font-family: inherit !important; font-size: 32px; font-weight: 780; letter-spacing: -.03em; line-height: 1.2;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header p {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header p {
   margin: 0; color: var(--gm-muted) !important; font-family: inherit; font-size: 14px; line-height: 1.6;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) :is(h3, h4, strong, label, b, dd):not(.farm-scene *) { color: var(--gm-ink) !important; font-family: inherit !important; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) :is(p, small, em, dt):not(.farm-scene *) { color: var(--gm-muted); font-family: inherit; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) :is(h3, h4, strong, label, b, dd):not(.farm-scene *) { color: var(--gm-ink) !important; font-family: inherit !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) :is(p, small, em, dt):not(.farm-scene *) { color: var(--gm-muted); font-family: inherit; }
 
 /* Controls */
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel button {
   min-height: 40px; padding: 8px 14px;
   border: 1px solid var(--gm-line) !important; border-radius: 10px !important;
   background: var(--gm-paper) !important; color: var(--gm-ink) !important;
   box-shadow: none !important; text-shadow: none !important; transform: none !important;
   font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button:hover:not(:disabled) { background: var(--gm-soft) !important; filter: none; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button:disabled { opacity: .5; cursor: default; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(button, input, select, textarea):focus-visible { outline: 3px solid #4878ed66 !important; outline-offset: 2px; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(button.active, button[aria-pressed="true"]) {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel button:hover:not(:disabled) { background: var(--gm-soft) !important; filter: none; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel button:disabled { opacity: .5; cursor: default; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(button, input, select, textarea):focus-visible { outline: 3px solid #4878ed66 !important; outline-offset: 2px; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(button.active, button[aria-pressed="true"]) {
   border-color: var(--gm-blue) !important; background: var(--gm-blue-soft) !important; color: var(--gm-blue) !important;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel button.active :is(span, small, strong) { color: inherit !important; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action) {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel button.active :is(span, small, strong) { color: inherit !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action) {
   width: 100%; min-height: 54px !important; padding: 12px 18px !important;
   border-color: var(--gm-blue) !important; background: var(--gm-blue) !important; color: #fff !important;
   font-size: 16px !important; font-weight: 750 !important;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):hover:not(:disabled) { background: #3a69dc !important; color: #fff !important; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):disabled { opacity: 1; background: #a9c0f6 !important; border-color: transparent !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):hover:not(:disabled) { background: #3a69dc !important; color: #fff !important; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):disabled { opacity: 1; background: #a9c0f6 !important; border-color: transparent !important; }
 :root[data-theme="dark"] body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmMailModal) .market-modal-panel :is(.farm-mail-send, .supply-v2-buy, .farm-goal-action):disabled { background: #2d3f63 !important; color: #8fa3c6 !important; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel :is(input, select, textarea) {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel :is(input, select, textarea) {
   min-height: 46px; padding: 10px 14px;
   border: 1px solid var(--gm-line) !important; border-radius: 10px !important;
   background: var(--gm-paper) !important; color: var(--gm-ink) !important; box-shadow: none !important;
   font: inherit; font-size: 14px;
 }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel input::placeholder { color: var(--gm-muted); opacity: 1; }
-body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .pixel-close-button {
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel input::placeholder { color: var(--gm-muted); opacity: 1; }
+body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .pixel-close-button {
   flex: 0 0 auto; width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important;
   padding: 0 !important; font-size: 22px !important; line-height: 1;
 }
@@ -271,10 +271,10 @@ body #freePassTargetModal .market-modal-panel > :not(.modal-scroll-area) { paddi
   body #farmMailModal .farm-mail-status { order: -1; }
 }
 @media (max-width: 700px) {
-  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) { padding: 10px; }
-  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel { width: calc(100vw - 20px); border-radius: 18px !important; }
-  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .market-modal-panel > .modal-scroll-area { padding: 20px 14px !important; }
-  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal) .modal-scroll-area > header h2 { font-size: 24px; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) { padding: 10px; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel { width: calc(100vw - 20px); border-radius: 18px !important; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .market-modal-panel > .modal-scroll-area { padding: 20px 14px !important; }
+  body :is(#cosmeticPreviewModal, #supplyStorageModal, #farmRankingModal, #farmMailModal, #freePassTargetModal, #farmRewardBoxModal) .modal-scroll-area > header h2 { font-size: 24px; }
   body #cosmeticPreviewModal .cosmetic-preview-body,
   body #supplyStorageModal #farmItemInventory,
   body #farmRankingModal .farm-ranking-layout,
@@ -371,4 +371,85 @@ body #farmMailModal .farm-mail-history-row p { flex: 1; margin: 0; font-size: 13
   body #farmMailModal .farm-mail-inbox-row { grid-template-columns: 40px minmax(0, 1fr); }
   body #farmMailModal .farm-mail-inbox-avatar { width: 40px; height: 40px; }
   body #farmMailModal .farm-mail-inbox-row > button { grid-column: 1 / -1; width: 100%; }
+}
+
+/* Crop random box: opened from a mail row, so it sits above the mailbox. */
+body #farmRewardBoxModal { --gm-width: 820px; z-index: 7400; }
+body #farmRewardBoxModal .farm-reward-box-status {
+  --reward-progress: 0%;
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 18px; padding: 14px 18px; overflow: hidden; isolation: isolate;
+  border-radius: 14px; background: var(--gm-soft) !important; color: var(--gm-muted); letter-spacing: 0;
+}
+body #farmRewardBoxModal .farm-reward-box-status::before {
+  position: absolute; z-index: -1; inset: 0 auto 0 0; width: var(--reward-progress);
+  background: var(--gm-blue-soft); content: ''; transition: width .45s ease;
+}
+body #farmRewardBoxModal .farm-reward-box-status span { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--gm-muted); }
+body #farmRewardBoxModal .farm-reward-box-status strong { color: var(--gm-blue) !important; font-size: 18px; font-weight: 780; text-shadow: none !important; }
+body #farmRewardBoxModal .farm-reward-box-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  min-height: 190px; gap: 4px; padding: 30px 10px 16px !important; overflow: visible;
+  border-radius: 18px !important; background: var(--gm-art) !important;
+  filter: none; animation: none;
+}
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box.sealed { animation: reward-box-float 2.6s ease-in-out infinite; }
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box.sealed:nth-child(even) { animation-delay: -1.3s; }
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box.sealed:hover:not(:disabled) {
+  border-color: var(--gm-blue) !important; background: var(--gm-art) !important; box-shadow: 0 10px 26px #4878ed29 !important;
+}
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box.opened { opacity: 1; background: var(--gm-paper) !important; border-color: #9fd9b4 !important; cursor: default; }
+body #farmRewardBoxModal .farm-reward-box > .reward-box-number {
+  position: absolute; top: 10px; left: 10px; padding: 3px 8px; border: 0 !important; border-radius: 999px;
+  background: var(--gm-paper); color: var(--gm-muted); font-size: 11px; font-style: normal; font-weight: 700; line-height: 1.2;
+}
+body #farmRewardBoxModal .farm-reward-box > .reward-chest {
+  position: relative; display: block; width: 74px; height: 56px; margin: 18px 0 12px;
+  border: 0; border-radius: 10px; background: linear-gradient(160deg, #7aa2ff, #4878ed); box-shadow: 0 8px 18px #4878ed33;
+}
+body #farmRewardBoxModal .reward-chest::before {
+  position: absolute; inset: 0 auto 0 50%; width: 12px; background: #ffd66b; box-shadow: none; content: ''; transform: translateX(-50%);
+}
+body #farmRewardBoxModal .reward-chest-lid {
+  position: absolute; z-index: 2; top: -14px; left: -5px; width: 84px; height: 20px;
+  border: 0; border-radius: 8px; background: linear-gradient(90deg, #5d8bf8 0 43%, #ffd66b 43% 57%, #5d8bf8 57%);
+  box-shadow: 0 3px 0 #3a63c9; transform-origin: 10px 100%; transition: transform .35s ease;
+}
+body #farmRewardBoxModal .reward-chest-lock {
+  position: absolute; z-index: 3; top: -24px; left: 50%; width: 24px; height: 14px;
+  border: 0; border-radius: 50% 50% 0 0; background: none; box-shadow: inset 0 0 0 4px #ffc93d; transform: translateX(-50%);
+}
+body #farmRewardBoxModal .reward-chest.is-open { background: linear-gradient(160deg, #c9d8ff, #a7bff8); box-shadow: none; }
+body #farmRewardBoxModal .reward-chest.is-open .reward-chest-lid { transform: translate(-6px, -16px) rotate(-14deg); }
+body #farmRewardBoxModal .reward-chest.is-open .reward-chest-lock { display: none; }
+body #farmRewardBoxModal .reward-prize {
+  position: absolute; z-index: 1; bottom: 22px; left: 50%; display: grid; width: 62px; height: 62px; place-items: center;
+  transform: translateX(-50%); filter: drop-shadow(0 6px 8px #24324733);
+}
+body #farmRewardBoxModal .reward-prize svg { width: 100%; height: 100%; }
+body #farmRewardBoxModal .farm-reward-box > strong { font-size: 14px; font-weight: 750; letter-spacing: -.02em; }
+body #farmRewardBoxModal .farm-reward-box > small { color: var(--gm-muted) !important; font-size: 11px; font-weight: 600; letter-spacing: 0; }
+body #farmRewardBoxModal .farm-reward-box.opened > small { color: #2f8a55 !important; }
+body #farmRewardBoxModal .farm-reward-box.just-opened { animation: reward-box-pop .6s ease; }
+body #farmRewardBoxModal .farm-reward-box.just-opened .reward-prize { animation: reward-prize-rise .7s cubic-bezier(.15, .85, .25, 1.35); }
+body #farmRewardBoxModal .farm-reward-box.just-opened::before,
+body #farmRewardBoxModal .farm-reward-box.just-opened::after { display: none; }
+body #farmRewardBoxModal .farm-reward-box-guide { margin: 20px 0 14px; color: var(--gm-muted) !important; font-size: 14px; font-weight: 600; text-align: center; letter-spacing: 0; }
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box-close {
+  width: 100%; min-height: 54px !important; border-color: var(--gm-blue) !important; background: var(--gm-blue) !important;
+  color: #fff !important; font-size: 16px !important; font-weight: 750 !important;
+}
+body #farmRewardBoxModal .market-modal-panel .farm-reward-box-close:hover:not(:disabled) { background: #3a69dc !important; color: #fff !important; }
+@keyframes reward-box-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes reward-box-pop { 0% { scale: .92; } 60% { scale: 1.03; } 100% { scale: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  body #farmRewardBoxModal .market-modal-panel .farm-reward-box.sealed,
+  body #farmRewardBoxModal .farm-reward-box.just-opened,
+  body #farmRewardBoxModal .farm-reward-box.just-opened .reward-prize { animation: none; }
+}
+@media (max-width: 700px) {
+  body #farmRewardBoxModal .farm-reward-box-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  body #farmRewardBoxModal .market-modal-panel .farm-reward-box { min-height: 170px; }
+  body #farmRewardBoxModal .farm-reward-box:last-child:nth-child(odd) { grid-column: 1 / -1; width: calc(50% - 5px); justify-self: center; }
 }

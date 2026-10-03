@@ -481,7 +481,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         noGiftEmoji:!document.querySelector('#farmRewardBoxGrid').textContent.includes('🎁'),
         opaquePaper:!['transparent','rgba(0, 0, 0, 0)'].includes(getComputedStyle(panel).backgroundColor),
         readableHeader:panel.querySelector('h2').textContent.trim().length>0 && getComputedStyle(panel.querySelector('h2')).color!==getComputedStyle(panel).backgroundColor,
-        idle:getComputedStyle(sealed).animationName==='reward-chest-idle',
+        idle:getComputedStyle(sealed).animationName==='reward-box-float',
         progress:document.querySelector('#farmRewardBoxStatus').getAttribute('aria-valuenow')==='2',
         fits:panel.scrollWidth<=panel.clientWidth
       };
