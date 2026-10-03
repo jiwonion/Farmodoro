@@ -420,19 +420,17 @@ body #farmRewardBoxModal .reward-chest-lock {
   position: absolute; z-index: 3; top: -24px; left: 50%; width: 24px; height: 14px;
   border: 0; border-radius: 50% 50% 0 0; background: none; box-shadow: inset 0 0 0 4px #ffc93d; transform: translateX(-50%);
 }
-body #farmRewardBoxModal .reward-chest.is-open { background: linear-gradient(160deg, #c9d8ff, #a7bff8); box-shadow: none; }
-body #farmRewardBoxModal .reward-chest.is-open .reward-chest-lid { transform: translate(-6px, -16px) rotate(-14deg); }
-body #farmRewardBoxModal .reward-chest.is-open .reward-chest-lock { display: none; }
-body #farmRewardBoxModal .reward-prize {
-  position: absolute; z-index: 1; bottom: 22px; left: 50%; display: grid; width: 62px; height: 62px; place-items: center;
-  transform: translateX(-50%); filter: drop-shadow(0 6px 8px #24324733);
+/* An opened box shows only the crop it held. */
+body #farmRewardBoxModal .farm-reward-box > .reward-prize {
+  position: static; display: grid; width: 86px; height: 86px; margin: 4px 0 10px; place-items: center;
+  transform: none; filter: drop-shadow(0 6px 8px #24324733);
 }
 body #farmRewardBoxModal .reward-prize svg { width: 100%; height: 100%; }
 body #farmRewardBoxModal .farm-reward-box > strong { font-size: 14px; font-weight: 750; letter-spacing: -.02em; }
 body #farmRewardBoxModal .farm-reward-box > small { color: var(--gm-muted) !important; font-size: 11px; font-weight: 600; letter-spacing: 0; }
 body #farmRewardBoxModal .farm-reward-box.opened > small { color: #2f8a55 !important; }
 body #farmRewardBoxModal .farm-reward-box.just-opened { animation: reward-box-pop .6s ease; }
-body #farmRewardBoxModal .farm-reward-box.just-opened .reward-prize { animation: reward-prize-rise .7s cubic-bezier(.15, .85, .25, 1.35); }
+body #farmRewardBoxModal .farm-reward-box.just-opened .reward-prize { animation: reward-prize-reveal .55s cubic-bezier(.15, .85, .25, 1.35); }
 body #farmRewardBoxModal .farm-reward-box.just-opened::before,
 body #farmRewardBoxModal .farm-reward-box.just-opened::after { display: none; }
 body #farmRewardBoxModal .farm-reward-box-guide { margin: 20px 0 14px; color: var(--gm-muted) !important; font-size: 14px; font-weight: 600; text-align: center; letter-spacing: 0; }
@@ -442,6 +440,7 @@ body #farmRewardBoxModal .market-modal-panel .farm-reward-box-close {
 }
 body #farmRewardBoxModal .market-modal-panel .farm-reward-box-close:hover:not(:disabled) { background: #3a69dc !important; color: #fff !important; }
 @keyframes reward-box-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@keyframes reward-prize-reveal { 0% { opacity: 0; scale: .4; translate: 0 18px; } 100% { opacity: 1; scale: 1; translate: 0 0; } }
 @keyframes reward-box-pop { 0% { scale: .92; } 60% { scale: 1.03; } 100% { scale: 1; } }
 @media (prefers-reduced-motion: reduce) {
   body #farmRewardBoxModal .market-modal-panel .farm-reward-box.sealed,

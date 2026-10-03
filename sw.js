@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v330";
+const CACHE_VERSION = "farmodoro-v331";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -17,8 +17,8 @@ const APP_SHELL = [
   "./farm-workspace.css?v=2",
   "./garden-shell.css?v=8",
   "./garden-kitchen.css?v=3",
-  "./garden-modals.css?v=2",
-  "./app.js?v=317",
+  "./garden-modals.css?v=3",
+  "./app.js?v=318",
   "./garden-art.js?v=5",
   "./garden-seeds.js?v=4",
   "./garden-kitchen.js?v=1",

@@ -477,7 +477,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       return {
         boxes:document.querySelectorAll('.farm-reward-box').length,
         sealed:document.querySelectorAll('.farm-reward-box.sealed .reward-chest:not(.is-open)').length,
-        opened:document.querySelectorAll('.farm-reward-box.opened .reward-chest.is-open .reward-prize :is(.crop-pixel,.garden-crop-art)').length,
+        opened:document.querySelectorAll('.farm-reward-box.opened > .reward-prize :is(.crop-pixel,.garden-crop-art)').length,
         noGiftEmoji:!document.querySelector('#farmRewardBoxGrid').textContent.includes('🎁'),
         opaquePaper:!['transparent','rgba(0, 0, 0, 0)'].includes(getComputedStyle(panel).backgroundColor),
         readableHeader:panel.querySelector('h2').textContent.trim().length>0 && getComputedStyle(panel.querySelector('h2')).color!==getComputedStyle(panel).backgroundColor,

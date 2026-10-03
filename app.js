@@ -5393,7 +5393,7 @@ function renderFarmRewardBoxes(mail, justOpenedIndex = -1) {
         >
           <i class="reward-box-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</i>
           ${opened
-            ? `<span class="reward-chest is-open" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i><span class="reward-prize">${gardenCropArt(cropId)}</span></span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1 GET!</small>`
+            ? `<span class="reward-prize" aria-hidden="true">${gardenCropArt(cropId)}</span><strong>${escapeHtml(crop.name)}</strong><small>수확물 +1 GET!</small>`
             : `<span class="reward-chest" aria-hidden="true"><i class="reward-chest-lid"></i><i class="reward-chest-lock"></i></span><strong>미스터리 박스</strong><small>PRESS TO OPEN</small>`}
         </button>
       `;
