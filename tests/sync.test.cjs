@@ -12,6 +12,10 @@ function context(names, globals = {}) {
     assert.ok(match, name);
     vm.runInContext(match[0], ctx);
   }
+  // Stubs of toLocalDateString stand for the app's "today"; the 04:00
+  // productivity-day helpers follow them unless a test loads the real ones.
+  if (!names.includes("toProductivityDateString")) ctx.toProductivityDateString = (...args) => ctx.toLocalDateString(...args);
+  if (!names.includes("getProductivityDate")) ctx.getProductivityDate = (instant) => instant ?? new (ctx.Date ?? Date)();
   return ctx;
 }
 const noop = () => {};
@@ -298,7 +302,7 @@ test("checking a past habit saves the displayed date even if navigation changes 
   const calls = [];
   const ctx = vm.createContext({
     document: { querySelector: () => ({ addEventListener: (_event, callback) => { handler = callback; } }) },
-    getHabitViewDate: () => "2026-09-09", toLocalDateString: () => "2026-09-10",
+    getHabitViewDate: () => "2026-09-09", toLocalDateString: () => "2026-09-10", toProductivityDateString: () => "2026-09-10",
     taskDataHydrated: true, habitRecordSaving: false,
     state: { habits: [historicalHabit] }, canEditHabitRecord: () => true,
     getHabitTargetForDate: () => 1, getHabitProgress: () => 0, getHabitProgressRatio: () => 0,
@@ -450,6 +454,15 @@ function midnightHabitContext(owner = true) {
   };
   return { ctx, habit };
 }
+
+test("habits and tasks roll over to the next day at 04:00, not midnight", () => {
+  const ctx = context(["toLocalDateString", "getProductivityDate", "toProductivityDateString"], { PRODUCTIVITY_DAY_START_HOUR: 4 });
+  assert.equal(ctx.toProductivityDateString(new Date(2026, 9, 3, 23, 59)), "2026-10-03");
+  assert.equal(ctx.toProductivityDateString(new Date(2026, 9, 4, 0, 0)), "2026-10-03");
+  assert.equal(ctx.toProductivityDateString(new Date(2026, 9, 4, 3, 59)), "2026-10-03");
+  assert.equal(ctx.toProductivityDateString(new Date(2026, 9, 4, 4, 0)), "2026-10-04");
+  assert.equal(ctx.toLocalDateString(new Date(2026, 9, 4, 0, 30)), "2026-10-04", "Calendar dates are unchanged");
+});
 
 test("a running habit keeps its session across midnight and records the start day", () => {
   const { ctx, habit } = midnightHabitContext();

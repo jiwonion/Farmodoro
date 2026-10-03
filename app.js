@@ -1716,12 +1716,12 @@ state.habits = state.habits.map((habit) => {
     (habit.completedDate
       ? [habit.completedDate]
       : habit.complete
-        ? [toLocalDateString()]
+        ? [toProductivityDateString()]
         : []);
   return {
     ...habit,
     targetByWeekday: habit.targetByWeekday ?? {},
-    completedDate: habit.completedDate ?? (habit.complete ? toLocalDateString() : ""),
+    completedDate: habit.completedDate ?? (habit.complete ? toProductivityDateString() : ""),
     completionDates,
     progressByDate:
       habit.progressByDate ??
@@ -2567,7 +2567,7 @@ function loadState(savedState = null) {
         completionCycleId: task.completionCycleId ?? "",
         completedDate:
           task.completedDate ??
-          (task.status === "done" && !task.archived ? toLocalDateString() : ""),
+          (task.status === "done" && !task.archived ? toProductivityDateString() : ""),
       })),
       habits: (saved.habits ?? []).map((habit) => ({
         ...habit,
@@ -2913,7 +2913,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
     const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
     const habitCountdown = item && activeFocus?.type === "habit" && runtime.countdown;
-    runtime.date ||= toLocalDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()));
+    runtime.date ||= toProductivityDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()));
     const appliedSeconds = habitCountdown
       ? advanceHabitTimer(runtime, item, Number.isFinite(syncedAt) ? syncedAt : Date.now(), elapsedSeconds, ownsTimer)
       : isLinkedStopwatch || quickFocus
@@ -2939,7 +2939,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
         if (habitCountdown) {
           recoveredFocusSeconds = appliedSeconds;
         } else {
-          const today = toLocalDateString();
+          const today = toProductivityDateString();
           const previousFocusSeconds = getHabitDailyFocusSeconds(item, today);
           item.focusSecondsByDate ??= {};
           item.focusSecondsByDate[today] = previousFocusSeconds + appliedSeconds;
@@ -2958,7 +2958,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     }
     focusLastTickAt = Number.isFinite(syncedAt) ? syncedAt + elapsedSeconds * 1000 : Date.now();
     if (habitCountdown && ownsTimer && runtime.seconds > 0 &&
-        runtime.date !== toLocalDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()))) {
+        runtime.date !== toProductivityDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()))) {
       scheduleFarmPushNotification("timer_end", "", Date.now() + runtime.seconds * 1000,
         "집중이 끝났어", "쉬고 싶으면 앱을 열어줘");
     }
@@ -3155,7 +3155,7 @@ function serializeTaskDatabaseState() {
       const progressValue = habit.completionDates.includes(recordDate) ? targetValue : 0;
       const completed = habit.completionDates.includes(recordDate);
       const recordMeta = habit.recordMetaByDate?.[recordDate] ?? {};
-      const isToday = recordDate === toLocalDateString();
+      const isToday = recordDate === toProductivityDateString();
       return {
         habit_id: habit.id,
         record_date: recordDate,
@@ -3284,7 +3284,7 @@ function mapDatabaseHabit(habit, records) {
       },
     ]),
   );
-  const today = toLocalDateString();
+  const today = toProductivityDateString();
   const todayRecord = records.find((record) => record.record_date === today);
 
   return {
@@ -3355,7 +3355,7 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         type: activeFocus.type,
         id: liveFocusItem.id,
         taskSeconds: Number(liveFocusItem.focusSeconds ?? 0),
-        habitDate: focusRuntimeByMode.linked.date || toLocalDateString(),
+        habitDate: focusRuntimeByMode.linked.date || toProductivityDateString(),
         habitSeconds: getHabitDailyFocusSeconds(liveFocusItem, focusRuntimeByMode.linked.date || undefined),
       }
     : null;
@@ -3715,7 +3715,7 @@ function getFocusSettings(mode = focusMode) {
   return state.settings[mode] ?? state.settings.linked;
 }
 
-function getHabitDailyFocusSeconds(habit, dateString = toLocalDateString()) {
+function getHabitDailyFocusSeconds(habit, dateString = toProductivityDateString()) {
   if (!habit) return 0;
   return Math.max(0, Math.floor(Number(habit.focusSecondsByDate?.[dateString] ?? 0)));
 }
@@ -3726,7 +3726,7 @@ function getLinkedFocusSeconds(item = getFocusItem()) {
   return getHabitDailyFocusSeconds(item);
 }
 
-function getHabitFocusMinutes(habit, dateString = toLocalDateString()) {
+function getHabitFocusMinutes(habit, dateString = toProductivityDateString()) {
   if (habit?.measureType !== "time") return 0;
   const weekday = dateString ? new Date(`${dateString}T12:00:00`).getDay() || 7 : null;
   const defaultMinutes = habit?.measureType === "time" ? habit.targetValue : habit?.focusMinutes;
@@ -3743,7 +3743,7 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
       : getHabitDailyFocusSeconds(item) > 0
     : false;
   focusRuntimeByMode.linked = {
-    date: countdown ? toLocalDateString() : "",
+    date: countdown ? toProductivityDateString() : "",
     seconds: countdown ? Math.max(0, sessionMinutes * 60 - getHabitDailyFocusSeconds(item)) : getLinkedFocusSeconds(item),
     countdown,
     sessionMinutes,
@@ -3761,7 +3761,7 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
 // A habit's countdown belongs to a local calendar day, including after a
 // suspended tab or another device restores the timer. A session that was
 // running when midnight passed stays on the day it started until it ends.
-function refreshHabitTimerDate(runtime, item, date = toLocalDateString()) {
+function refreshHabitTimerDate(runtime, item, date = toProductivityDateString()) {
   if (!runtime.countdown || runtime.date === date) return false;
   if (runtime.carryOver && runtime.started) return false;
   runtime.carryOver = false;
@@ -3776,14 +3776,14 @@ function refreshHabitTimerDate(runtime, item, date = toLocalDateString()) {
 // those after midnight, counts toward the day the session started.
 function advanceHabitTimer(runtime, item, startAt, elapsedSeconds, record) {
   if (runtime.seconds === 0) return 0;
-  runtime.date ||= toLocalDateString(new Date(startAt));
+  runtime.date ||= toProductivityDateString(new Date(startAt));
   const seconds = Math.min(elapsedSeconds, runtime.seconds);
   runtime.seconds -= seconds;
   if (record && seconds > 0) {
     item.focusSecondsByDate ??= {};
     item.focusSecondsByDate[runtime.date] = getHabitDailyFocusSeconds(item, runtime.date) + seconds;
   }
-  if (toLocalDateString(new Date(startAt + elapsedSeconds * 1000)) !== runtime.date) runtime.carryOver = true;
+  if (toProductivityDateString(new Date(startAt + elapsedSeconds * 1000)) !== runtime.date) runtime.carryOver = true;
   return seconds;
 }
 
@@ -4023,6 +4023,18 @@ function toLocalDateString(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+// Habits and tasks roll over at 04:00 local time instead of midnight, so
+// late-night work still belongs to the day it began. The farm keeps midnight.
+const PRODUCTIVITY_DAY_START_HOUR = 4;
+
+function getProductivityDate(instant = new Date()) {
+  return new Date(instant.getTime() - PRODUCTIVITY_DAY_START_HOUR * 60 * 60 * 1000);
+}
+
+function toProductivityDateString(instant = new Date()) {
+  return toLocalDateString(getProductivityDate(instant));
 }
 
 function getFarmWeekStart(date = new Date()) {
@@ -4315,18 +4327,18 @@ function isHabitScheduledOn(habit, date) {
 }
 
 function isHabitScheduledToday(habit) {
-  return isHabitScheduledOn(habit, new Date());
+  return isHabitScheduledOn(habit, getProductivityDate());
 }
 
 function getHabitTargetForDate() {
   return 1;
 }
 
-function getHabitProgress(habit, dateString = toLocalDateString()) {
+function getHabitProgress(habit, dateString = toProductivityDateString()) {
   return habit.completionDates.includes(dateString) ? 1 : 0;
 }
 
-function getHabitProgressRatio(habit, dateString = toLocalDateString()) {
+function getHabitProgressRatio(habit, dateString = toProductivityDateString()) {
   return Math.min(1, getHabitProgress(habit, dateString) / getHabitTargetForDate(habit, dateString));
 }
 
@@ -4334,7 +4346,7 @@ function isHabitCompleteToday(habit) {
   return getHabitProgressRatio(habit) >= 1;
 }
 
-function getHabitStreak(habit, dateString = toLocalDateString()) {
+function getHabitStreak(habit, dateString = toProductivityDateString()) {
   const completedDates = new Set(habit.completionDates ?? []);
   const cursor = new Date(`${dateString}T12:00:00`);
   cursor.setHours(12, 0, 0, 0);
@@ -4586,15 +4598,15 @@ function closeTaskInlineEdit() {
 }
 
 function getHabitViewDate() {
-  return currentPage === "habits" && selectedHabitDate ? selectedHabitDate : toLocalDateString();
+  return currentPage === "habits" && selectedHabitDate ? selectedHabitDate : toProductivityDateString();
 }
 
 function moveHabitDate(delta) {
   const date = new Date(`${getHabitViewDate()}T12:00:00`);
   date.setDate(date.getDate() + delta);
   const nextDate = toLocalDateString(date);
-  if (nextDate > toLocalDateString()) return;
-  selectedHabitDate = nextDate === toLocalDateString() ? null : nextDate;
+  if (nextDate > toProductivityDateString()) return;
+  selectedHabitDate = nextDate === toProductivityDateString() ? null : nextDate;
   renderHabits();
 }
 
@@ -4609,7 +4621,7 @@ function renderHabits() {
   const habitList = document.querySelector("#habitList");
   const dateString = getHabitViewDate();
   const viewDate = new Date(`${dateString}T12:00:00`);
-  const isPast = dateString < toLocalDateString();
+  const isPast = dateString < toProductivityDateString();
   document.querySelector("#habitDateNav").hidden = currentPage !== "habits";
   document.querySelector("#habitDateLabel").textContent = `${dateString.replaceAll("-", ".")} (${["일", "월", "화", "수", "목", "금", "토"][viewDate.getDay()]})${isPast ? "" : " · 오늘"}`;
   document.querySelector("#nextHabitDate").disabled = !isPast;
@@ -4720,14 +4732,14 @@ function renderHabitHeatmap() {
 
   grid.innerHTML = `<span></span>${dayHeaders}${rows}`;
   renderHabitMonthlySummary();
-  lastHabitHeatmapDate = toLocalDateString();
+  lastHabitHeatmapDate = toProductivityDateString();
 }
 
 function refreshHabitHeatmapDay() {
-  if (lastHabitHeatmapDate !== toLocalDateString()) renderHabitHeatmap();
+  if (lastHabitHeatmapDate !== toProductivityDateString()) renderHabitHeatmap();
 }
 
-function getHabitMonthlySummary(habits = state.habits, monthDate = habitCalendarDate, today = new Date()) {
+function getHabitMonthlySummary(habits = state.habits, monthDate = habitCalendarDate, today = getProductivityDate()) {
   const year = monthDate.getFullYear();
   const monthIndex = monthDate.getMonth();
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
@@ -4869,7 +4881,7 @@ function renderHabitMonthlySummary() {
 }
 
 function canEditHabitRecord(habit, dateString) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString) || dateString >= toLocalDateString()) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString) || dateString >= toProductivityDateString()) return false;
   const date = new Date(`${dateString}T12:00:00`);
   return toLocalDateString(date) === dateString && isHabitScheduledOn(habit, date);
 }
@@ -5076,7 +5088,7 @@ async function useFreePassOnTarget(targetValue) {
   const [targetType, targetId] = target.value.split(":");
   const reward = productionCoinReward();
   const completionCycleId = createUuid();
-  const today = toLocalDateString();
+  const today = toProductivityDateString();
 
   let task = null;
   let previousTaskState = null;
@@ -5175,7 +5187,7 @@ async function useFreePassOnTarget(targetValue) {
     if (meta && meta.completionCycleId === completionCycleId) {
       meta.completionReward = Number(completion.completionReward) || meta.completionReward;
       meta.completionCycleId = completion.completionCycleId || meta.completionCycleId;
-      if (today === toLocalDateString()) habit.completionReward = meta.completionReward;
+      if (today === toProductivityDateString()) habit.completionReward = meta.completionReward;
     }
   }
   renderSummary();
@@ -6573,7 +6585,7 @@ async function syncTaskArchivedFlag(taskId, archived) {
 }
 
 function maintainTaskArchive() {
-  const today = toLocalDateString();
+  const today = toProductivityDateString();
   const now = Date.now();
   const archiveRetentionMs = 30 * 24 * 60 * 60 * 1000;
   let changed = false;
@@ -6727,7 +6739,7 @@ function moveTaskTo(id, nextStatus) {
     task.completionCycleId = optimisticCycleId;
     task.completionReward = reward;
     task.completedWithFreePass = false;
-    task.completedDate = toLocalDateString();
+    task.completedDate = toProductivityDateString();
     state.coins += reward;
     confirmTaskCompletionWithServer(task, optimisticCycleId, reward);
     if (activeFocus?.type === "task" && activeFocus.id === task.id) {
@@ -6801,7 +6813,7 @@ function confirmHabitCompletionWithServer(habit, recordDate, progressValue, opti
       if (meta && meta.completionCycleId === optimisticCycleId) {
         meta.completionReward = Number(data.completionReward) || meta.completionReward;
         meta.completionCycleId = data.completionCycleId || meta.completionCycleId;
-        if (recordDate === toLocalDateString()) {
+        if (recordDate === toProductivityDateString()) {
           currentHabit.completionReward = meta.completionReward;
         }
       }
@@ -6842,9 +6854,9 @@ function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund)
     });
 }
 
-function applyHabitCompletionChange(habit, wasComplete, complete, today = toLocalDateString()) {
+function applyHabitCompletionChange(habit, wasComplete, complete, today = toProductivityDateString()) {
   if (wasComplete === complete) return null;
-  const isToday = today === toLocalDateString();
+  const isToday = today === toProductivityDateString();
   if (!farmWalletHydrated) {
     showToast("지갑 데이터를 불러오는 중이야");
     return null;
@@ -7589,7 +7601,7 @@ function advanceRunningFocusTimer(mode) {
       if (activeFocus?.type === "task") {
         item.focusSeconds = (item.focusSeconds ?? 0) + appliedSeconds;
       } else if (activeFocus?.type === "habit" && !habitCountdown) {
-        const today = toLocalDateString();
+        const today = toProductivityDateString();
         item.focusSecondsByDate ??= {};
         item.focusSecondsByDate[today] = getHabitDailyFocusSeconds(item, today) + appliedSeconds;
       }
@@ -7666,7 +7678,7 @@ function finishFocusRuntime(mode) {
 
   if (mode === "linked") {
     let completionResult = null;
-    const recordDate = runtime.date || toLocalDateString();
+    const recordDate = runtime.date || toProductivityDateString();
     if (item && activeFocus?.type === "habit" && !item.completionDates.includes(recordDate)) {
       completionResult = applyHabitCompletionChange(item, false, true, recordDate);
     }
@@ -8061,7 +8073,7 @@ function ensureThemedDateCalendar() {
     }
 
     if (event.target.closest("[data-date-calendar-today]")) {
-      const today = toLocalDateString();
+      const today = toProductivityDateString();
       if (activeThemedDateInput && isThemedDateAllowed(activeThemedDateInput, today)) {
         setThemedDateValue(today);
       }
@@ -8074,7 +8086,7 @@ function renderThemedDateCalendar() {
   if (!activeThemedDateInput) return;
   const calendar = ensureThemedDateCalendar();
   const selectedValue = activeThemedDateInput.value;
-  const todayValue = toLocalDateString();
+  const todayValue = toProductivityDateString();
   const firstDay = new Date(themedDateView.getFullYear(), themedDateView.getMonth(), 1, 12);
   const sundayOffset = firstDay.getDay();
   const gridStart = new Date(firstDay);
@@ -8252,14 +8264,14 @@ function resetHabitForm() {
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
   habitEndDate.value = "";
-  habitStartDate.value = toLocalDateString();
-  habitStartDate.max = toLocalDateString();
+  habitStartDate.value = toProductivityDateString();
+  habitStartDate.max = toProductivityDateString();
   refreshThemedDateTrigger(habitStartDate);
   refreshThemedDateTrigger(habitEndDate);
 }
 
 function openHabitModal(habit = null) {
-  habitStartDate.max = toLocalDateString();
+  habitStartDate.max = toProductivityDateString();
   editingHabitId = habit?.id ?? null;
   habitFocusEnabled.checked = habit?.measureType === "time";
   habitFocusMinutes.value = String(getHabitFocusMinutes(habit, null) || 25);
@@ -8273,7 +8285,7 @@ function openHabitModal(habit = null) {
       input.checked = habit.weekdays.includes(Number(input.value));
     });
     habitEndDate.value = habit.endDate || "";
-    habitStartDate.value = habit.startDate || toLocalDateString();
+    habitStartDate.value = habit.startDate || toProductivityDateString();
     refreshThemedDateTrigger(habitStartDate);
     refreshThemedDateTrigger(habitEndDate);
   } else {
@@ -8417,7 +8429,7 @@ confirmHabitReset.addEventListener("click", async () => {
     const { error } = await supabaseClient.rpc("reset_my_habits");
     if (error) throw error;
 
-    const today = toLocalDateString();
+    const today = toProductivityDateString();
     state.habits.forEach((habit) => {
       habit.startDate = today;
       if (habit.endDate && habit.endDate < today) habit.endDate = "";
@@ -8643,7 +8655,7 @@ habitForm.addEventListener("submit", (event) => {
     targetByWeekday[input.dataset.habitFocusWeekday] = minutes;
   }
   const startDate = habitStartDate.value;
-  if (!startDate || startDate > toLocalDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
+  if (!startDate || startDate > toProductivityDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
     showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
     return;
   }
@@ -8747,7 +8759,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task) {
       task.archived = false;
       task.archivedAt = "";
-      task.completedDate = toLocalDateString();
+      task.completedDate = toProductivityDateString();
       showToast("보관함에서 다시 꺼냈어");
       render();
       scheduleTaskDatabaseSync(0);
@@ -9170,7 +9182,7 @@ document.querySelector("#habitList").addEventListener("click", async (event) => 
   const deleteButton = event.target.closest("[data-delete-habit]");
 
   const date = getHabitViewDate();
-  if (toggleButton && date < toLocalDateString()) {
+  if (toggleButton && date < toProductivityDateString()) {
     const button = toggleButton;
     if (button.disabled || !taskDataHydrated || habitRecordSaving) return;
     const habit = state.habits.find((item) => item.id === button.dataset.toggleHabit);

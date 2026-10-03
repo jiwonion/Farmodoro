@@ -15,6 +15,10 @@ function context(names, globals = {}) {
     assert.ok(match, `app.js must provide ${name}`);
     vm.runInContext(match[0], ctx);
   }
+  // Stubs of toLocalDateString stand for the app's "today"; the 04:00
+  // productivity-day helpers follow them unless a test loads the real ones.
+  if (!names.includes("toProductivityDateString")) ctx.toProductivityDateString = (...args) => ctx.toLocalDateString(...args);
+  if (!names.includes("getProductivityDate")) ctx.getProductivityDate = (instant) => instant ?? new (ctx.Date ?? Date)();
   return ctx;
 }
 

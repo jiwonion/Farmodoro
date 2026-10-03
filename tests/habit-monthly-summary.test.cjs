@@ -186,14 +186,17 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const completion={rate:panel.querySelector('.habit-summary-rate').textContent,stats:getHabitMonthlySummary()};
     state.habits[1].completionDates.pop();renderHabitUpdates();
     const restored=panel.querySelector('.habit-summary-rate').textContent;
-    window.__summaryToday=new window.__summaryNativeDate(2026,9,13,0).getTime();refreshHabitHeatmapDay();
+    window.__summaryToday=new window.__summaryNativeDate(2026,9,13,3,59).getTime();refreshHabitHeatmapDay();
+    const beforeFour=getHabitMonthlySummary().cutoffDate;
+    window.__summaryToday=new window.__summaryNativeDate(2026,9,13,4).getTime();refreshHabitHeatmapDay();
     const rollover={rate:panel.querySelector('.habit-summary-rate').textContent,stats:getHabitMonthlySummary()};
     window.__summaryToday=new window.__summaryNativeDate(2026,9,12,12).getTime();refreshHabitHeatmapDay();
-    return {completion,restored,rollover};
+    return {completion,restored,beforeFour,rollover};
   })()`);
   assert.deepEqual([refresh.completion.stats.completed,refresh.completion.stats.eligible,refresh.completion.rate],[78,132,'59%'],'Habit completion refreshes the visible summary');
   assert.equal(refresh.restored,'58%','Undoing completion refreshes the visible summary');
-  assert.deepEqual([refresh.rollover.stats.cutoffDate,refresh.rollover.stats.eligible,refresh.rollover.stats.completed,refresh.rollover.rate],['2026-10-13',143,77,'54%'],'Local day rollover refreshes the denominator and visible summary');
+  assert.equal(refresh.beforeFour,'2026-10-12','Habits still belong to the previous day before 04:00');
+  assert.deepEqual([refresh.rollover.stats.cutoffDate,refresh.rollover.stats.eligible,refresh.rollover.stats.completed,refresh.rollover.rate],['2026-10-13',143,77,'54%'],'The 04:00 day rollover refreshes the denominator and visible summary');
   console.log("Completion updates, undo and local day rollover refresh the summary PASS");
 
   const emptyUI = await evaluate(`(() => {
