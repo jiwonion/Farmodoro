@@ -422,7 +422,7 @@ body #farmRewardBoxModal .reward-chest-lock {
 }
 /* An opened box shows only the crop it held. */
 body #farmRewardBoxModal .farm-reward-box > .reward-prize {
-  position: static; display: grid; width: 86px; height: 86px; margin: 4px 0 10px; place-items: center;
+  position: static; display: grid; width: 68px; height: 68px; margin: 10px 0 12px; place-items: center;
   transform: none; filter: drop-shadow(0 6px 8px #24324733);
 }
 body #farmRewardBoxModal .reward-prize svg { width: 100%; height: 100%; }
