@@ -2830,6 +2830,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
   return {
     seconds,
     date: typeof value?.date === "string" ? value.date : "",
+    carryOver: Boolean(value?.carryOver),
     phase: value?.phase === "break" ? "break" : "focus",
     started: Boolean(value?.started),
     countdown: Boolean(value?.countdown),
@@ -3354,8 +3355,8 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         type: activeFocus.type,
         id: liveFocusItem.id,
         taskSeconds: Number(liveFocusItem.focusSeconds ?? 0),
-        habitSeconds: getHabitDailyFocusSeconds(liveFocusItem),
-        habitDate: toLocalDateString(),
+        habitDate: focusRuntimeByMode.linked.date || toLocalDateString(),
+        habitSeconds: getHabitDailyFocusSeconds(liveFocusItem, focusRuntimeByMode.linked.date || undefined),
       }
     : null;
   taskDataUserId = user.id;
@@ -3758,9 +3759,12 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
 }
 
 // A habit's countdown belongs to a local calendar day, including after a
-// suspended tab or another device restores the timer.
+// suspended tab or another device restores the timer. A session that was
+// running when midnight passed stays on the day it started until it ends.
 function refreshHabitTimerDate(runtime, item, date = toLocalDateString()) {
   if (!runtime.countdown || runtime.date === date) return false;
+  if (runtime.carryOver && runtime.started) return false;
+  runtime.carryOver = false;
   runtime.date = date;
   runtime.sessionMinutes = getHabitFocusMinutes(item, date);
   runtime.seconds = Math.max(0, runtime.sessionMinutes * 60 - getHabitDailyFocusSeconds(item, date));
@@ -3768,31 +3772,19 @@ function refreshHabitTimerDate(runtime, item, date = toLocalDateString()) {
   return true;
 }
 
+// A running countdown never restarts at midnight: every second, including
+// those after midnight, counts toward the day the session started.
 function advanceHabitTimer(runtime, item, startAt, elapsedSeconds, record) {
   if (runtime.seconds === 0) return 0;
-  let cursor = startAt;
-  const end = startAt + elapsedSeconds * 1000;
-  let applied = 0;
   runtime.date ||= toLocalDateString(new Date(startAt));
-  while (cursor < end) {
-    const date = toLocalDateString(new Date(cursor));
-    refreshHabitTimerDate(runtime, item, date);
-    const midnight = new Date(cursor);
-    midnight.setHours(24, 0, 0, 0);
-    const segmentEnd = Math.min(end, midnight.getTime());
-    const seconds = Math.min(Math.ceil((segmentEnd - cursor) / 1000), runtime.seconds);
-    runtime.seconds -= seconds;
-    if (record && seconds > 0) {
-      item.focusSecondsByDate ??= {};
-      item.focusSecondsByDate[date] = getHabitDailyFocusSeconds(item, date) + seconds;
-    }
-    applied += seconds;
-    // A completed countdown must not count unattended time on following days.
-    if (runtime.seconds === 0) break;
-    cursor += seconds * 1000;
+  const seconds = Math.min(elapsedSeconds, runtime.seconds);
+  runtime.seconds -= seconds;
+  if (record && seconds > 0) {
+    item.focusSecondsByDate ??= {};
+    item.focusSecondsByDate[runtime.date] = getHabitDailyFocusSeconds(item, runtime.date) + seconds;
   }
-  if (runtime.seconds > 0) refreshHabitTimerDate(runtime, item, toLocalDateString(new Date(end)));
-  return applied;
+  if (toLocalDateString(new Date(startAt + elapsedSeconds * 1000)) !== runtime.date) runtime.carryOver = true;
+  return seconds;
 }
 
 function getStableGroupColorIndex(value) {

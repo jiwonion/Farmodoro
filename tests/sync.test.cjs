@@ -451,34 +451,48 @@ function midnightHabitContext(owner = true) {
   return { ctx, habit };
 }
 
-test("a habit gets a fresh daily target at midnight and splits a suspended tick", () => {
+test("a running habit keeps its session across midnight and records the start day", () => {
   const { ctx, habit } = midnightHabitContext();
   ctx.elapse(40 * 60);
   ctx.advanceRunningFocusTimer("linked");
-  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 1800, "2026-09-14": 600 });
-  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
-  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-14");
+  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 2400 });
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 1200);
+  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-13");
   assert.equal(ctx.rewarded, 2400);
 });
 
-test("midnight itself resets the habit countdown using the new weekday target", () => {
+test("pausing after midnight does not reset a session that crossed it", () => {
   const { ctx, habit } = midnightHabitContext();
   habit.targetByWeekday = { 1: 45 };
-  ctx.elapse(30 * 60);
+  ctx.elapse(40 * 60);
   ctx.advanceRunningFocusTimer("linked");
-  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 2700);
-  assert.equal(habit.focusSecondsByDate["2026-09-13"], 1800);
-  assert.equal(habit.focusSecondsByDate["2026-09-14"], undefined);
+  ctx.runningFocusMode = null;
+  assert.equal(ctx.refreshHabitTimerDate(ctx.focusRuntimeByMode.linked, habit), false);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 1200);
+  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-13");
 });
 
-test("restoring a running habit splits elapsed time across midnight", () => {
+test("once a carried-over session ends the next one uses the new day", () => {
+  const { ctx, habit } = midnightHabitContext();
+  ctx.elapse(40 * 60);
+  ctx.advanceRunningFocusTimer("linked");
+  ctx.runningFocusMode = null;
+  ctx.focusRuntimeByMode.linked.started = false;
+  assert.equal(ctx.refreshHabitTimerDate(ctx.focusRuntimeByMode.linked, habit), true);
+  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-14");
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3600);
+  assert.equal(ctx.focusRuntimeByMode.linked.carryOver, false);
+});
+
+test("restoring a running habit after midnight continues the same session", () => {
   const { ctx, habit } = midnightHabitContext();
   const payload = ctx.getFocusTimerDatabasePayload();
   delete payload.runtimes.linked.date; // Older saved timers have no date.
   ctx.elapse(40 * 60);
   ctx.applyFocusTimerDatabaseState(payload);
-  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
-  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 1800, "2026-09-14": 600 });
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 1200);
+  assert.equal(ctx.focusRuntimeByMode.linked.date, "2026-09-13");
+  assert.deepEqual(habit.focusSecondsByDate, { "2026-09-13": 2400 });
   assert.equal(ctx.rewarded, 2400);
 });
 
@@ -494,11 +508,11 @@ test("restoring yesterday's paused timer uses only today's saved progress", () =
   assert.equal(ctx.rewarded, 0);
 });
 
-test("a follower resets at midnight without writing records or rewards", () => {
+test("a follower keeps counting across midnight without writing records or rewards", () => {
   const { ctx, habit } = midnightHabitContext(false);
   ctx.elapse(40 * 60);
   ctx.advanceRunningFocusTimer("linked");
-  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 3000);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 1200);
   assert.deepEqual(habit.focusSecondsByDate, {});
   assert.equal(ctx.rewarded, 0);
 });
