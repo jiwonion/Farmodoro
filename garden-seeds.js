@@ -27,7 +27,7 @@
     modal.querySelector("#gardenSeedTitle").textContent = `${state.farmPlots.indexOf(plot) + 1}번 밭에 심을 작물`;
     modal.classList.remove("hidden");
     render();
-    modal.querySelector("#gardenSeedSearch").focus({preventScroll:true});
+    modal.querySelector("button[data-close-garden-seed]").focus({preventScroll:true});
   }
   function close() {
     if (busy) return;

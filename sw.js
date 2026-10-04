@@ -1,10 +1,10 @@
-const CACHE_VERSION = "farmodoro-v335";
+const CACHE_VERSION = "farmodoro-v339";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   "./index.html",
   "./styles.css?v=276",
-  "./pixel-theme.css?v=193",
+  "./pixel-theme.css?v=194",
   "./farm-pixel.css?v=275",
   "./pixel-layout.css?v=274",
   "./farm-theme.css?v=274",
@@ -18,9 +18,9 @@ const APP_SHELL = [
   "./garden-shell.css?v=8",
   "./garden-kitchen.css?v=3",
   "./garden-modals.css?v=4",
-  "./app.js?v=321",
+  "./app.js?v=323",
   "./garden-art.js?v=5",
-  "./garden-seeds.js?v=4",
+  "./garden-seeds.js?v=5",
   "./garden-kitchen.js?v=1",
   "./pwa-register.js?v=176",
   "./assets/fonts/Mulmaru.woff2",
@@ -64,7 +64,7 @@ const APP_SHELL = [
   "./assets/farm-themes/iceKingdom.svg",
   "./assets/farm-themes/goldenHarvest.svg",
   "./assets/focus-farm-background.png",
-  "./assets/focus/default-focus-room.png",
+  "./assets/focus/default-focus-room.png?v=2",
   "./assets/npc-morrison.png",
   "./assets/npc-noah.png",
   "./assets/npc-rachel.png",

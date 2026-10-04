@@ -68,7 +68,7 @@ test('empty plot opens crop choices with owned seeds and care stages', () => {
   assert.match(element('gardenSeedChoices').innerHTML, /수확까지 돌보기 4단계/);
   assert.doesNotMatch(element('gardenSeedChoices').innerHTML, /집중\s*\d+분/);
   assert.match(element('gardenSeedChoices').innerHTML, /4 Coin/);
-  assert.equal(element('gardenSeedSearch').focusCalls, 1);
+  assert.equal(element('gardenSeedSearch').focusCalls, 0);
 });
 
 test('occupied and nonexistent plots do not open a planting dialog', () => {

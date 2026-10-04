@@ -148,7 +148,7 @@ body .timer-progress-value { stroke-linecap: butt; }
 body #focusPage .focus-page-stage {
   background:
     linear-gradient(rgba(18, 41, 91, .12), rgba(18, 41, 91, .22)),
-    var(--focus-background-image, url('./assets/focus/default-focus-room.png')) center / cover no-repeat !important;
+    var(--focus-background-image, url('./assets/focus/default-focus-room.png?v=2')) center / cover no-repeat !important;
   border: 2px solid var(--pixel-edge);
   border-radius: 2px;
   box-shadow: 5px 5px 0 var(--pixel-shadow);

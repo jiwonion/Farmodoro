@@ -343,6 +343,44 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   assert.equal(await evaluate(`document.querySelector('#farmPage').dataset.rpgTheme`),'galaxyNight');
   await evaluate(`closeCosmeticPreview(); state.equippedPlotSkin=null; state.equippedFarmTheme=null; renderFarm();`);
   console.log('Workspace popup palettes, 8 dialogs and market across 20 landscapes, theme priority, status priorities and overview navigation PASS');
+  for (const [width, touch] of [[1440, false], [390, true], [320, true]]) {
+    await call('Emulation.setDeviceMetricsOverride', {width, height: 900, deviceScaleFactor: 1, mobile: touch});
+    await call('Emulation.setTouchEmulationEnabled', {enabled: touch});
+    const before = await evaluate(`(async () => {
+      showPage('farm'); supplyFocusItem='luckyFertilizer'; renderFarm();
+      const modal=document.querySelector('#supplyStorageModal'); modal.classList.remove('hidden');
+      const list=modal.querySelector('.supply-v2-list'), scroll=modal.querySelector('.modal-scroll-area');
+      const item=modal.querySelector('[data-focus-farm-item="growthTonic"]');
+      item.scrollIntoView({block:'center',behavior:'instant'});
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const rect=item.getBoundingClientRect(), x=rect.x+rect.width/2, y=rect.y+rect.height/2;
+      const hit=document.elementFromPoint(x,y);
+      return {list:list.scrollTop,modal:scroll.scrollTop,page:window.scrollY,x,y,clickable:hit===item || item.contains(hit)};
+    })()`);
+    assert.ok(before.list > 0 || before.modal > 0, width+'px supply list must be scrolled before selecting a lower item');
+    assert.equal(before.clickable, true, width+'px lower supply item is visible and clickable');
+    if (touch) {
+      await call('Input.dispatchTouchEvent', {type:'touchStart',touchPoints:[{x:before.x,y:before.y}]});
+      await call('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]});
+    } else {
+      await call('Input.dispatchMouseEvent', {type:'mousePressed',x:before.x,y:before.y,button:'left',clickCount:1});
+      await call('Input.dispatchMouseEvent', {type:'mouseReleased',x:before.x,y:before.y,button:'left',clickCount:1});
+    }
+    await pause(600);
+    const after = await evaluate(`(() => {
+      const modal=document.querySelector('#supplyStorageModal');
+      return {list:modal.querySelector('.supply-v2-list').scrollTop,modal:modal.querySelector('.modal-scroll-area').scrollTop,page:window.scrollY,
+        selected:modal.querySelector('[data-focus-farm-item="growthTonic"]').getAttribute('aria-selected')==='true',
+        detail:modal.querySelector('.supply-v2-detail h3').textContent===FARM_ITEMS.growthTonic.name};
+    })()`);
+    assert.equal(after.selected, true, width+'px lower supply item is selected');
+    assert.equal(after.detail, true, width+'px lower supply details update');
+    for (const key of ['list', 'modal', 'page']) assert.ok(Math.abs(after[key]-before[key])<=1, width+'px '+key+' scroll remains stable: '+JSON.stringify({before,after}));
+    await evaluate(`document.querySelector('#supplyStorageModal').classList.add('hidden')`);
+    console.log(width+'px: selecting a lower supply item preserves list, modal and page scroll PASS');
+  }
+  await call('Emulation.setDeviceMetricsOverride', {width:320,height:1000,deviceScaleFactor:1,mobile:false});
+  await call('Emulation.setTouchEmulationEnabled', {enabled:false});
   const supplyPurchase = await evaluate(`(async () => {
     const originalAction=runFarmAction, calls=[];
     runFarmAction=async options=>{calls.push(options.rpc); options.apply(); renderFarm(); return {event:{}};};

@@ -117,9 +117,17 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   await click('#farmGrid [data-plant-plot="0"]');
   await settle(`!document.querySelector('#gardenSeedModal').classList.contains('hidden')`);
-  assert.equal(await evaluate(`document.activeElement.id`),'gardenSeedSearch');
+  assert.equal(await evaluate(`document.activeElement.matches('#gardenSeedModal button[data-close-garden-seed]')`),true,'opening an empty plot focuses the dialog close button');
+  await call('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  await call('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+  assert.equal(await evaluate(`document.querySelector('#gardenSeedModal').classList.contains('hidden')`),true,'Escape closes the planting dialog');
+  assert.equal(await evaluate(`document.activeElement.matches('#farmGrid [data-plant-plot="0"]')`),true,'closing returns focus to the selected empty plot');
+  await click('#farmGrid [data-plant-plot="0"]');
+  await settle(`!document.querySelector('#gardenSeedModal').classList.contains('hidden')`);
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('#gardenSeedSearch').closest('.garden-seed-search,.garden-seed-tools')).display`),'flex','search and wallet share a styled row');
   assert.equal(await evaluate(`document.querySelectorAll('[data-garden-plant]').length`),await evaluate(`Object.keys(CROPS).length`));
+  await click('#gardenSeedSearch');
+  assert.equal(await evaluate(`document.activeElement.id`),'gardenSeedSearch','search can be focused explicitly');
   await evaluate(`document.querySelector('#gardenSeedSearch').value='딸기';document.querySelector('#gardenSeedSearch').dispatchEvent(new Event('input',{bubbles:true}));`);
   assert.equal(await evaluate(`!!document.querySelector('[data-garden-plant="strawberry"]')`),true);
   assert.equal(await evaluate(`[...document.querySelectorAll('.garden-seed-card strong')].every(item=>item.textContent.includes('딸기'))`),true);
@@ -251,6 +259,7 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       assert.ok(fieldGallery.radius>=8&&fieldGallery.border===1,`${width}px ${theme}: field cards use the app's rounded thin border`);
     }
     await evaluate(`FarmSeeds.open(2);`);
+    assert.equal(await evaluate(`document.activeElement.matches('#gardenSeedModal button[data-close-garden-seed]')`),true,`${width}px: opening a plot does not focus the search input`);
     for(const theme of ['white','dark']){
       await evaluate(`applyWorkspaceTheme('${theme}');FarmSeeds.render();`);await pause(30);
       const geometry=await evaluate(`(()=>{const panel=document.querySelector('.garden-seed-panel'),choices=document.querySelector('#gardenSeedChoices'),bounds=panel.getBoundingClientRect();return {left:bounds.left,right:bounds.right,top:bounds.top,bottom:bounds.bottom,overflow:choices.scrollWidth>choices.clientWidth+1};})()`);

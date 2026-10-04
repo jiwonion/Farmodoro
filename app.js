@@ -6129,6 +6129,9 @@ function renderFarm() {
   const focusItem = FARM_ITEMS[focusId];
   const focusCount = state.farmItemInventory[focusId] ?? 0;
   const focusStatus = supplyStatus(focusId);
+  const supplyScrollArea = farmItemInventory.closest(".modal-scroll-area");
+  const supplyScrollTop = supplyScrollArea?.scrollTop ?? 0;
+  const supplyListScrollTop = farmItemInventory.querySelector(".supply-v2-list")?.scrollTop ?? 0;
   farmItemInventory.innerHTML = `
     <div class="supply-v2-list" role="listbox" aria-label="농장 용품">${supplyIds.map((itemId) => {
       const item = FARM_ITEMS[itemId];
@@ -6157,6 +6160,8 @@ function renderFarm() {
         <button type="button" class="supply-v2-use" data-use-farm-item="${focusId}" aria-label="${focusItem.name} 사용, ${focusCount}개 보유" ${focusCount ? "" : "disabled"}>${focusItem.type === "plot" ? "밭 골라서 사용" : "사용하기"}</button>
       </div>
     </section>`;
+  farmItemInventory.querySelector(".supply-v2-list").scrollTop = supplyListScrollTop;
+  if (supplyScrollArea) supplyScrollArea.scrollTop = supplyScrollTop;
 
   inventory.innerHTML = Object.entries(CROPS)
     .map(([cropId, crop]) => {
@@ -7427,21 +7432,40 @@ function hideFocusAlertBanner() {
   stopFocusAlarmSound();
 }
 
-function notifyFocusPhaseComplete(kind) {
-  // The phase just finished while this tab was actually ticking (foreground
-  // or a still-alive background tab), so the in-app banner below already
-  // told the user -- no need for the scheduled push to also fire later.
-  cancelFarmPushNotification("timer_end", "");
-  if (kind === "habit") {
-    showFocusAlertBanner("습관 목표 시간을 채웠어", "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아.");
-  } else if (kind === "focus") {
-    showFocusAlertBanner(
-      "집중 시간이 끝났어",
-      "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘.",
-    );
-  } else {
-    showFocusAlertBanner("휴식이 끝났어", "버튼을 눌러 다시 집중을 시작해줘.");
+async function showFocusSystemNotification(title, body) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted" || !isFarmPushSupported()) return;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    if (!await registration.pushManager.getSubscription()) return;
+    await registration.showNotification(title, {
+      body,
+      icon: "./assets/icons/pixel-clock-192.png?v=268",
+      tag: "farmodoro-timer-end",
+      data: { url: "./#focus" },
+    });
+  } catch (error) {
+    console.warn("Farmodoro focus notification failed", error);
   }
+}
+
+function notifyFocusPhaseComplete(kind) {
+  // A live timer shows the banner and device notification immediately;
+  // the scheduled push remains the fallback while the app is suspended.
+  cancelFarmPushNotification("timer_end", "");
+  let title;
+  let subtitle;
+  if (kind === "habit") {
+    title = "습관 목표 시간을 채웠어";
+    subtitle = "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아.";
+  } else if (kind === "focus") {
+    title = "집중 시간이 끝났어";
+    subtitle = "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘.";
+  } else {
+    title = "휴식이 끝났어";
+    subtitle = "버튼을 눌러 다시 집중을 시작해줘.";
+  }
+  showFocusAlertBanner(title, subtitle);
+  void showFocusSystemNotification(title, subtitle);
 }
 
 function advanceRunningFocusTimer(mode) {
@@ -9124,7 +9148,6 @@ document.querySelector("#farmItemInventory").addEventListener("click", (event) =
   supplyFocusItem = card.dataset.focusFarmItem;
   renderFarm();
   document.querySelector(`#farmItemInventory [data-focus-farm-item="${supplyFocusItem}"]`)?.focus({ preventScroll: true });
-  if (matchMedia("(max-width: 900px)").matches) document.querySelector("#farmItemInventory .supply-v2-detail")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 });
 
 document.querySelector("#farmItemInventory").addEventListener("click", async (event) => {
