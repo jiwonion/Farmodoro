@@ -218,6 +218,71 @@ body .mini-focus-main::after { color: var(--muted); }
 body .mini-focus-main :is(span, b) { color: var(--pixel-accent); }
 body .mini-focus-main strong { color: var(--ink); }
 
+body #focusAlertBanner {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid var(--pixel-edge);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 8px 28px #0002;
+}
+body #focusAlertBanner.hidden { display: none; }
+body #focusAlertBanner .focus-alert-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--pixel-soft);
+  color: var(--pixel-accent);
+  animation: none;
+}
+body #focusAlertBanner .focus-alert-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body #focusAlertBanner .focus-alert-text { gap: 4px; overflow-wrap: anywhere; }
+body #focusAlertTitle { color: var(--ink); font-size: 15px; font-weight: 650; line-height: 1.5; }
+body #focusAlertSubtitle { color: var(--muted); font-size: 13px; line-height: 1.6; }
+body #focusAlertBanner .focus-alert-actions { gap: 6px; }
+body #focusAlertBanner .focus-alert-actions button {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--pixel-edge);
+  border-radius: 7px !important;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 550;
+}
+body #focusAlertBanner .focus-alert-actions button:hover {
+  border-color: var(--pixel-accent);
+  background: var(--pixel-soft);
+  color: var(--pixel-accent);
+}
+body #focusAlertBanner #focusAlertDismissButton { width: 36px; padding: 0; font-size: 18px; }
+
+@media (max-width: 600px) {
+  body #focusAlertBanner { grid-template-columns: 32px minmax(0, 1fr) 36px; gap: 8px 10px; padding: 14px; }
+  body #focusAlertBanner .focus-alert-icon { width: 32px; height: 32px; }
+  body #focusAlertTitle { font-size: 14px; }
+  body #focusAlertSubtitle { font-size: 12px; }
+  body #focusAlertBanner .focus-alert-actions { display: contents; }
+  body #focusAlertBanner #focusAlertDismissButton { grid-column: 3; grid-row: 1; }
+  body #focusAlertBanner #focusAlertMuteButton { grid-column: 2 / 4; grid-row: 2; justify-self: start; }
+}
+
 body :is(#focusSettings, #userSettingsModal, #farmNameForm) input:not([type="checkbox"]):not([type="file"]),
 body #userSettingsModal textarea {
   border: 1px solid var(--pixel-edge) !important;
