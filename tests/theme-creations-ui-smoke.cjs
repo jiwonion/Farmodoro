@@ -78,6 +78,12 @@ let ws;
     await settle(`document.querySelector('#sceneryCreationRoot').getAttribute('aria-busy') === 'false'`);
   };
   const action = (kind, type) => `[data-scenery-action="${kind}"]${type ? `[data-scenery-type="${type}"]` : ''}`;
+  const verifyCardCompletions = async (type, count, reason) => {
+    const counter = await evaluate(`(() => { const node = document.querySelector('[data-scenery-card="${type}"] .scenery-type-completions'); return node && { count: node.querySelector('strong')?.textContent, text: node.textContent.replace(/\\s+/g, ' ').trim() }; })()`);
+    assert.ok(counter, type + ': completion counter exists');
+    assert.equal(counter.count, String(count), reason);
+    assert.equal(counter.text, '누적 완성 ' + count + '회', type + ': the count is explicitly cumulative');
+  };
   await call('Runtime.enable');
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await call('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
@@ -151,6 +157,7 @@ let ws;
   `);
   await settle(`SceneryCreations.snapshot() !== null && document.querySelector('#sceneryCreationRoot').getAttribute('aria-busy') === 'false'`);
   await evaluate('document.fonts.ready');
+  for (const type of ['coral', 'pinkCoral', 'sandcastle']) await verifyCardCompletions(type, 0, 'new kinds start at zero completed creations');
   assert.equal(await evaluate(`Number(document.querySelector('#marketFarmMoneyBalance').textContent.replaceAll(',', ''))`), 350, 'navigation shows the authoritative Farm Money balance');
   assert.match(await evaluate(`document.querySelector('[data-scenery-settlement]').textContent`), /10 Coin/);
   assert.match(await evaluate(`document.querySelector('[data-scenery-settlement]').textContent`), /3,070 Farm Money/);
@@ -209,12 +216,16 @@ let ws;
   assert.equal(await evaluate('SceneryCreations.snapshot().totalCompleted'), 1);
   await evaluate(`document.querySelector('[data-equip-cosmetic="farm_theme:ocean"]').click();`);
   await settle(`state.equippedFarmTheme === 'ocean'`);
+  await verifyCardCompletions('coral', 1, 'claiming credits the completed kind once');
+  await verifyCardCompletions('pinkCoral', 0, 'a different kind retains its own zero count');
   await click(action('unlock', 'pinkCoral'));
   assert.equal(await evaluate('state.farmMoney'), 100);
   await click(action('start', 'pinkCoral'));
   for (let i = 0; i < 4; i++) await click('[data-scenery-focus="grow-5"]');
   await click(action('claim'));
+  await verifyCardCompletions('pinkCoral', 1, 'the first claimed pink coral appears on its card');
   await click(action('start', 'pinkCoral'));
+  await verifyCardCompletions('pinkCoral', 1, 'starting another creation preserves the previous completion count');
   assert.equal(await evaluate('state.farmMoney'), 150, 'repeat starts are free after a permanent unlock');
   assert.equal(await evaluate(`__sceneryRpcCalls.filter(call => call.name === 'unlock_my_scenery_type' && call.params.p_type_id === 'pinkCoral').length`), 1);
   // Lost reply: the committed action is recovered with the same request identity.
@@ -227,6 +238,7 @@ let ws;
   for (let i = 0; i < 2; i++) await click('[data-scenery-focus="grow-5"]');
   for (let i = 0; i < 3; i++) await click('[data-scenery-focus="grow-1"]');
   assert.equal(await evaluate('SceneryCreations.snapshot().activeCreation.progress'), 14);
+  await verifyCardCompletions('pinkCoral', 1, 'growth and retry rerenders preserve the cumulative count');
   assert.match(await evaluate(`document.querySelector('.scenery-growth-copy strong').textContent`), /70% 성장/);
   assert.match(await evaluate(`document.querySelector('.scenery-growth-numbers').textContent`), /14 \/ 20 Coin 사용.*6 Coin/);
   assert.equal(await evaluate(`document.querySelector('.scenery-growth-timeline [aria-current="step"]').dataset.sceneryStage`), '2');
@@ -260,11 +272,12 @@ let ws;
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false });
     await evaluate(`applyWorkspaceTheme('${theme}'); renderFarm(); scrollTo(0, 0);`);
     await pause(100);
-    const geometry = await evaluate(`(() => { const scene = document.querySelector('#sceneryCreationScene'), card = document.querySelector('.scenery-main-card'), sprite = scene.querySelector('.scenery-centerpiece'), controls = [...document.querySelectorAll('#sceneryCreationRoot button:not(:disabled)')]; return { overflow: document.documentElement.scrollWidth > innerWidth + 1, sceneRatio: scene.clientWidth / scene.clientHeight, cardRight: card.getBoundingClientRect().right, sceneWidth: scene.clientWidth, spriteWidth: sprite.clientWidth, clippedControls: controls.filter(button => { const r = button.getBoundingClientRect(); return r.width <= 0 || r.left < -1 || r.right > innerWidth + 1; }).map(button => button.textContent) }; })()`);
+    const geometry = await evaluate(`(() => { const scene = document.querySelector('#sceneryCreationScene'), card = document.querySelector('.scenery-main-card'), sprite = scene.querySelector('.scenery-centerpiece'), controls = [...document.querySelectorAll('#sceneryCreationRoot button:not(:disabled)')]; return { overflow: document.documentElement.scrollWidth > innerWidth + 1, sceneRatio: scene.clientWidth / scene.clientHeight, cardRight: card.getBoundingClientRect().right, sceneWidth: scene.clientWidth, spriteWidth: sprite.clientWidth, clippedControls: controls.filter(button => { const r = button.getBoundingClientRect(); return r.width <= 0 || r.left < -1 || r.right > innerWidth + 1; }).map(button => button.textContent), clippedCounters: [...document.querySelectorAll('.scenery-type-completions')].filter(counter => { const r = counter.getBoundingClientRect(), parent = counter.closest('.scenery-type-card').getBoundingClientRect(); return r.width <= 0 || r.left < parent.left - 1 || r.right > parent.right + 1 || counter.scrollWidth > counter.clientWidth + 1; }).map(counter => counter.textContent) }; })()`);
     assert.equal(geometry.overflow, false, width + 'px ' + theme + ': no page overflow');
     assert.ok(Math.abs(geometry.sceneRatio - 1.5) < .015, 'atlas quadrants retain their ratio');
     assert.ok(geometry.spriteWidth > 100 && geometry.spriteWidth < geometry.sceneWidth, 'single object stays readable inside the scene');
     assert.deepEqual(geometry.clippedControls, [], width + 'px ' + theme + ': all controls fit');
+    assert.deepEqual(geometry.clippedCounters, [], width + 'px ' + theme + ': cumulative counts fit within their cards');
     const sources = await evaluate(`(async () => { const sources = [...new Set([...document.querySelectorAll('#sceneryCreationRoot image')].map(image => image.getAttribute('href')).concat([...document.querySelectorAll('#sceneryCreationRoot .garden-terrain')].map(element => getComputedStyle(element).backgroundImage.match(/url\\(["']?(.*?)["']?\\)/)[1])))]; return Promise.all(sources.map(async source => { const image = new Image(); image.src = source; await image.decode(); return { source, width: image.naturalWidth, height: image.naturalHeight }; })); })()`);
     assert.ok(sources.length >= 2 && sources.every(source => source.width > 0 && source.height > 0), 'creation and terrain artwork loads');
   };
@@ -286,12 +299,14 @@ let ws;
   await verifyGeometry(390, 'dark');
   await verifyGeometry(1440, 'dark'); await capture('dark');
   await verifyGeometry(320, 'white');
+  await verifyGeometry(320, 'dark');
   // Focus clone is a passive backdrop with no duplicate IDs or controls.
   await evaluate(`document.querySelector('#toggleFocusFarmBackground').setAttribute('aria-pressed', 'true'); showPage('focus'); renderFocusFarmBackground();`);
   assert.equal(await evaluate(`(() => { const backdrop = document.querySelector('.focus-farm-background'); return backdrop.inert && backdrop.getAttribute('aria-hidden') === 'true' && !backdrop.querySelector('button,[id],[data-scenery-action]') && backdrop.querySelectorAll('.scenery-centerpiece').length === 1; })()`), true);
   await evaluate(`showPage('farm');`);
   while (await evaluate('SceneryCreations.snapshot().activeCreation.progress < 20')) await click('[data-scenery-focus="grow-5"]:not(:disabled), [data-scenery-focus="grow-1"]:not(:disabled)');
   await click(action('claim'));
+  await verifyCardCompletions('pinkCoral', 2, 'claiming the same kind twice displays two cumulative completions');
   await evaluate(`document.querySelector('[data-equip-cosmetic="farm_theme:iceKingdom"]').click();`);
   await settle(`state.equippedFarmTheme === 'iceKingdom'`);
   await click(action('start', 'snowman'));
@@ -302,6 +317,7 @@ let ws;
   // Missing migration: no local-only creation, clear status, disabled writes.
   await evaluate(`window.__missingScenery = true; SceneryCreations.reset(); SceneryCreations.load(activeAuthUser);`);
   await settle(`document.querySelector('#sceneryActionStatus').textContent.includes('서버 업데이트')`);
+  assert.equal(await evaluate(`[...document.querySelectorAll('.scenery-type-completions strong')].every(node => node.textContent === '—')`), true, 'missing account data shows an unknown count rather than inventing zero');
   assert.equal(await evaluate(`[...document.querySelectorAll('#sceneryCreationRoot [data-scenery-action]')].filter(button => ['start','grow','claim','unlock'].includes(button.dataset.sceneryAction)).every(button => button.disabled)`), true);
   // Restoring the state proves unavailable can recover without reloading the page.
   await evaluate(`window.__missingScenery = false; SceneryCreations.load(activeAuthUser);`);
@@ -328,6 +344,7 @@ let ws;
   assert.equal(await evaluate('state.farmMoney'), 800);
   assert.equal(await evaluate(`Number(document.querySelector('#marketFarmMoneyBalance').textContent.replaceAll(',', ''))`), 800, 'account change updates the visible navigation wallet');
   assert.equal(await evaluate('SceneryCreations.snapshot().totalCompleted'), 0);
+  assert.equal(await evaluate(`[...document.querySelectorAll('.scenery-type-completions strong')].every(node => node.textContent === '0')`), true, 'a new account never sees the previous owner completion counts');
   assert.equal(await evaluate(`document.querySelector('[data-scenery-settlement]') === null`), true, 'account reset removes the previous owner settlement');
   assert.equal(await evaluate(`document.querySelector('#cosmeticPreviewModal').classList.contains('hidden')`), true, 'an old account preview closes when the owner changes');
   assert.equal(await evaluate(`!!localStorage.getItem('farmodoro-scenery-intent:scenery-ui-owner')`), true, 'old account recovery record is retained');
@@ -424,6 +441,25 @@ let ws;
     assert.equal(await evaluate(`document.querySelector('#cosmeticPreviewModal [data-purchase-cosmetic="farm_theme:"]') === null`), true);
     await evaluate('closeCosmeticPreview();');
   }
+  // Capture a server-fixture history with distinct totals on all three tree
+  // cards so the new count labels can also be reviewed together visually.
+  await evaluate(`
+    __sceneryFixture.activeCreation = null;
+    for (const [typeId, count] of [['tree', 3], ['blossomTree', 2], ['goldenTree', 1]]) {
+      let entry = __sceneryFixture.completedTypes.find(item => item.typeId === typeId);
+      if (!entry) { entry = {typeId, count:0}; __sceneryFixture.completedTypes.push(entry); }
+      entry.count = count;
+      if (!__sceneryFixture.unlockedTypes.includes(typeId)) __sceneryFixture.unlockedTypes.push(typeId);
+    }
+    __sceneryFixture.totalCompleted = __sceneryFixture.completedTypes.reduce((sum, entry) => sum + entry.count, 0);
+    SceneryCreations.applyState(structuredClone(__sceneryFixture)); renderFarm();
+  `);
+  for (const [type, count] of [['tree', 3], ['blossomTree', 2], ['goldenTree', 1]]) await verifyCardCompletions(type, count, 'each tree card displays its own accumulated history');
+  await verifyGeometry(1440, 'white');
+  await evaluate(`clearTimeout(toastTimer); toast.classList.remove('show');`);
+  const cardsClip = await evaluate(`(() => { const rect = document.querySelector('.scenery-picker').getBoundingClientRect(); return {x:rect.left + scrollX, y:rect.top + scrollY, width:rect.width, height:rect.height, scale:1}; })()`);
+  const cardsScreenshot = await call('Page.captureScreenshot', {format:'png',captureBeyondViewport:true,clip:cardsClip});
+  fs.writeFileSync(path.join(root, 'output', 'scenery-creations-completion-counts.png'), Buffer.from(cardsScreenshot.data, 'base64'));
   assert.deepEqual(exceptions, [], 'no browser runtime exceptions');
   console.log('PASS: all 19 themed primaries start/grow/claim and retain intrinsic identities; all 19 theme modal and sidebar previews, four consistent growth stages, honest Coin/percentage/remaining metrics, current versus completed card previews, retired farm controls, permanent unlock/repeat, durable recovery, account isolation, queued cosmetics/theme pinning, stable keyboard focus, loaded art, desktop/mobile/dark geometry, passive focus clone, missing-migration recovery. Enlarged tree/cherry/Christmas art stays within its SVG and scene at every stage on 1440/390/320px, in theme modals and wide/tall focus frames. Actual screenshots: output/scenery-creations-*.png');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { ws?.close(); chrome?.kill(); server.close(); });

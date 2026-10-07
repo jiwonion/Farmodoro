@@ -262,7 +262,7 @@ test('claiming credits the server wallet and retains completed counts while repe
   assert.equal(h.ctx.state.farmMoney, 150);
   assert.equal(h.ctx.state.weeklyFarmMoneyEarned, 50);
   assert.equal(h.api.snapshot().activeCreation, null);
-  assert.match(h.root.innerHTML, /총 1개 완성/);
+  assert.match(h.root.innerHTML, /총 1회 완성/);
   assert.match(h.root.innerHTML, /작은 나무/);
 });
 

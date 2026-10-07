@@ -69,6 +69,8 @@
 .scenery-type-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
 .scenery-type-heading h4 { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.4; }
 .scenery-type-label { color: var(--green-700); font-size: 10px; white-space: nowrap; }
+.scenery-type-completions { display: flex; align-items: baseline; gap: 7px; align-self: flex-start; margin-top: 10px; padding: 5px 9px; border-radius: 8px; background: var(--green-50); color: var(--muted); font-size: 11px; line-height: 1.5; }
+.scenery-type-completions strong { color: var(--ink); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .scenery-type-card > p { margin: 9px 0 15px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .scenery-type-card > .scenery-button { width: 100%; margin-top: auto; padding-inline: 7px; font-size: 12px; }
 .scenery-history { border-top: 1px solid var(--line); padding-top: 20px; padding-bottom: 4px; }
