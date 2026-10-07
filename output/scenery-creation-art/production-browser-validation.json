@@ -1,0 +1,39 @@
+{
+  "status": "pass",
+  "types": 29,
+  "stages": 116,
+  "dimensions": {
+    "winter": [
+      1448,
+      1086
+    ],
+    "fantasy": [
+      1448,
+      1086
+    ],
+    "themeNature": [
+      1122,
+      1402
+    ],
+    "themeEvents": [
+      1122,
+      1402
+    ],
+    "themeWeather": [
+      1122,
+      1402
+    ],
+    "themeFantasy": [
+      1254,
+      1254
+    ],
+    "nature": [
+      1448,
+      1086
+    ]
+  },
+  "screenshots": [
+    "theme-preview.png",
+    "theme-dark-preview.png"
+  ]
+}

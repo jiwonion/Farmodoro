@@ -1,6 +1,6 @@
 // Runs once a minute, invoked by the pg_cron job set up in migration 063
-// (not by any end user), and sends every scheduled_push_notifications row
-// whose fire_at has arrived. Auth is a shared secret in the Authorization
+// (not by any end user), and sends timer_end notifications whose fire_at
+// has arrived. Auth is a shared secret in the Authorization
 // header (set as CRON_DISPATCH_SECRET) instead of a user JWT, since there's
 // no user session behind a cron tick.
 //
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
   const { data: due, error } = await admin
     .from("scheduled_push_notifications")
     .select("id, user_id, title, body")
+    .eq("kind", "timer_end")
     .is("sent_at", null)
     .lte("fire_at", new Date().toISOString())
     .limit(500);

@@ -1,0 +1,222 @@
+﻿[
+    {
+        "theme":  "default",
+        "stage":  0,
+        "left":  99,
+        "top":  225,
+        "right":  208,
+        "bottom":  297,
+        "width":  110,
+        "height":  73,
+        "opaquePixels":  4444
+    },
+    {
+        "theme":  "default",
+        "stage":  1,
+        "left":  352,
+        "top":  122,
+        "right":  478,
+        "bottom":  295,
+        "width":  127,
+        "height":  174,
+        "opaquePixels":  9214
+    },
+    {
+        "theme":  "default",
+        "stage":  2,
+        "left":  574,
+        "top":  73,
+        "right":  766,
+        "bottom":  296,
+        "width":  193,
+        "height":  224,
+        "opaquePixels":  26076
+    },
+    {
+        "theme":  "default",
+        "stage":  3,
+        "left":  813,
+        "top":  23,
+        "right":  1095,
+        "bottom":  296,
+        "width":  283,
+        "height":  274,
+        "opaquePixels":  49295
+    },
+    {
+        "theme":  "cherryBlossom",
+        "stage":  0,
+        "left":  90,
+        "top":  473,
+        "right":  219,
+        "bottom":  587,
+        "width":  130,
+        "height":  115,
+        "opaquePixels":  5507
+    },
+    {
+        "theme":  "cherryBlossom",
+        "stage":  1,
+        "left":  326,
+        "top":  359,
+        "right":  503,
+        "bottom":  586,
+        "width":  178,
+        "height":  228,
+        "opaquePixels":  13863
+    },
+    {
+        "theme":  "cherryBlossom",
+        "stage":  2,
+        "left":  558,
+        "top":  348,
+        "right":  777,
+        "bottom":  588,
+        "width":  220,
+        "height":  241,
+        "opaquePixels":  28071
+    },
+    {
+        "theme":  "cherryBlossom",
+        "stage":  3,
+        "left":  805,
+        "top":  325,
+        "right":  1095,
+        "bottom":  591,
+        "width":  291,
+        "height":  267,
+        "opaquePixels":  46205
+    },
+    {
+        "theme":  "goldenHarvest",
+        "stage":  0,
+        "left":  85,
+        "top":  747,
+        "right":  215,
+        "bottom":  836,
+        "width":  131,
+        "height":  90,
+        "opaquePixels":  6552
+    },
+    {
+        "theme":  "goldenHarvest",
+        "stage":  1,
+        "left":  335,
+        "top":  667,
+        "right":  492,
+        "bottom":  835,
+        "width":  158,
+        "height":  169,
+        "opaquePixels":  14586
+    },
+    {
+        "theme":  "goldenHarvest",
+        "stage":  2,
+        "left":  568,
+        "top":  642,
+        "right":  768,
+        "bottom":  838,
+        "width":  201,
+        "height":  197,
+        "opaquePixels":  22390
+    },
+    {
+        "theme":  "goldenHarvest",
+        "stage":  3,
+        "left":  824,
+        "top":  614,
+        "right":  1087,
+        "bottom":  839,
+        "width":  264,
+        "height":  226,
+        "opaquePixels":  39184
+    },
+    {
+        "theme":  "springMeadow",
+        "stage":  0,
+        "left":  80,
+        "top":  1003,
+        "right":  221,
+        "bottom":  1090,
+        "width":  142,
+        "height":  88,
+        "opaquePixels":  7305
+    },
+    {
+        "theme":  "springMeadow",
+        "stage":  1,
+        "left":  326,
+        "top":  894,
+        "right":  502,
+        "bottom":  1094,
+        "width":  177,
+        "height":  201,
+        "opaquePixels":  19657
+    },
+    {
+        "theme":  "springMeadow",
+        "stage":  2,
+        "left":  558,
+        "top":  883,
+        "right":  774,
+        "bottom":  1095,
+        "width":  217,
+        "height":  213,
+        "opaquePixels":  26895
+    },
+    {
+        "theme":  "springMeadow",
+        "stage":  3,
+        "left":  814,
+        "top":  872,
+        "right":  1085,
+        "bottom":  1095,
+        "width":  272,
+        "height":  224,
+        "opaquePixels":  42825
+    },
+    {
+        "theme":  "lavenderField",
+        "stage":  0,
+        "left":  89,
+        "top":  1264,
+        "right":  215,
+        "bottom":  1353,
+        "width":  127,
+        "height":  90,
+        "opaquePixels":  6121
+    },
+    {
+        "theme":  "lavenderField",
+        "stage":  1,
+        "left":  326,
+        "top":  1186,
+        "right":  490,
+        "bottom":  1358,
+        "width":  165,
+        "height":  173,
+        "opaquePixels":  20247
+    },
+    {
+        "theme":  "lavenderField",
+        "stage":  2,
+        "left":  575,
+        "top":  1152,
+        "right":  761,
+        "bottom":  1362,
+        "width":  187,
+        "height":  211,
+        "opaquePixels":  25190
+    },
+    {
+        "theme":  "lavenderField",
+        "stage":  3,
+        "left":  830,
+        "top":  1120,
+        "right":  1091,
+        "bottom":  1364,
+        "width":  262,
+        "height":  245,
+        "opaquePixels":  41800
+    }
+]

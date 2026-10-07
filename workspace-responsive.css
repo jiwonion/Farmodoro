@@ -1,39 +1,25 @@
-/* Focus fits the viewport; the farm fills its width without cropping the map. */
 :root { --workspace-viewport-inset: 60px; }
-
-/* Keep all 31 day columns visible before using the right side for summaries. */
-@container habit-log (min-width: 1240px) {
-  body #habitsPage .habit-monthly-body {
+@container habit-log (min-width: 1240px) {body #habitsPage .habit-monthly-body {
     grid-template-columns: minmax(0, 832px) minmax(380px, 1fr);
     gap: 28px;
-  }
-  body #habitsPage .habit-monthly-summary {
+  }body #habitsPage .habit-monthly-summary {
     min-height: 250px;
     gap: 24px;
     padding: 0 0 0 28px;
     border-top: 0;
     border-left: 1px solid var(--line);
-  }
-  body #habitsPage .habit-summary-ranking { padding-left: 20px; }
+  }body #habitsPage .habit-summary-ranking { padding-left: 20px; }
 }
-
-@container habit-log (max-width: 440px) {
-  body #habitsPage .habit-monthly-body { gap: 18px; }
-  body #habitsPage .habit-monthly-summary {
+@container habit-log (max-width: 440px) {body #habitsPage .habit-monthly-body { gap: 18px; }body #habitsPage .habit-monthly-summary {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     padding-top: 18px;
-  }
-  body #habitsPage .habit-summary-ranking {
+  }body #habitsPage .habit-summary-ranking {
     padding: 18px 0 0;
     border-left: 0;
     border-top: 1px solid var(--line);
-  }
-  body #habitsPage .habit-summary-ranking h3 { margin-top: 0; }
-  body #habitsPage .habit-summary-top { margin-top: 16px; gap: 18px; }
-}
-
-body #focusPage .focus-page-stage {
+  }body #habitsPage .habit-summary-ranking h3 { margin-top: 0; }body #habitsPage .habit-summary-top { margin-top: 16px; gap: 18px; }
+}body #focusPage .focus-page-stage {
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -42,15 +28,11 @@ body #focusPage .focus-page-stage {
   min-height: 0 !important;
   aspect-ratio: auto !important;
   overflow: auto;
-}
-
-body #focusPage .focus-page-stage:fullscreen {
+}body #focusPage .focus-page-stage:fullscreen {
   width: 100%;
   height: 100dvh !important;
   min-height: 0 !important;
-}
-
-body #focusPage .focus-page-stage .focus-stage-toolbar {
+}body #focusPage .focus-page-stage .focus-stage-toolbar {
   position: relative;
   inset: auto;
   display: flex;
@@ -61,20 +43,14 @@ body #focusPage .focus-page-stage .focus-stage-toolbar {
   width: 100%;
   gap: 12px;
   padding: clamp(12px, 1.5cqw, 24px);
-}
-
-body #focusPage .focus-page-stage:fullscreen .focus-stage-toolbar {
+}body #focusPage .focus-page-stage:fullscreen .focus-stage-toolbar {
   inset: auto;
-}
-
-body #focusPage .focus-item-picker {
+}body #focusPage .focus-item-picker {
   flex: 1 1 240px;
   width: auto;
   max-width: 340px;
   min-width: 0;
-}
-
-body #focusPage .focus-stage-actions {
+}body #focusPage .focus-stage-actions {
   display: flex;
   flex: 1 1 410px;
   flex-wrap: wrap;
@@ -82,16 +58,12 @@ body #focusPage .focus-stage-actions {
   width: auto;
   max-width: 100%;
   gap: 6px;
-}
-
-body #focusPage .focus-stage-actions :is(button, label) {
+}body #focusPage .focus-stage-actions :is(button, label) {
   width: auto;
   min-height: clamp(38px, 3.5cqw, 46px);
   padding-inline: clamp(8px, .9cqw, 16px);
   font-size: clamp(12px, 1cqw, 14px);
-}
-
-body #focusPage .focus-page-stage .focus-page-slot {
+}body #focusPage .focus-page-stage .focus-page-slot {
   position: relative;
   inset: auto;
   display: flex;
@@ -99,9 +71,7 @@ body #focusPage .focus-page-stage .focus-page-slot {
   height: auto;
   min-height: 0 !important;
   overflow: visible;
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone {
+}body #focusPage .focus-page-stage .focus-card.standalone {
   --focus-stage-visual-size: clamp(176px, min(23cqw, 29dvh), 310px);
   --focus-stage-visual-radius: calc(var(--focus-stage-visual-size) / 2);
   display: flex;
@@ -113,9 +83,7 @@ body #focusPage .focus-page-stage .focus-card.standalone {
   height: auto;
   min-height: 0 !important;
   padding: 24px clamp(16px, 3cqw, 48px);
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
   position: relative;
   inset: auto;
   order: -1;
@@ -124,47 +92,30 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
   height: var(--focus-stage-visual-size);
   min-width: 0;
   transform: none;
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .timer-ring {
+}body #focusPage .focus-page-stage .focus-card.standalone .timer-ring {
   width: calc(var(--focus-stage-visual-size) * .9);
   height: calc(var(--focus-stage-visual-size) * .9);
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong {
+}body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong {
   font-size: clamp(34px, min(5cqw, 6dvh), 62px);
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-copy {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-copy {
   position: static;
   flex: 0 0 auto;
   width: min(560px, 100%);
   max-width: 100%;
   transform: none;
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-copy h2 {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-copy h2 {
   margin-block: 0 10px;
   font-size: clamp(22px, 2.5cqw, 32px);
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-copy p {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-copy p {
   font-size: clamp(13px, 1.1cqw, 15px);
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-controls {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-controls {
   flex-wrap: wrap;
   max-width: 100%;
-}
-
-body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
+}body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
   width: min(360px, 100%);
   max-width: 100%;
 }
-
-/* Keep the full 3:2 artwork across the workspace and scroll taller maps naturally. */
-@media (min-width: 701px) {
-  body #farmPage .farm-layout {
+@media (min-width: 701px) {body #farmPage .farm-layout {
     display: flex !important;
     flex-direction: column;
     align-items: stretch;
@@ -173,77 +124,29 @@ body #focusPage .focus-page-stage .focus-card.standalone .focus-reward {
     height: auto;
     min-height: 0;
     margin: 0;
-  }
-
-  body #farmPage .farm-panel {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    width: 100%;
-    min-height: 0;
-  }
-
-  body #farmPage :is(.farm-panel-header, .farm-set-bonuses, .farm-protection-status, .farm-world-footer) {
+  }body #farmPage :is(.farm-panel-header, .farm-set-bonuses) {
     flex: 0 0 auto;
   }
-
-  body #farmPage .farm-scene[data-scenery] {
-    container-type: inline-size;
-    display: block;
-    flex: 0 0 auto;
-    width: 100%;
-    height: auto;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  body #farmPage .farm-scene[data-scenery] .farm-scene-grid {
-    width: 100%;
-    height: auto;
-    min-width: 0;
-    min-height: 0;
-    margin: 0;
-    aspect-ratio: 3 / 2;
-  }
-
-  body #farmPage .farm-world-hint span,
-  body #farmPage #toggleFarmOverview { display: none; }
 }
-
-@media (max-width: 1100px) {
-  :root { --workspace-viewport-inset: 48px; }
+@media (max-width: 1100px) {:root { --workspace-viewport-inset: 48px; }
 }
-
-@media (max-width: 900px) {
-  body #focusPage .focus-item-picker { max-width: none; }
-  body #focusPage .focus-stage-actions { justify-content: flex-start; }
+@media (max-width: 900px) {body #focusPage .focus-item-picker { max-width: none; }body #focusPage .focus-stage-actions { justify-content: flex-start; }
 }
-
-@media (max-width: 700px) {
-  body #focusPage .focus-page-stage {
+@media (max-width: 700px) {body #focusPage .focus-page-stage {
     height: auto !important;
     min-height: 0 !important;
-  }
-
-  body #focusPage .focus-page-stage .focus-stage-toolbar {
+  }body #focusPage .focus-page-stage .focus-stage-toolbar {
     flex-direction: column;
     align-items: stretch;
     padding: 12px;
-  }
-
-  body #focusPage .focus-item-picker { flex: 0 0 auto; width: 100%; }
-  body #focusPage .focus-stage-actions {
+  }body #focusPage .focus-item-picker { flex: 0 0 auto; width: 100%; }body #focusPage .focus-stage-actions {
     display: grid;
     flex: 0 0 auto;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
-  }
-  body #focusPage .focus-stage-actions :is(button, label) { width: 100%; min-height: 40px; }
-  body #focusPage .focus-page-stage .focus-card.standalone {
+  }body #focusPage .focus-stage-actions :is(button, label) { width: 100%; min-height: 40px; }body #focusPage .focus-page-stage .focus-card.standalone {
     --focus-stage-visual-size: clamp(150px, 44cqw, 210px);
     padding: 24px 14px 32px;
     gap: 20px;
-  }
-  body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong { font-size: clamp(32px, 9cqw, 42px); }
+  }body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong { font-size: clamp(32px, 9cqw, 42px); }
 }

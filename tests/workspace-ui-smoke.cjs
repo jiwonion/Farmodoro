@@ -27,7 +27,7 @@ let ws;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 (async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0",
+  chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", "--no-sandbox", "--disable-crash-reporter", "--no-first-run", "--remote-debugging-port=0",
     `--user-data-dir=${profile}`, "about:blank"], { windowsHide: true, stdio: "ignore" });
   chrome.on("error", (error) => { throw error; });
   const portFile = path.join(profile, "DevToolsActivePort");

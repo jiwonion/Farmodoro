@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<base href="../../">
+<title>Farmodoro theme-specific creation art review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px;background:#edf3fb;color:#122650;font:15px system-ui,sans-serif}h1{margin:0 0 10px;font-size:26px}p{margin:6px 0 16px}.atlas{display:grid;grid-template-columns:175px repeat(4,1fr);gap:8px;max-width:1100px}.heading{text-align:center;padding:8px;font-weight:650}.label{display:flex;align-items:center;font-weight:650}.frame{height:118px;border:1px solid #dae5f5;border-radius:14px;background:linear-gradient(#fff,#f8fbff);padding:3px}.frame svg{height:110px}.dark{display:flex;gap:12px;padding:15px;background:#10283d;max-width:1100px;border-radius:14px}.dark svg{width:150px;height:150px}#checks{font-size:13px;margin:14px 0;color:#125b43}
+</style>
+<h1>Farmodoro · theme-specific growth art</h1>
+<p>19 new representatives and all historical IDs. Four progressive stages, fixed family scale and bottom anchor.</p>
+<div class="atlas" id="atlas"><div></div><div class="heading">Started · 0%</div><div class="heading">Growing · 25%</div><div class="heading">Nearly complete · 60%</div><div class="heading">Complete · 100%</div></div>
+<p>Alpha review on a dark background</p><div class="dark" id="dark"></div>
+<div id="checks">Checks pending</div>
+<script src="./scenery-creation-art.js"></script>
+<script>
+try {
+const art=window.SceneryCreationArt;
+for(const id of Object.keys(art.metadata.types)) {
+  const label=document.createElement('div');label.className='label';label.textContent=id;document.querySelector('#atlas').append(label);
+  for(const progress of [0,5,12,20]) { const frame=document.createElement('div');frame.className='frame';frame.dataset.type=id;frame.dataset.progress=progress;frame.innerHTML=art.sprite(id,progress,20);document.querySelector('#atlas').append(frame) }
+}
+document.querySelector('#dark').innerHTML=['cherryTree','candyBouquet','snowman','galaxyPlanet','auroraCrystal','moonFlower'].map(id=>art.sprite(id,20,20)).join('');
+window.artErrors=[];
+window.artDimensions={};
+Promise.all(Object.entries(art.metadata.atlases).map(([key,meta])=>new Promise((resolve,reject)=>{const im=new Image;im.onload=()=>{artDimensions[key]=[im.naturalWidth,im.naturalHeight];if(im.naturalWidth!==meta.width||im.naturalHeight!==meta.height)reject(Error('Atlas dimensions: '+meta.src));else resolve()};im.onerror=()=>reject(Error('Atlas loading: '+meta.src));im.src=meta.src}))).then(()=>{window.artReady=true;document.querySelector('#checks').textContent='PASS: 29 type IDs × 4 stages, 7 RGBA atlases loaded with their exact dimensions.'}).catch(err=>{artErrors.push(err.message);window.artReady=true;document.querySelector('#checks').textContent='FAIL: '+err.message});
+} catch(err) { window.artErrors=[err.message];window.artReady=true;document.querySelector('#checks').textContent='FAIL: '+err.message; }
+</script>
+</html>

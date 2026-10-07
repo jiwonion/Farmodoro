@@ -1,0 +1,464 @@
+﻿{
+    "fantasy":  {
+                    "Width":  1448,
+                    "Height":  1086,
+                    "CellWidth":  362,
+                    "CellHeight":  362,
+                    "TransparentPixels":  1055911,
+                    "OpaquePixels":  345,
+                    "Cells":  [
+                                  {
+                                      "Row":  0,
+                                      "Column":  0,
+                                      "Bounds":  [
+                                                     86,
+                                                     227,
+                                                     207,
+                                                     123
+                                                 ],
+                                      "MainPixels":  14500,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  0,
+                                      "Column":  1,
+                                      "Bounds":  [
+                                                     402,
+                                                     207,
+                                                     288,
+                                                     144
+                                                 ],
+                                      "MainPixels":  28648,
+                                      "OutsideMainPixels":  1
+                                  },
+                                  {
+                                      "Row":  0,
+                                      "Column":  2,
+                                      "Bounds":  [
+                                                     744,
+                                                     125,
+                                                     301,
+                                                     230
+                                                 ],
+                                      "MainPixels":  41418,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  0,
+                                      "Column":  3,
+                                      "Bounds":  [
+                                                     1103,
+                                                     75,
+                                                     310,
+                                                     284
+                                                 ],
+                                      "MainPixels":  46808,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  1,
+                                      "Column":  0,
+                                      "Bounds":  [
+                                                     111,
+                                                     620,
+                                                     156,
+                                                     76
+                                                 ],
+                                      "MainPixels":  8128,
+                                      "OutsideMainPixels":  1901
+                                  },
+                                  {
+                                      "Row":  1,
+                                      "Column":  1,
+                                      "Bounds":  [
+                                                     452,
+                                                     519,
+                                                     187,
+                                                     182
+                                                 ],
+                                      "MainPixels":  17893,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  1,
+                                      "Column":  2,
+                                      "Bounds":  [
+                                                     791,
+                                                     468,
+                                                     211,
+                                                     237
+                                                 ],
+                                      "MainPixels":  27625,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  1,
+                                      "Column":  3,
+                                      "Bounds":  [
+                                                     1141,
+                                                     434,
+                                                     234,
+                                                     279
+                                                 ],
+                                      "MainPixels":  39088,
+                                      "OutsideMainPixels":  2513
+                                  },
+                                  {
+                                      "Row":  2,
+                                      "Column":  0,
+                                      "Bounds":  [
+                                                     110,
+                                                     884,
+                                                     159,
+                                                     138
+                                                 ],
+                                      "MainPixels":  13336,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  2,
+                                      "Column":  1,
+                                      "Bounds":  [
+                                                     448,
+                                                     855,
+                                                     191,
+                                                     172
+                                                 ],
+                                      "MainPixels":  22095,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  2,
+                                      "Column":  2,
+                                      "Bounds":  [
+                                                     755,
+                                                     805,
+                                                     274,
+                                                     222
+                                                 ],
+                                      "MainPixels":  39298,
+                                      "OutsideMainPixels":  0
+                                  },
+                                  {
+                                      "Row":  2,
+                                      "Column":  3,
+                                      "Bounds":  [
+                                                     1090,
+                                                     781,
+                                                     337,
+                                                     259
+                                                 ],
+                                      "MainPixels":  55249,
+                                      "OutsideMainPixels":  2475
+                                  }
+                              ]
+                },
+    "winter":  {
+                   "Width":  1448,
+                   "Height":  1086,
+                   "CellWidth":  362,
+                   "CellHeight":  362,
+                   "TransparentPixels":  1058636,
+                   "OpaquePixels":  742,
+                   "Cells":  [
+                                 {
+                                     "Row":  0,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    74,
+                                                    226,
+                                                    228,
+                                                    136
+                                                ],
+                                     "MainPixels":  18134,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    416,
+                                                    130,
+                                                    260,
+                                                    232
+                                                ],
+                                     "MainPixels":  35416,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    759,
+                                                    114,
+                                                    282,
+                                                    248
+                                                ],
+                                     "MainPixels":  41889,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1108,
+                                                    80,
+                                                    293,
+                                                    282
+                                                ],
+                                     "MainPixels":  54747,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    73,
+                                                    587,
+                                                    229,
+                                                    110
+                                                ],
+                                     "MainPixels":  15037,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    418,
+                                                    502,
+                                                    258,
+                                                    196
+                                                ],
+                                     "MainPixels":  28464,
+                                     "OutsideMainPixels":  141
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    761,
+                                                    441,
+                                                    273,
+                                                    257
+                                                ],
+                                     "MainPixels":  37194,
+                                     "OutsideMainPixels":  63
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1119,
+                                                    415,
+                                                    280,
+                                                    286
+                                                ],
+                                     "MainPixels":  45690,
+                                     "OutsideMainPixels":  339
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    122,
+                                                    929,
+                                                    143,
+                                                    94
+                                                ],
+                                     "MainPixels":  7527,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    437,
+                                                    871,
+                                                    207,
+                                                    157
+                                                ],
+                                     "MainPixels":  17427,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    769,
+                                                    799,
+                                                    251,
+                                                    229
+                                                ],
+                                     "MainPixels":  33478,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1106,
+                                                    737,
+                                                    304,
+                                                    304
+                                                ],
+                                     "MainPixels":  59084,
+                                     "OutsideMainPixels":  0
+                                 }
+                             ]
+               },
+    "nature":  {
+                   "Width":  1448,
+                   "Height":  1086,
+                   "CellWidth":  362,
+                   "CellHeight":  362,
+                   "TransparentPixels":  1110840,
+                   "OpaquePixels":  71,
+                   "Cells":  [
+                                 {
+                                     "Row":  0,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    126,
+                                                    250,
+                                                    139,
+                                                    108
+                                                ],
+                                     "MainPixels":  8726,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    465,
+                                                    154,
+                                                    166,
+                                                    206
+                                                ],
+                                     "MainPixels":  19060,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    784,
+                                                    88,
+                                                    237,
+                                                    270
+                                                ],
+                                     "MainPixels":  41005,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  0,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1094,
+                                                    48,
+                                                    310,
+                                                    314
+                                                ],
+                                     "MainPixels":  63715,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    139,
+                                                    600,
+                                                    116,
+                                                    104
+                                                ],
+                                     "MainPixels":  6487,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    460,
+                                                    545,
+                                                    174,
+                                                    160
+                                                ],
+                                     "MainPixels":  17989,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    772,
+                                                    479,
+                                                    242,
+                                                    233
+                                                ],
+                                     "MainPixels":  35704,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  1,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1101,
+                                                    419,
+                                                    304,
+                                                    293
+                                                ],
+                                     "MainPixels":  55400,
+                                     "OutsideMainPixels":  366
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  0,
+                                     "Bounds":  [
+                                                    123,
+                                                    927,
+                                                    144,
+                                                    106
+                                                ],
+                                     "MainPixels":  8657,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  1,
+                                     "Bounds":  [
+                                                    459,
+                                                    866,
+                                                    166,
+                                                    168
+                                                ],
+                                     "MainPixels":  16189,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  2,
+                                     "Bounds":  [
+                                                    810,
+                                                    776,
+                                                    178,
+                                                    264
+                                                ],
+                                     "MainPixels":  28798,
+                                     "OutsideMainPixels":  0
+                                 },
+                                 {
+                                     "Row":  2,
+                                     "Column":  3,
+                                     "Bounds":  [
+                                                    1137,
+                                                    737,
+                                                    226,
+                                                    303
+                                                ],
+                                     "MainPixels":  43088,
+                                     "OutsideMainPixels":  0
+                                 }
+                             ]
+               }
+}

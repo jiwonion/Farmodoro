@@ -77,7 +77,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   await evaluate(`state.groups=[{id:'work',name:'업무',colorIndex:0}];
     state.tasks=[{id:'task-0',title:'회의 자료 정리',groupId:'work',status:'waiting',focusSeconds:0}];
     state.habits=[];taskDataHydrated=true;
-    state.farmPlots=state.farmPlots.map((plot,i)=>({...plot,crop:i<4?Object.keys(CROPS)[i]:null,growth:i===3?4:1,plantedDate:toLocalDateString(),lastWateredDate:toLocalDateString(),lastCaredAt:Date.now(),wilted:false}));
+    SceneryCreations.applyState({activeCreation:null,unlockedTypes:['tree'],completedTypes:[],totalCompleted:0,catalog:[{id:'tree',name:'초록 나무',family:'tree',variant:0,unlockPrice:0,growthCost:20,reward:50}]});
     render();`);
   await call('Runtime.evaluate',{expression:'document.fonts.ready.then(() => true)',awaitPromise:true});
   fs.mkdirSync(path.join(root,'docs/previews/workspace'),{recursive:true});
@@ -110,13 +110,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await evaluate(`showPage('farm')`);
       await pause(120);
       const farm=await evaluate(`(() => {
-        const layout=document.querySelector('#farmPage .farm-layout').getBoundingClientRect(),scene=document.querySelector('#farmPage .farm-scene').getBoundingClientRect(),map=document.querySelector('#farmPage .farm-scene-grid').getBoundingClientRect();
+        const layout=document.querySelector('#farmPage .farm-layout').getBoundingClientRect(),scene=document.querySelector('#sceneryCreationScene').getBoundingClientRect(),card=document.querySelector('.scenery-main-card').getBoundingClientRect();
         return {overflow:document.documentElement.scrollWidth>innerWidth,
           frameFits:layout.left>=0&&layout.right<=innerWidth+1,
-          mapFits:map.width<=scene.width+1&&map.height<=scene.height+1,
-          fillsWidth:Math.abs(map.width-scene.width)<1,
-          ratio:Math.abs(map.width/map.height-1.5)<.01,
-          tiles:document.querySelectorAll('#farmGrid .farm-plot').length,mapWidth:map.width,mapHeight:map.height};
+          mapFits:scene.left>=card.left-1&&scene.right<=card.right+1,
+          fillsWidth:Math.abs(scene.width-card.width)<3,
+          ratio:Math.abs(scene.width/scene.height-1.5)<.01,
+          creations:document.querySelectorAll('#sceneryCreationScene .scenery-centerpiece').length,mapWidth:scene.width,mapHeight:scene.height};
       })()`);
       assert.equal(farm.overflow,false,`${width} ${height} ${theme} farm page overflow`);
       assert.equal(farm.frameFits,true,`${width} ${height} ${theme} farm frame bounds ${JSON.stringify(farm)}`);
@@ -125,18 +125,12 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         assert.equal(farm.fillsWidth,true,`${width} ${height} ${theme} farm has no side gutters ${JSON.stringify(farm)}`);
       }
       assert.equal(farm.ratio,true,`${width} ${height} ${theme} undistorted map`);
-      assert.equal(farm.tiles,9);
+      assert.equal(farm.creations,1);
       if(theme==='white') Object.assign(dimensions.at(-1),{farmWidth:farm.mapWidth,farmHeight:farm.mapHeight});
-      if(width<=700) {
-        await evaluate(`if (!document.querySelector('#farmPage .farm-scene').classList.contains('is-overview')) document.querySelector('#toggleFarmOverview').click()`);
-        await pause(60);
-        assert.equal(await evaluate(`(() => { const scene=document.querySelector('#farmPage .farm-scene'),map=scene.querySelector('.farm-scene-grid');return map.getBoundingClientRect().width<=scene.clientWidth+1})()`),true,`${width} mobile farm overview fits`);
-      }
       if (theme==='white'||width===1024) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
         fs.writeFileSync(path.join(root,'docs/previews/workspace',`farm-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
-      if(width<=700) await evaluate(`if (document.querySelector('#farmPage .farm-scene').classList.contains('is-overview')) document.querySelector('#toggleFarmOverview').click()`);
     }
     console.log(`${width}x${height} white/dark focus & farm responsive PASS`);
   }
@@ -149,10 +143,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await evaluate(`state.equippedFarmTheme='${terrain}';renderFarm();showPage('farm');`);
     await pause(80);
     const geometry=await evaluate(`(() => {
-      const map=document.querySelector('#farmPage .farm-scene-grid').getBoundingClientRect(),grid=document.querySelector('#farmGrid').getBoundingClientRect();
-      return {ratio:Math.abs(map.width/map.height-1.5)<.01,gridFits:grid.left>=map.left&&grid.right<=map.right&&grid.top>=map.top&&grid.bottom<=map.bottom,overflow:document.documentElement.scrollWidth>innerWidth};
+      const map=document.querySelector('#sceneryCreationScene').getBoundingClientRect(),object=document.querySelector('#sceneryCreationScene .scenery-centerpiece').getBoundingClientRect();
+      return {ratio:Math.abs(map.width/map.height-1.5)<.01,objectFits:object.left>=map.left&&object.right<=map.right&&object.top>=map.top&&object.bottom<=map.bottom,overflow:document.documentElement.scrollWidth>innerWidth};
     })()`);
-    assert.deepEqual(geometry,{ratio:true,gridFits:true,overflow:false},`${terrain} terrain coordinates preserved`);
+    assert.deepEqual(geometry,{ratio:true,objectFits:true,overflow:false},`${terrain} scenery stays within the scene`);
   }
   await evaluate(`showPage('focus');document.querySelector('#toggleFocusFarmBackground').click();`);
   await pause(80);

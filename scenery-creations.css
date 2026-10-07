@@ -1,0 +1,117 @@
+.scenery-creation { display: grid; gap: 22px; min-width: 0; }
+.scenery-main-card { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); box-shadow: var(--shadow); }
+.scenery-scene-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 26px 18px; }
+.scenery-eyebrow { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+.scenery-scene-heading h2 { margin: 0; color: var(--ink); font-size: clamp(19px, 2.2vw, 25px); line-height: 1.35; }
+.scenery-stage-label { flex-shrink: 0; border-radius: 999px; padding: 7px 11px; background: var(--green-50); color: var(--green-800); font-size: 12px; }
+.scenery-stage-label.is-complete { background: var(--green-100); }
+.scenery-creation-scene { position: relative; display: grid; place-items: center; overflow: hidden; isolation: isolate; width: 100%; height: auto; aspect-ratio: 3 / 2; background: #b9d3ae; }
+.scenery-creation-scene > .garden-terrain { position: absolute; inset: 0; z-index: -2; background-repeat: no-repeat; background-size: 200% auto; }
+.scenery-creation-scene::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, transparent 58%, rgba(30, 46, 35, .06)); }
+.scenery-centerpiece { position: absolute; display: grid; place-items: center; width: clamp(165px, 24vw, 250px); height: clamp(165px, 24vw, 250px); top: 50%; left: 50%; transform: translate(-50%, -30%); filter: drop-shadow(0 7px 5px rgba(25, 46, 42, .13)); }
+.scenery-centerpiece svg,
+.scenery-centerpiece img,
+.scenery-type-preview svg,
+.scenery-type-preview img,
+.scenery-history-art svg,
+.scenery-history-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.scenery-centerpiece.is-preview { opacity: .88; }
+.scenery-art-placeholder { display: block; width: 72%; height: 72%; border-radius: 50%; background: rgba(255,255,255,.14); }
+.scenery-complete-sparkle { position: absolute; left: calc(50% + 100px); top: 36%; color: #fff9c9; font-size: 28px; filter: drop-shadow(0 1px 3px #987749); }
+.scenery-growth-panel { display: grid; gap: 16px; padding: 22px 26px 24px; }
+.scenery-growth-copy { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 18px; }
+.scenery-growth-copy strong { font-size: 16px; }
+.scenery-growth-copy > span { color: var(--muted); font-size: 12px; }
+.scenery-growth-numbers { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 14px; margin-top: -7px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.scenery-growth-numbers b { color: var(--ink); font-weight: 650; }
+.scenery-progress { height: 8px; border-radius: 999px; background: var(--green-100); overflow: hidden; }
+.scenery-progress > span { display: block; height: 100%; border-radius: inherit; background: #4d75d9; transition: width .25s ease; }
+.scenery-growth-timeline { min-width: 0; padding-top: 4px; }
+.scenery-timeline-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 5px 12px; margin-bottom: 11px; }
+.scenery-timeline-heading strong { font-size: 13px; }
+.scenery-timeline-heading > span { color: var(--muted); font-size: 11px; }
+.scenery-growth-timeline ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.scenery-growth-step { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 9px 5px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); text-align: center; }
+.scenery-growth-step.is-current { border-color: #6286e2; background: var(--green-50); box-shadow: 0 0 0 1px #6286e2; }
+.scenery-step-art { width: min(100%, 94px); aspect-ratio: 1; }
+.scenery-step-art > svg { display: block; width: 100%; height: 100%; }
+.scenery-growth-step > strong { font-size: 11px; line-height: 1.4; }
+.scenery-step-description { color: var(--muted); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.scenery-step-coin { margin-top: auto; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.scenery-step-current { border-radius: 999px; padding: 2px 7px; background: #4266c5; color: #fff; font-size: 9px; font-weight: 600; }
+.scenery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.scenery-button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer; transition: background .15s, border-color .15s; }
+.scenery-button:hover:not(:disabled) { background: var(--green-50); border-color: var(--green-700); }
+.scenery-button:focus-visible,
+.scenery-scene-heading h2:focus-visible,
+.scenery-section-heading h3:focus-visible { outline: 3px solid #8aacf8; outline-offset: 3px; }
+.scenery-button:disabled { cursor: default; opacity: .52; }
+.scenery-primary { border-color: #4266c5; background: #4266c5; color: #fff; padding-inline: 20px; }
+.scenery-primary:hover:not(:disabled) { border-color: #3554a9; background: #3554a9; }
+.scenery-text-button { border-color: transparent; background: transparent; margin-left: auto; color: var(--muted); }
+.scenery-coin-note,
+.scenery-theme-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.scenery-status-row { display: flex; align-items: center; gap: 12px; margin-top: -8px; }
+.scenery-action-status { flex: 1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.scenery-status-row .scenery-button { flex-shrink: 0; }
+.scenery-pending { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--green-50); color: var(--ink); font-size: 13px; }
+.scenery-picker,
+.scenery-history { display: grid; gap: 14px; min-width: 0; }
+.scenery-section-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.scenery-section-heading h3 { margin: 0; color: var(--ink); font-size: 17px; }
+.scenery-section-heading > span { color: var(--muted); font-size: 12px; }
+.scenery-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.scenery-type-card { display: flex; flex-direction: column; align-items: stretch; padding: 18px; min-width: 0; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); }
+.scenery-type-card.is-current { border-color: #6286e2; box-shadow: 0 0 0 1px #6286e2; }
+.scenery-type-preview { display: grid; place-items: center; align-self: center; width: 100px; height: 100px; margin-bottom: 13px; }
+.scenery-type-preview-caption { display: block; margin: -5px 0 12px; color: var(--muted); font-size: 10px; text-align: center; }
+.scenery-type-card.is-current .scenery-type-preview-caption { color: #4266c5; font-weight: 650; }
+.scenery-type-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.scenery-type-heading h4 { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.4; }
+.scenery-type-label { color: var(--green-700); font-size: 10px; white-space: nowrap; }
+.scenery-type-card > p { margin: 9px 0 15px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.scenery-type-card > .scenery-button { width: 100%; margin-top: auto; padding-inline: 7px; font-size: 12px; }
+.scenery-history { border-top: 1px solid var(--line); padding-top: 20px; padding-bottom: 4px; }
+.scenery-history ul { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.scenery-history li { display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); font-size: 12px; }
+.scenery-history-art { display: grid; place-items: center; width: 38px; height: 38px; }
+.scenery-history li strong { color: var(--green-700); font-size: 11px; }
+.scenery-history-empty { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+:root[data-theme="dark"] .scenery-progress > span { background: #85a8ff; }
+:root[data-theme="dark"] .scenery-type-card.is-current .scenery-type-preview-caption { color: #a7c0ff; }
+:root[data-theme="dark"] .scenery-centerpiece { filter: drop-shadow(0 7px 7px rgba(0,0,0,.24)); }
+@media (max-width: 700px) {
+.scenery-creation { gap: 18px; }
+.scenery-scene-heading { padding: 17px 18px 15px; gap: 10px; }
+.scenery-stage-label { font-size: 10px; padding: 6px 8px; }
+.scenery-growth-panel { padding: 18px; gap: 13px; }
+.scenery-growth-timeline ol { gap: 6px; }
+.scenery-growth-step { padding: 6px 3px 8px; border-radius: 9px; }
+.scenery-centerpiece { width: clamp(150px, 38vw, 205px); height: clamp(150px, 38vw, 205px); }
+.scenery-type-grid { gap: 10px; }
+.scenery-type-card { padding: 13px; }
+.scenery-type-preview { width: 80px; height: 80px; }
+.scenery-status-row { align-items: flex-start; }
+}
+@media (max-width: 480px) {
+.scenery-scene-heading { align-items: flex-start; }
+.scenery-eyebrow { font-size: 11px; }
+.scenery-scene-heading h2 { font-size: 19px; }
+.scenery-stage-label { max-width: 95px; text-align: center; white-space: normal; line-height: 1.5; }
+.scenery-growth-step > strong { font-size: 10px; }
+.scenery-step-description,
+.scenery-step-coin { font-size: 9px; }
+.scenery-step-current { font-size: 8px; padding-inline: 5px; }
+.scenery-actions { gap: 8px; }
+.scenery-actions > .scenery-primary { flex: 1 0 100%; }
+.scenery-button { min-height: 44px; }
+.scenery-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.scenery-type-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+.scenery-type-grid > :last-child:nth-child(odd) .scenery-type-preview { width: 90px; height: 90px; }
+.scenery-type-heading h4 { font-size: 14px; }
+.scenery-status-row { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+.scenery-progress > span,
+.scenery-button { transition: none; }
+}

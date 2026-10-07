@@ -107,12 +107,13 @@ test("focus reward retries the same event after a lost response", async () => {
   const ctx = context(["flushFocusTime"], {
     console: { error: noop, warn: noop },
     activeAuthUser: { id: "user" }, focusProgressApiUnavailable: false,
+    farmSessionGeneration: 0, farmWalletMutationVersion: 0, farmWalletMutationChain: Promise.resolve(),
     focusProgressSyncPromise: null, focusProgressServerSeconds: 0,
     focusProgressEventQueue: [{ id: "event", mode: "quick", seconds: 60 }],
     stagePendingFocusEvents: noop, persistPendingFocusEvents: noop, state: { coins: 0 },
     showToast: noop, farmBonusMessage: () => "", refreshFocusProgress: noop, renderFarm: noop,
     supabaseClient: { rpc: async (name, args) => {
-      assert.equal(name, "record_my_focus_time_v2");
+      assert.equal(name, "record_my_focus_time");
       attempts.push(args.p_event_id);
       if (!seen.has(args.p_event_id)) {
         seen.add(args.p_event_id);
@@ -130,32 +131,9 @@ test("focus reward retries the same event after a lost response", async () => {
   assert.equal(ctx.state.coins, 1);
 });
 
-test("free passes include habits registered without focus time", () => {
-  const today = new Date();
-  const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  const habit = {
-    id: "no-focus", title: "물 마시기", measureType: "amount", targetValue: 1,
-    weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: dateString, endDate: "",
-    completionDates: [], focusSecondsByDate: {},
-  };
-  const ctx = context([
-    "isHabitScheduledOn", "isHabitScheduledToday", "getHabitTargetForDate",
-    "getHabitProgress", "getHabitProgressRatio", "isHabitCompleteToday", "getFreePassTargets",
-  ], {
-    toLocalDateString: () => dateString,
-    state: { tasks: [], habits: [
-      habit,
-      { ...habit, id: "timed", measureType: "time", targetValue: 30 },
-      { ...habit, id: "done", completionDates: [dateString] },
-      { ...habit, id: "unscheduled", weekdays: [] },
-      { ...habit, id: "expired", endDate: "2000-01-01" },
-    ] },
-  });
-  assert.deepEqual(plain(ctx.getFreePassTargets()).map(target => target.value), ["habit:no-focus", "habit:timed"]);
-});
-
 function habitDateContext(extra = {}) {
   return context(["canEditHabitRecord", "isHabitScheduledOn", "getHabitTargetForDate", "savePastHabitRecord"], {
+    farmWalletMutationVersion: 0,
     toLocalDateString: (date) => date
       ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
       : "2026-09-10",
@@ -359,14 +337,18 @@ for (const progress of [0, 1]) {
       progressByDate: { "2026-09-10": 3 }, focusSecondsByDate: { "2026-09-09": 120 },
       recordMetaByDate: { "2026-09-10": { completionReward: 2 } } };
     const calls = [];
+    const toasts = [];
     const ctx = habitDateContext({
-      activeAuthUser: { id: "user" }, state: { habits: [habit], coins: 10 },
+      activeAuthUser: { id: "user" }, state: { habits: [habit], coins: 10, farmMoney: 100 },
       syncTaskDatabaseImmediately: async () => {}, taskSyncChain: Promise.resolve(),
       farmWalletMutationChain: Promise.resolve(), habitRecordEditsInFlight: new Set(),
       habitRecordSyncSignatures: new Map(), renderHabitUpdates: noop, renderSummary: noop,
+      showToast: message => toasts.push(message),
       serializeTaskDatabaseState: () => JSON.stringify({ habitRecords: [{ habit_id: "habit", record_date: "2026-09-09", progress_value: progress }] }),
       supabaseClient: {
-        rpc: async (name, params) => { calls.push({ name, params }); return { data: { coinBalance: 11 } }; },
+        rpc: async (name, params) => { calls.push({ name, params }); return { data: {
+          coinBalance: 11, farmMoneyBalance: progress === 0 ? 700 : 100, legacyPassRefundAmount: progress === 0 ? 600 : 0,
+        } }; },
         from: () => ({ upsert: (row) => {
           assert.deepEqual(plain(row), { habit_id: "habit", record_date: "2026-09-09", progress_value: progress });
           return { select: () => ({ single: async () => ({ data: {
@@ -384,9 +366,45 @@ for (const progress of [0, 1]) {
     assert.equal(habit.progressByDate["2026-09-10"], 3);
     assert.equal(habit.progressByDate["2026-09-09"], progress);
     assert.equal(habit.focusSecondsByDate["2026-09-09"], 120);
+    assert.equal(ctx.state.coins, 11);
+    assert.equal(ctx.state.farmMoney, progress === 0 ? 700 : 100);
+    assert.equal(toasts.length, progress === 0 ? 1 : 0);
+    if (progress === 0) assert.match(toasts[0], /600 Farm Money/);
     assert.equal(ctx.habitRecordEditsInFlight.size, 0);
   });
 }
+
+test("a late past-habit undo response cannot apply a legacy pass refund to the next account", async () => {
+  const habit = { ...historicalHabit, completionDates: ["2026-09-09"], progressByDate: { "2026-09-09": 1 } };
+  let respond;
+  let started;
+  const ready = new Promise(resolve => { started = resolve; });
+  const response = new Promise(resolve => { respond = resolve; });
+  const toasts = [];
+  const ctx = habitDateContext({
+    activeAuthUser: { id: "old-user" }, state: { habits: [habit], coins: 10, farmMoney: 100 },
+    syncTaskDatabaseImmediately: async () => {}, taskSyncChain: Promise.resolve(),
+    farmWalletMutationChain: Promise.resolve(), habitRecordEditsInFlight: new Set(),
+    habitRecordSyncSignatures: new Map(), renderHabitUpdates: noop, renderSummary: noop,
+    showToast: message => toasts.push(message),
+    supabaseClient: {
+      rpc: () => { started(); return response; },
+      from: () => ({ upsert: () => ({ select: () => ({ single: async () => ({ data: {
+        progress_value: 0, completed_at: null, completion_reward: 0,
+      } }) }) }) }),
+    },
+  });
+  const pending = ctx.savePastHabitRecord(habit, "2026-09-09", 0);
+  await ready;
+  ctx.activeAuthUser = { id: "next-user" };
+  ctx.state = { habits: [], coins: 81, farmMoney: 250 };
+  respond({ data: { coinBalance: 9, farmMoneyBalance: 700, legacyPassRefundAmount: 600 } });
+  await pending;
+  assert.equal(ctx.state.coins, 81);
+  assert.equal(ctx.state.farmMoney, 250);
+  assert.deepEqual(toasts, []);
+  assert.equal(habit.progressByDate["2026-09-09"], 1);
+});
 
 function timerContext(owner = false, mode = "quick") {
   let now = 100000;
@@ -796,7 +814,7 @@ test("a farm action during a slow reload prevents stale farm data from being app
   const state = { farmName: "new name" };
   const ctx = context(["fetchFarmDataFromDatabase"], {
     activeAuthUser: { id: "user" }, farmDataUserId: "user", farmDataHydrated: true,
-    farmDataLoadRequest: 0, farmActionChain: Promise.resolve(), state,
+    farmDataLoadRequest: 0, farmSessionGeneration: 1, farmActionChain: Promise.resolve(), state,
     farmRenderSignature: () => "current",
     supabaseClient: { rpc: () => new Promise((resolve) => { resolveRead = resolve; }) },
   });

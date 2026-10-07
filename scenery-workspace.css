@@ -1,0 +1,65 @@
+/* Integrate the single creation with the existing workspace and focus view. */
+body .scenery-settlement { margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--green-50); color: var(--ink); font: 400 12px/1.65 var(--farm-ui-font,"Pretendard Variable",sans-serif); }
+body .scenery-settlement > summary { cursor: pointer; font-weight: 650; }
+body .scenery-settlement > summary > strong { display: block; margin: 3px 0 0 18px; color: #4266c5; font-size: 13px; }
+:root[data-theme="dark"] body .scenery-settlement > summary > strong { color: #8aacf8; }
+body .scenery-settlement > p { margin: 12px 0; }
+body .scenery-settlement table { width: 100%; border-collapse: collapse; font-size: 11px; }
+body .scenery-settlement caption { text-align: left; font-weight: 600; margin: 0 0 6px; }
+body .scenery-settlement th, body .scenery-settlement td { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+body .scenery-settlement tr > :last-child { text-align: right; }
+body .scenery-settlement .scenery-settlement-note { color: var(--muted); font-size: 11px; }
+body #farmPage .scenery-page-title { margin: 0 0 8px; font: 700 30px/1.3 var(--farm-ui-font, "Pretendard Variable", sans-serif); color: var(--ink); }
+body #farmPage .scenery-page-title,
+body #farmPage #sceneryCreationRoot :is(h2,h3,h4,button) { font-family: var(--farm-ui-font, "Pretendard Variable", sans-serif) !important; text-shadow: none !important; }
+body #farmPage #sceneryCreationRoot .scenery-button { border-radius: 10px !important; box-shadow: none !important; }
+body #farmPage #sceneryCreationRoot .scenery-primary { border: 1px solid #4266c5 !important; background: #4266c5 !important; color: #fff !important; }
+body #farmPage #sceneryCreationRoot .scenery-secondary { border: 1px solid var(--line) !important; background: var(--paper) !important; color: var(--ink) !important; }
+body #farmPage #sceneryCreationRoot .scenery-text-button { border: 0 !important; background: transparent !important; color: var(--muted) !important; }
+body #farmPage .farm-workspace-header { gap: 20px; }
+body #farmPage .farm-workspace-toolbar { display: flex !important; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+body #farmPage .farm-workspace-body { grid-template-columns: minmax(0, 3fr) minmax(250px, 1fr); }
+body #farmPage .farm-collection-panel .farm-theme-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body #farmPage .farm-collection-scroll { padding: 14px; }
+body #todayFarmPlots { position: absolute; inset: 0; display: grid; place-items: center; }
+body #todayFarmPlots > .scenery-creation-art { width: 105px; height: 105px; }
+body #todayFarmStatus { display: grid; gap: 3px; line-height: 1.5; }
+body #todayFarmStatus > strong { font-weight: 650; color: var(--ink); }
+body .today-scenery-progress { height: 5px; margin: 9px 0 0; overflow: hidden; border-radius: 20px; background: var(--green-100); }
+body .today-scenery-progress[hidden] { display: none; }
+body .today-scenery-progress > span { display: block; height: 100%; border-radius: inherit; background: #4d75d9; }
+body .scenery-theme-thumb { position: relative; overflow: hidden; }
+body .scenery-thumb-object { position: absolute; display: grid; place-items: center; width: 62%; height: 92%; left: 50%; bottom: 0; transform: translateX(-50%); filter: drop-shadow(0 2px 2px rgba(28,46,54,.13)); }
+body .scenery-thumb-object > svg { width: 100%; height: 100%; }
+body #focusPage .focus-farm-background .scenery-focus-scene { position: absolute; left: 50%; top: 50%; width: max(100cqw, 150cqh); height: auto; aspect-ratio: 3/2; max-width: none; transform: translate(-50%, -50%); }
+body #focusPage .scenery-focus-scene .scenery-centerpiece { width: 32%; height: auto; aspect-ratio: 1; }
+body #focusPage .scenery-focus-scene .scenery-centerpiece > .scenery-creation-art { width: 100%; height: 100%; }
+body .scenery-theme-preview { height: auto !important; aspect-ratio: 3/2; border-radius: 12px; }
+body .scenery-theme-preview .scenery-centerpiece { width: 34%; height: auto; aspect-ratio: 1; }
+body .scenery-theme-preview .scenery-centerpiece > .scenery-creation-art { width: 100%; height: 100%; }
+/* Give trees a larger silhouette while keeping every growth stage on one ground anchor. */
+body .scenery-centerpiece:has(> :is(.scenery-creation-art-tree, .scenery-creation-art-cherryTree, .scenery-creation-art-christmasTree)) { width: min(60%, 340px); height: auto; aspect-ratio: 1; top: auto; bottom: 12%; transform: translateX(-50%); }
+body .scenery-theme-preview .scenery-centerpiece:has(> :is(.scenery-creation-art-tree, .scenery-creation-art-cherryTree, .scenery-creation-art-christmasTree)) { width: 45%; }
+body #focusPage .scenery-focus-scene .scenery-centerpiece:has(> :is(.scenery-creation-art-tree, .scenery-creation-art-cherryTree, .scenery-creation-art-christmasTree)) { width: min(43%, 90cqw, 85cqh); bottom: max(12%, calc(50% - 40cqh)); }
+body .scenery-theme-preview-caption { position: absolute; top: 12px; left: 12px; max-width: calc(100% - 24px); padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,.94); color: #36527b; font: 500 12px/1.45 var(--farm-ui-font,"Pretendard Variable",sans-serif); }
+body .scenery-preview-details { padding: 14px 0 0; font-family: var(--farm-ui-font,"Pretendard Variable",sans-serif); }
+body .scenery-preview-personal { padding: 12px 14px; background: var(--green-50); border: 1px solid var(--line); border-radius: 10px; display: grid; gap: 4px; color: var(--ink); font-size: 13px; }
+body .scenery-preview-personal > span { color: var(--muted); font-size: 12px; }
+body .scenery-preview-stage-buttons { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; margin-top: 12px; }
+body .scenery-preview-stage-button { min-width: 0; min-height: 45px; border: 1px solid var(--line); border-radius: 9px !important; background: var(--paper); color: var(--ink); padding: 7px 3px; font: 500 11px/1.45 var(--farm-ui-font,"Pretendard Variable",sans-serif) !important; box-shadow: none !important; cursor: pointer; }
+body .scenery-preview-stage-button > span { display: block; font-size: 10px; color: var(--muted); }
+body .scenery-preview-stage-button[aria-pressed="true"] { border-color: #5c81da; background: var(--green-50); }
+body .scenery-preview-stage-button:focus-visible { outline: 3px solid #8aacf8; outline-offset: 2px; }
+body .scenery-preview-current-button { width: 100%; margin-top: 8px; }
+body .scenery-preview-stage-note { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+@media (max-width: 980px) {
+  body #farmPage .farm-workspace-body { grid-template-columns: minmax(0, 1fr); }
+  body #farmPage .farm-collection-panel .farm-theme-choices { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  body #farmPage .farm-collection-scroll { position: static; max-height: 420px; }
+}
+@media (max-width: 700px) {
+  body #farmPage .farm-workspace-header { align-items: flex-start; gap: 14px; }
+  body #farmPage .scenery-page-title { font-size: 25px; }
+  body #farmPage .farm-workspace-toolbar { justify-content: flex-start; }
+  body #farmPage .farm-workspace-wallet { gap: 10px; }
+}

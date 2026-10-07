@@ -1,5 +1,5 @@
-// Actual Chrome acceptance check: the inert farm fills the normal and fullscreen
-// focus frame while the complete map (including purchased fields) scales evenly.
+// Actual Chrome acceptance check: one inert scenery creation fills the normal
+// and fullscreen focus frame with its theme and growth artwork preserved.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -52,7 +52,7 @@ let socket;
   });
   const evaluate = async expression => {
     const result = await call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-    assert.equal(result.exceptionDetails, undefined, JSON.stringify(result.exceptionDetails));
+    assert.equal(result.exceptionDetails, undefined, JSON.stringify({ evaluation: result.exceptionDetails, runtime: exceptions }));
     return result.result.value;
   };
   const settle = async expression => {
@@ -71,9 +71,13 @@ let socket;
     focusTimerDatabaseUnavailable = true;
     state.tasks = [{id:'cover-task',title:'농장과 함께 집중하기',groupId:null,status:'waiting',focusSeconds:0}];
     state.habits = []; taskDataHydrated = true;
-    state.equippedFarmTheme = 'christmas'; state.equippedPlotSkin = 'snowField';
-    state.ownedCosmetics = [{type:'farm_theme',id:'christmas'},{type:'plot_skin',id:'snowField'}];
-    state.farmPlots = defaultState.farmPlots.map((plot,index) => ({...plot,crop:index<6?Object.keys(CROPS)[index]:null,growth:index%4+1,plantedDate:toLocalDateString(),lastWateredDate:toLocalDateString(),lastCaredAt:Date.now(),wilted:false}));
+    state.equippedFarmTheme = 'christmas';
+    state.ownedCosmetics = [{type:'farm_theme',id:'christmas'}];
+    SceneryCreations.applyState({
+      activeCreation: {id:'cover-creation',typeId:'christmasTree',themeId:'christmas',progress:14,growthCost:20,reward:50},
+      unlockedTypes:['christmasTree'],completedTypes:[],totalCompleted:0,
+      catalog:[{id:'christmasTree',name:'크리스마스 트리',family:'christmasTree',variant:0,unlockPrice:0,growthCost:20,reward:50}]
+    });
     render(); showPage('focus');
     document.querySelector('#toggleFocusFarmBackground').setAttribute('aria-pressed','true');
     renderFocusFarmBackground();
@@ -93,24 +97,19 @@ let socket;
       const geometry = await evaluate(`(() => {
         const stage=document.querySelector('#focusPageStage');
         const background=stage.querySelector('.focus-farm-background');
-        const scene=background.querySelector('.farm-scene');
-        const map=scene.querySelector('.farm-scene-grid');
+        const scene=background.querySelector('.scenery-focus-scene');
         const rect=element=>element.getBoundingClientRect();
-        const b=rect(background),s=rect(scene),m=rect(map),frame=rect(stage),timer=rect(stage.querySelector('.focus-visual')),button=rect(document.querySelector('#focusButton'));
-        const grids=map.querySelectorAll('.farm-plot');
-        const sourceFields=document.querySelectorAll('#farmGrid .farm-plot');
-        const field=rect(map.querySelector('.farm-grid'));
+        const b=rect(background),s=rect(scene),frame=rect(stage),timer=rect(stage.querySelector('.focus-visual')),button=rect(document.querySelector('#focusButton'));
+        const source=document.querySelector('#sceneryCreationScene');
+        const terrain=rect(scene.querySelector('.garden-terrain'));
+        const artwork=element=>[...element.querySelectorAll('svg,image')].map(node=>['viewBox','x','y','width','height','href'].map(name=>node.getAttribute(name)));
         return {
           covers:s.left<=b.left+.5&&s.top<=b.top+.5&&s.right>=b.right-.5&&s.bottom>=b.bottom-.5,
-          terrainCovers:m.left<=b.left+.5&&m.top<=b.top+.5&&m.right>=b.right-.5&&m.bottom>=b.bottom-.5,
-          undistorted:Math.abs(m.width/m.height-1.5)<.001,
-          uniformScale:Math.abs(m.width/100-m.height/(200/3))<.01,
-          fieldRatio:{left:(field.left-m.left)/m.width,top:(field.top-m.top)/m.height,width:field.width/m.width,height:field.height/m.height},
-          nineFields:grids.length===9,
-          theme:scene.dataset.terrain,
-          purchasedFieldRetained:[...grids].every((plot,index)=>plot.style.getPropertyValue('--plot-src')===sourceFields[index].style.getPropertyValue('--plot-src'))&&[...sourceFields].every(plot=>plot.dataset.plotSkin==='snowField'),
-          purchasedFieldArtworkRetained:[...grids].every((plot,index)=>plot.querySelector('.garden-soil-art')?.outerHTML===sourceFields[index].querySelector('.garden-soil-art')?.outerHTML)&&map.querySelectorAll('.garden-soil-svg image[href="./assets/garden-v5/themed-plots-atlas.png"]').length===9,
-          fieldSkinAttributesRetained:[...grids].every(plot=>plot.dataset.plotSkin==='snowField'),
+          terrainCovers:terrain.left<=b.left+.5&&terrain.top<=b.top+.5&&terrain.right>=b.right-.5&&terrain.bottom>=b.bottom-.5,
+          undistorted:Math.abs(s.width/s.height-1.5)<.001,
+          oneCreation:scene.querySelectorAll('.scenery-centerpiece').length===1,
+          terrainRetained:scene.querySelector('.garden-terrain').getAttribute('style')===source.querySelector('.garden-terrain').getAttribute('style'),
+          growthRetained:JSON.stringify(artwork(scene.querySelector('.scenery-centerpiece')))===JSON.stringify(artwork(source.querySelector('.scenery-centerpiece'))),
           inert:background.inert&&background.getAttribute('aria-hidden')==='true'&&getComputedStyle(background).pointerEvents==='none',
           passive:!background.querySelector('button,input,select,textarea,[id],.plot-hit,.plot-growth-actions,.focus-plot-button,.plot-focus-marker'),
           timerFits:timer.left>=frame.left&&timer.right<=frame.right+.5&&timer.top>=frame.top&&timer.bottom<=frame.bottom+.5,
@@ -121,10 +120,8 @@ let socket;
         };
       })()`);
       const label=`${width}x${height} ${fullscreen?'fullscreen':'normal'}`;
-      for (const property of ['covers','terrainCovers','undistorted','uniformScale','nineFields','purchasedFieldRetained','purchasedFieldArtworkRetained','fieldSkinAttributesRetained','inert','passive','timerFits','controlsFit','noPageOverflow','fullscreenFillsWidth']) assert.equal(geometry[property], true, `${label} ${property}: ${JSON.stringify(geometry)}`);
-      assert.equal(geometry.theme, 'christmas', `${label} preserves the actual farm theme`);
-      assert.ok(Math.abs(geometry.fieldRatio.left-.14)<.001 && Math.abs(geometry.fieldRatio.width-.405)<.001, `${label} field coordinates retained`);
-      console.log(`${label} cover, aligned fields, inert clone and controls PASS (${Math.round(geometry.scene.width)}x${Math.round(geometry.scene.height)} map in ${Math.round(geometry.background.width)}x${Math.round(geometry.background.height)} frame)`);
+      for (const property of ['covers','terrainCovers','undistorted','oneCreation','terrainRetained','growthRetained','inert','passive','timerFits','controlsFit','noPageOverflow','fullscreenFillsWidth']) assert.equal(geometry[property], true, `${label} ${property}: ${JSON.stringify(geometry)}`);
+      console.log(`${label} cover, theme, growth, inert clone and controls PASS (${Math.round(geometry.scene.width)}x${Math.round(geometry.scene.height)} scene in ${Math.round(geometry.background.width)}x${Math.round(geometry.background.height)} frame)`);
       if (process.env.FOCUS_FARM_CAPTURE==='1' && [1440,390,320].includes(width)) {
         await evaluate('scrollTo(0,0)');
         const screenshot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});

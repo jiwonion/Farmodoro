@@ -40,21 +40,19 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=276" />
-    <link rel="stylesheet" href="./pixel-theme.css?v=194" />
-    <link rel="stylesheet" href="./farm-pixel.css?v=275" />
-    <link rel="stylesheet" href="./pixel-layout.css?v=274" />
-    <link rel="stylesheet" href="./farm-theme.css?v=274" />
-    <link rel="stylesheet" href="./farm-scenery.css?v=301" />
-    <link rel="stylesheet" href="./farm-rpg.css?v=289" />
-    <link rel="stylesheet" href="./workspace.css?v=7" />
-    <link rel="stylesheet" href="./workspace-controls.css?v=4" />
-    <link rel="stylesheet" href="./workspace-responsive.css?v=5" />
-    <link rel="stylesheet" href="./workspace-forms.css?v=2" />
-    <link rel="stylesheet" href="./farm-workspace.css?v=2" />
-    <link rel="stylesheet" href="./garden-shell.css?v=8" />
-    <link rel="stylesheet" href="./garden-kitchen.css?v=3" />
-    <link rel="stylesheet" href="./garden-modals.css?v=4" />
+    <link rel="stylesheet" href="./styles.css?v=277" />
+    <link rel="stylesheet" href="./pixel-theme.css?v=195" />
+    <link rel="stylesheet" href="./pixel-layout.css?v=275" />
+    <link rel="stylesheet" href="./farm-scenery.css?v=302" />
+    <link rel="stylesheet" href="./workspace.css?v=8" />
+    <link rel="stylesheet" href="./workspace-controls.css?v=5" />
+    <link rel="stylesheet" href="./workspace-responsive.css?v=6" />
+    <link rel="stylesheet" href="./workspace-forms.css?v=3" />
+    <link rel="stylesheet" href="./farm-workspace.css?v=3" />
+    <link rel="stylesheet" href="./garden-shell.css?v=9" />
+    <link rel="stylesheet" href="./garden-modals.css?v=5" />
+    <link rel="stylesheet" href="./scenery-creations.css?v=3" />
+    <link rel="stylesheet" href="./scenery-workspace.css?v=4" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -67,7 +65,7 @@
         <div class="auth-landscape-copy">
           <span class="auth-landscape-kicker">GROW YOUR DAY</span>
           <h2>하루를 심고,<br />내일을 거둬봐</h2>
-          <p>할 일을 완료하고 코인을 모아 나만의 농장을 키워봐</p>
+          <p>할 일을 완료하고 코인을 모아 나만의 풍경을 완성해봐</p>
           <div class="auth-landscape-tags">
             <span>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg>
@@ -79,7 +77,7 @@
             </span>
             <span>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14V7.5" /><path d="M8 9C5.2 9 4 7.5 4 5c2.5 0 4 1.3 4 4Zm0 2.2c2.8 0 4-1.6 4-4.1-2.5 0-4 1.4-4 4.1Z" /></svg>
-              <b>나만의 농장</b>
+              <b>나만의 풍경</b>
             </span>
           </div>
         </div>
@@ -109,7 +107,7 @@
           <div class="auth-benefits" aria-label="로그인하면 좋은 점">
             <div>
               <span aria-hidden="true">☁</span>
-              <p><strong>기록을 안전하게</strong><small>할 일과 농장 데이터를 계정에 보관해</small></p>
+              <p><strong>기록을 안전하게</strong><small>할 일과 풍경 기록을 계정에 보관해</small></p>
             </div>
             <div>
               <span aria-hidden="true">↻</span>
@@ -165,7 +163,7 @@
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M12 12C7 12 5 9 5 5c4 0 7 2 7 7Zm0 4c5 0 7-3 7-7-4 0-7 2-7 7Z"/></svg>
             </span>
-            <span class="nav-label">내 농장</span>
+            <span class="nav-label">내 풍경</span>
             <span class="nav-index">05</span>
           </a>
           <button class="nav-item mobile-profile-settings" id="openMobileUserSettings" type="button" aria-label="내 프로필 수정">
@@ -190,7 +188,7 @@
               <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="2.7"/><path d="M10 2.7v1.5m0 11.6v1.5M2.7 10h1.5m11.6 0h1.5M4.8 4.8l1.1 1.1m8.2 8.2 1.1 1.1m0-10.4-1.1 1.1m-8.2 8.2-1.1 1.1"/></svg>
             </span>
           </button>
-          <div class="nav-wallet" aria-label="농장 재화">
+          <div class="nav-wallet" aria-label="보유 재화">
             <span class="nav-balance nav-farm-money" aria-label="보유 Farm Money">
               <i aria-hidden="true">✦</i>
               <strong id="marketFarmMoneyBalance">0</strong>
@@ -217,13 +215,6 @@
           <div class="today-welcome">
             <div class="welcome-grow pixel-frame"><p>오늘도<br />좋은 하루가 자라고 있어요.</p><span class="pixel-sprout" aria-hidden="true"></span></div>
             <blockquote class="welcome-quote pixel-frame">꾸준함이<br />언제나, 좋은 변화를 만들어요.<span>—</span></blockquote>
-          </div>
-          <div class="topbar-actions">
-            <button class="today-mail-alert" id="todayMailAlert" type="button" aria-label="새 농장 우편 열기" hidden>
-              <span aria-hidden="true">📮</span>
-              <small>새 우편</small>
-              <b id="todayMailAlertCount">0</b>
-            </button>
           </div>
         </header>
 
@@ -507,10 +498,11 @@
 
           </aside>
         </section>
-        <a class="today-farm-preview" href="#farm" aria-label="내 농장 열기">
-          <header><strong>내 농장</strong><span><b id="previewFarmMoney">0</b> Farm ›</span></header>
-          <div class="today-farm-landscape" aria-hidden="true"><img class="preview-house" src="./assets/farm-b-v1/objects/rustic/house.png" alt="" /><div id="todayFarmPlots"></div></div>
-          <small id="todayFarmStatus">내 농장을 둘러봐</small>
+        <a class="today-farm-preview" href="#farm" aria-label="내 풍경 열기">
+          <header><strong>내 풍경</strong><span><b id="previewFarmMoney">0</b> Farm ›</span></header>
+          <div class="today-farm-landscape" aria-hidden="true"><div id="todayFarmPlots"></div></div>
+          <small id="todayFarmStatus">오늘의 코인으로 내 풍경을 완성해봐</small>
+          <div id="todaySceneryProgress" class="today-scenery-progress" role="progressbar" aria-label="내 풍경 성장" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" hidden><span></span></div>
         </a>
         </section>
 
@@ -577,7 +569,7 @@
                 </label>
                 <button id="toggleFocusFarmBackground" type="button" aria-pressed="false">
                   <span aria-hidden="true">🌱</span>
-                  농장 배경
+                  내 풍경 배경
                 </button>
                 <button id="resetFocusBackground" type="button">
                   <span aria-hidden="true">↺</span>
@@ -599,107 +591,37 @@
 
         <section class="page-view" id="farmPage" data-view="farm">
           <section class="farm-layout">
-            <div class="farm-window-chrome" aria-hidden="true"></div>
               <header class="farm-panel-header farm-workspace-header">
                 <div class="farm-header-copy">
-                  <p class="farm-workspace-kicker">MY LITTLE FARM</p>
-                <div class="farm-name-editor">
-                  <div class="farm-name-display" id="farmNameDisplay">
-                    <h2 id="farmNameLabel">햇살 밭</h2>
-                    <button id="editFarmName" type="button" aria-label="밭 이름 편집">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4.8L8 20l10.5-10.5-4-4Z"/><path d="m13.5 6.5 4 4"/></svg>
-                    </button>
-                  </div>
-                  <form class="farm-name-form" id="farmNameForm" hidden>
-                    <input id="farmNameInput" type="text" maxlength="20" aria-label="밭 이름" />
-                    <button type="submit">저장</button>
-                    <button id="cancelFarmName" type="button">취소</button>
-                  </form>
-                </div>
-                  <p class="farm-workspace-description">집중 → Coin 획득 → 작물 돌보기 → 수확</p>
+                  <p class="farm-workspace-kicker">MY SCENERY</p>
+                  <h2 class="scenery-page-title">내 풍경</h2>
+                  <p class="farm-workspace-description">오늘의 코인으로 하나씩 완성하는 나만의 풍경</p>
                 </div>
                 <div class="farm-workspace-toolbar">
-                  <div class="farm-workspace-wallet" aria-label="농장 재화">
+                  <div class="farm-workspace-wallet" aria-label="보유 재화">
                     <span><i aria-hidden="true">C</i><b id="farmWorkspaceCoinBalance">0</b><small>Coin</small></span>
                     <span><i aria-hidden="true">✦</i><b id="farmWorkspaceMoneyBalance">0</b><small>Farm Money</small></span>
                   </div>
-                  <span class="farm-active-theme" id="farmActiveThemeLabel">초록 농장</span>
-                  <button id="openFarmShop" type="button" class="farm-toolbar-button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v11h16V10M3 10l2-7h14l2 7M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0M9 21v-7h6v7"/></svg>
-                    주방
-                  </button>
-                  <button id="openFarmStorage" type="button" class="farm-toolbar-button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v4H3ZM5 11v10h14V11M9 15h6M7 3h10l4 4M3 7l4-4"/></svg>
-                    용품
-                  </button>
-                  <button id="openGardenRanking" type="button" class="farm-toolbar-button">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0ZM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg>
-                    랭킹
-                  </button>
-                  <button id="openGardenMail" type="button" class="farm-toolbar-button" aria-label="우편함">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v14H3ZM3 5l9 8 9-8"/></svg>
-                    우편함 <small id="gardenMailUnreadCount" class="garden-mail-count" hidden>0</small>
-                  </button>
+                  <span class="farm-active-theme" id="farmActiveThemeLabel">초록 정원</span>
+                  <button id="openFarmRanking" type="button" class="farm-toolbar-button">주간 랭킹</button>
                 </div>
               </header>
             <div class="farm-workspace-body">
             <div class="garden-map-column">
-            <div class="farm-panel">
-              <div class="farm-map-heading">
-                <div><span class="farm-map-status-dot" aria-hidden="true"></span><strong>내가 돌보는 밭</strong></div>
-                <p>작물을 눌러 Coin이나 무료 물주기로 돌봐요</p>
-              </div>
-              <section class="farm-scene is-overview" aria-label="내 농장 지도">
-                <div class="farm-scene-grid">
-                  <i class="farm-decor farm-decor-house" aria-hidden="true"></i>
-                  <i class="farm-decor farm-decor-well" aria-hidden="true"></i>
-                  <i class="farm-decor farm-decor-bridge" aria-hidden="true"></i>
-                  <button class="farm-building farm-facility facility-harvest" type="button" data-open-storage="harvest" aria-label="수확물 보관함"><span>수확물</span><small id="harvestStorageCount">0</small></button>
-                  <button class="farm-building farm-facility facility-seed" type="button" data-open-storage="seed" aria-label="씨앗 보관함"><span>씨앗</span><small id="seedStorageCount">0</small></button>
-                  <button class="farm-building farm-facility facility-supply" type="button" data-open-storage="supply" aria-label="농장 용품 보관함"><span>농장 용품</span><small id="supplyStorageCount">0</small></button>
-                  <button class="farm-building farm-facility facility-mail" id="openFarmMail" type="button" aria-label="우편함"><span>우편함</span><small id="farmMailHeaderUnread" hidden>0</small></button>
-                  <button class="farm-building farm-facility facility-kitchen" id="openFarmKitchen" type="button" aria-label="화로 · 농장 주방"><span>주방</span></button>
-                  <button class="farm-building farm-facility facility-ranking" id="openFarmRanking" type="button" aria-label="게시판 · 농장 랭킹"><span>랭킹</span></button>
-                  <div class="farm-grid" id="farmGrid" aria-label="3 곱하기 3 농장 밭"></div>
-                </div>
-              </section>
-              <div class="farm-world-footer"><p class="farm-world-hint">빈 밭을 눌러 심고, 익은 작물을 수확해요<span> · 밭 돌보기에서 확대해요</span></p><button id="toggleFarmOverview" type="button" aria-pressed="true">밭 돌보기</button></div>
+            <section id="sceneryCreationRoot" aria-label="내 풍경 만들기"></section>
             </div>
-            </div>
-            <aside class="farm-collection-panel" aria-label="테마와 밭 구매">
-              <div class="farm-collection-tabs" role="tablist" aria-label="진열장">
-                <button type="button" role="tab" id="farmCollectionThemesTab" aria-controls="farmCollectionThemes" aria-selected="true" data-farm-collection-tab="themes">테마</button>
-                <button type="button" role="tab" id="farmCollectionFieldsTab" aria-controls="farmCollectionFields" aria-selected="false" data-farm-collection-tab="fields">밭</button>
-              </div>
+            <aside class="farm-collection-panel" aria-label="풍경 테마">
               <div class="farm-collection-scroll">
-              <section class="farm-theme-section" id="farmCollectionThemes" role="tabpanel" aria-labelledby="farmThemesTitle">
-                <div class="farm-theme-heading"><div><h3 id="farmThemesTitle">내 취향의 농장</h3><p>테마를 둘러보고, 보유한 테마를 입혀요</p></div><span>THEME COLLECTION</span></div>
-                <div id="farmThemeChoices" class="farm-theme-choices" aria-label="농장 테마"></div>
-              </section>
-              <section class="farm-theme-section farm-plot-skin-section" id="farmCollectionFields" role="tabpanel" hidden aria-labelledby="farmPlotSkinsTitle">
-                <div class="farm-theme-heading"><div><h3 id="farmPlotSkinsTitle">테마에 어울리는 밭</h3><p>눈밭·낙엽밭처럼 밭의 모습을 골라요 · 한 번 구매하면 계속 사용할 수 있어요</p></div><span>FIELD COLLECTION</span></div>
-                <div id="farmPlotSkinChoices" class="farm-theme-choices farm-plot-skin-choices" aria-label="구매할 수 있는 밭"></div>
+              <section class="farm-theme-section" id="farmCollectionThemes" aria-labelledby="farmThemesTitle">
+                <div class="farm-theme-heading"><div><h3 id="farmThemesTitle">내 취향의 풍경</h3><p>테마마다 다른 대상을 완성해봐요</p></div><span>THEME COLLECTION</span></div>
+                <div id="farmThemeChoices" class="farm-theme-choices" aria-label="풍경 테마"></div>
               </section>
               </div>
             </aside>
             </div>
-            <details class="farm-equipment-details">
-              <summary>장착한 테마·밭 효과</summary>
-              <p class="farm-protection-status" id="farmProtectionStatus" hidden>작물 보호 중 · 시들지 않아요</p>
-              <div id="farmSetBonuses" class="farm-set-bonuses" aria-live="polite"></div>
-            </details>
           </section>
         </section>
       </main>
-    </div>
-
-    <div class="market-modal hidden" id="gardenSeedModal" role="dialog" aria-modal="true" aria-labelledby="gardenSeedTitle">
-      <div class="market-modal-backdrop" data-close-garden-seed></div>
-      <section class="market-modal-panel garden-seed-panel">
-        <header><div><span class="section-kicker">PLANT YOUR GARDEN</span><h2 id="gardenSeedTitle">밭에 심을 작물</h2><p>보유 씨앗을 먼저 사용해요. 없으면 구매와 함께 바로 심어요.</p></div><button type="button" class="pixel-close-button" data-close-garden-seed aria-label="작물 선택 닫기">×</button></header>
-        <div class="garden-seed-search"><input id="gardenSeedSearch" type="search" aria-label="작물 검색" placeholder="작물 검색" autocomplete="off" /><span id="gardenSeedCoinBalance">0 Coin</span></div>
-        <div id="gardenSeedChoices" class="garden-seed-choices"></div>
-      </section>
     </div>
 
     <div class="market-modal hidden" id="farmRankingModal" role="dialog" aria-modal="true" aria-labelledby="farmRankingTitle">
@@ -724,15 +646,6 @@
               <span>이번 주 내가 얻은 Farm Money</span>
               <strong class="farm-ranking-my-money">✦ <span id="weeklyFarmMoneyEarned">0</span></strong>
             </div>
-            <div class="farm-ranking-rewards">
-              <strong>주간 보상</strong>
-              <ul>
-                <li><span>🥇 1위</span><b>랜덤 박스 5개</b></li>
-                <li><span>🥈 2위</span><b>랜덤 박스 2개</b></li>
-                <li><span>🥉 3위</span><b>랜덤 박스 1개</b></li>
-              </ul>
-              <small>월요일 00:00에 시스템 우편으로 도착해</small>
-            </div>
           </aside>
           <div class="farm-ranking-board">
             <section class="farm-ranking-podium" id="farmRankingPodium" aria-label="상위 3개 농장"></section>
@@ -750,9 +663,9 @@
       <section class="market-modal-panel cosmetic-preview-modal-panel">
         <header>
           <div>
-            <span class="section-kicker">FARM PREVIEW</span>
+            <span class="section-kicker">SCENERY PREVIEW</span>
             <h2 id="cosmeticPreviewTitle">미리보기</h2>
-            <p>내 농장에 먼저 입혀 보고, 마음에 들면 바로 적용해요</p>
+            <p>내 풍경에 먼저 입혀 보고, 마음에 들면 바로 적용해요</p>
           </div>
           <button class="pixel-close-button" type="button" data-close-cosmetic-preview aria-label="미리보기 닫기">×</button>
         </header>
@@ -761,208 +674,9 @@
           <aside class="cosmetic-preview-detail">
             <span class="cosmetic-preview-kind" id="cosmeticPreviewKind"></span>
             <p id="cosmeticPreviewDescription"></p>
-            <section class="cosmetic-preview-set" id="cosmeticPreviewSet">
-              <div class="cosmetic-preview-set-heading"><strong>세트 효과</strong><span id="cosmeticPreviewSetEffect"></span></div>
-              <ul id="cosmeticPreviewSetMembers" class="cosmetic-preview-set-members"></ul>
-            </section>
             <p class="cosmetic-preview-guide">미리보기에서는 실제 장착 상태가 변경되지 않아요.</p>
           </aside>
         </div>
-      </section>
-    </div>
-
-    <div class="market-modal hidden" id="farmMailModal" role="dialog" aria-modal="true" aria-labelledby="farmMailTitle">
-      <div class="market-modal-backdrop" data-close-farm-mail></div>
-      <section class="market-modal-panel farm-mail-modal-panel">
-        <header>
-          <div>
-            <span class="section-kicker">FARM POST OFFICE</span>
-            <h2 id="farmMailTitle">농장 우편소</h2>
-            <p>친구와 농장 선물을 주고받고, 보낸 물건과 받은 선물을 관리해</p>
-          </div>
-          <button class="pixel-close-button" type="button" data-close-farm-mail aria-label="농장 우편소 닫기">×</button>
-        </header>
-        <div class="pixel-post-office-sign" aria-hidden="true">
-          <div class="pixel-post-awning"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="pixel-post-window"><span>POST</span><b></b></div>
-          <div class="pixel-post-mailbox"><i></i><span>✉</span></div>
-          <div class="pixel-post-envelope envelope-one">✉</div>
-          <div class="pixel-post-envelope envelope-two">✉</div>
-          <div class="pixel-post-dispatch" id="farmMailDispatch">✉</div>
-          <p>FARMODORO EXPRESS · 오늘의 마음을 배달해요</p>
-        </div>
-        <div class="farm-mail-tabs" role="tablist" aria-label="농장 우편함">
-          <button class="active" type="button" role="tab" data-mail-view="send">보내기</button>
-          <button type="button" role="tab" data-mail-view="inbox">받은 우편 <small id="farmMailUnreadCount">0</small></button>
-        </div>
-        <div class="farm-mail-view" id="farmMailSendPanel">
-          <div class="farm-mail-status">
-            <span>오늘 남은 발송</span>
-            <strong><span id="farmMailRemaining">3</span> / 3회</strong>
-          </div>
-          <section class="farm-mail-compose">
-            <div class="farm-mail-step">
-              <h3><span>1</span> 받을 친구</h3>
-              <div class="farm-mail-recipient-code">
-                <input
-                  id="farmMailFriendCode"
-                  type="text"
-                  maxlength="14"
-                  placeholder="친구 코드 입력 · FARM-0000-0000"
-                  aria-label="받을 친구 코드"
-                  autocomplete="off"
-                  autocapitalize="characters"
-                  spellcheck="false"
-                />
-                <div class="farm-mail-recent-friends" id="farmMailRecentFriends" aria-label="최근 우편 친구"></div>
-                <small>농장 코드를 입력하거나 아래 랭킹에서 받을 친구를 골라줘</small>
-                <details class="farm-mail-ranking" open>
-                  <summary>랭킹에서 받는 사람 선택</summary>
-                  <div class="farm-mail-recent-friends farm-mail-ranking-friends" id="farmMailRankingFriends" aria-label="랭킹 농장과 팜코드"></div>
-                </details>
-              </div>
-            </div>
-            <div class="farm-mail-step">
-              <h3><span>2</span> 선물 종류</h3>
-              <div class="farm-mail-categories" id="farmMailCategories">
-                <button class="active" type="button" data-mail-category="harvest">수확물</button>
-                <button type="button" data-mail-category="supply">농장 용품</button>
-                <button type="button" data-mail-category="seed">씨앗</button>
-                <button type="button" data-mail-category="food">만든 음식</button>
-              </div>
-            </div>
-            <div class="farm-mail-step">
-              <h3><span>3</span> 보낼 물건 <small>최대 5개까지</small></h3>
-              <div class="farm-mail-items" id="farmMailItemList"></div>
-              <div class="farm-mail-quantity hidden" id="farmMailQuantityRow">
-                <span>보낼 개수</span>
-                <div class="farm-mail-quantity-stepper">
-                  <button type="button" id="farmMailQuantityMinus" aria-label="개수 줄이기">−</button>
-                  <strong id="farmMailQuantityValue">1</strong>
-                  <button type="button" id="farmMailQuantityPlus" aria-label="개수 늘리기">+</button>
-                </div>
-              </div>
-              <div class="farm-mail-price hidden" id="farmMailPriceRow">
-                <span>받을 코인 <small>선택 · 최대 200</small></span>
-                <input
-                  id="farmMailPriceInput"
-                  type="number"
-                  min="1"
-                  max="200"
-                  inputmode="numeric"
-                  aria-label="받을 코인 (선택)"
-                />
-              </div>
-              <div class="farm-mail-message hidden" id="farmMailMessageRow">
-                <label for="farmMailMessageInput">
-                  <span>메시지</span>
-                  <small><span id="farmMailMessageLength">0</span> / 80자</small>
-                </label>
-                <input
-                  id="farmMailMessageInput"
-                  type="text"
-                  maxlength="80"
-                  placeholder="한마디 남겨줘 (선택)"
-                  aria-label="우편 메시지 (선택)"
-                />
-              </div>
-            </div>
-            <button class="farm-mail-send" id="sendFarmMail" type="button" disabled>선물 보내기</button>
-          </section>
-          <section class="farm-mail-history-section">
-            <h3>오늘 보낸 우편</h3>
-            <div class="farm-mail-history" id="farmMailHistory"></div>
-          </section>
-        </div>
-        <div class="farm-mail-view hidden" id="farmMailInboxPanel">
-          <div class="farm-mail-inbox-note">수령하면 해당 농장 보관함에 들어가며, 받은 우편은 도착 7일 후 자동 삭제돼</div>
-          <div class="farm-mail-inbox" id="farmMailInboxList"></div>
-        </div>
-      </section>
-    </div>
-
-    <div class="market-modal farm-reward-box-modal hidden" id="farmRewardBoxModal" role="dialog" aria-modal="true" aria-labelledby="farmRewardBoxTitle">
-      <div class="market-modal-backdrop" data-close-reward-box></div>
-      <section class="market-modal-panel farm-reward-box-panel">
-        <header>
-          <div>
-            <span class="section-kicker">WEEKLY REWARD</span>
-            <h2 id="farmRewardBoxTitle">작물 랜덤 박스</h2>
-            <p>상자를 하나씩 눌러 이번 주의 행운을 확인해</p>
-          </div>
-          <button class="pixel-close-button" type="button" data-close-reward-box aria-label="랜덤 박스 닫기">×</button>
-        </header>
-        <div class="farm-reward-box-status" id="farmRewardBoxStatus" role="progressbar" aria-label="랜덤 박스 개봉 진행" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
-          <span>BOX OPENING</span>
-          <strong id="farmRewardBoxProgress">0 / 5</strong>
-        </div>
-        <div class="farm-reward-box-grid" id="farmRewardBoxGrid"></div>
-        <p class="farm-reward-box-guide" id="farmRewardBoxGuide">선물 상자를 눌러 작물을 하나씩 공개해</p>
-        <button class="farm-reward-box-close" id="closeFarmRewardBox" type="button" data-close-reward-box>나중에 이어서 열기</button>
-      </section>
-    </div>
-
-    <div class="market-modal hidden" id="farmKitchenModal" role="dialog" aria-modal="true" aria-labelledby="farmKitchenTitle">
-      <div class="market-modal-backdrop" data-close-kitchen></div>
-      <section class="market-modal-panel kitchen-modal-panel kitchen-v2-panel">
-        <header>
-          <div>
-            <span class="section-kicker">FARM KITCHEN</span>
-            <h2 id="farmKitchenTitle">농장 주방</h2>
-            <p>수확한 재료로 요리하고, 음식을 팔아 테마와 밭을 모아봐</p>
-          </div>
-          <button class="pixel-close-button" type="button" data-close-kitchen aria-label="주방 닫기">×</button>
-        </header>
-        <section class="garden-kitchen" aria-label="간편 요리 주방">
-          <div class="garden-kitchen-balance"><span>테마·밭 구매에 쓸 수 있는 돈</span><strong><span id="kitchenMoneyBalance">0</span> Farm Money</strong></div>
-          <div class="kitchen-v2-workspace">
-            <section class="kitchen-v2-recipes" aria-labelledby="kitchenRecipesTitle">
-              <div class="kitchen-v2-section-heading"><h3 id="kitchenRecipesTitle">오늘은 뭘 만들까?</h3><span id="kitchenRecipeCount">0종</span></div>
-              <div class="kitchen-v2-filters">
-                <label class="kitchen-v2-search"><span class="sr-only">요리 이름 검색</span><input id="kitchenRecipeSearch" type="search" placeholder="요리 이름 검색" autocomplete="off" /></label>
-                <button id="kitchenShowAllRecipes" type="button" aria-pressed="false">전체 레시피</button>
-              </div>
-              <div id="kitchenRecipeCards" class="kitchen-v2-recipe-cards"></div>
-            </section>
-            <section class="kitchen-v2-selected" aria-label="선택한 요리">
-              <div id="kitchenSelectedRecipe"></div>
-            </section>
-          </div>
-          <section class="kitchen-v2-food-shelf" aria-labelledby="kitchenFoodTitle">
-            <div class="kitchen-v2-section-heading"><div><h3 id="kitchenFoodTitle">완성된 음식</h3><p>음식을 팔아 테마와 밭을 모아봐</p></div><button id="kitchenSellAllFood" type="button" disabled>모두 판매</button></div>
-            <div id="kitchenFinishedFoods" class="kitchen-v2-finished-foods"></div>
-            <p id="kitchenSellTotal" class="kitchen-v2-sale-total"></p>
-          </section>
-          <details class="kitchen-v2-pantry" id="kitchenPantry">
-            <summary>보유 재료 <span id="kitchenIngredientTotal">0개</span></summary>
-            <div id="kitchenHarvestIngredients" class="kitchen-v2-ingredients"></div>
-          </details>
-          <p class="kitchen-v2-feedback" id="kitchenActionStatus" role="status" aria-live="polite"></p>
-        </section>
-      </section>
-    </div>
-
-    <div class="market-modal hidden" id="seedStorageModal" role="dialog" aria-modal="true" aria-labelledby="seedStorageTitle">
-      <div class="market-modal-backdrop" data-close-storage></div>
-      <section class="market-modal-panel storage-modal-panel">
-        <header>
-          <div><span class="section-kicker">FARM STORAGE</span><h2 id="seedStorageTitle">씨앗 보관함</h2><p>씨앗을 선택한 뒤 빈 밭을 눌러 심어</p></div>
-          <button class="pixel-close-button" type="button" data-close-storage aria-label="씨앗 보관함 닫기">×</button>
-        </header>
-        <div class="seed-inventory-list storage-grid-44" id="seedInventory"></div>
-      </section>
-    </div>
-
-    <div class="market-modal hidden" id="supplyStorageModal" role="dialog" aria-modal="true" aria-labelledby="supplyStorageTitle">
-      <div class="market-modal-backdrop" data-close-storage></div>
-      <section class="market-modal-panel farm-supply-modal-panel supply-storage-modal">
-        <header>
-          <div><span class="section-kicker">FARM SUPPLIES</span><h2 id="supplyStorageTitle">농장 용품</h2><p>Farm Money로 용품을 구매하고, 보유한 용품을 바로 사용해</p></div>
-          <button class="pixel-close-button" type="button" data-close-storage aria-label="농장 용품 보관함 닫기">×</button>
-        </header>
-        <div class="modal-market-balance">보유 Farm Money <strong>✦ <span id="supplyFarmMoneyBalance">0</span></strong></div>
-        <p class="supply-inventory-summary">보유 용품 <strong><span id="supplyModalCount">0</span>개</strong> · 구매 후 사용할 용품을 골라줘</p>
-        <div class="farm-item-shop farm-supply-list" id="farmItemInventory"></div>
       </section>
     </div>
 
@@ -1014,22 +728,6 @@
       </section>
     </div>
 
-    <div class="market-modal hidden" id="freePassTargetModal" role="dialog" aria-modal="true" aria-labelledby="freePassTargetTitle">
-      <div class="market-modal-backdrop" data-close-free-pass></div>
-      <section class="market-modal-panel free-pass-target-modal">
-        <header>
-          <div>
-            <span class="section-kicker">FARMER'S FREE PASS</span>
-            <h2 id="freePassTargetTitle">완료할 항목 선택</h2>
-            <p>프리패스로 완료 처리할 할 일 또는 오늘의 습관을 골라</p>
-          </div>
-          <button class="pixel-close-button" type="button" data-close-free-pass aria-label="프리패스 대상 선택 닫기">×</button>
-        </header>
-        <div class="free-pass-target-list" id="freePassTargetList"></div>
-        <button class="free-pass-confirm" id="confirmFreePassTarget" type="button" disabled>선택한 항목 완료하기</button>
-      </section>
-    </div>
-
     <div
       class="habit-modal hidden"
       id="taskDeleteModal"
@@ -1054,7 +752,6 @@
       </section>
     </div>
 
-
     <div class="market-modal hidden" id="userSettingsModal" role="dialog" aria-modal="true" aria-labelledby="userSettingsTitle">
       <div class="market-modal-backdrop" data-close-user-settings></div>
       <section class="market-modal-panel user-settings-modal-panel">
@@ -1072,7 +769,7 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="profileEditorTitle">프로필</strong>
-                <small>랭킹과 농장 우편에 표시되는 정보야</small>
+                <small>랭킹에 표시되는 정보야</small>
               </div>
             </div>
 
@@ -1100,43 +797,17 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="pushSettingsTitle">휴대폰 알림</strong>
-                <small id="pushSettingsStatus">우편, 타이머 종료, 물주기 시간을 알려줘</small>
+                <small id="pushSettingsStatus">집중과 휴식이 끝나면 알려줘</small>
               </div>
             </div>
             <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
-          </section>
-
-
-          <section class="settings-section farm-admin-mail-section" id="farmAdminMailSection" aria-labelledby="farmAdminMailTitle" hidden>
-            <div class="settings-section-heading">
-              <div>
-                <strong id="farmAdminMailTitle">전체 업데이트 우편</strong>
-                <small>모든 사용자에게 랜덤 박스와 함께 보내</small>
-              </div>
-            </div>
-            <label>
-              <span>제목</span>
-              <input id="farmAdminMailTitleInput" type="text" maxlength="60" autocomplete="off" placeholder="예: 8월 업데이트" />
-            </label>
-            <label>
-              <span>내용</span>
-              <textarea id="farmAdminMailMessageInput" maxlength="1000" rows="5" placeholder="업데이트 내용을 적어"></textarea>
-            </label>
-            <label>
-              <span>랜덤 박스 개수</span>
-              <input id="farmAdminMailBoxCountInput" type="number" min="1" max="20" step="1" value="1" inputmode="numeric" />
-            </label>
-            <div class="farm-admin-mail-actions">
-              <small id="farmAdminMailStatus" role="status" aria-live="polite"></small>
-              <button id="sendFarmAdminMail" type="button">전체 사용자에게 발송</button>
-            </div>
           </section>
 
           <section class="settings-section account-settings-section" aria-labelledby="accountSettingsTitle">
             <div class="settings-section-heading">
               <div>
                 <strong id="accountSettingsTitle">계정</strong>
-                <small>Google 계정 정보와 농장 우편 주소야</small>
+                <small>Google 계정 정보와 계정 식별코드야</small>
               </div>
             </div>
             <dl class="account-info-list">
@@ -1153,7 +824,7 @@
             </button>
             <div class="account-delete-zone">
               <strong>계정 탈퇴</strong>
-              <small>할 일, 습관, 집중 기록, 농장과 우편을 복구할 수 없게 모두 삭제해</small>
+              <small>할 일, 습관, 집중과 풍경 기록을 복구할 수 없게 모두 삭제해</small>
               <button id="deleteAccountButton" type="button">Farmodoro 계정과 데이터 삭제</button>
             </div>
           </section>
@@ -1202,10 +873,11 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js"></script>
-    <script src="./app.js?v=323"></script>
-    <script src="./garden-art.js?v=5"></script>
-    <script src="./garden-seeds.js?v=5"></script>
-    <script src="./garden-kitchen.js?v=1"></script>
+    <script src="./scenery-theme-presets.js?v=1"></script>
+    <script src="./app.js?v=326"></script>
+    <script src="./garden-art.js?v=7"></script>
+    <script src="./scenery-creation-art.js?v=2"></script>
+    <script src="./scenery-creations.js?v=4"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

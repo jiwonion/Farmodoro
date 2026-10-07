@@ -66,6 +66,7 @@ test("focus batches earn rewards without using a saved crop target", () => {
   const ctx = context(["getPendingFocusSeconds", "addFocusSecond", "stagePendingFocusEvents"], {
     focusMode: "quick",
     focusProgressApiUnavailable: false,
+    farmSessionGeneration: 0, farmWalletMutationVersion: 0, farmWalletMutationChain: Promise.resolve(),
     focusProgressServerSeconds: 0,
     state: { focusRewardSeconds: 0, focusFarmPlotId: 0, farmPlots: [
       { id: 0, crop: "carrot", growth: 1, focusCropInstanceId: "crop-a" },
@@ -104,6 +105,39 @@ test("focus batches earn rewards without using a saved crop target", () => {
   assert.equal(ctx.state.farmPlots[0].growth, 1);
 });
 
+test("an unavailable focus API preserves all pending seconds until the server confirms the reward", async () => {
+  let eventId = 0;
+  let confirmedSeconds = 0;
+  const calls = [];
+  const ctx = context(["getPendingFocusSeconds", "addFocusSecond", "stagePendingFocusEvents", "flushFocusTime"], {
+    console: { error: noop, warn: noop }, activeAuthUser: { id: "user" }, focusMode: "quick",
+    farmSessionGeneration: 1, farmWalletMutationVersion: 0, farmWalletMutationChain: Promise.resolve(),
+    focusProgressApiUnavailable: true, focusProgressSyncPromise: null, focusProgressServerSeconds: 0,
+    state: { coins: 10, farmMoney: 100, focusRewardSeconds: 0 },
+    pendingFocusSeconds: { linked: 0, quick: 0 }, pendingFarmFocusBatches: [], focusProgressEventQueue: [],
+    crypto: { randomUUID: () => `offline-focus-${++eventId}` },
+    persistPendingFocusEvents: noop, refreshFocusProgress: noop, renderFarm: noop, showToast: noop,
+    supabaseClient: { rpc: async (name, args) => {
+      assert.equal(name, "record_my_focus_time");
+      calls.push(args);
+      confirmedSeconds += args.p_elapsed_seconds;
+      return { data: { progressSeconds: confirmedSeconds % 3600, coinBalance: 10 + Math.floor(confirmedSeconds / 3600), awardedCoins: 0 } };
+    } },
+  });
+  ctx.addFocusSecond(3613, "quick");
+  await ctx.flushFocusTime();
+  assert.equal(calls.length, 0);
+  assert.equal(ctx.state.coins, 10, "Unavailable APIs cannot grant local-only currency");
+  assert.equal(ctx.getPendingFocusSeconds(), 3613);
+  ctx.focusProgressApiUnavailable = false;
+  await ctx.flushFocusTime();
+  assert.equal(confirmedSeconds, 3613);
+  assert.equal(calls.length, 7);
+  assert.equal(ctx.state.coins, 11);
+  assert.equal(ctx.focusProgressServerSeconds, 13);
+  assert.equal(ctx.getPendingFocusSeconds(), 0);
+});
+
 test("a legacy queued event retries with no crop target and grants its Coin reward once", async () => {
   const attempts = [];
   const seen = new Set();
@@ -114,6 +148,7 @@ test("a legacy queued event retries with no crop target and grants its Coin rewa
   const ctx = context(["flushFocusTime"], {
     console: { error: noop, warn: noop },
     activeAuthUser: { id: "user" },
+    farmSessionGeneration: 0, farmWalletMutationVersion: 0, farmWalletMutationChain: Promise.resolve(),
     focusProgressApiUnavailable: false,
     focusProgressSyncPromise: null,
     focusProgressServerSeconds: 0,
@@ -151,9 +186,9 @@ test("a legacy queued event retries with no crop target and grants its Coin rewa
   await ctx.flushFocusTime();
   assert.equal(ctx.focusProgressEventQueue.length, 0);
   assert.deepEqual(attempts[1], attempts[0]);
-  assert.equal(attempts[0].name, "record_my_focus_time_v2");
-  assert.equal(attempts[0].p_plot_index, null);
-  assert.equal(attempts[0].p_crop_instance_id, null);
+  assert.equal(attempts[0].name, "record_my_focus_time");
+  assert.equal(attempts[0].p_plot_index, undefined);
+  assert.equal(attempts[0].p_crop_instance_id, undefined);
   assert.equal(persistedSeconds, 600);
   assert.equal(ctx.state.coins, 8);
   assert.equal(serverCoins, 8);

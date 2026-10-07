@@ -1,0 +1,222 @@
+﻿[
+    {
+        "theme":  "valentine",
+        "stage":  0,
+        "left":  96,
+        "top":  197,
+        "right":  191,
+        "bottom":  273,
+        "width":  96,
+        "height":  77,
+        "opaquePixels":  5097
+    },
+    {
+        "theme":  "valentine",
+        "stage":  1,
+        "left":  309,
+        "top":  107,
+        "right":  508,
+        "bottom":  274,
+        "width":  200,
+        "height":  168,
+        "opaquePixels":  16722
+    },
+    {
+        "theme":  "valentine",
+        "stage":  2,
+        "left":  549,
+        "top":  68,
+        "right":  778,
+        "bottom":  274,
+        "width":  230,
+        "height":  207,
+        "opaquePixels":  27394
+    },
+    {
+        "theme":  "valentine",
+        "stage":  3,
+        "left":  813,
+        "top":  51,
+        "right":  1090,
+        "bottom":  274,
+        "width":  278,
+        "height":  224,
+        "opaquePixels":  40637
+    },
+    {
+        "theme":  "halloween",
+        "stage":  0,
+        "left":  86,
+        "top":  428,
+        "right":  203,
+        "bottom":  526,
+        "width":  118,
+        "height":  99,
+        "opaquePixels":  7882
+    },
+    {
+        "theme":  "halloween",
+        "stage":  1,
+        "left":  302,
+        "top":  379,
+        "right":  506,
+        "bottom":  528,
+        "width":  205,
+        "height":  150,
+        "opaquePixels":  20431
+    },
+    {
+        "theme":  "halloween",
+        "stage":  2,
+        "left":  565,
+        "top":  332,
+        "right":  781,
+        "bottom":  530,
+        "width":  217,
+        "height":  199,
+        "opaquePixels":  31771
+    },
+    {
+        "theme":  "halloween",
+        "stage":  3,
+        "left":  835,
+        "top":  309,
+        "right":  1086,
+        "bottom":  532,
+        "width":  252,
+        "height":  224,
+        "opaquePixels":  41868
+    },
+    {
+        "theme":  "christmas",
+        "stage":  0,
+        "left":  86,
+        "top":  694,
+        "right":  197,
+        "bottom":  817,
+        "width":  112,
+        "height":  124,
+        "opaquePixels":  7855
+    },
+    {
+        "theme":  "christmas",
+        "stage":  1,
+        "left":  337,
+        "top":  631,
+        "right":  485,
+        "bottom":  818,
+        "width":  149,
+        "height":  188,
+        "opaquePixels":  16732
+    },
+    {
+        "theme":  "christmas",
+        "stage":  2,
+        "left":  578,
+        "top":  587,
+        "right":  783,
+        "bottom":  817,
+        "width":  206,
+        "height":  231,
+        "opaquePixels":  27093
+    },
+    {
+        "theme":  "christmas",
+        "stage":  3,
+        "left":  865,
+        "top":  551,
+        "right":  1077,
+        "bottom":  815,
+        "width":  213,
+        "height":  265,
+        "opaquePixels":  32233
+    },
+    {
+        "theme":  "whiteDay",
+        "stage":  0,
+        "left":  89,
+        "top":  949,
+        "right":  190,
+        "bottom":  1068,
+        "width":  102,
+        "height":  120,
+        "opaquePixels":  7600
+    },
+    {
+        "theme":  "whiteDay",
+        "stage":  1,
+        "left":  330,
+        "top":  889,
+        "right":  483,
+        "bottom":  1068,
+        "width":  154,
+        "height":  180,
+        "opaquePixels":  18104
+    },
+    {
+        "theme":  "whiteDay",
+        "stage":  2,
+        "left":  563,
+        "top":  849,
+        "right":  789,
+        "bottom":  1068,
+        "width":  227,
+        "height":  220,
+        "opaquePixels":  34171
+    },
+    {
+        "theme":  "whiteDay",
+        "stage":  3,
+        "left":  837,
+        "top":  829,
+        "right":  1092,
+        "bottom":  1073,
+        "width":  256,
+        "height":  245,
+        "opaquePixels":  42688
+    },
+    {
+        "theme":  "peperoDay",
+        "stage":  0,
+        "left":  84,
+        "top":  1200,
+        "right":  184,
+        "bottom":  1343,
+        "width":  101,
+        "height":  144,
+        "opaquePixels":  6315
+    },
+    {
+        "theme":  "peperoDay",
+        "stage":  1,
+        "left":  324,
+        "top":  1162,
+        "right":  498,
+        "bottom":  1343,
+        "width":  175,
+        "height":  182,
+        "opaquePixels":  16287
+    },
+    {
+        "theme":  "peperoDay",
+        "stage":  2,
+        "left":  578,
+        "top":  1099,
+        "right":  778,
+        "bottom":  1346,
+        "width":  201,
+        "height":  248,
+        "opaquePixels":  27336
+    },
+    {
+        "theme":  "peperoDay",
+        "stage":  3,
+        "left":  858,
+        "top":  1080,
+        "right":  1078,
+        "bottom":  1348,
+        "width":  221,
+        "height":  269,
+        "opaquePixels":  34224
+    }
+]
