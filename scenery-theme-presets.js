@@ -2,6 +2,8 @@
 (() => {
   "use strict";
   const previousTypes = id => {
+    if (id === "tuxedoCat") return [];
+    if (id === "space") return ["star", "planet"];
     if (["ocean", "bubbleField"].includes(id)) return ["coral", "pinkCoral", "sandcastle"];
     if (["iceKingdom", "christmas"].includes(id)) return ["snowman", "snowRabbit"];
     if (["galaxyNight", "moonGarden"].includes(id)) return ["star", "planet"];
@@ -29,6 +31,8 @@
     ["galaxyNight", "은하수 밤", "galaxyPlanet", "작은 행성", "별 먼지가 모이고 고리가 생겨 작은 행성이 돼.", ["별 먼지", "작은 구체", "고리가 생겨", "행성 완성"]],
     ["auroraNight", "오로라", "auroraCrystal", "오로라 수정", "투명한 수정에 오로라가 감겨 빛나는 탑이 돼.", ["수정 조각", "수정 기둥", "오로라가 감겨", "빛나는 오로라 수정"]],
     ["moonGarden", "달빛 정원", "moonFlower", "달빛 꽃", "은빛 꽃봉오리가 달빛 아래 피어나.", ["은빛 새싹", "달빛 꽃봉오리", "은빛 꽃잎", "달빛 꽃 만개"]],
+    ["space", "우주", "spaceTree", "우주 나무", "별빛 새싹이 자라 행성 고리를 두른 우주 나무가 돼.", ["별빛 새싹", "어린 별나무", "별꽃이 맺혀", "우주 나무 완성"]],
+    ["tuxedoCat", "고양이 동산", "tuxedoCat", "턱시도 고양이", "푸른 나무와 꽃 사이로 턱시도·치즈·페르시안 고양이들이 쉬어 가는 동산.", ["작은 새끼 고양이", "호기심 많은 아기 고양이", "쑥쑥 자라는 고양이", "다 자란 턱시도 고양이"]],
   ];
   const themes = Object.freeze(definitions.map(([id, name, defaultType, subject, description, stageLabels]) => Object.freeze({
     id, name, defaultType, subject, description, stageLabels: Object.freeze(stageLabels),

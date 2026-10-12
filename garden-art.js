@@ -3,6 +3,8 @@
   const sceneRoot = "./assets/garden-v3";
   const themeRoot = "./assets/garden-v4";
   function theme(id) {
+    if (id === "tuxedoCat") return { url: "./assets/scenery-creations/cat-park-scene-v1.png", size: "100% 100%", index: 0, x: 0, y: 0, thumbnailY: 0, filter: "none" };
+    if (id === "space") return { url: "./assets/scenery-creations/space-scene-v1.png", size: "100% 100%", index: 0, x: 0, y: 0, thumbnailY: 0, filter: "none" };
     if (id === "ocean") return { url: "./assets/scenery-creations/ocean-scene-v1.png", size: "100% 100%", index: 0, x: 0, y: 0, thumbnailY: 0, filter: "none" };
     const themes = {
       cherryBlossom: [`${sceneRoot}/terrain-atlas.png`, 1], galaxyNight: [`${sceneRoot}/terrain-atlas.png`, 2],

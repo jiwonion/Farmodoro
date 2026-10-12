@@ -11,6 +11,7 @@
     ["cactus", "선인장", "cactus", 0, 0], ["floweringCactus", "꽃 선인장", "cactus", 1, 300],
   ].map(([id, name, family, variant, unlockPrice]) => ({ id, name, family, variant, unlockPrice, growthCost: 20, reward: 50 })).concat(window.SceneryThemePresets?.newTypes || []);
   const THEME_GROUPS = {
+    space: ["spaceTree", "star", "planet"], tuxedoCat: ["tuxedoCat"],
     ocean: ["coral", "pinkCoral", "sandcastle"], bubbleField: ["coral", "pinkCoral", "sandcastle"],
     iceKingdom: ["snowman", "snowRabbit"], christmas: ["snowman", "snowRabbit"],
     galaxyNight: ["star", "planet"], moonGarden: ["star", "planet"],

@@ -947,6 +947,8 @@ const FARM_THEMES = [
   { id: "rainyGarden", name: "비 오는 정원", price: 2000 },
   { id: "desertOasis", name: "사막 오아시스", price: 2000 },
   { id: "moonGarden", name: "달빛 정원", price: 2000 },
+  { id: "space", name: "우주", price: 2000 },
+  { id: "tuxedoCat", name: "고양이 동산", price: 2000 },
 ];
 
 const COSMETIC_CATALOGS = { farm_theme: FARM_THEMES };

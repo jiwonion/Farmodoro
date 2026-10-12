@@ -4,6 +4,8 @@
 
   const root = "./assets/scenery-creations";
   const atlases = Object.freeze({
+    spaceTree: { src: `${root}/space-tree-v1.png`, width: 1254, height: 1254, columns: 2, rows: 2 },
+    tuxedoCat: { src: `${root}/tuxedo-cat-v1.png`, width: 1254, height: 1254, columns: 2, rows: 2 },
     nature: { src: `${root}/nature-v1.png`, width: 1448, height: 1086, columns: 4, rows: 3, cellWidth: 362, cellHeight: 362 },
     winter: { src: `${root}/winter-v1.png`, width: 1448, height: 1086, columns: 4, rows: 3, cellWidth: 362, cellHeight: 362 },
     fantasy: { src: `${root}/fantasy-v1.png`, width: 1448, height: 1086, columns: 4, rows: 3, cellWidth: 362, cellHeight: 362 },
@@ -17,6 +19,8 @@
   // [left, top, width, height]. Keep the original atlas pixels and clip precisely
   // because generated row heights vary. Legacy families retain their old art.
   const families = Object.freeze({
+    spaceTree: { atlas: "spaceTree", bounds: [[202,351,285,173],[776,130,316,394],[122,682,452,499],[608,585,632,609]] },
+    tuxedoCat: { atlas: "tuxedoCat", bounds: [[169,299,320,222],[802,155,312,366],[201,690,376,490],[727,611,476,585]] },
     tree: { atlas: "themeNature", row: 0, bounds: [[99,225,110,73],[352,122,127,174],[574,73,193,224],[813,23,283,274]] },
     cherryTree: { atlas: "themeNature", row: 1, bounds: [[90,473,130,115],[326,359,178,228],[558,348,220,241],[805,325,291,267]] },
     goldenWheat: { atlas: "themeNature", row: 2, bounds: [[85,747,131,90],[335,667,158,169],[568,642,201,197],[824,614,264,226]] },
@@ -44,6 +48,8 @@
   });
 
   const types = Object.freeze({
+    spaceTree: { family: "spaceTree", variant: 0, filter: "none" },
+    tuxedoCat: { family: "tuxedoCat", variant: 0, filter: "none" },
     tree: { family: "tree", variant: 0, filter: "none" },
     cherryTree: { family: "cherryTree", variant: 0, filter: "none" },
     goldenWheat: { family: "goldenWheat", variant: 0, filter: "none" },

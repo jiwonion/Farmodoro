@@ -387,15 +387,15 @@ test('idle scenery uses labelled completed previews without inventing growth pro
   assert.doesNotMatch(h.root.innerHTML, /aria-current="step"|Coin 사용|role="progressbar"/);
 });
 
-test('all 19 theme presets select distinct primary objects without removing old choices', () => {
+test('all 21 theme presets select distinct primary objects without removing old choices', () => {
   const h = harness({ withPresets: true });
   const presets = h.ctx.window.SceneryThemePresets;
   const sql = fs.readFileSync(path.join(__dirname, '../supabase/migrations/086_theme_creations.sql'), 'utf8');
   const legacy = [...sql.matchAll(/\('([^']+)', '([^']+)', '([^']+)', (\d+), (\d+), (\d+), (\d+)\)/g)].map(([, id, name, family, variant, unlockPrice, growthCost, reward]) => ({ id, name, family, variant: +variant, unlockPrice: +unlockPrice, growthCost: +growthCost, reward: +reward }));
   const fullCatalog = legacy.concat(plain(presets.newTypes));
-  assert.equal(fullCatalog.length, 29);
-  assert.equal(presets.themes.length, 19);
-  assert.equal(new Set(presets.themes.map(theme => h.api.defaultType(theme.id))).size, 19);
+  assert.equal(fullCatalog.length, 31);
+  assert.equal(presets.themes.length, 21);
+  assert.equal(new Set(presets.themes.map(theme => h.api.defaultType(theme.id))).size, 21);
   for (const theme of presets.themes) {
     h.ctx.state.equippedFarmTheme = theme.id;
     assert.deepEqual(plain(h.api.themeTypes(theme.id)), plain(theme.types));
@@ -406,6 +406,11 @@ test('all 19 theme presets select distinct primary objects without removing old 
     assert.doesNotMatch(h.root.innerHTML, /서버 준비 중/);
   }
   assert.deepEqual(plain(h.api.themeTypes('goldenHarvest')), ['goldenWheat', 'tree', 'blossomTree', 'goldenTree']);
+  assert.equal(h.api.defaultType('tuxedoCat'), 'tuxedoCat');
+  assert.deepEqual(plain(h.api.themeTypes('tuxedoCat')), ['tuxedoCat']);
+  assert.equal(presets.theme('tuxedoCat').subject, '턱시도 고양이');
+  assert.ok(presets.theme('tuxedoCat').stageLabels.every(label => label.includes('고양이')));
+  assert.ok(!presets.theme('tuxedoCat').subject.includes('나무'));
 });
 
 test('a missing new primary stays a disabled preview while an old pinned creation remains growable', async () => {

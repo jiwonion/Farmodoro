@@ -86,7 +86,7 @@ const retiredSignatures = [
   const app = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
   const context = vm.createContext({});
   vm.runInContext(app.match(/const FARM_THEMES = [\s\S]*?;\r?\n/)[0], context);
-  const themes = vm.runInContext('FARM_THEMES.map(t=>t.id)', context);
+  const themes = vm.runInContext('FARM_THEMES.map(t=>t.id).filter(id => !["space", "tuxedoCat"].includes(id))', context);
   for (const theme of themes) await db.query("insert into public.farm_cosmetic_catalog values('farm_theme',$1,2000)", [theme]);
   for (const signature of retiredSignatures) {
     const [, name, parameters] = signature.match(/^(\w+)\(([^]*)\)$/);
@@ -491,9 +491,57 @@ const retiredSignatures = [
   assert.deepEqual(await state(), themedReapplyBefore, '088 can be reapplied with an active legacy alternative without changing state');
   assert.deepEqual(await wallet(), themedReapplyWallet);
   assert.deepEqual((await db.query('select * from public.farm_scenery_unlocked_types order by user_id,type_id')).rows, themedReapplyUnlocks.rows);
+  // 090 adds purchasable themes and a matching tree or cat. Upgrades and retries
+  // preserve ongoing growth, balances, permanent ownership and completion logs.
+  const additionsMigration = source('090_space_and_tuxedo_cat_scenery.sql');
+  const ownershipBeforeAdditions = await db.query('select * from public.farm_cosmetics order by user_id,cosmetic_type,cosmetic_id');
+  await db.exec(additionsMigration);
+  assert.deepEqual(await wallet(), themedReapplyWallet);
+  assert.deepEqual((await db.query('select * from public.farm_cosmetics order by user_id,cosmetic_type,cosmetic_id')).rows, ownershipBeforeAdditions.rows);
+  const additionsState = await state();
+  assert.deepEqual(additionsState.activeCreation, themedReapplyBefore.activeCreation);
+  assert.deepEqual(additionsState.completedTypes, themedReapplyBefore.completedTypes);
+  assert.equal(additionsState.catalog.length, 31);
+  assert.equal(additionsState.catalog.filter(item => !item.unlockPrice).length, 23);
+  for (const theme of [null, ...themes]) assert.deepEqual(await scalar('select public.farm_scenery_allowed_types($1)', [theme]),
+    [primaries[theme] || 'tree', ...oldAllowed.get(theme).filter(id => id !== (primaries[theme] || 'tree'))]);
+  await db.exec(additionsMigration);
+  assert.deepEqual(await state(), additionsState, '090 can be reapplied during growth');
+  await grow(newLegacyChoice, 100); await claim(newLegacyChoice);
+  await migrateFunction('089_retire_legacy_farm_and_mail.sql', 'purchase_farm_cosmetic');
+  await migrateFunction('089_retire_legacy_farm_and_mail.sql', 'equip_farm_cosmetic');
+  await db.query('update public.farm_wallets set coin_balance=100,farm_money_balance=10000 where user_id=$1', [user]);
+  for (const [theme, typeId] of [['space', 'spaceTree'], ['tuxedoCat', 'tuxedoCat']]) {
+    assert.equal(await number("select price from public.farm_cosmetic_catalog where cosmetic_type='farm_theme' and cosmetic_id=$1", [theme]), 2000);
+    assert.equal((await scalar('select public.farm_scenery_allowed_types($1)', [theme]))[0], typeId);
+    await setUser(other);
+    await assert.rejects(start(typeId, theme), /SCENERY_THEME_NOT_OWNED/);
+    await setUser(user);
+    const beforePurchase = await wallet();
+    await assert.rejects(scalar("select public.purchase_farm_cosmetic('farm_theme',$1,1)", [theme]), /FARM_COSMETIC_PRICE_CHANGED/);
+    assert.deepEqual(await wallet(), beforePurchase);
+    await scalar("select public.purchase_farm_cosmetic('farm_theme',$1,2000)", [theme]);
+    assert.equal(Number((await wallet()).farm_money_balance), Number(beforePurchase.farm_money_balance) - 2000);
+    assert.equal(await scalar('select equipped_farm_theme from public.farms where user_id=$1', [user]), theme);
+    await assert.rejects(scalar("select public.purchase_farm_cosmetic('farm_theme',$1,2000)", [theme]), /Cosmetic already owned/);
+    await assert.rejects(start(typeId, 'ocean'), /SCENERY_THEME_MISMATCH/);
+    const created = (await start(typeId, theme)).scenery.activeCreation;
+    assert.equal(created.growthCost, 20); assert.equal(created.reward, 50);
+    const beforeGrowth = await wallet();
+    await scalar("select public.equip_farm_cosmetic('farm_theme','cherryBlossom')");
+    assert.equal((await state()).activeCreation.themeId, theme, 'changing theme keeps the new tree background pinned');
+    await grow(created.id, 5); await grow(created.id, 100);
+    const claimed = await claim(created.id);
+    assert.equal(claimed.scenery.completedTypes.find(item => item.typeId === typeId).count, 1);
+    assert.equal(claimed.wallet.coinBalance, Number(beforeGrowth.coin_balance) - 20);
+    assert.equal(claimed.wallet.farmMoneyBalance, Number(beforeGrowth.farm_money_balance) + 50);
+    const beforeEquip = await wallet();
+    await scalar("select public.equip_farm_cosmetic('farm_theme',$1)", [theme]);
+    assert.deepEqual(await wallet(), beforeEquip, 'reapplying a permanently owned new theme is free');
+  }
   assert.equal(await scalar("select has_function_privilege('authenticated','public.farm_scenery_allowed_types(text)','EXECUTE')"), false);
   assert.equal(await scalar("select has_function_privilege('anon','public.farm_scenery_allowed_types(text)','EXECUTE')"), false);
   await setUser(null);
   for (const action of [state,()=>start(),()=>grow(racingCreation),()=>claim(racingCreation),()=>unlock('pinkCoral')]) await assert.rejects(action(), /Authentication required/);
-  console.log('SQL PASS: 29 creation types, 19 distinct theme primaries, 21 free and 8 paid300, safe price/theme upgrade and reapply preserving active legacy creations/history/wallets/ownership, single active invariant, pinned scenery, balanced economy, rollback, durable retries, owner-only RLS and legacy production retirement');
+  console.log('SQL PASS: 31 creation types, 21 distinct theme primaries, new theme purchase/price/ownership checks, pinned tree growth and completion rewards, safe upgrades and reapply, single active invariant, rollback, durable retries and owner-only RLS');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => db.close());

@@ -7,9 +7,9 @@ const http = require('node:http');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'farmodoro-scenery-ui-'));
-const sql = ['086_theme_creations.sql', '088_theme_specific_creations.sql'].map(file => fs.readFileSync(path.join(root, 'supabase/migrations', file), 'utf8')).join('\n');
+const sql = ['086_theme_creations.sql', '088_theme_specific_creations.sql', '090_space_and_tuxedo_cat_scenery.sql'].map(file => fs.readFileSync(path.join(root, 'supabase/migrations', file), 'utf8')).join('\n');
 const catalog = [...new Map([...sql.matchAll(/\('([^']+)', '([^']+)', '([^']+)', (\d+), (\d+), (\d+), (\d+)\)/g)].map(([, id, name, family, variant, unlockPrice, growthCost, reward]) => [id, { id, name, family, variant: +variant, unlockPrice: +unlockPrice, growthCost: +growthCost, reward: +reward }])).values()];
-assert.equal(catalog.length, 29, 'browser fixture follows the original and theme-specific server catalogs');
+assert.equal(catalog.length, 31, 'browser fixture follows the original and theme-specific server catalogs');
 const stub = `<script>
   window.__sceneryRpcCalls = [];
   window.supabase = { createClient: () => ({
@@ -353,8 +353,8 @@ let ws;
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await evaluate(`state.ownedCosmetics = SceneryThemePresets.themes.filter(theme => theme.id).map(theme => ({type:'farm_theme',id:theme.id}));`);
   const themes = await evaluate('SceneryThemePresets.themes.map(theme => ({id:theme.id,typeId:theme.defaultType,name:theme.name}))');
-  assert.equal(themes.length, 19);
-  assert.equal(new Set(themes.map(theme => theme.typeId)).size, 19);
+  assert.equal(themes.length, 21);
+  assert.equal(new Set(themes.map(theme => theme.typeId)).size, 21);
   for (const theme of themes) {
     await evaluate(`state.equippedFarmTheme = ${JSON.stringify(theme.id)}; renderFarm();`);
     const thumbSelector = theme.id ? `[data-equip-cosmetic="farm_theme:${theme.id}"] .garden-theme-thumb` : '[data-equip-cosmetic="farm_theme:"] .garden-theme-thumb';
@@ -376,7 +376,7 @@ let ws;
       }
       assert.deepEqual(await evaluate('({coins:state.coins,money:state.farmMoney,calls:__sceneryRpcCalls.length})'), balance, theme.name + ': stage previews keep the wallet and server unchanged');
       if (theme.id === 'cherryBlossom') await capture('theme-preview');
-      if (['tree', 'cherryTree', 'christmasTree'].includes(theme.typeId)) {
+      if (['tree', 'cherryTree', 'christmasTree', 'spaceTree', 'tuxedoCat'].includes(theme.typeId)) {
         await verifyTreeBounds('.scenery-theme-preview');
         await call('Emulation.setDeviceMetricsOverride', { width: 390, height: 1100, deviceScaleFactor: 1, mobile: false });
         await verifyTreeBounds('.scenery-theme-preview');
@@ -398,7 +398,7 @@ let ws;
       assert.equal(await evaluate(`document.querySelector('.scenery-growth-timeline [aria-current="step"]').dataset.sceneryStage`), String(expectedStage), theme.name + ': timeline stage ' + target);
       assert.equal(await evaluate(`document.querySelector('[data-scenery-card="${theme.typeId}"] [data-creation-stage]').dataset.creationStage`), String(expectedStage), theme.name + ': current card stage ' + target);
       assert.equal(await evaluate(`document.querySelector('.scenery-progress').getAttribute('aria-valuenow')`), String(target));
-      if (['tree', 'cherryTree', 'christmasTree'].includes(theme.typeId)) {
+      if (['tree', 'cherryTree', 'christmasTree', 'spaceTree', 'tuxedoCat'].includes(theme.typeId)) {
         for (const width of [1440, 390, 320]) {
           await verifyGeometry(width, 'white');
           await verifyTreeBounds();
@@ -426,7 +426,13 @@ let ws;
     }
     await click(action('claim'));
   }
-  assert.equal(await evaluate('SceneryCreations.snapshot().totalCompleted'), 19, 'all 19 distinct theme defaults complete and retain their records');
+  assert.equal(await evaluate('SceneryCreations.snapshot().totalCompleted'), 21, 'all 21 distinct theme defaults complete and retain their records');
+  for (const id of ['space', 'tuxedoCat']) {
+    await evaluate(`state.equippedFarmTheme = ${JSON.stringify(id)}; renderFarm();`);
+    await verifyGeometry(1440, 'white'); await capture(id + '-desktop');
+    await verifyGeometry(390, 'white'); await capture(id + '-mobile');
+  }
+  await verifyGeometry(1440, 'white');
   // A paid, previously permitted alternative keeps its identity even when the
   // free default modal entry is addressed by either null or an empty string.
   await evaluate('state.equippedFarmTheme = null; renderFarm();');
@@ -461,5 +467,5 @@ let ws;
   const cardsScreenshot = await call('Page.captureScreenshot', {format:'png',captureBeyondViewport:true,clip:cardsClip});
   fs.writeFileSync(path.join(root, 'output', 'scenery-creations-completion-counts.png'), Buffer.from(cardsScreenshot.data, 'base64'));
   assert.deepEqual(exceptions, [], 'no browser runtime exceptions');
-  console.log('PASS: all 19 themed primaries start/grow/claim and retain intrinsic identities; all 19 theme modal and sidebar previews, four consistent growth stages, honest Coin/percentage/remaining metrics, current versus completed card previews, retired farm controls, permanent unlock/repeat, durable recovery, account isolation, queued cosmetics/theme pinning, stable keyboard focus, loaded art, desktop/mobile/dark geometry, passive focus clone, missing-migration recovery. Enlarged tree/cherry/Christmas art stays within its SVG and scene at every stage on 1440/390/320px, in theme modals and wide/tall focus frames. Actual screenshots: output/scenery-creations-*.png');
+  console.log('PASS: all 21 theme defaults start/grow/claim; matching thumbnails and modal previews; four growth stages; honest progress; permanent unlocks, durable retries, account isolation and pinned themes. Tree, cherry, Christmas, space and tuxedo cat sprites fit desktop/mobile modals and wide/tall focus frames. Screenshots: output/scenery-creations-*.png');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { ws?.close(); chrome?.kill(); server.close(); });
