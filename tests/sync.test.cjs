@@ -6,8 +6,8 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "../app.js"), "utf8");
 function context(names, globals = {}) {
-  const ctx = vm.createContext({ console, ...globals });
-  for (const name of names) {
+  const ctx = vm.createContext({ console, habitCompletionRequests: new Map(), habitRecordEditsInFlight: new Set(), habitTierViewLevels: new Map(), ...globals });
+  for (const name of new Set(["hasHabitMinimum", "getHabitGoalTitle", "getHabitDistinctMinimumTitle", ...names])) {
     const match = source.match(new RegExp(`(?:async )?function ${name}\\([^]*?^\\}`, "m"));
     assert.ok(match, name);
     vm.runInContext(match[0], ctx);
@@ -169,7 +169,7 @@ test("past habit card displays binary completion, schedule and focus", () => {
   const elements = new Map();
   const ctx = context([
     "renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitTargetForDate",
-    "getHabitProgress", "getHabitProgressRatio", "getHabitStreak", "getHabitDailyFocusSeconds", "getHabitFocusMinutes",
+    "getHabitProgress", "getHabitProgressRatio", "getHabitStreak", "getHabitDailyFocusSeconds", "getHabitFocusMinutes", "getHabitCompletionLevel", "getHabitDistinctMinimumTitle",
   ], {
     currentPage: "habits", selectedHabitDate: "2026-09-09", habitRecordSaving: false,
     activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "매일",
@@ -200,10 +200,74 @@ test("past habit card displays binary completion, schedule and focus", () => {
   assert.equal(elements.get("#habitList").innerHTML, "");
 });
 
+function renderTieredHabit(habitFields, globals = {}) {
+  const elements = new Map();
+  const habit = { ...historicalHabit, completionDates: [], recordMetaByDate: {}, ...habitFields };
+  const ctx = context(["renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitCompletionLevel"], {
+    currentPage: "habits", selectedHabitDate: "2026-09-09", habitRecordSaving: false,
+    activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "daily",
+    formatFocusTime: String, getHabitProgressRatio: () => habit.completionDates.length,
+    getHabitFocusMinutes: () => 0, getHabitDailyFocusSeconds: () => 0, getHabitStreak: () => 0,
+    toLocalDateString: (date) => date
+      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      : "2026-09-10",
+    document: { querySelector: (selector) => {
+      if (!elements.has(selector)) elements.set(selector, {});
+      return elements.get(selector);
+    } },
+    state: { habits: [habit] },
+    ...globals,
+  });
+  return { habit, ctx, html: () => (ctx.renderHabits(), elements.get("#habitList").innerHTML) };
+}
+
+test("a tiered habit shows one check row for its current tier with a switch to the other tier", () => {
+  const habitTierViewLevels = new Map();
+  const { habit, html } = renderTieredHabit({ title: "Exercise", minimumTitle: "Stretching" }, { habitTierViewLevels });
+  const text = (markup) => markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+
+  let markup = html();
+  assert.doesNotMatch(markup, /type="checkbox"|habit-goal-row/);
+  assert.match(markup, /class="habit-check"[^>]*data-toggle-habit="habit"[^>]*data-habit-level="max"/);
+  assert.match(text(markup), /Exercise 최대 · 2 Coin/);
+  assert.doesNotMatch(text(markup), /Stretching/);
+  assert.match(markup, /<button class="habit-tier-switch"[^>]*data-habit-view-level="min" data-habit-view-id="habit"/);
+
+  habitTierViewLevels.set("habit:2026-09-09", "min");
+  markup = html();
+  assert.match(markup, /class="habit-check"[^>]*data-habit-level="min"/);
+  assert.match(text(markup), /Stretching 최소 · 1 Coin/);
+  assert.doesNotMatch(text(markup), /Exercise/);
+  assert.match(markup, /data-habit-view-level="max"[^>]*>⇄ 최대로</);
+
+  // Once completed, the recorded tier is shown and cannot be switched until it is undone.
+  for (const level of ["max", "min"]) {
+    habit.completionDates = ["2026-09-09"];
+    habit.recordMetaByDate["2026-09-09"] = { completionLevel: level };
+    markup = html();
+    assert.match(markup, new RegExp(`class="habit-check"[^>]*data-habit-level="${level}"[^>]*aria-pressed="true"`));
+    assert.doesNotMatch(markup, /habit-tier-switch/);
+    assert.doesNotMatch(markup, /data-habit-view-level/);
+  }
+});
+
+test("a timed minimum without a distinct name keeps the habit name and shows the tier's target minutes", () => {
+  for (const minimumTitle of ["", "Self study", " Self study "]) {
+    const habitTierViewLevels = new Map([["habit:2026-09-09", "min"]]);
+    const { html } = renderTieredHabit({ title: "Self study", minimumTitle, measureType: "time", minimumFocusMinutes: 30 }, {
+      habitTierViewLevels, getHabitFocusMinutes: (_habit, _date, level) => level === "min" ? 30 : 60,
+    });
+    const text = html().replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    assert.equal(text.match(/Self study/g).length, 1, JSON.stringify(minimumTitle));
+    assert.match(text, /Self study 최소 · 1 Coin/);
+    assert.match(text, /목표 30분/);
+  }
+});
+
 test("expired habits disappear after their end date but remain visible in past records", () => {
   const elements = new Map();
   const habit = { ...historicalHabit, title: "habit", completionDates: [] };
-  const ctx = context(["renderHabits", "getHabitViewDate", "isHabitScheduledOn"], {
+  const ctx = context(["renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitCompletionLevel", "getHabitDistinctMinimumTitle"], {
     currentPage: "habits", selectedHabitDate: null, habitRecordSaving: false,
     activeFocus: null, escapeHtml: String, formatHabitSchedule: () => "daily",
     formatFocusTime: String, getHabitProgressRatio: () => 0,
@@ -251,7 +315,7 @@ for (const [year, month, endedDate, boundaryDate] of [
     const originalHabits = plain(habits);
     const ctx = context([
       "renderHabitHeatmap", "isHabitScheduledOn", "getHabitTargetForDate",
-      "getHabitProgress", "getHabitProgressRatio",
+      "getHabitProgress", "getHabitProgressRatio", "getHabitCompletionLevel",
     ], {
       state: { habits }, habitCalendarDate: new Date(year, month, 15),
       lastHabitHeatmapDate: "",
@@ -284,6 +348,7 @@ test("checking a past habit saves the displayed date even if navigation changes 
     taskDataHydrated: true, habitRecordSaving: false,
     state: { habits: [historicalHabit] }, canEditHabitRecord: () => true,
     getHabitTargetForDate: () => 1, getHabitProgress: () => 0, getHabitProgressRatio: () => 0,
+    getHabitCompletionLevel: () => null,
     renderHabits: noop, showToast: assert.fail,
     savePastHabitRecord: (...args) => {
       calls.push(args);
@@ -563,7 +628,7 @@ test("a countdown completed before midnight does not consume the next day's time
 
 test("recovering yesterday's completion preserves today's completion fields", () => {
   const calls = [];
-  const ctx = context(["applyHabitCompletionChange"], {
+  const ctx = context(["applyHabitCompletionChange", "getHabitCompletionLevel", "getHabitCompletionReward"], {
     toLocalDateString: () => "2026-09-14", farmWalletHydrated: true,
     state: { coins: 0 }, productionCoinReward: () => 1, createUuid: () => "cycle",
     getHabitTargetForDate: () => 1,
@@ -631,6 +696,54 @@ test("habit focus uses saved weekday minutes with a default fallback, separate f
   assert.equal(ctx.getHabitFocusMinutes(habit, null), 25);
   assert.equal(ctx.getHabitTargetForDate(habit, "2026-09-14"), 1);
   assert.equal(ctx.getHabitFocusMinutes({ measureType: "count", targetValue: 3, targetByWeekday: { 1: 5 } }), 0);
+});
+
+test("minimum focus uses its own duration while maximum focus keeps weekday overrides", () => {
+  const ctx = context(["getHabitFocusMinutes"], { toLocalDateString: () => "2026-09-14" });
+  const habit = { measureType: "time", minimumTitle: "Read three words", minimumFocusMinutes: 5,
+    targetValue: 25, targetByWeekday: { 1: 40, 3: 15 } };
+  for (const date of ["2026-09-14", "2026-09-15", "2026-09-16"]) {
+    assert.equal(ctx.getHabitFocusMinutes(habit, date, "min"), 5);
+  }
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-14", "max"), 40);
+  assert.equal(ctx.getHabitFocusMinutes(habit, "2026-09-16"), 15);
+  assert.equal(ctx.getHabitFocusMinutes({ ...habit, minimumFocusMinutes: null }, "2026-09-14", "min"), 0);
+  assert.equal(ctx.getHabitFocusMinutes({ ...habit, minimumTitle: "" }, "2026-09-14", "min"), 5);
+});
+
+test("minimum focus countdown survives remote restore without crediting the follower", () => {
+  const habit = { id: "habit", measureType: "time", targetValue: 25,
+    minimumTitle: "", minimumFocusMinutes: 5,
+    focusSecondsByDate: { "2026-09-13": 180 } };
+  const ctx = timerContext(false, "linked");
+  ctx.activeFocus = { type: "habit", id: habit.id, completionLevel: "min" };
+  ctx.getFocusItem = () => habit;
+  ctx.focusRuntimeByMode.linked = { seconds: 120, countdown: true, sessionMinutes: 5,
+    completionLevel: "min", phase: "focus", started: true, date: "2026-09-13" };
+  const payload = ctx.getFocusTimerDatabasePayload();
+  ctx.elapse(45);
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.activeFocus.completionLevel, "min");
+  assert.equal(ctx.focusRuntimeByMode.linked.completionLevel, "min");
+  assert.equal(ctx.focusRuntimeByMode.linked.sessionMinutes, 5);
+  assert.equal(ctx.focusRuntimeByMode.linked.seconds, 75);
+  assert.equal(habit.focusSecondsByDate["2026-09-13"], 180);
+  assert.equal(ctx.rewarded, 0);
+});
+
+test("a paused minimum timer uses the next day's minimum target and its saved focus", () => {
+  const habit = { id: "habit", measureType: "time", targetValue: 25,
+    minimumTitle: "", minimumFocusMinutes: 5,
+    targetByWeekday: { 1: 40 }, focusSecondsByDate: { "2026-09-14": 60 } };
+  const ctx = timerContext(true, "linked");
+  ctx.runningFocusMode = null;
+  ctx.toLocalDateString = () => "2026-09-14";
+  const runtime = { seconds: 120, countdown: true, sessionMinutes: 5,
+    completionLevel: "min", phase: "focus", started: true, date: "2026-09-13" };
+  assert.equal(ctx.refreshHabitTimerDate(runtime, habit), true);
+  assert.equal(runtime.completionLevel, "min");
+  assert.equal(runtime.sessionMinutes, 5);
+  assert.equal(runtime.seconds, 240);
 });
 
 test("existing habit stopwatch sessions can finish without changing timer direction", () => {

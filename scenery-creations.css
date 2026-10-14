@@ -6,7 +6,7 @@
 .scenery-stage-label { flex-shrink: 0; border-radius: 999px; padding: 7px 11px; background: var(--green-50); color: var(--green-800); font-size: 12px; }
 .scenery-stage-label.is-complete { background: var(--green-100); }
 .scenery-creation-scene { position: relative; display: grid; place-items: center; overflow: hidden; isolation: isolate; width: 100%; height: auto; aspect-ratio: 3 / 2; background: #b9d3ae; }
-.scenery-creation-scene > .garden-terrain { position: absolute; inset: 0; z-index: -2; background-repeat: no-repeat; background-size: 200% auto; }
+.scenery-creation-scene > .garden-terrain { position: absolute; inset: 0; z-index: -2; background-repeat: no-repeat; background-size: 201% 201%; }
 .scenery-creation-scene::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, transparent 58%, rgba(30, 46, 35, .06)); }
 .scenery-centerpiece { position: absolute; display: grid; place-items: center; width: clamp(165px, 24vw, 250px); height: clamp(165px, 24vw, 250px); top: 50%; left: 50%; transform: translate(-50%, -30%); filter: drop-shadow(0 7px 5px rgba(25, 46, 42, .13)); }
 .scenery-centerpiece svg,

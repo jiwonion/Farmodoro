@@ -136,6 +136,49 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   assert.deepEqual([periods.leap.monthEnd,periods.leap.eligible,periods.leap.completed,periods.leap.percentage], ["2028-02-29",1,1,100]);
   console.log("Past/full month, future/empty states and leap-day boundaries PASS");
 
+  const tierSummary = await evaluate(`(() => {
+    const row={id:'minimum-only',title:'English',minimum_title:'Read one word',measure_type:'amount',target_value:1,unit:'complete',weekdays:[1,2,3,4,5,6,7],start_date:'2026-05-01'};
+    const record=(date,level,reward)=>({record_date:date,completed_at:date+'T12:00:00+09:00',completion_level:level,completion_reward:reward,progress_value:1});
+    const minimum=mapDatabaseHabit(row,Array.from({length:6},(_,index)=>record('2026-05-0'+(index+1),'min',1)));
+    const mixed=mapDatabaseHabit({...row,id:'mixed'},[
+      record('2026-05-01','min',1),record('2026-05-02','max',2),record('2026-05-03','min',1),
+      record('2026-05-12','max',2),record('2026-05-15','min',1),
+    ]);
+    mixed.completionDates.push('2026-05-03');
+    const legacy=mapDatabaseHabit({...row,id:'legacy',minimum_title:null},[
+      record('2026-05-01',undefined,1),record('2026-05-10',undefined,1),
+    ]);
+    const bounded=mapDatabaseHabit({...row,id:'bounded',weekdays:[2,5],start_date:'2026-05-05',end_date:'2026-05-09'},[
+      record('2026-05-04','min',1),record('2026-05-05','min',1),record('2026-05-06','min',1),
+      record('2026-05-08','min',1),record('2026-05-12','min',1),record('2026-05-15','min',1),
+    ]);
+    const before=JSON.stringify([minimum,mixed,legacy,bounded]);
+    const summary=getHabitMonthlySummary([minimum,mixed,legacy],new Date(2026,4,1),new Date(2026,4,12));
+    const boundaries=getHabitMonthlySummary([bounded],new Date(2026,4,1),new Date(2026,4,12));
+    const earlier=getHabitMonthlySummary([bounded],new Date(2026,4,1),new Date(2026,4,7));
+    return {summary,boundaries,earlier,levels:[getHabitCompletionLevel(minimum,'2026-05-01'),getHabitCompletionLevel(mixed,'2026-05-02'),getHabitCompletionLevel(legacy,'2026-05-01')],
+      progress:[getHabitProgress(minimum,'2026-05-01'),getHabitProgress(mixed,'2026-05-02'),getHabitProgress(legacy,'2026-05-01')],unchanged:JSON.stringify([minimum,mixed,legacy,bounded])===before};
+  })()`);
+  assert.equal(tierSummary.unchanged,true,'Calculating mixed-tier summaries preserves all records');
+  assert.deepEqual(tierSummary.levels,['min','max','max'],'Database minimum, maximum and legacy completions retain their levels');
+  assert.deepEqual(tierSummary.progress,[1,1,1],'Every completed tier contributes one normal completion');
+  assert.deepEqual([tierSummary.summary.eligible,tierSummary.summary.completed,tierSummary.summary.percentage,tierSummary.summary.recordedDays],[36,12,33,8],
+    'Mixed levels count once per scheduled habit day, regardless of duplicate dates or coin rewards');
+  assert.deepEqual(tierSummary.summary.weeks.map(({eligible,completed,percentage})=>({eligible,completed,percentage})),[
+    {eligible:21,completed:10,percentage:48},{eligible:15,completed:2,percentage:13},
+    {eligible:0,completed:0,percentage:null},{eligible:0,completed:0,percentage:null},{eligible:0,completed:0,percentage:null},
+  ],'Weekly success rates count minimum completions with the normal formula');
+  assert.deepEqual(tierSummary.summary.rankings.map(({id,eligible,completed,percentage})=>({id,eligible,completed,percentage})),[
+    {id:'minimum-only',eligible:12,completed:6,percentage:50},
+    {id:'mixed',eligible:12,completed:4,percentage:33},
+    {id:'legacy',eligible:12,completed:2,percentage:17},
+  ],'A habit completed only at minimum ranks by the same scheduled completion rate as other habits');
+  assert.deepEqual([tierSummary.boundaries.eligible,tierSummary.boundaries.completed,tierSummary.boundaries.percentage],[2,2,100],
+    'Minimum records outside weekdays and inclusive start/end dates are excluded');
+  assert.deepEqual([tierSummary.earlier.cutoffDate,tierSummary.earlier.eligible,tierSummary.earlier.completed],['2026-05-07',1,1],
+    'Future minimum records cannot increase a current summary');
+  console.log('Mixed minimum/maximum/legacy records, single-day counting and minimum scheduling boundaries PASS');
+
   // Keep the visible example and month navigation deterministic on every machine.
   await evaluate(`
     window.__summaryNativeDate=Date;
@@ -154,6 +197,48 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     applyWorkspaceTheme('white');showPage('habits');renderHabits();renderHabitHeatmap();
   `);
   assert.equal(await evaluate('Boolean(document.querySelector("#habitMonthlySummary"))'),true,"Monthly summary panel exists in actual markup");
+
+  const tierUpdates = await evaluate(`(() => {
+    const saved={habits:state.habits,coins:state.coins,wallet:farmWalletHydrated,confirm:confirmHabitCompletionWithServer,undo:confirmHabitUncompletionWithServer};
+    const row={id:'minimum-summary-live',title:'영어 공부',minimum_title:null,minimum_focus_minutes:5,measure_type:'time',target_value:25,unit:'분',weekdays:[1,2,3,4,5,6,7],start_date:'2026-10-11'};
+    const record={record_date:'2026-10-11',completed_at:'2026-10-11T12:00:00+09:00',completion_level:'min',completion_reward:1,progress_value:1};
+    const minimum=mapDatabaseHabit(row,[record]);
+    const normal=mapDatabaseHabit({...row,id:'normal-summary-live',title:'비타민',minimum_focus_minutes:null,measure_type:'amount',target_value:1},[{...record,completion_level:undefined}]);
+    const snapshot=()=>{
+      const panel=document.querySelector('#habitMonthlySummary');
+      return {stats:getHabitMonthlySummary(),rate:panel.querySelector('.habit-summary-rate').textContent,count:panel.querySelector('.habit-summary-count').textContent.trim(),
+        weekly:[...panel.querySelectorAll('.habit-week-track')].map(bar=>Number(bar.getAttribute('aria-valuenow'))),
+        ranking:[...panel.querySelectorAll('.habit-summary-top li')].map(item=>({title:item.querySelector('.habit-top-name').textContent,rate:item.querySelector('.habit-top-rate').textContent})),
+        coins:state.coins,level:getHabitCompletionLevel(minimum),dateCopies:minimum.completionDates.filter(date=>date==='2026-10-12').length,progress:getHabitProgress(minimum)};
+    };
+    try {
+      state.habits=[minimum,normal];state.coins=0;farmWalletHydrated=true;
+      confirmHabitCompletionWithServer=()=>{};confirmHabitUncompletionWithServer=()=>{};
+      renderHabitUpdates();const before=snapshot();
+      toggleHabit(minimum.id,'min');const min=snapshot();
+      toggleHabit(minimum.id,'max');const max=snapshot();
+      toggleHabit(minimum.id,'min');const downgraded=snapshot();
+      toggleHabit(minimum.id,'min');const undone=snapshot();
+      return {before,min,max,downgraded,undone};
+    } finally {
+      state.habits=saved.habits;state.coins=saved.coins;farmWalletHydrated=saved.wallet;
+      confirmHabitCompletionWithServer=saved.confirm;confirmHabitUncompletionWithServer=saved.undo;renderHabitUpdates();
+    }
+  })()`);
+  assert.deepEqual([tierUpdates.before.stats.eligible,tierUpdates.before.stats.completed,tierUpdates.before.rate],[4,2,'50%']);
+  for (const [name,level,coins] of [['min','min',1],['max','max',2],['downgraded','min',1]]) {
+    const update=tierUpdates[name];
+    assert.deepEqual([update.level,update.coins,update.dateCopies,update.progress],[level,coins,1,1],`${name}: one completion level and its total reward`);
+    assert.deepEqual([update.stats.eligible,update.stats.completed,update.rate,update.count],[4,3,'75%','3 / 4회 완료'],`${name}: visible monthly rate uses normal completion weighting`);
+    assert.deepEqual(update.weekly,[0,75,0,0,0],`${name}: visible weekly bar includes minimum completion`);
+    assert.deepEqual(update.ranking,[{title:'영어 공부',rate:'100%'},{title:'비타민',rate:'50%'}],`${name}: visible ranking includes minimum-only success`);
+    assert.deepEqual(update.stats,tierUpdates.min.stats,`${name}: switching level changes coins without changing statistics`);
+  }
+  assert.deepEqual([tierUpdates.undone.level,tierUpdates.undone.coins,tierUpdates.undone.dateCopies,tierUpdates.undone.progress],[null,0,0,0]);
+  assert.deepEqual(tierUpdates.undone.stats,tierUpdates.before.stats,'Undoing minimum completion removes exactly one success from every statistic');
+  assert.equal(tierUpdates.undone.rate,'50%','Undo immediately refreshes the actual monthly percentage');
+  assert.deepEqual(tierUpdates.undone.ranking,tierUpdates.before.ranking,'Undo immediately refreshes the actual consistency ranking');
+  console.log('Minimum completion, exclusive tier switches and undo refresh visible monthly/weekly/ranking rates PASS');
 
   const nav = await evaluate(`(() => {
     const panel=document.querySelector('#habitMonthlySummary');

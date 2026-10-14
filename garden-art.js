@@ -19,7 +19,8 @@
       desertOasis: [`${themeRoot}/seasons-atlas.png`, 2], moonGarden: [`${themeRoot}/seasons-atlas.png`, 3],
     };
     const [url, index] = themes[id] || [`${sceneRoot}/terrain-atlas.png`, 0];
-    return { url, size: "200% auto", index, x: index % 2 * 100, y: Math.floor(index / 2) * 100, thumbnailY: index < 2 ? 14.864865 : 85.135135, filter: "none" };
+    // Size both axes to the frame and trim the shared seams between atlas tiles.
+    return { url, size: "201% 201%", thumbnailSize: "200% auto", index, x: index % 2 * 100, y: Math.floor(index / 2) * 100, thumbnailY: index < 2 ? 14.864865 : 85.135135, filter: "none" };
   }
   function renderTerrain(scene, themeId) {
     if (!scene) return;

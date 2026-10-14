@@ -1,0 +1,19 @@
+body #habitModal .habit-goal-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+body #habitModal .habit-goal-field > span { display: flex; justify-content: space-between; gap: 8px; color: var(--ink); font-size: 13px; }
+body #habitModal .habit-goal-field small { color: var(--muted); font-size: 11px; line-height: 1.6; font-weight: 400; }
+body #habitModal .habit-goal-field input { width: 100%; min-width: 0; }
+body #habitModal #habitMinimumFocusField[hidden] { display: none; }
+body #habitModal #habitMinimumFocusField small { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+body :is(#todayPage, #habitsPage) #habitList { display: flex !important; flex-direction: column; width: 100%; min-width: 0; gap: 0; }
+body :is(#todayPage, #habitsPage) #habitList > .habit-item { width: 100%; min-width: 0; }
+body :is(#todayPage, #habitsPage) .habit-item .habit-copy > strong { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.5; }
+body :is(#todayPage, #habitsPage) .habit-item .habit-summary,
+body :is(#todayPage, #habitsPage) .habit-item .habit-summary-primary { overflow: visible; white-space: normal; line-height: 1.6; }
+body #habitsPage .heatmap-cell.completed-min, body #habitsPage .heatmap-legend i.completed-min { background: #9bbcff !important; border: 0 !important; outline: 0; box-shadow: none !important; }
+body :is(#todayPage, #habitsPage) .habit-item .habit-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+body :is(#todayPage, #habitsPage) .habit-item .habit-title-line > strong { display: inline; min-width: 0; white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.5; }
+body :is(#todayPage, #habitsPage) .habit-tier-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px; background: var(--theme-board); color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.5; white-space: nowrap; }
+body :is(#todayPage, #habitsPage) .habit-tier-badge[data-habit-tier='max'] { background: var(--pixel-soft); color: var(--pixel-accent); }
+body :is(#todayPage, #habitsPage) .habit-actions .habit-tier-switch { display: inline-flex; align-items: center; width: auto !important; min-height: 32px !important; height: auto !important; margin: 0; padding: 4px 8px; border: 1px solid var(--row-line) !important; border-radius: 6px !important; background: var(--paper) !important; color: var(--muted) !important; box-shadow: none !important; font: 500 11px/1.4 var(--farm-ui-font, 'Pretendard Variable', sans-serif) !important; white-space: nowrap; cursor: pointer; }
+body :is(#todayPage, #habitsPage) .habit-actions .habit-tier-switch:hover:not(:disabled) { color: var(--pixel-accent) !important; border-color: var(--pixel-accent) !important; }
+body :is(#todayPage, #habitsPage) .habit-actions .habit-tier-switch:disabled { opacity: .5; cursor: default; }

@@ -70,6 +70,116 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     expression: 'document.querySelectorAll("#tutorialModal, #reopenTutorial, .tutorial-settings-section").length',
   });
   assert.equal(tutorialElements.result.value, 0, "tutorial UI must stay removed");
+  const habitTiers = await call("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+    taskDataHydrated = true;
+    farmWalletHydrated = true;
+    showPage('habits');
+    const originalConfirm = confirmHabitCompletionWithServer;
+    const originalUndo = confirmHabitUncompletionWithServer;
+    const originalCoins = state.coins;
+    confirmHabitCompletionWithServer = () => {};
+    confirmHabitUncompletionWithServer = () => {};
+    let habit;
+    try {
+      openHabitModal();
+      if (habitMinimumInput.value !== '' || habitMinimumInput.maxLength !== 30) throw Error('Minimum goal must be optional and limited to 30 characters');
+      habitInput.value = '영어 공부하기';
+      habitMinimumInput.value = '영어 단어 보기';
+      habitForm.requestSubmit();
+      habit = state.habits.at(-1);
+      if (habit.title !== '영어 공부하기' || habit.minimumTitle !== '영어 단어 보기') throw Error('Minimum and maximum habit goals were not created');
+      openHabitModal(habit);
+      if (habitMinimumInput.value !== '영어 단어 보기') throw Error('Editing lost the minimum goal');
+      habitMinimumInput.value = '단어 3개 보기';
+      habitForm.requestSubmit();
+      if (habit.minimumTitle !== '단어 3개 보기') throw Error('Minimum goal edit was not saved');
+      const snapshot = JSON.parse(serializeTaskDatabaseState());
+      const row = snapshot.habits.find(row => row.id === habit.id);
+      if (row.minimum_title !== '단어 3개 보기' || mapDatabaseHabit(row, []).minimumTitle !== '단어 3개 보기') throw Error('Minimum goal database round trip failed');
+      const card = () => document.querySelector('#habitList [data-habit-id="' + habit.id + '"]');
+      const checkButton = () => card()?.querySelector('.habit-check[data-toggle-habit="' + habit.id + '"]');
+      // Choosing a tier: undo the other completed tier first, then show and complete the requested one; the same tier undoes.
+      const chooseTier = level => {
+        if (card().dataset.habitViewTier === level) return checkButton().click();
+        if (getHabitProgressRatio(habit, getHabitViewDate()) >= 1) checkButton().click();
+        if (getHabitProgressRatio(habit, getHabitViewDate()) >= 1) return;
+        card().querySelector('.habit-tier-switch').click();
+        checkButton().click();
+      };
+      const checkbox = level => ({ click: () => chooseTier(level) });
+      const check = (level, coins) => {
+        if (state.coins !== originalCoins + coins || getHabitCompletionLevel(habit) !== level) throw Error('Incorrect tier reward: ' + level);
+        if (!checkButton() || checkButton().getAttribute('aria-pressed') !== String(Boolean(level)) || card().querySelectorAll('[data-toggle-habit].habit-check').length !== 1) throw Error('A tiered habit needs one completion control reflecting its state');
+        if (level && (card().dataset.habitViewTier !== level || checkButton().dataset.habitLevel !== level)) throw Error('A completed tiered habit must show its recorded tier');
+        if (habit.completionDates.length !== (level ? 1 : 0)) throw Error('Completion levels must share one habit day');
+      };
+      check(null, 0);
+      farmWalletHydrated = false;
+      checkbox('min').click(); check(null, 0);
+      farmWalletHydrated = true;
+      const originalStartDate = habit.startDate;
+      const pastDay = new Date(toProductivityDateString() + 'T12:00:00');
+      pastDay.setDate(pastDay.getDate() - 1);
+      try {
+        habit.startDate = toLocalDateString(pastDay);
+        selectedHabitDate = habit.startDate;
+        taskDataHydrated = false;
+        renderHabits();
+        checkbox('min').click();
+        if (checkButton().getAttribute('aria-pressed') === 'true' || habit.completionDates.length || state.coins !== originalCoins) throw Error('A historical checkbox must not appear completed before habit data is hydrated');
+      } finally {
+        habit.startDate = originalStartDate;
+        selectedHabitDate = null;
+        taskDataHydrated = true;
+        renderHabits();
+      }
+      checkbox('min').click(); check('min', 1);
+      farmWalletHydrated = false;
+      checkbox('max').click(); check('min', 1);
+      farmWalletHydrated = true;
+      if (!isHabitCompleteToday(habit) || getHabitStreak(habit) !== 1) throw Error('Minimum goal must count toward the habit streak');
+      const minimumCell = document.querySelector('#habitHeatmapGrid .heatmap-cell[aria-label^="영어 공부하기"][aria-label*="' + toProductivityDateString() + '"]');
+      const minimumHeatmap = minimumCell?.className;
+      const originalTheme = document.documentElement.dataset.theme;
+      try {
+        for (const theme of ['white', 'dark']) {
+          document.documentElement.dataset.theme = theme;
+          const style = getComputedStyle(minimumCell);
+          const legend = document.querySelector('#habitsPage .heatmap-legend i.completed-min');
+          const scheduled = document.querySelector('#habitHeatmapGrid .heatmap-cell.scheduled:not(.completed-min):not(.level-4)');
+          const color = style.backgroundColor.match(/[\\d.]+/g)?.map(Number) || [];
+          if (color.length < 3 || color[2] <= color[0] || color[2] <= color[1] || (color.length === 4 && color[3] !== 1)) throw Error(theme + ': minimum completion needs an opaque blue fill');
+          if ([style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth, style.outlineWidth].some(value => parseFloat(value) !== 0) || style.boxShadow !== 'none') throw Error(theme + ': minimum completion must use a fill without an outline');
+          if (!legend || getComputedStyle(legend).backgroundColor !== style.backgroundColor) throw Error(theme + ': the minimum legend must match its filled heatmap cell');
+          if (scheduled && getComputedStyle(scheduled).backgroundColor === style.backgroundColor) throw Error(theme + ': minimum completion must visibly differ from a scheduled day');
+        }
+      } finally {
+        if (originalTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = originalTheme;
+      }
+      checkbox('max').click(); check('max', 2);
+      const maximumHeatmap = document.querySelector('#habitHeatmapGrid .heatmap-cell[aria-label^="영어 공부하기"][aria-label*="' + toProductivityDateString() + '"]')?.className;
+      if (!minimumHeatmap || !maximumHeatmap || minimumHeatmap === maximumHeatmap) throw Error('Heatmap must distinguish minimum and maximum completion');
+      checkbox('min').click(); check('min', 1);
+      checkbox('min').click(); check(null, 0);
+      openHabitModal(habit);
+      habitMinimumInput.value = '';
+      habitForm.requestSubmit();
+      if (habit.minimumTitle || document.querySelector('[data-toggle-habit="' + habit.id + '"][data-habit-level]')) throw Error('Removing the minimum goal must restore a single completion control');
+      return true;
+    } finally {
+      closeHabitModal();
+      confirmHabitCompletionWithServer = originalConfirm;
+      confirmHabitUncompletionWithServer = originalUndo;
+      state.coins = originalCoins;
+      if (habit) state.habits = state.habits.filter(item => item.id !== habit.id);
+      farmWalletHydrated = false;
+      renderHabitUpdates();
+    }
+  })()` });
+  if (habitTiers.exceptionDetails) throw Error(habitTiers.exceptionDetails.exception?.description || habitTiers.exceptionDetails.text);
+  assert.equal(habitTiers.result.value, true);
+  console.log("Optional minimum goal creation/edit, persistence, tier rewards, streak, heatmap and undo PASS");
   const habitFocusEditing = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
     taskDataHydrated = true;
     showPage('habits');
@@ -91,13 +201,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     habitFocusMinutes.value = '45';
     habitForm.requestSubmit();
     const habit = state.habits.at(-1);
-    const today = toLocalDateString();
+    const today = toProductivityDateString();
     if (habit.targetValue !== 45 || habit.measureType !== 'time' || getHabitDailyFocusSeconds(habit) !== 0) throw Error('Target must not create focus records');
     habit.focusSecondsByDate[today] = 617;
     openHabitModal(habit);
     if (habitFocusMinutes.value !== '45') throw Error('Target not restored');
     habitFocusMinutes.value = '30';
-    const weekday = new Date().getDay() || 7;
+    const weekday = getProductivityDate().getDay() || 7;
     const dayInput = habitForm.querySelector('[data-habit-focus-weekday="' + weekday + '"]');
     dayInput.value = '40';
     habitForm.requestSubmit();
@@ -139,7 +249,116 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   if (habitFocusEditing.exceptionDetails) throw Error(habitFocusEditing.exceptionDetails.text + ': ' + habitFocusEditing.exceptionDetails.exception?.description);
   assert.equal(habitFocusEditing.result.value, true);
   console.log('Habit weekday target persistence, countdown and resume PASS');
-  for (const width of [1440, 390, 320]) {
+  const minimumFocusEditing = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+    const originalConfirm = confirmHabitCompletionWithServer;
+    const originalUndo = confirmHabitUncompletionWithServer;
+    const originalCoins = state.coins;
+    confirmHabitCompletionWithServer = () => {};
+    confirmHabitUncompletionWithServer = () => {};
+    farmWalletHydrated = true;
+    taskDataHydrated = true;
+    showPage('habits');
+    try {
+      openHabitModal();
+      if (!habitMinimumFocusMinutes.disabled || habitMinimumFocusMinutes.value !== '') throw Error('Minimum focus must be optional and initially disabled');
+      habitInput.value = 'English study';
+      habitFocusEnabled.click();
+      habitFocusMinutes.value = '25';
+      if (habitMinimumFocusMinutes.disabled || !habitMinimumFocusMinutes.getClientRects().length) throw Error('Minimum focus must be available even before a minimum goal name is entered');
+      habitMinimumInput.value = 'Read three words';
+      habitMinimumInput.dispatchEvent(new Event('input', { bubbles: true }));
+      habitForm.requestSubmit();
+      const habit = state.habits.at(-1);
+      if (habit.minimumFocusMinutes != null || getHabitFocusMinutes(habit, undefined, 'min') !== 0) throw Error('An empty minimum duration must remain optional');
+      // A tiered card shows one tier's timer, so show the requested tier first when it is selectable.
+      const focusButton = level => {
+        document.querySelector('[data-habit-id="' + habit.id + '"] [data-habit-view-level="' + level + '"]')?.click();
+        return document.querySelector('[data-focus-habit="' + habit.id + '"][data-focus-level="' + level + '"]');
+      };
+      if (focusButton('min')) throw Error('An untimed minimum must not acquire a timer');
+      openHabitModal(habit);
+      habitMinimumFocusMinutes.value = '5';
+      habitForm.requestSubmit();
+      if (habit.minimumFocusMinutes !== 5 || getHabitFocusMinutes(habit, undefined, 'min') !== 5) throw Error('Minimum focus was not saved');
+      if (!focusButton('min') || !focusButton('max')) throw Error('Minimum and maximum focus controls must be available');
+      const snapshot = JSON.parse(serializeTaskDatabaseState());
+      const row = snapshot.habits.find(row => row.id === habit.id);
+      if (row.minimum_focus_minutes !== 5 || mapDatabaseHabit(row, []).minimumFocusMinutes !== 5) throw Error('Minimum focus database round trip failed');
+      openHabitModal(habit);
+      if (habitMinimumFocusMinutes.value !== '5') throw Error('Editing did not restore minimum focus');
+      for (const invalid of ['0', '25', '26', '2.5', '10000']) {
+        habitMinimumFocusMinutes.value = invalid;
+        habitMinimumFocusMinutes.dispatchEvent(new Event('input', { bubbles: true }));
+        habitForm.requestSubmit();
+        if (habit.minimumFocusMinutes !== 5 || habit.targetValue !== 25) throw Error('Invalid minimum focus was saved: ' + invalid);
+      }
+      habitMinimumFocusMinutes.value = '5';
+      habitMinimumFocusMinutes.dispatchEvent(new Event('input', { bubbles: true }));
+      const weekday = getProductivityDate().getDay() || 7;
+      const weekdayInput = habitForm.querySelector('[data-habit-focus-weekday="' + weekday + '"]');
+      weekdayInput.value = '4';
+      weekdayInput.dispatchEvent(new Event('input', { bubbles: true }));
+      habitForm.requestSubmit();
+      if (habit.targetByWeekday[weekday] === 4) throw Error('Minimum focus must be shorter than every scheduled maximum');
+      weekdayInput.value = '';
+      weekdayInput.dispatchEvent(new Event('input', { bubbles: true }));
+      habitForm.requestSubmit();
+      if (habit.minimumFocusMinutes !== 5) throw Error('Valid minimum focus was not preserved');
+      openHabitModal(habit);
+      habitMinimumInput.value = '';
+      habitMinimumInput.dispatchEvent(new Event('input', { bubbles: true }));
+      if (habitMinimumFocusMinutes.disabled || !habitMinimumFocusMinutes.getClientRects().length || habitMinimumFocusMinutes.value !== '5') throw Error('Clearing the optional goal name must preserve its visible minimum focus duration');
+      habitForm.requestSubmit();
+      if (habit.minimumTitle || habit.minimumFocusMinutes !== 5 || !hasHabitMinimum(habit)) throw Error('A minimum duration must work without a separate goal name');
+      const timeOnlySnapshot = JSON.parse(serializeTaskDatabaseState());
+      const timeOnlyRow = timeOnlySnapshot.habits.find(row => row.id === habit.id);
+      const timeOnlyRestored = mapDatabaseHabit(timeOnlyRow, timeOnlySnapshot.habitRecords.filter(row => row.habit_id === habit.id));
+      if (timeOnlyRow.minimum_title !== null || timeOnlyRow.minimum_focus_minutes !== 5 || !hasHabitMinimum(timeOnlyRestored) || getHabitGoalTitle(timeOnlyRestored, 'min') !== habit.title) throw Error('A time-only minimum must round trip using the habit name');
+      openHabitModal(habit);
+      if (habitMinimumInput.value !== '' || habitMinimumFocusMinutes.value !== '5') throw Error('Editing must restore a blank minimum name and its duration');
+      habitForm.requestSubmit();
+      renderFocusPicker();
+      const pickerOption = level => document.querySelector('[data-focus-value="habit:' + habit.id + (level === 'min' ? ':min' : '') + '"]');
+      if (!pickerOption('min') || !pickerOption('max')) throw Error('Focus picker must offer both timed habit levels');
+      pickerOption('min').click();
+      if (activeFocus?.completionLevel !== 'min' || focusSeconds !== 300 || !document.querySelector('#focusTarget').textContent.includes(habit.title)) throw Error('Focus picker must select the time-only minimum using the habit name and its duration');
+      pickerOption('max').click();
+      if ((activeFocus?.completionLevel || 'max') !== 'max' || focusSeconds !== 1500) throw Error('Focus picker did not restore the maximum goal and its duration');
+      focusButton('min').click();
+      if (activeFocus?.completionLevel !== 'min' || focusRuntimeByMode.linked.completionLevel !== 'min' || focusSeconds !== 300) throw Error('Minimum focus did not start its five-minute countdown');
+      focusLastTickAt = Date.now() - 60 * 1000;
+      advanceRunningFocusTimer('linked');
+      toggleFocus();
+      const paused = focusSeconds;
+      const savedRuntime = getFocusTimerDatabasePayload();
+      if (savedRuntime.activeFocus?.completionLevel !== 'min' || savedRuntime.runtimes.linked.completionLevel !== 'min') throw Error('Paused minimum timer lost its saved level');
+      applyFocusTimerDatabaseState(savedRuntime);
+      if (activeFocus?.completionLevel !== 'min' || focusSeconds !== paused) throw Error('Restoring a paused minimum timer changed its level or remaining time');
+      toggleFocus();
+      if (focusSeconds !== paused) throw Error('Resuming a minimum timer restarted it');
+      focusLastTickAt = Date.now() - (paused + 10) * 1000;
+      advanceRunningFocusTimer('linked');
+      if (runningFocusMode !== null || activeFocus !== null || getHabitCompletionLevel(habit) !== 'min' || state.coins !== originalCoins + 1) throw Error('Minimum timer must complete the minimum goal for one coin');
+      if (getHabitDailyFocusSeconds(habit) !== 300 || focusButton('min')) throw Error('Minimum timer exceeded its target or stayed available after completion');
+      focusButton('max').click();
+      if ((activeFocus?.completionLevel || 'max') !== 'max' || focusSeconds !== 1200) throw Error('Maximum focus must continue from the five minutes already recorded');
+      focusLastTickAt = Date.now() - 1210 * 1000;
+      advanceRunningFocusTimer('linked');
+      if (getHabitCompletionLevel(habit) !== 'max' || state.coins !== originalCoins + 2 || getHabitDailyFocusSeconds(habit) !== 1500) throw Error('Maximum timer must add only the remaining time and one more coin');
+      return true;
+    } finally {
+      closeHabitModal();
+      confirmHabitCompletionWithServer = originalConfirm;
+      confirmHabitUncompletionWithServer = originalUndo;
+      state.coins = originalCoins;
+      farmWalletHydrated = false;
+      hideFocusAlertBanner();
+    }
+  })()` });
+  if (minimumFocusEditing.exceptionDetails) throw Error(minimumFocusEditing.exceptionDetails.exception?.description || minimumFocusEditing.exceptionDetails.text);
+  assert.equal(minimumFocusEditing.result.value, true);
+  console.log('Optional minimum names, time-only minimum focus, validation, persistence, pause/restore/resume and minimum-to-maximum rewards PASS');
+  for (const width of [1920, 1440, 390, 320]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
     const layout = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
       openHabitModal(state.habits.at(-1));
@@ -149,10 +368,112 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         const r = input.getBoundingClientRect();
         return r.width > 0 && r.left >= form.left && r.right <= form.right + 1;
       });
+      const minimum = habitMinimumInput.getBoundingClientRect();
+      const minimumFits = minimum.width > 0 && minimum.left >= form.left && minimum.right <= form.right + 1;
+      const minimumFocus = habitMinimumFocusMinutes.getBoundingClientRect();
+      const minimumFocusFits = minimumFocus.width > 0 && minimumFocus.left >= form.left && minimumFocus.right <= form.right + 1;
       closeHabitModal();
-      return fits && document.documentElement.scrollWidth <= innerWidth;
+      const originalHabits = state.habits;
+      const sample = { ...originalHabits.at(-1), id: 'tier-layout-preview', title: '영어 문장을 읽고 직접 말하기 연습하기', minimumTitle: '아주 바쁜 날에도 영어 단어 세 개는 꼭 읽어보기',
+        measureType: 'time', targetValue: 25, targetByWeekday: {}, minimumFocusMinutes: 5,
+        completionDates: [], recordMetaByDate: {}, progressByDate: {}, focusSecondsByDate: {}, complete: false };
+      const timeOnly = { ...sample, id: 'time-only-layout-preview', title: '독서', minimumTitle: '' };
+      const untimed = { ...sample, id: 'single-layout-preview', title: '비타민 챙겨 먹기', minimumTitle: '', measureType: 'amount', minimumFocusMinutes: null };
+      try {
+        if (!fits || !minimumFits || !minimumFocusFits) throw Error('Habit form controls exceed their container');
+        state.habits = [untimed, sample, timeOnly];
+        for (const page of ['habits', 'today']) {
+          showPage(page);
+          renderHabits();
+          const list = document.querySelector('#habitList');
+          const listRect = list.getBoundingClientRect();
+          const cards = [...list.querySelectorAll('[data-habit-id]')];
+          if (cards.length !== 3) throw Error(page + ': all three habits must remain visible');
+          let previousBottom = -Infinity;
+          for (const card of cards) {
+            const r = card.getBoundingClientRect();
+            if (Math.abs(r.left - listRect.left) > 1 || Math.abs(r.width - listRect.width) > 2 || r.top < previousBottom - 1) throw Error(page + ': habit articles must form one full-width column');
+            previousBottom = r.bottom;
+          }
+          for (const habit of [sample, timeOnly]) {
+            for (const [level, badgeText, name, minutes] of [['max', '최대 · 2 Coin', habit.title, 25], ['min', '최소 · 1 Coin', habit.minimumTitle || habit.title, 5]]) {
+              if (level === 'min') document.querySelector('[data-habit-id="' + habit.id + '"] [data-habit-view-level="min"]').click();
+              const card = document.querySelector('[data-habit-id="' + habit.id + '"]');
+              const cardRect = card.getBoundingClientRect();
+              const checks = [...card.querySelectorAll('.habit-check[data-toggle-habit]')];
+              const focusButtons = [...card.querySelectorAll('[data-focus-habit]')];
+              const tierSwitch = card.querySelector('.habit-tier-switch');
+              if (card.querySelector('input[type="checkbox"], .habit-goal-row') || checks.length !== 1 || focusButtons.length !== 1 || !tierSwitch) throw Error(page + ': a tiered habit needs one check, one focus control and a tier switch');
+              if (card.dataset.habitViewTier !== level || checks[0].dataset.habitLevel !== level || focusButtons[0].dataset.focusLevel !== level) throw Error(page + ': the check and focus controls must follow the shown tier');
+              const title = card.querySelector('.habit-title-line > strong');
+              const badge = card.querySelector('.habit-tier-badge');
+              if (title?.textContent.trim() !== name || badge?.textContent.trim() !== badgeText || !card.querySelector('.habit-summary').textContent.includes('목표 ' + minutes + '분')) throw Error(page + ': the shown tier must name its goal, reward and target time');
+              if (!checks[0].getAttribute('aria-label')?.includes(name)) throw Error(page + ': the check needs the shown goal name');
+              for (const control of [...checks, ...focusButtons, tierSwitch]) {
+                const r = control.getBoundingClientRect();
+                if (!r.width || r.left < cardRect.left || r.right > cardRect.right + 1) throw Error(page + ': tier controls exceed the habit article');
+              }
+              if (tierSwitch.scrollWidth > tierSwitch.clientWidth + 1) throw Error(page + ': the tier switch label must fit');
+              const style = getComputedStyle(title);
+              const r = title.getBoundingClientRect();
+              if (parseFloat(style.fontSize) < 15 || Number(style.opacity) < 1 || !r.width || !r.height || r.left < cardRect.left || r.right > cardRect.right + 1) throw Error(page + ': goal names must remain readable and wrap fully');
+            }
+          }
+          habitTierViewLevels.clear();
+          renderHabits();
+          if (document.documentElement.scrollWidth > innerWidth) throw Error(page + ': habit list causes horizontal overflow');
+        }
+        return true;
+      } finally {
+        state.habits = originalHabits;
+        showPage('habits');
+        renderHabits();
+      }
     })()` });
-    assert.equal(layout.result.value, true, 'Weekday inputs fit at ' + width + 'px');
+    assert.equal(layout.exceptionDetails, undefined, JSON.stringify(layout.exceptionDetails));
+    assert.equal(layout.result.value, true, 'Habit form, one-column lists and readable goal names/times fit at ' + width + 'px');
+    console.log(width + 'px: one-column habits/today lists, readable maximum/minimum names and time-only goals PASS');
+  }
+  if (process.env.HABIT_FOCUS_SCREENSHOTS) {
+    fs.accessSync(process.env.HABIT_FOCUS_SCREENSHOTS);
+    for (const [label, width] of [['desktop', 1440], ['mobile', 390]]) {
+      await call('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false });
+      await call('Runtime.evaluate', { expression: `(() => {
+        window.__habitFocusScreenshotHabits = state.habits;
+        const today = toProductivityDateString();
+        const base = { ...state.habits.at(-1), startDate: today.slice(0, 8) + '01', endDate: '', weekdays: [1, 2, 3, 4, 5, 6, 7],
+          measureType: 'time', targetValue: 25, targetByWeekday: {}, minimumFocusMinutes: 5,
+          completionDates: [today], progressByDate: { [today]: 1 }, focusSecondsByDate: { [today]: 300 },
+          recordMetaByDate: { [today]: { completionLevel: 'min', completionReward: 1 } },
+          complete: true, completedDate: today, completionReward: 1 };
+        state.habits = [
+          { ...base, id: 'preview-english', title: '영어 공부하기', minimumTitle: '영어 단어 보기' },
+          { ...base, id: 'preview-reading', title: '독서', minimumTitle: '', completionDates: [], progressByDate: {}, recordMetaByDate: {}, focusSecondsByDate: {}, complete: false },
+          { ...base, id: 'preview-exercise', title: '운동', minimumTitle: '스트레칭', measureType: 'amount', minimumFocusMinutes: null,
+            recordMetaByDate: { [today]: { completionLevel: 'max', completionReward: 2 } }, completionReward: 2, focusSecondsByDate: {} },
+          { ...base, id: 'preview-vitamin', title: '비타민 챙겨 먹기', minimumTitle: '', measureType: 'amount', minimumFocusMinutes: null,
+            recordMetaByDate: { [today]: { completionLevel: 'max', completionReward: 1 } }, completionReward: 1, focusSecondsByDate: {} }
+        ];
+        showPage('habits');
+        renderHabitUpdates();
+        closeHabitModal();
+        clearTimeout(toastTimer);
+        toast.classList.remove('show');
+        document.activeElement?.blur();
+        scrollTo(0, 0);
+      })()` });
+      const content = await call('Page.getLayoutMetrics');
+      await call('Emulation.setDeviceMetricsOverride', { width, height: Math.ceil(content.cssContentSize.height), deviceScaleFactor: 1, mobile: false });
+      await pause(100);
+      const shot = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+      fs.writeFileSync(path.join(process.env.HABIT_FOCUS_SCREENSHOTS, 'habit-goals-checkboxes-' + label + '.png'), Buffer.from(shot.data, 'base64'));
+      await call('Runtime.evaluate', { expression: `
+        closeHabitModal();
+        state.habits = window.__habitFocusScreenshotHabits;
+        delete window.__habitFocusScreenshotHabits;
+        renderHabitUpdates();
+      ` });
+    }
   }
   const disableFocus = await call('Runtime.evaluate', { returnByValue: true, expression: `(() => {
     const habit = state.habits.at(-1);
@@ -164,6 +485,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     return habit.measureType === 'amount' && getHabitFocusMinutes(habit) === 0 &&
       getHabitDailyFocusSeconds(habit) === recorded && isHabitCompleteToday(habit);
   })()` });
+  assert.equal(disableFocus.exceptionDetails, undefined, JSON.stringify(disableFocus.exceptionDetails));
   assert.equal(disableFocus.result.value, true, 'Disabling focus preserves history and completion');
   await call('Runtime.evaluate', { expression: 'state.habits = []; taskDataHydrated = false; renderHabits();' });
   if (process.env.HABIT_FOCUS_ONLY) return;

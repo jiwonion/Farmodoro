@@ -47,11 +47,12 @@
     <link rel="stylesheet" href="./workspace.css?v=8" />
     <link rel="stylesheet" href="./workspace-controls.css?v=5" />
     <link rel="stylesheet" href="./workspace-responsive.css?v=6" />
-    <link rel="stylesheet" href="./workspace-forms.css?v=3" />
+    <link rel="stylesheet" href="./workspace-forms.css?v=4" />
+    <link rel="stylesheet" href="./habit-tiers.css?v=10" />
     <link rel="stylesheet" href="./farm-workspace.css?v=3" />
     <link rel="stylesheet" href="./garden-shell.css?v=9" />
     <link rel="stylesheet" href="./garden-modals.css?v=5" />
-    <link rel="stylesheet" href="./scenery-creations.css?v=4" />
+    <link rel="stylesheet" href="./scenery-creations.css?v=5" />
     <link rel="stylesheet" href="./scenery-workspace.css?v=8" />
   </head>
   <body class="auth-gated">
@@ -438,6 +439,8 @@
 
                 <div id="habitModalFormSlot">
                   <form class="quick-form habit-form hidden" id="habitForm">
+              <label class="habit-goal-field" for="habitInput">
+                <span><span id="habitGoalLabel">기본 목표</span> <small id="habitMaximumReward">완료하면 1 Coin</small></span>
               <input
                 id="habitInput"
                 type="text"
@@ -446,6 +449,12 @@
                 aria-label="습관 이름 입력"
                 autocomplete="off"
               />
+              </label>
+              <label class="habit-goal-field" for="habitMinimumInput">
+                <span>최소 목표 이름 <small>선택 · 1 Coin</small></span>
+                <input id="habitMinimumInput" type="text" maxlength="30" placeholder="예: 영어 단어 3개 보기 · 비우면 위와 같은 이름" aria-describedby="habitMinimumHint" autocomplete="off" />
+                <small id="habitMinimumHint">다른 활동으로 줄이고 싶을 때만 이름을 적어봐. 이름 없이 아래에서 최소 집중 시간만 설정해도 돼. 최소 달성은 1 Coin, 최대 달성은 총 2 Coin이야.</small>
+              </label>
               <fieldset class="weekday-field">
                 <legend>반복 요일</legend>
                 <div>
@@ -472,12 +481,17 @@
               <div id="habitFocusSettings" hidden>
               <div class="habit-date-row">
                 <label for="habitFocusMinutes">
-                  <span>기본 목표 집중 시간 (분)</span>
+                  <span id="habitFocusMinutesLabel">기본 목표 집중 시간 (분)</span>
                   <input id="habitFocusMinutes" type="number" min="1" max="9999" step="1" value="25" required />
+                </label>
+                <label for="habitMinimumFocusMinutes" id="habitMinimumFocusField" hidden>
+                  <span>최소 목표 집중 시간 (분) · 선택</span>
+                  <input id="habitMinimumFocusMinutes" type="number" min="1" max="9999" step="1" placeholder="예: 5" aria-describedby="habitMinimumFocusHint" />
+                  <small id="habitMinimumFocusHint">최소 목표 이름을 비워도 시간만 설정할 수 있어. 최대 목표보다 짧게 설정해. 시간을 비워두면 최소 목표는 직접 체크해.</small>
                 </label>
               </div>
               <fieldset class="habit-focus-weekday-field">
-                <legend>요일별 목표 집중 시간</legend>
+                <legend id="habitFocusWeekdayLegend">요일별 목표 집중 시간</legend>
                 <p>비워두면 기본 시간을 사용해요. 반복하는 요일만 입력할 수 있어요.</p>
                 <div class="habit-focus-weekdays" id="habitFocusWeekdays"></div>
               </fieldset>
@@ -538,7 +552,8 @@
             </div>
             <div class="heatmap-legend">
               <span><i class="scheduled"></i> 예정</span>
-              <span><i class="completed"></i> 완료</span>
+              <span><i class="completed-min"></i> 최소 달성</span>
+              <span><i class="completed"></i> 완료 · 최대 달성</span>
             </div>
           </section>
           <div class="page-section-slot" id="habitsPageSlot"></div>
@@ -875,10 +890,10 @@
     <script src="./supabase-config.js"></script>
     <script src="./mobile-orientation.js?v=1"></script>
     <script src="./scenery-theme-presets.js?v=4"></script>
-    <script src="./app.js?v=328"></script>
-    <script src="./garden-art.js?v=9"></script>
+    <script src="./app.js?v=339"></script>
+    <script src="./garden-art.js?v=10"></script>
     <script src="./scenery-creation-art.js?v=4"></script>
-    <script src="./scenery-creations.js?v=7"></script>
+    <script src="./scenery-creations.js?v=8"></script>
     <script src="./pwa-register.js?v=176"></script>
   </body>
 </html>

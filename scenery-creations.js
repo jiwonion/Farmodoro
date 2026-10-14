@@ -290,7 +290,7 @@
   }
   function terrain(themeId) {
     const art = window.FarmGardenArt?.theme?.(themeId);
-    return art ? `<div class="garden-terrain" aria-hidden="true" style="background-image:url('${escape(art.url)}');background-size:${escape(art.size || "200% auto")};background-position:${Number(art.x) || 0}% ${Number(art.y) || 0}%"></div>` : "";
+    return art ? `<div class="garden-terrain" aria-hidden="true" style="background-image:url('${escape(art.url)}');background-size:${escape(art.size || "201% 201%")};background-position:${Number(art.x) || 0}% ${Number(art.y) || 0}%"></div>` : "";
   }
   function button(kind, label, disabled, focus, extra = "", className = "") {
     return `<button type="button" class="scenery-button ${className}" data-scenery-action="${kind}" data-scenery-focus="${escape(focus)}" ${extra}${disabled ? " disabled" : ""}>${label}</button>`;

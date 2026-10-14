@@ -994,6 +994,8 @@ state.habits = state.habits.map((habit) => {
         : []);
   return {
     ...habit,
+    minimumTitle: habit.minimumTitle ?? "",
+    minimumFocusMinutes: habit.minimumFocusMinutes ?? null,
     targetByWeekday: habit.targetByWeekday ?? {},
     completedDate: habit.completedDate ?? (habit.complete ? toProductivityDateString() : ""),
     completionDates,
@@ -1077,6 +1079,7 @@ const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
 const habitFocusMinutes = document.querySelector("#habitFocusMinutes");
+const habitMinimumFocusMinutes = document.querySelector("#habitMinimumFocusMinutes");
 const habitFocusEnabled = document.querySelector("#habitFocusEnabled");
 const habitModal = document.querySelector("#habitModal");
 const habitModalKicker = habitModal.querySelector(".section-kicker");
@@ -1096,9 +1099,13 @@ const taskDeleteCoinAmount = document.querySelector("#taskDeleteCoinAmount");
 const confirmTaskDelete = document.querySelector("#confirmTaskDelete");
 const habitModalFormSlot = document.querySelector("#habitModalFormSlot");
 const habitInput = document.querySelector("#habitInput");
+const habitMinimumInput = document.querySelector("#habitMinimumInput");
 const habitEndDate = document.querySelector("#habitEndDate");
 const habitStartDate = document.querySelector("#habitStartDate");
 const habitRecordEditsInFlight = new Set();
+const habitCompletionRequests = new Map();
+// Unsaved per-day choice of which tier an incomplete tiered habit shows.
+const habitTierViewLevels = new Map();
 const toast = document.querySelector("#toast");
 const miniFocusMusic = document.querySelector("#miniFocusMusic");
 const miniFocusMusicTitle = document.querySelector("#miniFocusMusicTitle");
@@ -1624,6 +1631,7 @@ function normalizeFocusTimerRuntime(value, fallback) {
     countdown: Boolean(value?.countdown),
     overtime: Boolean(value?.overtime),
     overtimeSeconds: Math.max(0, Math.floor(Number(value?.overtimeSeconds) || 0)),
+    ...(["min", "max"].includes(value?.completionLevel) ? { completionLevel: value.completionLevel } : {}),
     sessionMinutes: Math.max(
       1,
       Math.floor(
@@ -1662,8 +1670,17 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     };
   }
   activeFocus = payload.activeFocus?.type && payload.activeFocus?.id
-    ? { type: payload.activeFocus.type, id: payload.activeFocus.id }
+    ? { type: payload.activeFocus.type, id: payload.activeFocus.id,
+        ...(["min", "max"].includes(payload.activeFocus.completionLevel) ? { completionLevel: payload.activeFocus.completionLevel } :
+          payload.activeFocus.type === "habit" && focusRuntimeByMode.linked.completionLevel === "min" ? { completionLevel: "min" } : {}) }
     : null;
+  if (activeFocus?.type === "habit" && focusRuntimeByMode.linked.countdown) {
+    const completionLevel = focusRuntimeByMode.linked.completionLevel || activeFocus.completionLevel || "max";
+    if (completionLevel === "min") {
+      activeFocus.completionLevel = "min";
+      focusRuntimeByMode.linked.completionLevel = "min";
+    }
+  }
   if (!focusModeUserSelected) {
     focusMode = ["linked", "quick"].includes(payload.focusMode) ? payload.focusMode : "linked";
   }
@@ -1918,6 +1935,7 @@ function resetTaskDatabaseState() {
   taskDataLoadPromise = null;
   lastTaskSyncSignature = "";
   habitRecordSyncSignatures = new Map();
+  habitCompletionRequests.clear();
   if (taskSyncTimer) clearTimeout(taskSyncTimer);
   taskSyncTimer = null;
   taskStatusSyncChains.clear();
@@ -1965,6 +1983,7 @@ function serializeTaskDatabaseState() {
             )
           : false,
         completion_cycle_id: completed ? recordMeta.completionCycleId || null : null,
+        completion_level: completed ? recordMeta.completionLevel || "max" : null,
       };
     });
   });
@@ -1992,6 +2011,8 @@ function serializeTaskDatabaseState() {
     habits: state.habits.map((habit, sortOrder) => ({
       id: habit.id,
       title: habit.title,
+      minimum_title: habit.minimumTitle?.trim() || null,
+      minimum_focus_minutes: habit.measureType === "time" ? habit.minimumFocusMinutes ?? null : null,
       measure_type: habit.measureType ?? "amount",
       target_value: habit.targetValue ?? 1,
       target_by_weekday: habit.targetByWeekday ?? {},
@@ -2065,6 +2086,7 @@ function mapDatabaseHabit(habit, records) {
         completionReward: record.completion_reward,
         completedWithFreePass: record.completed_with_free_pass,
         completionCycleId: record.completion_cycle_id || null,
+        completionLevel: record.completed_at ? record.completion_level || "max" : null,
       },
     ]),
   );
@@ -2074,6 +2096,8 @@ function mapDatabaseHabit(habit, records) {
   return {
     id: habit.id,
     title: habit.title,
+    minimumTitle: habit.minimum_title || "",
+    minimumFocusMinutes: habit.minimum_focus_minutes == null ? null : Number(habit.minimum_focus_minutes),
     complete: completionDates.includes(today),
     completedDate: completionDates.includes(today) ? today : "",
     completionDates,
@@ -2381,6 +2405,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
         completion_reward,
         completed_with_free_pass,
         completion_cycle_id,
+        completion_level,
         ...progressFields
       } = record;
       return progressFields;
@@ -2510,8 +2535,12 @@ function getLinkedFocusSeconds(item = getFocusItem()) {
   return getHabitDailyFocusSeconds(item);
 }
 
-function getHabitFocusMinutes(habit, dateString = toProductivityDateString()) {
+function getHabitFocusMinutes(habit, dateString = toProductivityDateString(), completionLevel = "max") {
   if (habit?.measureType !== "time") return 0;
+  if (completionLevel === "min") {
+    const minutes = Number(habit.minimumFocusMinutes);
+    return Number.isInteger(minutes) && minutes > 0 && minutes <= 9999 ? minutes : 0;
+  }
   const weekday = dateString ? new Date(`${dateString}T12:00:00`).getDay() || 7 : null;
   const defaultMinutes = habit?.measureType === "time" ? habit.targetValue : habit?.focusMinutes;
   const weekdayMinutes = habit?.measureType === "time" && weekday ? habit.targetByWeekday?.[weekday] : null;
@@ -2520,7 +2549,8 @@ function getHabitFocusMinutes(habit, dateString = toProductivityDateString()) {
 
 function prepareLinkedFocusRuntime(item = getFocusItem()) {
   const countdown = Boolean(item && activeFocus?.type === "habit");
-  const sessionMinutes = countdown ? getHabitFocusMinutes(item) : undefined;
+  const completionLevel = activeFocus?.completionLevel || "max";
+  const sessionMinutes = countdown ? getHabitFocusMinutes(item, toProductivityDateString(), completionLevel) : undefined;
   const hasProgress = item
     ? activeFocus?.type === "task"
       ? Number(item.focusSeconds) > 0
@@ -2531,6 +2561,7 @@ function prepareLinkedFocusRuntime(item = getFocusItem()) {
     seconds: countdown ? Math.max(0, sessionMinutes * 60 - getHabitDailyFocusSeconds(item)) : getLinkedFocusSeconds(item),
     countdown,
     sessionMinutes,
+    ...(countdown && completionLevel === "min" ? { completionLevel } : {}),
     phase: "focus",
     started: hasProgress,
   };
@@ -2550,7 +2581,7 @@ function refreshHabitTimerDate(runtime, item, date = toProductivityDateString())
   if (runtime.carryOver && runtime.started) return false;
   runtime.carryOver = false;
   runtime.date = date;
-  runtime.sessionMinutes = getHabitFocusMinutes(item, date);
+  runtime.sessionMinutes = getHabitFocusMinutes(item, date, runtime.completionLevel || "max");
   runtime.seconds = Math.max(0, runtime.sessionMinutes * 60 - getHabitDailyFocusSeconds(item, date));
   runtime.started = runtime.started && runningFocusMode === "linked";
   return true;
@@ -2953,6 +2984,31 @@ function isHabitCompleteToday(habit) {
   return getHabitProgressRatio(habit) >= 1;
 }
 
+function hasHabitMinimum(habit) {
+  const minutes = Number(habit?.minimumFocusMinutes);
+  return Boolean(habit?.minimumTitle?.trim()) ||
+    (habit?.measureType === "time" && Number.isInteger(minutes) && minutes > 0 && minutes <= 9999);
+}
+
+// A minimum name matching the habit name adds nothing, so it is treated as absent.
+function getHabitDistinctMinimumTitle(habit) {
+  const minimumTitle = habit?.minimumTitle?.trim() || "";
+  return minimumTitle && minimumTitle !== habit?.title?.trim() ? minimumTitle : "";
+}
+
+function getHabitGoalTitle(habit, completionLevel = "max") {
+  return completionLevel === "min" ? getHabitDistinctMinimumTitle(habit) || habit.title : habit.title;
+}
+
+function getHabitCompletionLevel(habit, dateString = toProductivityDateString()) {
+  if (!habit.completionDates.includes(dateString)) return null;
+  return habit.recordMetaByDate?.[dateString]?.completionLevel === "min" ? "min" : "max";
+}
+
+function getHabitCompletionReward(habit, completionLevel = "max") {
+  return hasHabitMinimum(habit) && completionLevel === "max" ? 2 : 1;
+}
+
 function getHabitStreak(habit, dateString = toProductivityDateString()) {
   const completedDates = new Set(habit.completionDates ?? []);
   const cursor = new Date(`${dateString}T12:00:00`);
@@ -3240,43 +3296,51 @@ function renderHabits() {
     .map((habit) => {
       const scheduledToday = isHabitScheduledOn(habit, viewDate);
       const completeToday = getHabitProgressRatio(habit, dateString) >= 1;
-      const recordBusy = isPast && habitRecordSaving;
+      const completionLevel = getHabitCompletionLevel(habit, dateString);
+      const hasMinimum = hasHabitMinimum(habit);
+      const recordBusy = (isPast && habitRecordSaving) || habitRecordEditsInFlight.has(`${habit.id}:${dateString}`) || habitCompletionRequests.has(`${habit.id}:${dateString}`);
+      // A tiered habit shows one goal at a time: its completed tier, otherwise the tier picked with the switch.
+      const viewLevel = hasMinimum ? completionLevel || habitTierViewLevels.get(`${habit.id}:${dateString}`) || "max" : "max";
+      const otherLevel = viewLevel === "min" ? "max" : "min";
+      const shownTitle = hasMinimum ? getHabitGoalTitle(habit, viewLevel) : habit.title;
       const control = `
         <button
           class="habit-check"
           type="button"
           data-toggle-habit="${habit.id}"
-          aria-label="${escapeHtml(habit.title)} ${completeToday ? "완료 취소" : "완료"}"
+          ${hasMinimum ? `data-habit-level="${viewLevel}"` : ""}
+          aria-label="${escapeHtml(shownTitle)} ${completeToday ? "완료 취소" : "완료"}"
           aria-pressed="${completeToday}"
           ${scheduledToday && !recordBusy ? "" : "disabled"}
         >✓</button>
       `;
-      const focusAction =
-        !isPast && !completeToday && getHabitFocusMinutes(habit) > 0
-          ? `<button
-              class="habit-focus-button ${activeFocus?.type === "habit" && activeFocus.id === habit.id ? "active" : ""}"
-              type="button"
-              data-focus-habit="${habit.id}"
-              aria-disabled="${!scheduledToday}"
-            >${
-              activeFocus?.type === "habit" && activeFocus.id === habit.id
-                ? runningFocusMode === "linked"
-                  ? "◷ 집중 중"
-                  : "◷ 계속하기"
-                : "◷ 집중 시작"
-            }</button>`
-          : "";
+      const renderFocusAction = (level) => {
+        const minutes = getHabitFocusMinutes(habit, dateString, level);
+        if (isPast || completionLevel === "max" || minutes <= 0 || (level === "min" && completeToday)) return "";
+        const active = activeFocus?.type === "habit" && activeFocus.id === habit.id && (activeFocus.completionLevel || "max") === level;
+        const label = hasMinimum ? `${level === "min" ? "최소" : "최대"} ${minutes}분` : "집중 시작";
+        return `<button class="habit-focus-button ${active ? "active" : ""}" type="button" data-focus-habit="${habit.id}" data-focus-level="${level}" data-focus-label="${label}" aria-label="${escapeHtml(getHabitGoalTitle(habit, level))} ${label} 집중" aria-disabled="${!scheduledToday}">◷ ${active ? (runningFocusMode === "linked" ? "집중 중" : "계속하기") : label}</button>`;
+      };
+      // After a minimum completion the maximum timer stays available as the upgrade path.
+      const focusLevel = completionLevel === "min" ? "max" : viewLevel;
+      const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
+      const tierBadge = hasMinimum
+        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소 · 1" : "최대 · 2"} Coin</span>` : "";
+      // The switch only picks which goal to complete; a completed tier must be undone before switching.
+      const tierSwitch = hasMinimum && !completeToday
+        ? `<button class="habit-tier-switch" type="button" data-habit-view-level="${otherLevel}" data-habit-view-id="${habit.id}" aria-label="${escapeHtml(getHabitGoalTitle(habit, otherLevel))} ${otherLevel === "min" ? "최소" : "최대"} 목표로 바꾸기">⇄ ${otherLevel === "min" ? "최소로" : "최대로"}</button>` : "";
       return `
-        <article class="habit-item ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}">
+        <article class="habit-item ${hasMinimum ? "has-tiers" : ""} ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}" ${hasMinimum ? `data-habit-view-tier="${viewLevel}"` : ""}>
           ${control}
           <span class="habit-copy">
-            <strong>${escapeHtml(habit.title)}</strong>
+            ${hasMinimum ? `<span class="habit-title-line"><strong>${escapeHtml(shownTitle)}</strong>${tierBadge}</span>` : `<strong>${escapeHtml(habit.title)}</strong>`}
             <small class="habit-summary">
-              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? "완료" : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${getHabitFocusMinutes(habit, dateString) > 0 ? ` · 목표 ${getHabitFocusMinutes(habit, dateString)}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
+              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? (completionLevel === "min" ? "최소 달성" : hasMinimum ? "최대 달성" : "완료") : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${targetMinutes > 0 ? ` · 목표 ${targetMinutes}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
             </small>
           </span>
           <span class="habit-actions">
-            ${focusAction}
+            ${renderFocusAction(focusLevel)}
+            ${tierSwitch}
             <span class="streak">${getHabitStreak(habit, dateString)}일</span>
             ${currentPage === "habits" ? `<button class="habit-edit" type="button" data-edit-habit="${habit.id}" aria-label="${escapeHtml(habit.title)} 수정">✎</button>` : ""}
             <button class="habit-delete" type="button" data-delete-habit="${habit.id}" aria-label="삭제">×</button>
@@ -3312,17 +3376,18 @@ function renderHabitHeatmap() {
         const dateString = toLocalDateString(date);
         const progressRatio = getHabitProgressRatio(habit, dateString);
         const completed = progressRatio >= 1;
+        const minimumComplete = completed && getHabitCompletionLevel(habit, dateString) === "min";
         const beforeRegistration = Boolean(habit.startDate && dateString < habit.startDate);
         const scheduled = isHabitScheduledOn(habit, date);
         const className = beforeRegistration
           ? "inactive"
           : completed
-            ? "completed"
+            ? minimumComplete ? "completed-min" : "completed"
             : scheduled ? "scheduled" : "inactive";
         const status = beforeRegistration
           ? "등록 전"
           : completed
-            ? "완료"
+            ? minimumComplete ? "최소 달성" : hasHabitMinimum(habit) ? "최대 달성" : "완료"
             : scheduled
               ? "예정"
               : "일정 없음";
@@ -3494,10 +3559,11 @@ function canEditHabitRecord(habit, dateString) {
 
 let habitRecordSaving = false;
 
-async function savePastHabitRecord(habit, date, progress) {
+async function savePastHabitRecord(habit, date, progress, completionLevel = "max") {
   if (!activeAuthUser || !canEditHabitRecord(habit, date)) throw new Error("수정할 수 없는 날짜야");
   const target = getHabitTargetForDate(habit, date);
   if (!Number.isInteger(progress) || progress < 0 || progress > target) throw new Error("기록값을 확인해");
+  if (!["min", "max"].includes(completionLevel) || (completionLevel === "min" && !hasHabitMinimum(habit))) throw new Error("달성 단계를 확인해");
   const userId = activeAuthUser.id;
   await syncTaskDatabaseImmediately();
   const key = `${habit.id}:${date}`;
@@ -3511,7 +3577,7 @@ async function savePastHabitRecord(habit, date, progress) {
     const { data, error } = await supabaseClient.rpc(complete ? "complete_my_habit" : "uncomplete_my_habit", {
       p_habit_id: habit.id,
       p_record_date: date,
-      ...(complete ? { p_progress_value: progress, p_used_free_pass: false } : {}),
+      ...(complete ? { p_progress_value: progress, p_used_free_pass: false, ...(hasHabitMinimum(habit) ? { p_completion_level: completionLevel } : {}) } : {}),
     });
     if (error) throw error;
     const { data: record, error: recordError } = await supabaseClient.from("habit_daily_records")
@@ -3531,6 +3597,7 @@ async function savePastHabitRecord(habit, date, progress) {
       completionReward: record.completion_reward,
       completedWithFreePass: record.completed_with_free_pass,
       completionCycleId: record.completion_cycle_id,
+      completionLevel: record.completed_at ? record.completion_level || "max" : null,
     };
     farmWalletMutationVersion += 1;
     if (data.coinBalance != null) state.coins = Number(data.coinBalance);
@@ -3688,7 +3755,7 @@ function renderFarmDashboard() {
       const art = window.FarmGardenArt?.theme(theme.id);
       const preset = window.SceneryThemePresets?.theme(theme.id);
       const object = preset ? `<span class="scenery-thumb-object">${window.SceneryCreationArt?.sprite(preset.defaultType, 20, 20) || ""}</span>` : "";
-      const preview = art ? `<span class="garden-theme-thumb scenery-theme-thumb" data-preview-type="${escapeHtml(preset?.defaultType || "")}" aria-hidden="true" style="background-image:url('${art.url}');background-size:${art.size};background-position:${art.x}% ${art.thumbnailY}%">${object}</span>` : "";
+      const preview = art ? `<span class="garden-theme-thumb scenery-theme-thumb" data-preview-type="${escapeHtml(preset?.defaultType || "")}" aria-hidden="true" style="background-image:url('${art.url}');background-size:${art.thumbnailSize || art.size};background-position:${art.x}% ${art.thumbnailY}%">${object}</span>` : "";
       return `<button type="button" class="farm-theme-choice" ${action} aria-pressed="${equipped}" aria-label="${escapeHtml(theme.name)}${preset ? ` · ${escapeHtml(preset.subject)} 완성 예시` : ""} · ${owned ? "테마 적용" : "미리보기"}">
         ${preview}
         <span>${escapeHtml(theme.name)}</span><small>${caption}</small></button>`;
@@ -3720,13 +3787,14 @@ function renderFocusPicker() {
       label: task.title,
     }));
   const habitOptions = state.habits
-    .filter((habit) => isHabitScheduledToday(habit) && !isHabitCompleteToday(habit))
-    .map((habit) => ({
-      value: `habit:${habit.id}`,
-      label: habit.title,
-    }));
+    .filter((habit) => isHabitScheduledToday(habit) && getHabitCompletionLevel(habit) !== "max" && getHabitFocusMinutes(habit) > 0)
+    .flatMap((habit) => [
+      ...(!getHabitCompletionLevel(habit) && getHabitFocusMinutes(habit, toProductivityDateString(), "min") > 0
+        ? [{ value: `habit:${habit.id}:min`, label: `${getHabitGoalTitle(habit, "min")} · 최소 ${getHabitFocusMinutes(habit, toProductivityDateString(), "min")}분` }] : []),
+      { value: `habit:${habit.id}`, label: hasHabitMinimum(habit) ? `${habit.title} · 최대 ${getHabitFocusMinutes(habit)}분` : habit.title },
+    ]);
 
-  const selectedValue = activeFocus ? `${activeFocus.type}:${activeFocus.id}` : "";
+  const selectedValue = activeFocus ? `${activeFocus.type}:${activeFocus.id}${activeFocus.completionLevel === "min" ? ":min" : ""}` : "";
   const selectedOption = [...taskOptions, ...habitOptions].find(
     (option) => option.value === selectedValue,
   );
@@ -3788,7 +3856,7 @@ function renderTodayFarmPreview() {
     const landscape = document.querySelector(".today-farm-landscape");
     if (art && landscape) {
       landscape.style.backgroundImage = `url('${art.url}')`;
-      landscape.style.backgroundSize = art.size;
+      landscape.style.backgroundSize = art.thumbnailSize || art.size;
       landscape.style.backgroundPosition = `${art.x}% ${art.y}%`;
     }
     document.querySelector("#previewFarmMoney").textContent = state.farmMoney;
@@ -4117,17 +4185,56 @@ function moveTaskTo(id, nextStatus) {
 // complete_my_habit/uncomplete_my_habit confirm it against a single row
 // lock in Postgres so a near-simultaneous completion from another device
 // can't grant the reward twice.
-function confirmHabitCompletionWithServer(habit, recordDate, progressValue, optimisticCycleId, optimisticReward, usedFreePass = false) {
+async function recoverHabitCompletionFailure(habit, recordDate, userId) {
+  if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+  const [, recordResult] = await Promise.allSettled([
+    loadFarmWallet(activeAuthUser, { background: true }),
+    supabaseClient.from("habit_daily_records").select("*")
+      .eq("habit_id", habit.id).eq("record_date", recordDate).maybeSingle(),
+  ]);
+  if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+  if (recordResult.status !== "fulfilled" || recordResult.value.error) return;
+  const currentHabit = state.habits.find((entry) => entry.id === habit.id);
+  if (!currentHabit) return;
+  const record = recordResult.value.data;
+  currentHabit.completionDates = currentHabit.completionDates.filter((day) => day !== recordDate);
+  if (record?.completed_at) currentHabit.completionDates.push(recordDate);
+  currentHabit.recordMetaByDate ??= {};
+  currentHabit.recordMetaByDate[recordDate] = {
+    completedAt: record?.completed_at || null,
+    completionReward: Number(record?.completion_reward || 0),
+    completedWithFreePass: Boolean(record?.completed_with_free_pass),
+    completionCycleId: record?.completion_cycle_id || null,
+    completionLevel: record?.completed_at ? record.completion_level || "max" : null,
+  };
+  if (recordDate === toProductivityDateString()) {
+    currentHabit.complete = Boolean(record?.completed_at);
+    currentHabit.completedDate = record?.completed_at ? recordDate : "";
+    currentHabit.completionReward = Number(record?.completion_reward || 0);
+    currentHabit.completedWithFreePass = Boolean(record?.completed_with_free_pass);
+  }
+}
+
+function confirmHabitCompletionWithServer(habit, recordDate, progressValue, optimisticCycleId, optimisticReward, usedFreePass = false, completionLevel = "max", rollback = null) {
   const userId = activeAuthUser?.id;
+  const key = `${habit.id}:${recordDate}`;
+  // Queue this before the wallet operation so historical edits cannot form a
+  // cycle while waiting for this same wallet request.
+  const preparation = syncTaskDatabaseImmediately().then(() => null, error => error);
   farmWalletMutationVersion += 1;
-  farmWalletMutationChain = farmWalletMutationChain
+  const request = farmWalletMutationChain
     .then(async () => {
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      // Persist a new habit or a newly added minimum goal before its reward RPC.
+      const preparationError = await preparation;
+      if (preparationError) throw preparationError;
       if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
       const { data, error } = await supabaseClient.rpc("complete_my_habit", {
         p_habit_id: habit.id,
         p_record_date: recordDate,
         p_progress_value: progressValue,
         p_used_free_pass: usedFreePass,
+        ...(hasHabitMinimum(habit) ? { p_completion_level: completionLevel } : {}),
       });
       if (error) throw error;
       if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
@@ -4136,29 +4243,42 @@ function confirmHabitCompletionWithServer(habit, recordDate, progressValue, opti
       const currentHabit = state.habits.find((entry) => entry.id === habit.id);
       const meta = currentHabit?.recordMetaByDate?.[recordDate];
       if (meta && meta.completionCycleId === optimisticCycleId) {
-        meta.completionReward = Number(data.completionReward) || meta.completionReward;
+        meta.completionReward = Number(data.completionReward ?? meta.completionReward);
         meta.completionCycleId = data.completionCycleId || meta.completionCycleId;
+        meta.completionLevel = data.completionLevel || completionLevel;
+        meta.completedAt = data.completedAt || meta.completedAt;
         if (recordDate === toProductivityDateString()) {
           currentHabit.completionReward = meta.completionReward;
         }
       }
       renderSummary();
       renderFarm();
+      renderHabitUpdates();
     })
-    .catch((error) => {
+    .catch(async (error) => {
       console.error("Farmodoro habit completion could not be confirmed", error);
       if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
-      state.coins = Math.max(0, state.coins - optimisticReward);
+      state.coins -= optimisticReward;
+      rollback?.();
+      await recoverHabitCompletionFailure(habit, recordDate, userId).catch(() => {});
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      renderHabitUpdates();
       renderSummary();
       renderFarm();
       showToast(`습관 완료를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
     });
+  habitCompletionRequests.set(key, request);
+  farmWalletMutationChain = request.finally(() => {
+    if (habitCompletionRequests.get(key) === request) habitCompletionRequests.delete(key);
+    if (activeAuthUser?.id === userId) renderHabits();
+  });
 }
 
-function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund) {
+function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund, rollback = null) {
   const userId = activeAuthUser?.id;
+  const key = `${habit.id}:${recordDate}`;
   farmWalletMutationVersion += 1;
-  farmWalletMutationChain = farmWalletMutationChain
+  const request = farmWalletMutationChain
     .then(async () => {
       if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
       const { data, error } = await supabaseClient.rpc("uncomplete_my_habit", {
@@ -4174,23 +4294,55 @@ function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund)
       renderSummary();
       renderFarm();
     })
-    .catch((error) => {
+    .catch(async (error) => {
       console.error("Farmodoro habit undo could not be confirmed", error);
       if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
       state.coins += optimisticRefund;
+      rollback?.();
+      await recoverHabitCompletionFailure(habit, recordDate, userId).catch(() => {});
+      if (activeAuthUser?.id !== userId || farmWalletUserId !== userId) return;
+      renderHabitUpdates();
       renderSummary();
       renderFarm();
       showToast(`완료 취소를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
     });
+  habitCompletionRequests.set(key, request);
+  farmWalletMutationChain = request.finally(() => {
+    if (habitCompletionRequests.get(key) === request) habitCompletionRequests.delete(key);
+    if (activeAuthUser?.id === userId) renderHabits();
+  });
 }
 
-function applyHabitCompletionChange(habit, wasComplete, complete, today = toProductivityDateString()) {
-  if (wasComplete === complete) return null;
+function applyHabitCompletionChange(habit, wasComplete, complete, today = toProductivityDateString(), completionLevel = "max") {
+  if (!["min", "max"].includes(completionLevel) || (completionLevel === "min" && !hasHabitMinimum(habit))) return null;
+  const previousLevel = getHabitCompletionLevel(habit, today);
+  if (wasComplete === complete && (!complete || previousLevel === completionLevel)) return null;
   const isToday = today === toProductivityDateString();
   if (!farmWalletHydrated) {
     showToast("지갑 데이터를 불러오는 중이야");
     return null;
   }
+  const previousMeta = habit.recordMetaByDate?.[today] ? { ...habit.recordMetaByDate[today] } : null;
+  const previousReward = wasComplete
+    ? Number(previousMeta?.completionReward ?? (isToday ? habit.completionReward : null) ?? getHabitCompletionReward(habit, previousLevel))
+    : 0;
+  const previousTodayReward = habit.completionReward;
+  const previousFreePass = habit.completedWithFreePass;
+  const optimisticCycleId = complete ? createUuid() : null;
+  const rollback = () => {
+    const currentHabit = state.habits.find((entry) => entry.id === habit.id);
+    if (currentHabit !== habit || habit.recordMetaByDate?.[today]?.completionCycleId !== optimisticCycleId) return;
+    habit.completionDates = habit.completionDates.filter((date) => date !== today);
+    if (wasComplete) habit.completionDates.push(today);
+    if (previousMeta) habit.recordMetaByDate[today] = previousMeta;
+    else delete habit.recordMetaByDate[today];
+    if (isToday) {
+      habit.complete = wasComplete;
+      habit.completedDate = wasComplete ? today : "";
+      habit.completionReward = previousTodayReward;
+      habit.completedWithFreePass = previousFreePass;
+    }
+  };
   if (isToday) {
     habit.complete = complete;
     habit.completedDate = complete ? today : "";
@@ -4205,52 +4357,60 @@ function applyHabitCompletionChange(habit, wasComplete, complete, today = toProd
     : (complete ? getHabitTargetForDate(habit, today) : 0);
 
   if (complete) {
-    const reward = productionCoinReward();
-    const completedAt = new Date().toISOString();
-    const optimisticCycleId = createUuid();
+    const totalReward = getHabitCompletionReward(habit, completionLevel);
+    const reward = totalReward - previousReward;
+    const completedAt = previousMeta?.completedAt || new Date().toISOString();
     if (isToday) {
-      habit.completionReward = reward;
+      habit.completionReward = totalReward;
       habit.completedWithFreePass = false;
     }
     habit.recordMetaByDate[today] = {
       completedAt,
-      completionReward: reward,
+      completionReward: totalReward,
       completedWithFreePass: false,
       completionCycleId: optimisticCycleId,
+      completionLevel,
     };
+    const oldCoins = state.coins;
     state.coins += reward;
-    confirmHabitCompletionWithServer(habit, today, progressValue, optimisticCycleId, reward);
-    return { complete: true, reward };
+    confirmHabitCompletionWithServer(habit, today, progressValue, optimisticCycleId, state.coins - oldCoins, false, completionLevel, rollback);
+    return { complete: true, reward, completionLevel };
   }
 
-  const reward = habit.completionReward ?? 1;
-  habit.completionReward = 0;
-  habit.completedWithFreePass = false;
+  const reward = previousReward;
+  if (isToday) {
+    habit.completionReward = 0;
+    habit.completedWithFreePass = false;
+  }
   habit.recordMetaByDate[today] = {
     completedAt: null,
     completionReward: 0,
     completedWithFreePass: false,
     completionCycleId: null,
+    completionLevel: null,
   };
-  state.coins = Math.max(0, state.coins - reward);
-  confirmHabitUncompletionWithServer(habit, today, reward);
+  const oldCoins = state.coins;
+  state.coins -= reward;
+  confirmHabitUncompletionWithServer(habit, today, oldCoins - state.coins, rollback);
   return { complete: false, reward };
 }
 
-function toggleHabit(id) {
+function toggleHabit(id, completionLevel = "max") {
   const habit = state.habits.find((item) => item.id === id);
   if (!habit) return;
+  if (habitCompletionRequests.has(`${id}:${toProductivityDateString()}`)) return;
   if (!isHabitScheduledToday(habit)) {
     showToast("오늘 일정에 없는 습관이야");
     return;
   }
 
   const wasComplete = isHabitCompleteToday(habit);
-  const result = applyHabitCompletionChange(habit, wasComplete, !wasComplete);
+  const complete = !wasComplete || (hasHabitMinimum(habit) && getHabitCompletionLevel(habit) !== completionLevel);
+  const result = applyHabitCompletionChange(habit, wasComplete, complete, toProductivityDateString(), completionLevel);
   if (!result) return;
   showToast(
     result.complete
-      ? `습관 완료 ${result.reward} Coin 획득`
+      ? `${hasHabitMinimum(habit) ? (result.completionLevel === "min" ? "최소" : "최대") + " 달성" : "습관 완료"}${result.reward > 0 ? ` · ${result.reward} Coin 획득` : result.reward < 0 ? ` · ${-result.reward} Coin 차감` : ""}`
       : `완료를 취소했어 현재 ${state.coins} Coin`,
   );
   renderHabitUpdates();
@@ -4288,7 +4448,7 @@ function updateFocusDisplay() {
   const totalSeconds = Math.max(
     1,
     focusMode === "linked" && activeFocus?.type === "habit" && item
-      ? (runtime.sessionMinutes ?? getHabitFocusMinutes(item)) * 60
+      ? (runtime.sessionMinutes ?? getHabitFocusMinutes(item, runtime.date || toProductivityDateString(), runtime.completionLevel || "max")) * 60
       : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
   );
   const remainingRatio = isLinkedStopwatch || inOvertime
@@ -4320,13 +4480,13 @@ function updateMiniFocusTimer() {
   const linkedRuntime = focusRuntimeByMode.linked;
   const linkedRunning = runningFocusMode === "linked";
   document.querySelectorAll("[data-focus-habit]").forEach((button) => {
-    const isActive = activeFocus?.type === "habit" && button.dataset.focusHabit === activeFocus.id;
+    const isActive = activeFocus?.type === "habit" && button.dataset.focusHabit === activeFocus.id && (button.dataset.focusLevel || "max") === (activeFocus.completionLevel || "max");
     button.classList.toggle("active", isActive);
     button.textContent = isActive
       ? linkedRunning
         ? "◷ 집중 중"
         : "◷ 계속하기"
-      : "◷ 집중 시작";
+      : `◷ ${button.dataset.focusLabel || "집중 시작"}`;
   });
   const visibleMode =
     runningFocusMode ||
@@ -4360,7 +4520,7 @@ function updateMiniFocusTimer() {
         : "다음 집중을 위한 휴식"
       : visibleMode === "quick"
         ? "빠른 집중"
-        : item?.title ?? "항목 집중";
+        : activeFocus?.type === "habit" && runtime.completionLevel === "min" ? item?.minimumTitle || item?.title || "최소 목표" : item?.title ?? "항목 집중";
   miniFocusTime.textContent = `${inOvertime ? "+" : ""}${minutes}:${seconds}`;
   miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
@@ -4519,9 +4679,10 @@ function updateFocusTarget() {
   }
 
   focusButton.disabled = false;
-  target.textContent = item.title;
+  const completionLevel = focusRuntimeByMode.linked.completionLevel || "max";
+  target.textContent = activeFocus?.type === "habit" && completionLevel === "min" ? item.minimumTitle || item.title : item.title;
   description.textContent = activeFocus?.type === "habit"
-    ? `오늘 목표 ${focusRuntimeByMode.linked.sessionMinutes ?? getHabitFocusMinutes(item)}분 · 남은 시간만큼 집중해`
+    ? `${hasHabitMinimum(item) ? (completionLevel === "min" ? "최소 목표" : "최대 목표") : "오늘 목표"} ${focusRuntimeByMode.linked.sessionMinutes ?? getHabitFocusMinutes(item, toProductivityDateString(), completionLevel)}분 · 남은 시간만큼 집중해`
     : "";
   description.hidden = !description.textContent;
   fitFocusTargetText();
@@ -5015,8 +5176,26 @@ function finishFocusRuntime(mode) {
   if (mode === "linked") {
     let completionResult = null;
     const recordDate = runtime.date || toProductivityDateString();
-    if (item && activeFocus?.type === "habit" && !item.completionDates.includes(recordDate)) {
-      completionResult = applyHabitCompletionChange(item, false, true, recordDate);
+    const completionLevel = runtime.completionLevel || activeFocus?.completionLevel || "max";
+    if (item && activeFocus?.type === "habit" && getHabitCompletionLevel(item, recordDate) !== "max") {
+      const completeGoal = () => {
+        const currentHabit = state.habits.find(habit => habit.id === item.id);
+        if (!currentHabit) return null;
+        const currentLevel = getHabitCompletionLevel(currentHabit, recordDate);
+        if (currentLevel === "max" || currentLevel === completionLevel) return null;
+        return applyHabitCompletionChange(currentHabit, currentHabit.completionDates.includes(recordDate), true, recordDate, completionLevel);
+      };
+      const pendingCompletion = habitCompletionRequests.get(`${item.id}:${recordDate}`);
+      if (pendingCompletion) {
+        const userId = activeAuthUser?.id;
+        void pendingCompletion.then(() => {
+          if (activeAuthUser?.id !== userId) return;
+          const result = completeGoal();
+          if (result) renderHabitUpdates();
+        });
+      } else {
+        completionResult = completeGoal();
+      }
     }
     activeFocus = null;
     runtime.phase = "focus";
@@ -5035,7 +5214,7 @@ function finishFocusRuntime(mode) {
     scheduleTaskDatabaseSync(0);
     showToast(
       completionResult
-        ? `습관 목표를 채웠어 ${completionResult.reward} Coin 획득`
+        ? `${completionLevel === "min" ? "최소" : hasHabitMinimum(item) ? "최대" : "습관"} 목표를 채웠어 ${completionResult.reward} Coin 획득`
         : "집중 측정을 완료했어",
     );
     scheduleFocusTimerDatabaseSync(0);
@@ -5291,16 +5470,17 @@ function setFocusMode(mode) {
   syncFocusSettingsForm();
 }
 
-function startItemFocus(type, id) {
+function startItemFocus(type, id, completionLevel = "max") {
   const collection = type === "task" ? state.tasks : state.habits;
   const item = collection.find((entry) => entry.id === id);
   if (!item) return;
-  if (type === "habit" && !getHabitFocusMinutes(item)) return;
+  if (!["min", "max"].includes(completionLevel)) return;
+  if (type === "habit" && !getHabitFocusMinutes(item, toProductivityDateString(), completionLevel)) return;
   if (type === "task" && item.status === "done") {
     showToast("이미 완료한 할 일이야");
     return;
   }
-  if (type === "habit" && isHabitCompleteToday(item)) {
+  if (type === "habit" && (getHabitCompletionLevel(item) === "max" || getHabitCompletionLevel(item) === completionLevel)) {
     showToast("이미 완료한 습관이야");
     return;
   }
@@ -5309,12 +5489,14 @@ function startItemFocus(type, id) {
     return;
   }
 
+  if (runningFocusMode) advanceRunningFocusTimer(runningFocusMode);
+  if (type === "habit" && (getHabitCompletionLevel(item) === "max" || getHabitCompletionLevel(item) === completionLevel)) return;
   saveCurrentFocusRuntime();
   stopFocusTimer();
   focusMode = "linked";
   focusModeUserSelected = true;
   timerPhase = "focus";
-  activeFocus = { type, id };
+  activeFocus = { type, id, ...(type === "habit" && completionLevel === "min" ? { completionLevel } : {}) };
   focusSettingsButton.hidden = true;
   closeFocusSettings();
 
@@ -5327,7 +5509,7 @@ function startItemFocus(type, id) {
   render();
   toggleFocus();
   scheduleTaskDatabaseSync(0);
-  showToast(`‘${item.title}’ 집중 측정을 시작했어`);
+  showToast(`‘${type === "habit" ? getHabitGoalTitle(item, completionLevel) : item.title}’ 집중 측정을 시작했어`);
 }
 
 document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("ko-KR", {
@@ -5596,6 +5778,8 @@ function closeHabitModal() {
 
 function resetHabitForm() {
   habitInput.value = "";
+  habitMinimumInput.value = "";
+  habitMinimumFocusMinutes.value = "";
   document
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
@@ -5611,10 +5795,12 @@ function openHabitModal(habit = null) {
   editingHabitId = habit?.id ?? null;
   habitFocusEnabled.checked = habit?.measureType === "time";
   habitFocusMinutes.value = String(getHabitFocusMinutes(habit, null) || 25);
+  habitMinimumFocusMinutes.value = habit?.minimumFocusMinutes == null ? "" : String(habit.minimumFocusMinutes);
+  habitMinimumInput.value = habit?.minimumTitle || "";
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
     habitModalTitle.textContent = "습관 수정";
-    habitModalDescription.textContent = "반복 일정을 다시 설정해";
+    habitModalDescription.textContent = "목표와 반복 일정을 다시 설정해";
     habitSubmitButton.textContent = "변경사항 저장";
     habitInput.value = habit.title;
     document.querySelectorAll('[name="habitWeekday"]').forEach((input) => {
@@ -5627,7 +5813,7 @@ function openHabitModal(habit = null) {
   } else {
     habitModalKicker.textContent = "NEW ROUTINE";
     habitModalTitle.textContent = "새 습관 등록";
-    habitModalDescription.textContent = "반복 일정을 설정해";
+    habitModalDescription.textContent = "바쁜 날에도 이어갈 수 있는 목표를 설정해";
     habitSubmitButton.textContent = "습관 추가";
     resetHabitForm();
   }
@@ -5638,6 +5824,7 @@ function openHabitModal(habit = null) {
     return `<label><span>${day}요일 (분)</span><input type="number" data-habit-focus-weekday="${weekday}" min="1" max="9999" step="1" value="${value == null ? "" : Math.min(9999, Math.max(1, Math.floor(Number(value) || 25)))}" /></label>`;
   }).join("");
   updateHabitFocusWeekdayInputs();
+  updateHabitGoalReward();
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
   habitForm.classList.remove("hidden");
@@ -5645,9 +5832,26 @@ function openHabitModal(habit = null) {
   window.setTimeout(() => habitInput.focus(), 0);
 }
 
+function updateHabitGoalReward() {
+  const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
+  document.querySelector("#habitGoalLabel").textContent = hasMinimum ? "최대 목표" : "기본 목표";
+  document.querySelector("#habitMaximumReward").textContent = hasMinimum
+    ? "최대 달성 · 총 2 Coin" : "완료하면 1 Coin";
+  updateHabitFocusWeekdayInputs();
+}
+
+habitMinimumInput.addEventListener("input", updateHabitGoalReward);
+habitMinimumFocusMinutes.addEventListener("input", updateHabitGoalReward);
+
 function updateHabitFocusWeekdayInputs() {
   document.querySelector("#habitFocusSettings").hidden = !habitFocusEnabled.checked;
   habitFocusMinutes.disabled = !habitFocusEnabled.checked;
+  const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
+  const minimumEnabled = habitFocusEnabled.checked;
+  document.querySelector("#habitMinimumFocusField").hidden = !minimumEnabled;
+  habitMinimumFocusMinutes.disabled = !minimumEnabled;
+  document.querySelector("#habitFocusMinutesLabel").textContent = hasMinimum ? "최대 목표 집중 시간 (분)" : "기본 목표 집중 시간 (분)";
+  document.querySelector("#habitFocusWeekdayLegend").textContent = hasMinimum ? "요일별 최대 목표 집중 시간" : "요일별 목표 집중 시간";
   document.querySelectorAll("[data-habit-focus-weekday]").forEach((input) => {
     input.disabled = !habitFocusEnabled.checked || !habitForm.querySelector(`[name="habitWeekday"][value="${input.dataset.habitFocusWeekday}"]`).checked;
     input.placeholder = `기본 ${habitFocusMinutes.value || 25}`;
@@ -5655,7 +5859,7 @@ function updateHabitFocusWeekdayInputs() {
 }
 
 habitForm.addEventListener("change", (event) => {
-  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitFocusWeekdayInputs();
+  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitGoalReward();
 });
 habitFocusMinutes.addEventListener("input", updateHabitFocusWeekdayInputs);
 
@@ -5965,6 +6169,7 @@ habitForm.addEventListener("submit", (event) => {
   }
   const title = habitInput.value.trim();
   if (!title) return;
+  const typedMinimumTitle = habitMinimumInput.value.trim();
   const weekdays = [...document.querySelectorAll('[name="habitWeekday"]:checked')].map(
     (input) => Number(input.value),
   );
@@ -5990,6 +6195,18 @@ habitForm.addEventListener("submit", (event) => {
     }
     targetByWeekday[input.dataset.habitFocusWeekday] = minutes;
   }
+  const minimumFocusMinutes = habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== ""
+    ? Number(habitMinimumFocusMinutes.value) : null;
+  // A timed minimum already differs from the maximum, so a repeated habit name is dropped.
+  const minimumTitle = minimumFocusMinutes !== null && typedMinimumTitle === title ? "" : typedMinimumTitle;
+  if (minimumFocusMinutes !== null && (!Number.isInteger(minimumFocusMinutes) || minimumFocusMinutes < 1 || minimumFocusMinutes > 9999)) {
+    showToast("최소 목표 집중 시간은 1~9999분 사이의 정수로 입력해");
+    return;
+  }
+  if (minimumFocusMinutes !== null && (minimumFocusMinutes >= focusMinutes || weekdays.some(day => minimumFocusMinutes >= (targetByWeekday[day] ?? focusMinutes)))) {
+    showToast("최소 목표 집중 시간은 기본·요일별 최대 목표보다 짧게 설정해");
+    return;
+  }
   const startDate = habitStartDate.value;
   if (!startDate || startDate > toProductivityDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
     showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
@@ -5998,6 +6215,8 @@ habitForm.addEventListener("submit", (event) => {
   if (editingHabit) {
     Object.assign(editingHabit, {
       title,
+      minimumTitle,
+      minimumFocusMinutes,
       measureType: habitFocusEnabled.checked ? "time" : "amount",
       targetValue: habitFocusEnabled.checked ? focusMinutes : 1,
       targetByWeekday,
@@ -6010,6 +6229,8 @@ habitForm.addEventListener("submit", (event) => {
     state.habits.push({
       id: createUuid(),
       title,
+      minimumTitle,
+      minimumFocusMinutes,
       complete: false,
       completedDate: "",
       completionDates: [],
@@ -6026,7 +6247,8 @@ habitForm.addEventListener("submit", (event) => {
     });
   }
   const wasEditing = Boolean(editingHabit);
-  if (editingHabit && !habitFocusEnabled.checked && activeFocus?.type === "habit" && activeFocus.id === editingHabit.id) {
+  if (editingHabit && activeFocus?.type === "habit" && activeFocus.id === editingHabit.id &&
+      (!habitFocusEnabled.checked || (activeFocus.completionLevel === "min" && !minimumFocusMinutes))) {
     endFocusSession("linked");
   }
   closeHabitModal();
@@ -6516,19 +6738,35 @@ document.querySelector("#habitList").addEventListener("click", async (event) => 
   const toggleButton = event.target.closest("[data-toggle-habit]");
   const editButton = event.target.closest("[data-edit-habit]");
   const deleteButton = event.target.closest("[data-delete-habit]");
+  const tierViewButton = event.target.closest("[data-habit-view-level]");
 
   const date = getHabitViewDate();
+  // Keep showing the tier that was completed after it is undone.
+  if (toggleButton?.dataset.habitLevel) habitTierViewLevels.set(`${toggleButton.dataset.toggleHabit}:${date}`, toggleButton.dataset.habitLevel);
+  if (tierViewButton) {
+    habitTierViewLevels.set(`${tierViewButton.dataset.habitViewId}:${date}`, tierViewButton.dataset.habitViewLevel);
+    renderHabits();
+    return;
+  }
+  if (toggleButton?.matches('input[type="checkbox"]')) {
+    // Native checkboxes toggle before the click handler. Keep the recorded
+    // selection until the change is accepted, including loading/error guards.
+    const habit = state.habits.find(item => item.id === toggleButton.dataset.toggleHabit);
+    toggleButton.checked = Boolean(habit && getHabitCompletionLevel(habit, date) === (toggleButton.dataset.habitLevel || "max"));
+  }
   if (toggleButton && date < toProductivityDateString()) {
     const button = toggleButton;
     if (button.disabled || !taskDataHydrated || habitRecordSaving) return;
     const habit = state.habits.find((item) => item.id === button.dataset.toggleHabit);
     if (!habit || !canEditHabitRecord(habit, date)) return;
     const target = getHabitTargetForDate(habit, date);
-    const progress = getHabitProgressRatio(habit, date) >= 1 ? 0 : target;
+    const completionLevel = button.dataset.habitLevel || "max";
+    const previousLevel = getHabitCompletionLevel(habit, date);
+    const progress = previousLevel && (!hasHabitMinimum(habit) || previousLevel === completionLevel) ? 0 : target;
     habitRecordSaving = true;
     renderHabits();
     try {
-      await savePastHabitRecord(habit, date, progress);
+      await savePastHabitRecord(habit, date, progress, completionLevel);
     } catch (error) {
       showToast(`기록 저장 실패 · ${error.message}`);
     } finally {
@@ -6538,8 +6776,8 @@ document.querySelector("#habitList").addEventListener("click", async (event) => 
     return;
   }
 
-  if (focusButton) startItemFocus("habit", focusButton.dataset.focusHabit);
-  if (toggleButton) toggleHabit(toggleButton.dataset.toggleHabit);
+  if (focusButton) startItemFocus("habit", focusButton.dataset.focusHabit, focusButton.dataset.focusLevel || "max");
+  if (toggleButton && !toggleButton.disabled) toggleHabit(toggleButton.dataset.toggleHabit, toggleButton.dataset.habitLevel || "max");
   if (editButton) {
     const habit = state.habits.find((item) => item.id === editButton.dataset.editHabit);
     if (habit) openHabitModal(habit);
@@ -6857,8 +7095,8 @@ focusItemMenu.addEventListener("click", (event) => {
     advanceRunningFocusTimer("linked");
     stopFocusTimer();
   }
-  const [type, id] = option.dataset.focusValue.split(":");
-  activeFocus = type && id ? { type, id } : null;
+  const [type, id, completionLevel] = option.dataset.focusValue.split(":");
+  activeFocus = type && id ? { type, id, ...(type === "habit" && completionLevel === "min" ? { completionLevel } : {}) } : null;
   prepareLinkedFocusRuntime();
   setFocusMode("linked");
   renderFocusPicker();

@@ -27,6 +27,7 @@ function harness(rpc) {
     farmWalletUserId: 'user-a',
     farmWalletMutationChain: Promise.resolve(),
     farmWalletMutationVersion: 0,
+    habitCompletionRequests: new Map(),
     farmWalletRealtimeRefreshTimer: null,
     focusProgressApiUnavailable: false,
     focusProgressSyncPromise: null,
@@ -41,6 +42,8 @@ function harness(rpc) {
     refreshFocusProgress: () => { effects.refreshed += 1; },
     renderFarm: () => { effects.rendered += 1; },
     renderSummary: noop,
+    renderHabits: noop,
+    renderHabitUpdates: noop,
     farmBonusMessage: () => '',
     showToast: message => toasts.push(message),
     supabaseClient: { async rpc(name, args) {
