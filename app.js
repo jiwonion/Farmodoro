@@ -5416,6 +5416,7 @@ function startItemFocus(type, id, completionLevel = "max") {
   render();
   toggleFocus();
   scheduleTaskDatabaseSync(0);
+  location.hash = "focus";
   showToast(`‘${type === "habit" ? getHabitGoalTitle(item, completionLevel) : item.title}’ 집중 측정을 시작했어`);
 }
 
