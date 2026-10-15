@@ -2,16 +2,14 @@
 (() => {
   "use strict";
   const PREFIX='farmodoro-v3-intent:';
-  const ACTIONS=['plant','water','grow','harvest','fish_start','fish_grow','fish_claim','character','plaza','decor'];
+  const ACTIONS=['plant','grow','harvest','fish_start','fish_grow','fish_claim','character','plaza','decor'];
   const messages={FARM_INSUFFICIENT_COIN:'Coin이 부족해. 할 일·습관·집중으로 모아봐.',FARM_V3_LOCKED:'아직 해금하지 않은 아이템이야.',FARM_V3_OCCUPIED:'이미 진행 중인 회차가 있어. 최신 상태를 불러올게.',FARM_V3_RUN_NOT_FOUND:'진행 상태가 바뀌었어. 다시 불러올게.',FARM_V3_COMPLETE:'이미 완성했어. 수집 버튼을 눌러줘.',FARM_V3_NOT_COMPLETE:'진행을 마친 뒤 받을 수 있어.',FARM_V3_ALREADY_CLAIMED:'이미 받은 기록이야. 최신 상태를 불러올게.',FARM_V3_PROFILE_CHANGED:'다른 화면에서 설정이 바뀌었어. 최신 모습에서 다시 골라줘.',FARM_V3_INVALID_PLAZA:'닉네임과 공개 여부를 다시 확인해줘.',FARM_V3_INVALID_POSITION:'광장 안에서 자리를 다시 골라줘.',FARM_V3_UNKNOWN_CHARACTER:'캐릭터 목록을 다시 불러와줘.',FARM_V3_AVATAR_RETIRED:'꾸미기가 대표 캐릭터 선택으로 바뀌었어. 새로운 친구를 골라줘.'};
   messages.FARM_V3_INVALID_SPEECH='대사는 줄바꿈 없이 80자까지 쓸 수 있어.';
-  messages.FARM_V3_WATER_COOLDOWN='다음 물주기 시간이 아직 안 됐어. 남은 시간을 다시 확인해줘.';
   let game=null,owner=null,pending=null,busy=false,loading=false,unavailable=false,error=false,storageError=false;
   let loadRequest=0,root=null,signature='',message='',tab='farm',slot=0,collectionKind='crop';
   let characterDraft=null,characterVersion=null,plazaDraft=null,plazaVersion=null,legacyFallback=false;
   let plaza=null,plazaPage=0,plazaLoading=false,plazaError=false,plazaRequest=0;
-  let serverOffset=0,clockTimer=null,renderedOwner=null,renderedTab=null,focusToRestore=null;
-  const now=()=>Date.now()+serverOffset;
+  let renderedOwner=null,renderedTab=null,focusToRestore=null;
   const account=()=>typeof activeAuthUser!=='undefined'?activeAuthUser?.id||null:null;
   const generation=()=>typeof farmSessionGeneration!=='undefined'?farmSessionGeneration:0;
   const current=(id,session)=>id===account()&&owner===id&&session===generation();
@@ -100,7 +98,7 @@
     const nextRoot=document.getElementById('farmGameRoot');if(!nextRoot||!window.FarmV3Views||!window.FarmV3Art)return;
     if(root!==nextRoot){root=nextRoot;signature='';renderedOwner=null;renderedTab=null;focusToRestore=null;root.addEventListener('click',onClick);root.addEventListener('keydown',onKeydown);root.addEventListener('change',onChange);root.addEventListener('input',onChange);root.addEventListener('submit',onSubmit);}
     const mine=owner===account()?game:null;
-    const html=window.FarmV3Views.render({game:mine,tab,slot,coins:coins(),now:now(),disabled:!actionable(),busy,loading,pending:owner===account()&&pending,unavailable,error,storageError,message,characterDraft,plaza,plazaLoading,plazaError,plazaDraft,collectionKind});
+    const html=window.FarmV3Views.render({game:mine,tab,slot,coins:coins(),disabled:!actionable(),busy,loading,pending:owner===account()&&pending,unavailable,error,storageError,message,characterDraft,plaza,plazaLoading,plazaError,plazaDraft,collectionKind});
     if(html!==signature){
       const focused=root.contains(document.activeElement)?document.activeElement:null;
       const focusKey=focused?['data-fv-action','data-field','data-value','data-item','data-slot','data-run','data-amount','data-tab','data-kind','name'].map(name=>[name,focused.getAttribute?.(name)]).filter(([,value])=>value!=null):[];
@@ -125,14 +123,11 @@
   function applyState(value,{wallet=false}={}) {
     if(!account()||!valid(value))return false;
     owner=account();game=clone(normalize(value));unavailable=false;error=false;document.documentElement?.classList.add("farm-v3-ready");
-    serverOffset=game.wateringVersion===1?Date.parse(game.serverNow)-Date.now():0;
-    if(clockTimer==null&&game.wateringVersion===1)clockTimer=window.setInterval?.(()=>{if(game&&tab==='farm'&&!busy&&!loading)render();},30000)??null;
     if(legacyFallback){document.getElementById('farmPage')?.classList.remove('farm-v3-show-legacy');legacyFallback=false;}
     if(wallet&&typeof applyFarmActionResult==='function')applyFarmActionResult({wallet:{coinBalance:Number(value.coinBalance)}});
     render();return true;
   }
   function reset() {
-    if(clockTimer!=null)window.clearInterval?.(clockTimer);clockTimer=null;serverOffset=0;
     if(legacyFallback){document.getElementById('farmPage')?.classList.remove('farm-v3-show-legacy');legacyFallback=false;}
     document.documentElement?.classList.remove("farm-v3-ready");loadRequest++;plazaRequest++;game=null;owner=null;pending=null;busy=false;loading=false;unavailable=false;error=false;storageError=false;
     message='';signature='';characterDraft=null;characterVersion=null;plazaDraft=null;plazaVersion=null;plaza=null;plazaLoading=false;plazaError=false;plazaPage=0;
@@ -142,7 +137,10 @@
     try {
       const saved=localStorage.getItem(PREFIX+id);if(!saved)return null;
       const intent=JSON.parse(saved);
-      if(intent.userId!==id||(!ACTIONS.includes(intent.action)&&intent.action!=='avatar')||typeof intent.requestId!=='string'||!intent.requestId||!intent.payload||typeof intent.payload!=='object')throw Error('Invalid intent');
+      if(intent.userId!==id||(!ACTIONS.includes(intent.action)&&!['avatar','water'].includes(intent.action))||typeof intent.requestId!=='string'||!intent.requestId||!intent.payload||typeof intent.payload!=='object')throw Error('Invalid intent');
+      // Retired free watering never needs a retry. The state read below retains
+      // growth already committed by an older client without blocking Coin actions.
+      if(intent.action==='water'){localStorage.removeItem(PREFIX+id);return null;}
       return intent;
     }catch(_){storageError=true;message='저장 중이던 작업을 읽을 수 없어. 브라우저 저장소를 확인해줘.';return null;}
   }
@@ -165,7 +163,6 @@
     finally{if(current(id,session)&&request===loadRequest){loading=false;render();}}
   }
   function actionMessage(intent,event){
-    if(event.kind==='watered')return event.completed?'물을 줘서 다 자랐어! 수확해줘.':'물을 줬어. 무료로 1칸 성장했어.';
     if(event.kind==='started')return `${event.name}${intent.action==='plant'?' 심었어.':' 낚시를 시작했어.'}`;
     if(event.kind==='grown')return event.completed?'완성했어! 이제 수집할 수 있어.':`${event.spentCoin} Coin으로 진행했어.`;
     if(event.kind==='collected'){
@@ -216,10 +213,6 @@
     if(['grow','harvest','fish_grow','fish_claim'].includes(action)){
       const kind=action.startsWith('fish_')?'fish':'crop',run=game.runs.find(r=>r.id===payload.runId&&r.kind===kind);if(!run)return false;
       return action==='grow'||action==='fish_grow'?Number.isInteger(payload.amount)&&payload.amount>=1&&payload.amount<=100&&payload.amount<=Math.min(coins(),run.cost-run.progress):run.progress===run.cost;
-    }
-    if(action==='water'){
-      const run=game.runs.find(r=>r.id===payload.runId&&r.kind==='crop');
-      return game.wateringVersion===1&&!!run&&run.progress<run.cost&&(run.waterReadyAt===null||Date.parse(run.waterReadyAt)<=now());
     }
     if(action==='character'&&(game.charactersVersion!==1||!selected('character',payload.characterId)||!owned('character',payload.characterId)))return false;
     if(action==='decor'&&game.manualDecorVersion!==1)return false;
@@ -302,7 +295,7 @@
     if(action==='plaza_refresh')return void loadPlaza();
     if(action==='plaza_page')return void loadPlaza(plaza&&((plazaPage+1)*12<plaza.total)?plazaPage+1:0);
     if(action==='plant'||action==='fish_start')return void act(action,{itemId:control.dataset.item,slot:action==='plant'?slot:undefined});
-    if(['water','grow','harvest','fish_grow','fish_claim'].includes(action))return void act(action,{runId:control.dataset.run,...(control.dataset.amount?{amount:Number(control.dataset.amount)}:{})});
+    if(['grow','harvest','fish_grow','fish_claim'].includes(action))return void act(action,{runId:control.dataset.run,...(control.dataset.amount?{amount:Number(control.dataset.amount)}:{})});
   }
   function readPlazaForm(form){const data=new FormData(form);return{nickname:String(data.get('nickname')||''),public:true,position:clone((plazaDraft||plazaDefaults()).position),speech:game.plazaSpeechVersion===1?String(data.get('speech')||''):game.profile.speech};}
   function onChange(event){

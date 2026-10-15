@@ -39,6 +39,17 @@ test('all four slots work, locked seeds never write and rapid clicks reserve one
   assert.equal(h.storage.size,0);assert.equal(h.ctx.state.coins,10);
 });
 
+test('free seeds can still be planted with zero or negative Coin while growth stays blocked',async()=>{
+  for(const balance of [0,-3]){
+    const planted=game({wateringVersion:0,coinBalance:balance,runs:[run({waterReadyAt:null})]});
+    const h=harness({coins:balance,rpc:()=>({data:result(planted,{event:{kind:'started',name:'당근',spentCoin:0}})})});
+    assert.equal(h.api.applyState(game({wateringVersion:0,coinBalance:balance,runs:[]})),true);
+    h.click('plant',{item:'carrot'});await h.settle();assert.equal(h.calls.length,1);
+    assert.equal(h.calls[0].params.p_action,'plant');assert.equal(h.ctx.state.coins,balance);assert.equal(h.api.snapshot().runs[0].progress,0);
+    h.click('grow',{run:'run-1',amount:'1'});await h.settle();assert.equal(h.calls.length,1);
+  }
+});
+
 test('growth waits for productivity wallet changes and later writes wait for growth',async()=>{
   const task=deferred(),reply=deferred();const h=harness({rpc:()=>reply.promise});h.api.applyState(game({runs:[run()]}));
   h.ctx.farmWalletMutationChain=task.promise.then(()=>{h.ctx.state.coins=12;});
@@ -225,24 +236,53 @@ test('older servers cannot display or re-equip automatic props; manual placement
   h.root.querySelectorAll=()=>[];h.root.handlers.change(event);await h.settle();assert.equal(h.calls[0].params.p_action,'decor');assert.deepEqual(h.calls[0].params.p_payload.decorations,[]);
 });
 
-test('free watering uses the server clock, serializes repeated clicks and stays free with negative Coin',async()=>{
-  const serverTime=Date.now()+3600000,stamp=new Date(serverTime).toISOString();
-  const initial=game({wateringVersion:1,serverNow:stamp,coinBalance:-3,runs:[run({waterReadyAt:new Date(serverTime-1).toISOString()})]});
-  const saved=game({wateringVersion:1,serverNow:stamp,coinBalance:-3,runs:[run({progress:1,waterReadyAt:new Date(serverTime+5*3600000).toISOString()})]});
-  const gate=deferred(),h=harness({coins:-3,rpc:()=>gate.promise});assert.equal(h.api.applyState(initial),true);
-  h.click('water',{run:'run-1'});h.click('water',{run:'run-1'});await tick();assert.equal(h.calls.length,1);
-  assert.deepEqual(h.calls[0].params.p_payload,{runId:'run-1'});assert.equal(h.storage.size,1);
-  gate.resolve({data:result(saved,{event:{kind:'watered',growth:1}})});await h.settle();assert.equal(h.ctx.state.coins,-3);assert.equal(h.api.snapshot().runs[0].progress,1);assert.equal(h.storage.size,0);
-  h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,1,'Cooldown blocks another send');
+test('retired watering never dispatches on old or updated servers, including with negative Coin',async()=>{
+  for(const wateringVersion of [undefined,0,1])for(const balance of [10,-3]){
+    const value=game({wateringVersion,serverNow:new Date().toISOString(),coinBalance:balance,runs:[run({progress:1,waterReadyAt:null}),run({id:'fish-1',kind:'fish',itemId:'minnow',slot:null,cost:2,waterReadyAt:null})]});
+    const h=harness({coins:balance});assert.equal(h.api.applyState(value),true);
+    h.click('water',{run:'run-1'});h.click('water',{run:'fish-1'});await h.settle();
+    assert.equal(h.calls.length,0);assert.equal(h.storage.size,0);
+    assert.equal(h.ctx.state.coins,balance);assert.equal(h.api.snapshot().runs[0].progress,1,'Already credited watering growth remains');
+  }
 });
 
-test('watering rejects missing capability, completed/fish runs and malformed clocks without blocking old farms',async()=>{
-  const h=harness();h.api.applyState(game({runs:[run()]}));h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
-  const latest=()=>game({wateringVersion:1,serverNow:new Date().toISOString(),runs:[run({waterReadyAt:null})]});
-  for(const waterReadyAt of [undefined,123,'bad timestamp']){const bad=latest();bad.runs[0].waterReadyAt=waterReadyAt;assert.equal(h.api.applyState(bad),false);}
-  const complete=latest();complete.runs[0].progress=3;assert.equal(h.api.applyState(complete),true);h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
-  const fish=latest();fish.runs=[run({kind:'fish',itemId:'minnow',slot:null,waterReadyAt:null})];assert.equal(h.api.applyState(fish),true);h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
-  const badClock=latest();badClock.serverNow='invalid';assert.equal(h.api.applyState(badClock),false);
+test('a retired persisted watering request is discarded locally and normal growth can resume',async()=>{
+  const storage=new Map([['farmodoro-v3-intent:user-a',JSON.stringify({userId:'user-a',requestId:'old-water-request',action:'water',payload:{runId:'run-1'}})]]);
+  const initial=game({wateringVersion:1,serverNow:new Date().toISOString(),runs:[run({progress:1,waterReadyAt:new Date(Date.now()+3600000).toISOString()})]});
+  const after=game({wateringVersion:0,coinBalance:9,runs:[run({progress:2,waterReadyAt:null})]});
+  const h=harness({storage,rpc:name=>({data:name==='get_my_farm_v3_state'?initial:result(after)})});
+  assert.equal(await h.api.load(h.ctx.activeAuthUser),true);assert.equal(storage.size,0);
+  assert.equal(JSON.parse(h.root.innerHTML).pending,false);assert.equal(JSON.parse(h.root.innerHTML).disabled,false);
+  assert.deepEqual(h.calls.map(call=>call.name),['get_my_farm_v3_state'],'Retiring water must never contact its RPC');
+  assert.equal(h.api.snapshot().runs[0].progress,1,'Authoritative progress survives retiring the local intent');
+  h.click('grow',{run:'run-1',amount:'1'});await h.settle();
+  assert.equal(h.calls[1].params.p_action,'grow');assert.notEqual(h.calls[1].params.p_request_id,'old-water-request');
+  assert.equal(h.api.snapshot().runs[0].progress,2);assert.equal(h.ctx.state.coins,9);assert.equal(storage.size,0);
+});
+
+test('completed crops remain harvestable after watering removal without changing the wallet',async()=>{
+  const initial=game({wateringVersion:1,serverNow:new Date().toISOString(),runs:[run({progress:3,waterReadyAt:new Date().toISOString()})]});
+  const saved=game({wateringVersion:0,collections:[{kind:'crop',id:'carrot',count:1}]});
+  const h=harness({rpc:()=>({data:result(saved,{event:{kind:'collected',name:'당근',itemKind:'crop'}})})});
+  assert.equal(h.api.applyState(initial),true);h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
+  h.click('harvest',{run:'run-1'});await h.settle();assert.equal(h.calls[0].params.p_action,'harvest');
+  assert.equal(h.api.snapshot().collections[0].count,1);assert.equal(h.ctx.state.coins,10);
+});
+
+test('farming offers free planting and Coin growth without watering controls or guidance on either server',()=>{
+  const ctx={window:{FarmV3Catalog:catalogContext.window.FarmV3Catalog,FarmV3Art:{fish:()=>'',crop:()=>'',character:()=>''}}};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../farm-v3-views.js'),'utf8'),ctx);
+  for(const wateringVersion of [0,1])for(const balance of [10,-3]){
+    const value=game({wateringVersion,serverNow:new Date().toISOString(),coinBalance:balance,runs:[run({progress:1,waterReadyAt:null})]});
+    const render=()=>ctx.window.FarmV3Views.render({game:value,tab:'farm',slot:0,coins:balance,disabled:false});
+    const growing=render();assert.doesNotMatch(growing,/data-fv-action="water"|물주기|물을 줘|5시간/);
+    const growButton=growing.match(/<button\b[^>]*data-fv-action="grow"[^>]*data-amount="1"[^>]*>/)?.[0];
+    assert.ok(growButton);assert.equal(/\bdisabled\b/.test(growButton),balance<1);
+    value.runs=[];const empty=render();assert.match(empty,/시작은 무료/);assert.match(empty,/3 Coin/);
+    assert.doesNotMatch(empty,/물주기|성장 3칸/);
+    const plantButton=empty.match(/<button\b[^>]*data-fv-action="plant"[^>]*data-item="carrot"[^>]*>/)?.[0];
+    assert.ok(plantButton);assert.doesNotMatch(plantButton,/\bdisabled\b/,'Planting remains free even with a negative wallet');
+  }
 });
 
 test('specific fish paths stay server-owned and locked fish never send a start request',async()=>{

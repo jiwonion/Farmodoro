@@ -3,7 +3,7 @@ const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const root=path.resolve(__dirname,'../..');
 const user='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
 const source=name=>fs.readFileSync(path.join(root,'supabase/migrations',name),'utf8');
-async function createDatabase({characters=true,positions=true,speech=true,paths=true,decor=true,watering=true,fishPaths=true}={}){
+async function createDatabase({characters=true,positions=true,speech=true,paths=true,decor=true,watering=true,fishPaths=true,removeWatering=true}={}){
   const db=new PGlite();
   const scalar=async(sql,params)=>(Object.values((await db.query(sql,params)).rows[0]||{}))[0];
   const setUser=id=>scalar("select set_config('app.test_user',$1,false)",[id||'']);
@@ -51,6 +51,7 @@ async function createDatabase({characters=true,positions=true,speech=true,paths=
   if(characters&&positions&&speech&&paths&&decor)await db.exec(source('101_manual_farm_decorations.sql'));
   if(characters&&positions&&speech&&paths&&decor&&watering)await db.exec(source('102_farm_free_watering.sql'));
   if(characters&&positions&&speech&&paths&&decor&&watering&&fishPaths)await db.exec(source('103_fish_species_paths_and_friends.sql'));
+  if(characters&&positions&&speech&&paths&&decor&&watering&&fishPaths&&removeWatering)await db.exec(source('104_remove_farm_watering.sql'));
   await setUser(user);
   const rpc=async(name,params={})=>{
     if(name==='get_my_farm_v3_state')return scalar('select public.get_my_farm_v3_state()');

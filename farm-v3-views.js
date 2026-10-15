@@ -7,7 +7,7 @@
   const item=(game,kind,id)=>game.catalog.find(c=>c.kind===kind&&c.id===id);
   const owned=(game,kind,id)=>game.unlocks.some(c=>c.kind===kind&&c.id===id);
   const count=(game,kind,id)=>game.collections.find(c=>c.kind===kind&&c.id===id)?.count||0;
-  const costLabel=(game,entry)=>entry.kind==='crop'&&game.wateringVersion===1?'성장 '+entry.cost+'칸':entry.cost+' Coin';
+  const costLabel=(game,entry)=>(entry.kind==='crop'?'성장 ':'')+entry.cost+' Coin';
   const btn=(action,label,disabled=false,extra='',style='')=>`<button type="button" class="fv-button ${style}" data-fv-action="${action}" ${extra}${disabled?' disabled':''}>${label}</button>`;
   const icon=entry=>entry.kind==='crop'?art().crop(entry.id):entry.kind==='fish'?(art().fish?art().fish(entry.id):art().icon(visual(entry.kind,entry.id)?.art||0,entry.name)):entry.kind==='character'?art().character(entry.id):'';
   const stats=game=>({harvests:game.collections.filter(c=>c.kind==='crop').reduce((sum,c)=>sum+c.count,0),fish:game.collections.filter(c=>c.kind==='fish').reduce((sum,c)=>sum+c.count,0),cropTypes:game.collections.filter(c=>c.kind==='crop').length,fishTypes:game.collections.filter(c=>c.kind==='fish').length});
@@ -39,7 +39,7 @@
   }
   function chooser(ctx,kind) {
     const entries=ctx.game.catalog.filter(c=>c.kind===kind);
-    return `<div class="fv-chooser"><div class="fv-section-heading"><h3>${kind==='crop'?'심을 작물':'낚시할 물고기'} 선택</h3><span>시작은 무료 · ${kind==='crop'&&ctx.game.wateringVersion===1?'물주기·Coin으로 성장':'Coin으로 진행'}</span></div>${kind==='fish'&&ctx.game.fishUnlockVersion===1?'<p class="fv-help">표시된 물고기를 여러 번 낚으면 다음 어종이 열려.</p>':''}<div class="fv-choice-grid">${entries.map(entry=>{
+    return `<div class="fv-chooser"><div class="fv-section-heading"><h3>${kind==='crop'?'심을 작물':'낚시할 물고기'} 선택</h3><span>시작은 무료 · Coin으로 ${kind==='crop'?'성장':'진행'}</span></div>${kind==='fish'&&ctx.game.fishUnlockVersion===1?'<p class="fv-help">표시된 물고기를 여러 번 낚으면 다음 어종이 열려.</p>':''}<div class="fv-choice-grid">${entries.map(entry=>{
       const unlocked=owned(ctx.game,kind,entry.id);
       return `<button type="button" class="fv-choice${unlocked?'':' is-locked'}" data-fv-action="${kind==='crop'?'plant':'fish_start'}" data-item="${e(entry.id)}" ${ctx.disabled||!unlocked?'disabled':''} title="${e(unlocked?costLabel(ctx.game,entry)+' 필요':requirement(entry,ctx.game))}"><span class="fv-choice-art">${icon(entry)}</span><strong>${e(entry.name)}</strong><small>${unlocked?costLabel(ctx.game,entry):'🔒 '+e(requirement(entry,ctx.game))}</small></button>`;
     }).join('')}</div></div>`;
@@ -48,10 +48,7 @@
     if(!run)return '';
     const entry=item(ctx.game,run.kind,run.itemId),done=run.progress>=run.cost;
     const max=Math.max(0,Math.min(5,ctx.coins,run.cost-run.progress));
-    const minutes=run.waterReadyAt?Math.max(0,Math.ceil((Date.parse(run.waterReadyAt)-(ctx.now??Date.now()))/60000)):0;
-    const remaining=minutes>=60?`${Math.floor(minutes/60)}시간${minutes%60?minutes%60+'분':''}`:minutes+'분';
-    const water=run.kind==='crop'&&ctx.game.wateringVersion===1&&!done?btn('water',minutes?'💧 '+remaining:'💧 물주기',ctx.disabled||minutes>0,`data-run="${run.id}" title="${minutes?'다음 물주기까지 '+remaining:'무료로 1칸 성장 · 5시간마다 가능'}" `,'fv-water-button'):'';
-    const growth=done?btn(run.kind==='crop'?'harvest':'fish_claim',run.kind==='crop'?'✦ 수확하기':'✦ 물고기 받기',ctx.disabled,`data-run="${run.id}" `,'fv-primary'):water+btn(run.kind==='crop'?'grow':'fish_grow','＋1 Coin',ctx.disabled||ctx.coins<1,`data-run="${run.id}" data-amount="1" title="1 Coin으로 ${run.kind==='crop'?'키우기':'낚시 진행'}" `,'fv-primary')+(max>=2?btn(run.kind==='crop'?'grow':'fish_grow',`＋${max} Coin`,ctx.disabled,`data-run="${run.id}" data-amount="${max}" title="${max} Coin 한 번에 사용" `):'');
+    const growth=done?btn(run.kind==='crop'?'harvest':'fish_claim',run.kind==='crop'?'✦ 수확하기':'✦ 물고기 받기',ctx.disabled,`data-run="${run.id}" `,'fv-primary'):btn(run.kind==='crop'?'grow':'fish_grow','＋1 Coin',ctx.disabled||ctx.coins<1,`data-run="${run.id}" data-amount="1" title="1 Coin으로 ${run.kind==='crop'?'키우기':'낚시 진행'}" `,'fv-primary')+(max>=2?btn(run.kind==='crop'?'grow':'fish_grow',`＋${max} Coin`,ctx.disabled,`data-run="${run.id}" data-amount="${max}" title="${max} Coin 한 번에 사용" `):'');
     return `<section class="fv-scene-controls" aria-label="선택한 ${run.kind==='crop'?'밭':'낚시'} 돌보기"><div class="fv-scene-control-heading"><strong>${e(entry.name)}</strong><span>${done?run.kind==='crop'?'수확 가능':'물고기 받기':run.kind==='crop'?'성장 중':'낚시 중'} · ${run.progress} / ${run.cost}</span></div>${run.kind==='fish'?`<div class="fv-progress" role="progressbar" aria-label="${e(entry.name)} 진행" aria-valuemin="0" aria-valuemax="${run.cost}" aria-valuenow="${run.progress}"><span style="width:${run.progress/run.cost*100}%"></span></div>`:''}<div class="fv-scene-control-actions">${growth}</div></section>`;
   }
   function sidebar(ctx) {
@@ -66,7 +63,7 @@
   }
   function farm(ctx) {
     const run=ctx.game.runs.find(r=>r.kind==='crop'&&r.slot===ctx.slot);
-    return `<div class="fv-main-layout"><div class="fv-main-column">${farmScene(ctx.game,ctx.slot,true,sceneControls(ctx,run))}<div class="fv-under-scene"><span>${ctx.slot+1}번 밭</span><span>시간이 지나도 시들지 않아</span></div>${!run?chooser(ctx,'crop'):''}${ctx.coins<0&&run&&run.progress<run.cost?'<p class="fv-debt-note">Coin 잔액을 채우면 다시 쓸 수 있어. 무료 물주기로도 작물을 키울 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
+    return `<div class="fv-main-layout"><div class="fv-main-column">${farmScene(ctx.game,ctx.slot,true,sceneControls(ctx,run))}<div class="fv-under-scene"><span>${ctx.slot+1}번 밭</span><span>시간이 지나도 시들지 않아</span></div>${!run?chooser(ctx,'crop'):''}${ctx.coins<0&&run&&run.progress<run.cost?'<p class="fv-debt-note">Coin 잔액을 채우면 작물을 더 키울 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
   }
   function fishing(ctx) {
     const run=ctx.game.runs.find(r=>r.kind==='fish');

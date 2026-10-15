@@ -62,18 +62,26 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
     await capture('legacy-missing-api');assert.deepEqual(exceptions,[]);console.log('PASS: missing farm API opens existing scenery instead of blocking entry.');return;
   }
   await settle('!!FarmV3.snapshot()');assert.equal(await evaluate(`document.querySelectorAll('#farmGameRoot .fv-plot').length`),4);
+  if(serverMode==='current')assert.equal(await evaluate('FarmV3.snapshot().wateringVersion'),0,'Migration 104 retires server watering');
   for(const [slot,crop]of [[0,'carrot'],[1,'potato'],[2,'strawberry']]){
+    const beforePlant=await evaluate('state.coins');
     await click(`[data-fv-action="slot"][data-slot="${slot}"]`);await click(`[data-fv-action="plant"][data-item="${crop}"]`);
-    let growth=crop==='strawberry'?4:3;
+    assert.equal(await evaluate('state.coins'),beforePlant,'Planting a free seed never charges Coin');
+    const growth=crop==='strawberry'?4:3;
+    assert.equal(await evaluate("document.querySelector('[data-fv-action=water]')===null"),true);
+    assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('물주기')"),false);
     if(serverMode==='current'&&slot===0){
-      const balance=await evaluate('state.coins');await click(action('water'));growth--;
-      assert.equal(await evaluate('state.coins'),balance);assert.equal(await evaluate('FarmV3.snapshot().runs[0].progress'),1);
-      const readyAt=await evaluate('FarmV3.snapshot().runs[0].waterReadyAt');assert.ok(readyAt);
-      assert.equal(await evaluate("document.querySelector('[data-fv-action=water]').disabled"),true);
-      await evaluate('await FarmV3.load(activeAuthUser)');assert.equal(await evaluate('FarmV3.snapshot().runs[0].waterReadyAt'),readyAt);
-      await capture('farm-watered');
+      // The frontend can be deployed before migration 104 reaches an older 103 server.
+      await evaluate(`(() => {const legacy=FarmV3.snapshot();legacy.wateringVersion=1;legacy.serverNow=new Date().toISOString();for(const run of legacy.runs)run.waterReadyAt=null;FarmV3.applyState(legacy);})()`);
+      assert.equal(await evaluate("document.querySelector('[data-fv-action=water]')===null"),true,'Old watering capability never restores its removed control');
+      assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('물주기')"),false);
     }
-    await click(action('grow')+'[data-amount="'+growth+'"]');await click(action('harvest'));
+    await click(action('grow')+'[data-amount="'+growth+'"]');
+    assert.equal(await evaluate('state.coins'),beforePlant-growth,'Only Coin growth charges the wallet');
+    await evaluate('await FarmV3.load(activeAuthUser)');
+    assert.equal(await evaluate(`FarmV3.snapshot().runs.find(run=>run.slot===${slot}).progress`),growth);
+    assert.equal(await evaluate('state.coins'),beforePlant-growth,'Reload preserves charged growth and its wallet');
+    await click(action('harvest'));
   }
   assert.equal(await evaluate("FarmV3.snapshot().collections.filter(item=>item.kind==='crop').length"),3);
   assert.equal(await evaluate(`FarmV3.snapshot().unlocks.some(item=>item.kind==='decor'&&item.id==='flowers')`),true);
@@ -87,7 +95,7 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   assert.equal(await evaluate("!!document.querySelector('.fv-scene-fish [data-fv-action=fish_claim]')"),true);
   await capture('fishing-ready-desktop');await click(action('fish_claim'));
   assert.equal(await evaluate(`FarmV3.snapshot().collections.find(item=>item.id==='minnow').count`),serverMode==='current'?10:1);
-  const afterFishing=await evaluate('state.coins');assert.equal(afterFishing,serverMode==='current'?19:18);
+  const afterFishing=await evaluate('state.coins');assert.equal(afterFishing,18);
   if(serverMode!=='current'){
     await tab('farm');await capture('compat-'+serverMode+'-farm');
     assert.equal(await evaluate('FarmV3.snapshot().plazaPositionVersion'),serverMode==='positions'?1:0);
@@ -224,8 +232,9 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   assert.match(await evaluate(`document.querySelector('.fv-wallet').textContent`),/-3/);
   assert.equal(await evaluate(`document.querySelector('[data-fv-action="grow"]').disabled`),true);
   assert.equal(await evaluate(`document.querySelector('.fv-debt-note')!==null`),true);
-  assert.equal(await evaluate("document.querySelector('[data-fv-action=water]').disabled"),false);
+  assert.equal(await evaluate("document.querySelector('[data-fv-action=water]')===null"),true);
+  assert.equal(await evaluate("document.querySelector('.fv-debt-note').textContent.includes('물주기')"),false);
   await tab('plaza');await settle(`document.querySelectorAll('[data-fv-public-person="true"]').length===2`);
   assert.deepEqual(exceptions,[]);
-  console.log('PASS: real RPC watering/cooldown persistence, free growth, sixteen whole fishing sprites, in-scene Coin/harvest/claim controls, centred selection/focus border, desktop/mobile, negative Coin watering, collections, characters/plaza and older-server compatibility. Screenshots: output/farm-v3-*.png');
+  console.log('PASS: real RPC free planting, charged Coin growth with no watering, sixteen whole fishing sprites, in-scene Coin/harvest/claim controls, centred selection/focus border, desktop/mobile, negative Coin restrictions, collections, characters/plaza and older-server compatibility. Screenshots: output/farm-v3-*.png');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{ws?.close();chrome?.kill();server?.close();await database?.db.close();});

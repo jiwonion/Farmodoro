@@ -52,8 +52,8 @@
 
 ## 적용
 
-기존 102까지 적용된 DB에는 [103 SQL](../supabase/migrations/103_fish_species_paths_and_friends.sql)을 적용한다. 094 이후 통합 업그레이드는 [095~103 SQL](../supabase/operations/2026-10-15-upgrade-farm-v3.sql)을 사용한다. 이 작업은 로컬 격리 DB에서만 실행했으며 운영 DB에는 적용하지 않았다.
+기존 102까지 적용된 DB에는 [103 SQL](../supabase/migrations/103_fish_species_paths_and_friends.sql)을 적용한 뒤 [104 SQL](../supabase/migrations/104_remove_farm_watering.sql)로 물주기를 제거한다. 103까지 적용된 DB는 104만 적용하면 된다. 씨앗 심기는 계속 무료이며 기존 성장과 수집 기록은 보존한다. 094 이후 통합 업그레이드는 [095~104 SQL](../supabase/operations/2026-10-15-upgrade-farm-v3.sql)을 사용한다. 이 작업은 로컬 격리 DB에서만 실행했으며 운영 DB에는 적용하지 않았다.
 
-생성: `node scripts/build-farm-v3-fish-sql.cjs`. 현재 카탈로그만 읽고 역사적 095~102의 시드는 변경하지 않는다. 102 생성기를 실행해도 마지막에 103 생성기를 호출해 통합 SQL이 최신 상태를 유지한다.
+생성: `node scripts/build-farm-v3-fish-sql.cjs`. 현재 카탈로그만 읽고 역사적 095~102의 시드는 변경하지 않는다. 102 생성기는 103을, 103 생성기는 104 생성기를 차례로 호출해 통합 SQL이 최신 상태를 유지한다. 104는 과거 102/103 파일을 변경하지 않는다.
 
 검증: `node tests/farm-v3-fish-sql.cjs`. 실제 PGlite PostgreSQL에서 기존 기록 보존, 새 계정의 두 시작 어종, 종별 경로와 도달성, 실제 획득 직후 해금, 중복·다른 사용자·잠긴 어종 거부, 새 대표의 복합 조건·선택·광장 반영, RLS, 개별·통합 SQL 재적용을 확인한다.
