@@ -10,7 +10,7 @@
   let loadRequest=0,root=null,signature='',message='',tab='farm',slot=0,collectionKind='crop';
   let characterDraft=null,characterVersion=null,plazaDraft=null,plazaVersion=null,legacyFallback=false;
   let plaza=null,plazaPage=0,plazaLoading=false,plazaError=false,plazaRequest=0;
-  let serverOffset=0,clockTimer=null;
+  let serverOffset=0,clockTimer=null,renderedOwner=null,renderedTab=null,focusToRestore=null;
   const now=()=>Date.now()+serverOffset;
   const account=()=>typeof activeAuthUser!=='undefined'?activeAuthUser?.id||null:null;
   const generation=()=>typeof farmSessionGeneration!=='undefined'?farmSessionGeneration:0;
@@ -33,17 +33,19 @@
     if(value.plazaPositionVersion===undefined)next={...next,plazaPositionVersion:0,profile:{...next.profile,position:legacyPosition(next.profile.zone)}};
     if(value.plazaSpeechVersion===undefined)next={...next,plazaSpeechVersion:0,profile:{...next.profile,speech:''}};
     if(value.cropUnlockVersion===undefined)next={...next,cropUnlockVersion:0,catalog:next.catalog.map(item=>item?{...item,cropRequirements:[]}:item)};
+    if(value.fishUnlockVersion===undefined)next={...next,fishUnlockVersion:0,catalog:next.catalog.map(item=>item?{...item,fishRequirements:[]}:item)};
     if(value.manualDecorVersion===undefined)next={...next,manualDecorVersion:0,profile:{...next.profile,decorations:[]}};
     if(value.wateringVersion===undefined)next={...next,wateringVersion:0,runs:Array.isArray(next.runs)?next.runs.map(run=>run?{...run,waterReadyAt:null}:run):next.runs};
     return next;
   }
   function valid(value) {
     value=normalize(value);
-    if(!value||value.version!==1||![0,1].includes(value.charactersVersion)||![0,1].includes(value.plazaPositionVersion)||![0,1].includes(value.plazaSpeechVersion)||![0,1].includes(value.cropUnlockVersion)||![0,1].includes(value.manualDecorVersion)||value.coinBalance==null||!Number.isSafeInteger(Number(value.coinBalance))||!value.profile||!Array.isArray(value.catalog)||!value.catalog.length||!Array.isArray(value.runs)||!Array.isArray(value.unlocks)||!Array.isArray(value.collections))return false;
+    if(!value||value.version!==1||![0,1].includes(value.charactersVersion)||![0,1].includes(value.plazaPositionVersion)||![0,1].includes(value.plazaSpeechVersion)||![0,1].includes(value.cropUnlockVersion)||![0,1].includes(value.fishUnlockVersion)||![0,1].includes(value.manualDecorVersion)||value.coinBalance==null||!Number.isSafeInteger(Number(value.coinBalance))||!value.profile||!Array.isArray(value.catalog)||!value.catalog.length||!Array.isArray(value.runs)||!Array.isArray(value.unlocks)||!Array.isArray(value.collections))return false;
     const ids=new Set();
     if(![0,1].includes(value.wateringVersion)||value.wateringVersion===1&&(typeof value.serverNow!=='string'||!Number.isFinite(Date.parse(value.serverNow))))return false;
     for(const item of value.catalog){if(!item||!['crop','fish','character','decor'].includes(item.kind)||typeof item.id!=='string'||typeof item.name!=='string'||!Number.isSafeInteger(item.cost)||item.cost<0||(['crop','fish'].includes(item.kind)&&item.cost<1)||ids.has(item.kind+':'+item.id))return false;ids.add(item.kind+':'+item.id);}
     for(const item of value.catalog){const requirements=item.cropRequirements;if(!Array.isArray(requirements)||requirements.length>57||item.kind!=='crop'&&requirements.length)return false;const seen=new Set();for(const req of requirements){if(!req||!ids.has('crop:'+req.id)||req.id===item.id||seen.has(req.id)||!Number.isSafeInteger(req.count)||req.count<1||req.count>1000)return false;seen.add(req.id);}}
+    for(const item of value.catalog){const requirements=item.fishRequirements;if(!Array.isArray(requirements)||requirements.length>24||item.kind!=='fish'&&requirements.length)return false;const seen=new Set();for(const req of requirements){if(!req||typeof req.id!=='string'||!ids.has('fish:'+req.id)||req.id===item.id||seen.has(req.id)||!Number.isSafeInteger(req.count)||req.count<1||req.count>1000)return false;seen.add(req.id);}}
     if(value.unlocks.some(i=>!i||!ids.has(i.kind+':'+i.id))||value.collections.some(i=>!i||!['crop','fish'].includes(i.kind)||!ids.has(i.kind+':'+i.id)||!Number.isSafeInteger(i.count)||i.count<1))return false;
     const occupied=new Set();
     if(value.runs.some(run=>{if(!run)return true;const key=run.kind==='fish'?'fish':'crop:'+run.slot;if(!run||typeof run.id!=='string'||!['crop','fish'].includes(run.kind)||!ids.has(run.kind+':'+run.itemId)||!Number.isSafeInteger(run.progress)||!Number.isSafeInteger(run.cost)||run.cost<1||run.progress<0||run.progress>run.cost||run.kind==='crop'&&(!Number.isInteger(run.slot)||run.slot<0||run.slot>3)||occupied.has(key))return true;occupied.add(key);return false;}))return false;
@@ -52,16 +54,67 @@
     const characterValid=value.charactersVersion===1?ids.has('character:'+p.characterId)&&value.unlocks.some(i=>i.kind==='character'&&i.id===p.characterId):p.characterId===null&&!value.catalog.some(i=>i.kind==='character');
     return typeof p.nickname==='string'&&typeof p.plazaPublic==='boolean'&&validPosition(p.position)&&validSpeech(p.speech)&&Number.isSafeInteger(Number(p.version))&&Array.isArray(p.decorations)&&p.decorations.every(id=>ids.has('decor:'+id))&&characterValid;
   }
+  // Retain scenes and their painted canvases while an action changes controls or progress.
+  function nodeKey(node){
+    if(node?.nodeType!==1)return null;
+    const tag=node.localName;
+    if(node.id)return tag+'#'+node.id;
+    if(tag==='canvas')return [tag,...['data-fv-character','data-fv-character-pose','width','height'].map(name=>node.getAttribute(name)||'')].join(':');
+    if(node.hasAttribute('data-fv-action'))return [tag,...['data-fv-action','data-field','data-value','data-item','data-slot','data-run','data-amount','data-tab','data-kind'].map(name=>node.getAttribute(name)||'')].join(':');
+    if(node.hasAttribute('name'))return tag+':name:'+node.getAttribute('name');
+    const className=(node.getAttribute('class')||'').trim().split(/\s+/)[0];
+    return className?tag+':'+className:null;
+  }
+  function compatibleNode(node,next){return !!node&&node.nodeType===next.nodeType&&(node.nodeType!==1||node.localName===next.localName&&node.namespaceURI===next.namespaceURI&&nodeKey(node)===nodeKey(next));}
+  function patchNode(node,next){
+    if(node.isEqualNode(next))return;
+    if(node.nodeType!==1){if(node.nodeValue!==next.nodeValue)node.nodeValue=next.nodeValue;return;}
+    for(const attribute of [...node.attributes]){
+      if(attribute.name==='style'||node.localName==='canvas'&&attribute.name==='data-painted')continue;
+      if(!next.hasAttributeNS(attribute.namespaceURI,attribute.localName))node.removeAttributeNS(attribute.namespaceURI,attribute.localName);
+    }
+    for(const attribute of [...next.attributes]){
+      if(attribute.name==='style')continue;
+      // Setting an unchanged canvas width or height would erase its bitmap.
+      if(node.getAttributeNS(attribute.namespaceURI,attribute.localName)!==attribute.value)node.setAttributeNS(attribute.namespaceURI,attribute.name,attribute.value);
+    }
+    const runtimeStyles=['--fv-fishing-art-top','--fv-fishing-contact-x','--fv-fishing-contact-y','--speech-shift-x','--speech-shift-y'];
+    if(node.style&&next.style){
+      for(const name of [...node.style])if(!next.style.getPropertyValue(name)&&!runtimeStyles.includes(name))node.style.removeProperty(name);
+      for(const name of [...next.style])if(node.style.getPropertyValue(name)!==next.style.getPropertyValue(name)||node.style.getPropertyPriority(name)!==next.style.getPropertyPriority(name))node.style.setProperty(name,next.style.getPropertyValue(name),next.style.getPropertyPriority(name));
+    }
+    patchChildren(node,next);
+  }
+  function patchChildren(node,next){
+    let cursor=node.firstChild;
+    for(const desired of [...next.childNodes]){
+      const key=nodeKey(desired);let match=cursor;
+      if(key)while(match&&(!compatibleNode(match,desired)||nodeKey(match)!==key))match=match.nextSibling;
+      if(!compatibleNode(match,desired)){node.insertBefore(desired.cloneNode(true),cursor);continue;}
+      if(match!==cursor)node.insertBefore(match,cursor);
+      patchNode(match,desired);cursor=match.nextSibling;
+    }
+    while(cursor){const nextSibling=cursor.nextSibling;cursor.remove();cursor=nextSibling;}
+  }
   function render() {
     const nextRoot=document.getElementById('farmGameRoot');if(!nextRoot||!window.FarmV3Views||!window.FarmV3Art)return;
-    if(root!==nextRoot){root=nextRoot;signature='';root.addEventListener('click',onClick);root.addEventListener('keydown',onKeydown);root.addEventListener('change',onChange);root.addEventListener('input',onChange);root.addEventListener('submit',onSubmit);}
+    if(root!==nextRoot){root=nextRoot;signature='';renderedOwner=null;renderedTab=null;focusToRestore=null;root.addEventListener('click',onClick);root.addEventListener('keydown',onKeydown);root.addEventListener('change',onChange);root.addEventListener('input',onChange);root.addEventListener('submit',onSubmit);}
     const mine=owner===account()?game:null;
-    const html=window.FarmV3Views.render({game:mine,tab,slot,coins:coins(),now:now(),disabled:!actionable(),busy,loading,pending:owner===account()&&pending,unavailable,error,message,characterDraft,plaza,plazaLoading,plazaError,plazaDraft,collectionKind});
+    const html=window.FarmV3Views.render({game:mine,tab,slot,coins:coins(),now:now(),disabled:!actionable(),busy,loading,pending:owner===account()&&pending,unavailable,error,storageError,message,characterDraft,plaza,plazaLoading,plazaError,plazaDraft,collectionKind});
     if(html!==signature){
       const focused=root.contains(document.activeElement)?document.activeElement:null;
-      const focusKey=focused?['data-fv-action','data-field','data-value','data-item','data-slot','name'].map(name=>[name,focused.getAttribute?.(name)]).filter(([,value])=>value!=null):[];
-      root.innerHTML=html;signature=html;
-      if(focusKey.length){const candidates=[...root.querySelectorAll('button,input,select,[tabindex]')];candidates.find(node=>focusKey.every(([key,value])=>node.getAttribute(key)===value))?.focus({preventScroll:true});}
+      const focusKey=focused?['data-fv-action','data-field','data-value','data-item','data-slot','data-run','data-amount','data-tab','data-kind','name'].map(name=>[name,focused.getAttribute?.(name)]).filter(([,value])=>value!=null):[];
+      const retain=mine&&renderedOwner===owner&&renderedTab===tab&&['farm','fish'].includes(tab)&&root.ownerDocument;
+      if(retain){
+        if(focused)focusToRestore=focused;
+        else if(document.activeElement&&document.activeElement!==document.body)focusToRestore=null;
+        const template=root.ownerDocument.createElement('template');template.innerHTML=html;patchChildren(root,template.content);
+      }else{root.innerHTML=html;focusToRestore=null;}
+      signature=html;renderedOwner=mine?owner:null;renderedTab=tab;
+      if(focusToRestore&&root.contains(focusToRestore)){
+        if(!focusToRestore.disabled&&document.activeElement!==focusToRestore)focusToRestore.focus({preventScroll:true});
+      }else if(focusKey.length){const candidates=[...root.querySelectorAll('button,input,select,[tabindex]')];candidates.find(node=>focusKey.every(([key,value])=>node.getAttribute(key)===value))?.focus({preventScroll:true});}
+      if(!busy&&!loading)focusToRestore=null;
       void window.FarmV3Art.paintAll(root);
       window.FarmV3PlazaView?.layoutSpeech(root);
       syncSpeechPreview();

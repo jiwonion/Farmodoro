@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'..'),dir=path.join(root,'supabase/migrations');
-const source=fs.readFileSync(path.join(dir,'100_public_plaza_and_crop_paths.sql'),'utf8');
+const source=fs.readFileSync(path.join(dir,'100_public_plaza_and_crop_paths.sql'),'utf8').replace(/\r\n/g,'\n');
 const extract=name=>{const match=source.match(new RegExp(`create or replace function public\\.${name}\\([^]*?\\$\\$;`));if(!match)throw Error(name);return match[0];};
 const refresh=extract('farm_v3_refresh_unlocks')
   .replace('result jsonb; new_decor text[];','result jsonb;')

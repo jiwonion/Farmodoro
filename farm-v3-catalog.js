@@ -15,7 +15,14 @@
     ["plum","자두",6], ["mango","망고",7], ["passionFruit","패션프루트",6], ["bellFlower","도라지",4],
     ["sweetCorn","찰옥수수",5], ["truffle","트러플",5], ["lavender","라벤더",4],
   ];
-  const fish = [["minnow","피라미",2],["crucian","붕어",3],["carp","잉어",4],["trout","송어",4],["catfish","메기",5],["koi","비단잉어",6],["perch","농어",6],["salmon","연어",7]];
+  const fish = [
+    ["minnow","피라미",2],["crucian","붕어",3],["carp","잉어",4],["trout","송어",4],
+    ["catfish","메기",5],["koi","비단잉어",6],["perch","농어",6],["salmon","연어",7],
+    ["loach","미꾸라지",3],["smelt","빙어",3],["bluegill","블루길",4],["sweetfish","은어",4],
+    ["eel","장어",5],["snakehead","가물치",5],["bass","배스",5],["blueTang","블루탱",6],
+    ["clownfish","흰동가리",6],["pufferfish","복어",6],["seaBream","도미",7],["flounder","넙치",7],
+    ["mackerel","고등어",7],["tuna","참치",8],["swordfish","황새치",8],["sturgeon","철갑상어",9],
+  ];
   const outfitSpecs = [
     ["blue","파랑 작업복","#76b8ea","#254b85",0,0], ["green","새싹 작업복","#8bbf79","#3a6844",0,0],
     ["cream","크림 작업복","#eeddb1","#805e42",0,0], ["rose","장미 작업복","#e9a2ae","#8b4b66",3,0],
@@ -35,6 +42,14 @@
     ["cloud-puff","구름 친구",100,60,"별생각 없이 둥실 떠 있는 구름."],
     ["star-slime","별빛 슬라임",0,150,"머리 위 작은 별과 함께 쉬어가."],
     ["royal-slime","왕관 슬라임",300,200,"왕관은 근사하고 표정은 느긋해."],
+    ["peach-slime","복숭아 젤리",40,0,"복숭아 향을 따라 밭으로 놀러 왔어.",8,0],
+    ["fox-puff","여우 친구",80,20,"폭신한 꼬리로 새 친구를 반겨줘.",12,0],
+    ["lotus-slime","연꽃 슬라임",0,45,"잔잔한 연못에서 꽃잎을 띄우며 쉬어.",0,8],
+    ["moon-bunny","달토끼",160,80,"달빛을 모아 광장에 살포시 내려왔어.",18,10],
+    ["honey-bear","꿀곰",220,0,"햇살 아래서 달콤한 낮잠을 즐겨.",24,0],
+    ["crystal-slime","수정 슬라임",0,240,"물속에서 발견한 반짝임을 간직해.",0,16],
+    ["snow-penguin","눈꽃 펭귄",280,160,"작은 날개를 흔들며 종종걸음으로 찾아와.",30,18],
+    ["dragon-sprout","새싹 용",450,300,"정성껏 키운 세상을 작은 날개로 지켜줘.",40,24],
   ];
   const items = [
     ...crops.map(([id,name,cost],i)=>({kind:"crop",id,name,cost,harvests:i<5?0:(i-4)*2,fish:0,cropTypes:0,fishTypes:0,art:id})),
@@ -42,18 +57,25 @@
     ...outfitSpecs.map(([id,name,shirt,pants,harvests,fish])=>({kind:"outfit",id,name,cost:0,harvests,fish,cropTypes:0,fishTypes:0,shirt,pants})),
     ...hatSpecs.map(([id,name,harvests,fish],i)=>({kind:"hat",id,name,cost:0,harvests,fish,cropTypes:0,fishTypes:0,art:i+8})),
     ...decorSpecs.map(([id,name,harvests,fish,cropTypes])=>({kind:"decor",id,name,cost:0,harvests,fish,cropTypes,fishTypes:0})),
-    ...characterSpecs.map(([id,name,harvests,fish,description],art)=>({kind:"character",id,name,cost:0,harvests,fish,cropTypes:0,fishTypes:0,art,description})),
+    ...characterSpecs.map(([id,name,harvests,fish,description,cropTypes=0,fishTypes=0],art)=>({kind:"character",id,name,cost:0,harvests,fish,cropTypes,fishTypes,art,description})),
   ].map((item,order)=>({...item,order}));
-  // Five starter crops form five independent paths. Each later crop needs
-  // harvests of the previous crop on its path, rather than a cheap total.
+  // Starter crops and fish form independent paths. A later item needs
+  // collections of the previous item on its path, rather than a cheap total.
   const activeItems=items.filter(item=>!['outfit','hat'].includes(item.kind)).map(item=>{
-    if(item.kind!=='crop')return {...item,cropRequirements:[]};
-    const index=crops.findIndex(([id])=>id===item.id);
-    return {...item,harvests:0,cropRequirements:index<5?[]:[{id:crops[index-5][0],count:Math.min(8,3+Math.floor((index-5)/5))}]};
+    const next={...item,cropRequirements:[],fishRequirements:[]};
+    if(item.kind==='crop'){
+      const index=crops.findIndex(([id])=>id===item.id);
+      return {...next,harvests:0,cropRequirements:index<5?[]:[{id:crops[index-5][0],count:Math.min(8,3+Math.floor((index-5)/5))}]};
+    }
+    if(item.kind==='fish'){
+      const index=fish.findIndex(([id])=>id===item.id);
+      return {...next,fish:0,fishRequirements:index<2?[]:[{id:fish[index-2][0],count:Math.min(8,3+Math.floor((index-2)/2))}]};
+    }
+    return next;
   });
   window.FarmV3Catalog = {
     items:activeItems,
-    legacyItems:items.filter(item=>item.kind!=='character'),
+    legacyItems:items.filter(item=>item.kind!=='character'&&(item.kind!=='fish'||item.art<8)).map((item,order)=>({...item,order})),
     defaultCharacter:'sprout-slime',
     recommendedAvatar:{gender:"female",skin:0,hair:0,style:2,eyes:0,nose:0,mouth:0,outfit:"cream",top:"cream",bottom:"cream",shoes:"cream",hat:null},
     genders:[{id:"male",name:"남성"},{id:"female",name:"여성"},{id:"neutral",name:"중성"}],

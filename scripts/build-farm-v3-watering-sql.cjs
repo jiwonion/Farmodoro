@@ -39,3 +39,4 @@ const files=['095_farm_v3_world.sql','096_avatar_parts.sql','097_representative_
 const upgrade=files.map(name=>`-- ${name}\n`+fs.readFileSync(path.join(dir,name),'utf8').replace(/^begin;\s*/i,'').replace(/commit;\s*$/i,''));
 fs.writeFileSync(path.join(root,'supabase/operations/2026-10-15-upgrade-farm-v3.sql'),`-- Apply after 094. Safe for partially upgraded farms; runs atomically.\nbegin;\n\n${upgrade.join('\n\n')}\ncommit;\n`);
 console.log('Generated 102: free five-hour watering and atomic 095-102 upgrade.');
+require('./build-farm-v3-fish-sql.cjs');

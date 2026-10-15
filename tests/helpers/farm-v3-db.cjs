@@ -3,7 +3,7 @@ const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
 const root=path.resolve(__dirname,'../..');
 const user='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
 const source=name=>fs.readFileSync(path.join(root,'supabase/migrations',name),'utf8');
-async function createDatabase({characters=true,positions=true,speech=true,paths=true,decor=true,watering=true}={}){
+async function createDatabase({characters=true,positions=true,speech=true,paths=true,decor=true,watering=true,fishPaths=true}={}){
   const db=new PGlite();
   const scalar=async(sql,params)=>(Object.values((await db.query(sql,params)).rows[0]||{}))[0];
   const setUser=id=>scalar("select set_config('app.test_user',$1,false)",[id||'']);
@@ -40,7 +40,7 @@ async function createDatabase({characters=true,positions=true,speech=true,paths=
   for(const name of ['farm_action_begin','farm_action_finish','cleanup_stale_farm_actions'])await migrateFunction('051_farm_catalogs_and_action_log.sql',name);
   for(const name of ['lock_my_farm_actions','begin_my_farm_action'])await migrateFunction('078_retire_farm_decorations.sql',name);
   for(const name of ['refund_retired_farm_pass','complete_my_task','uncomplete_my_task'])await migrateFunction('089_retire_legacy_farm_and_mail.sql',name);
-  const context={};vm.runInNewContext(fs.readFileSync(path.join(root,'app.js'),'utf8').match(/const FARM_THEMES = [^]*?;\n/)[0],context);
+  const context={};vm.runInNewContext(fs.readFileSync(path.join(root,'app.js'),'utf8').match(/const FARM_THEMES = [^]*?;\r?\n/)[0],context);
   const themes=vm.runInNewContext('FARM_THEMES',context);
   for(const theme of themes)await db.query("insert into public.farm_cosmetic_catalog values('farm_theme',$1,2000)",[theme.id]);
   for(const migration of ['086_theme_creations.sql','087_scenery_unlock_prices.sql','088_theme_specific_creations.sql','090_space_and_tuxedo_cat_scenery.sql','094_free_scenery_access.sql','095_farm_v3_world.sql','096_avatar_parts.sql'])await db.exec(source(migration));
@@ -50,6 +50,7 @@ async function createDatabase({characters=true,positions=true,speech=true,paths=
   if(characters&&positions&&speech&&paths)await db.exec(source('100_public_plaza_and_crop_paths.sql'));
   if(characters&&positions&&speech&&paths&&decor)await db.exec(source('101_manual_farm_decorations.sql'));
   if(characters&&positions&&speech&&paths&&decor&&watering)await db.exec(source('102_farm_free_watering.sql'));
+  if(characters&&positions&&speech&&paths&&decor&&watering&&fishPaths)await db.exec(source('103_fish_species_paths_and_friends.sql'));
   await setUser(user);
   const rpc=async(name,params={})=>{
     if(name==='get_my_farm_v3_state')return scalar('select public.get_my_farm_v3_state()');

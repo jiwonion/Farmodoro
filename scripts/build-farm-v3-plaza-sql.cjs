@@ -3,7 +3,8 @@ const root=path.resolve(__dirname,'..'),dir=path.join(root,'supabase/migrations'
 const source=fs.readFileSync(path.join(dir,'097_representative_characters.sql'),'utf8');
 const extract=name=>{const match=source.match(new RegExp(`create or replace function public\\.${name}\\([^]*?\\$\\$;`));if(!match)throw Error(name);return match[0];};
 const context={window:{}};vm.runInNewContext(fs.readFileSync(path.join(root,'farm-v3-catalog.js'),'utf8'),context);
-const rows=context.window.FarmV3Catalog.items.filter(i=>i.kind==='character').map(i=>`('character','${i.id}','${i.name.replaceAll("'","''")}',0,${i.harvests},${i.fish},${i.cropTypes},${i.fishTypes},${i.order})`);
+// 098 is historical. The additional friends are introduced by 103.
+const rows=context.window.FarmV3Catalog.items.filter(i=>i.kind==='character').slice(0,8).map((i,index)=>`('character','${i.id}','${i.name.replaceAll("'","''")}',0,${i.harvests},${i.fish},${i.cropTypes},${i.fishTypes},${91+index})`);
 const state=extract('farm_v3_state_json').replace("'charactersVersion',1,","'charactersVersion',1,'plazaPositionVersion',1,").replace("'pose',p.plaza_pose,'zone',p.plaza_zone,","'position',jsonb_build_object('x',p.plaza_x,'y',p.plaza_y),'pose',p.plaza_pose,'zone',p.plaza_zone,");
 const action=extract('perform_my_farm_v3_action')
   .replace('appearance jsonb; decor_ids text[];','appearance jsonb; decor_ids text[]; next_x numeric; next_y numeric;')

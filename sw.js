@@ -1,19 +1,22 @@
-const CACHE_VERSION = "farmodoro-v382";
+const CACHE_VERSION = "farmodoro-v389";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
-  "./farm-v3.css?v=11",
-  "./farm-v3-catalog.js?v=7",
+  "./farm-v3.css?v=17",
+  "./farm-v3-catalog.js?v=8",
   "./farm-v3-crop-art.js?v=1",
-  "./farm-v3-character-art.js?v=3",
+  "./farm-v3-character-art.js?v=5",
   "./farm-v3-characters-view.js?v=4",
   "./farm-v3-plaza-view.js?v=3",
-  "./farm-v3-art.js?v=7",
-  "./farm-v3-views.js?v=8",
-  "./farm-v3.js?v=9",
+  "./farm-v3-art.js?v=9",
+  "./farm-v3-views.js?v=11",
+  "./farm-v3.js?v=11",
   "./assets/farm-v3/worlds-v1.png",
   "./assets/farm-v3/mascots-v1.png",
   "./assets/farm-v3/mascots-fishing-v1.png",
+  "./assets/farm-v3/mascots-expansion-v1.png",
+  "./assets/farm-v3/mascots-fishing-expansion-v1.png",
+  "./assets/farm-v3/fish-expansion-v1.png",
   "./assets/farm-v3/collectibles-v1.png",
   "./assets/garden-v2/crop-atlas.png",
   "./assets/garden-v3/plants-atlas.png",
@@ -57,7 +60,7 @@ const APP_SHELL = [
   "./assets/scenery-creations/theme-events-v1.png",
   "./assets/scenery-creations/theme-weather-v1.png",
   "./assets/scenery-creations/theme-fantasy-v1.png",
-  "./pwa-register.js?v=176",
+  "./pwa-register.js?v=177",
   "./assets/fonts/Mulmaru.woff2",
   "./assets/fonts/PretendardVariable.woff2",
   "./supabase-config.js",

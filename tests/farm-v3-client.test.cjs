@@ -5,8 +5,8 @@ const catalog=JSON.parse(JSON.stringify(catalogContext.window.FarmV3Catalog.item
 const clone=value=>JSON.parse(JSON.stringify(value)),tick=()=>new Promise(resolve=>setImmediate(resolve));
 const deferred=()=>{let resolve;return{promise:new Promise(r=>{resolve=r;}),resolve:value=>resolve(value)};};
 const run=(overrides={})=>({id:'run-1',kind:'crop',itemId:'carrot',slot:0,progress:0,cost:3,...overrides});
-function game(overrides={}){return{version:1,charactersVersion:1,plazaPositionVersion:1,plazaSpeechVersion:1,cropUnlockVersion:1,manualDecorVersion:1,coinBalance:10,profile:{nickname:'농부',characterId:'sprout-slime',decorations:[],plazaPublic:true,position:{x:50,y:65},speech:'',version:0},runs:[],collections:[],unlocks:catalog.filter(i=>!i.harvests&&!i.fish&&!i.cropTypes&&!i.fishTypes&&!i.cropRequirements?.length).map(({kind,id})=>({kind,id})),catalog:clone(catalog),...overrides};}
-function legacyGame(){const value=game();delete value.charactersVersion;delete value.plazaPositionVersion;delete value.plazaSpeechVersion;delete value.cropUnlockVersion;delete value.profile.characterId;delete value.profile.position;delete value.profile.speech;Object.assign(value.profile,{avatar:{gender:'neutral',skin:0,hair:0,style:0,outfit:'blue',hat:null},pose:'stand',zone:'square'});value.catalog=clone(catalogContext.window.FarmV3Catalog.legacyItems);value.unlocks=value.catalog.filter(i=>!i.harvests&&!i.fish&&!i.cropTypes&&!i.fishTypes).map(({kind,id})=>({kind,id}));return value;}
+function game(overrides={}){return{version:1,charactersVersion:1,plazaPositionVersion:1,plazaSpeechVersion:1,cropUnlockVersion:1,fishUnlockVersion:1,manualDecorVersion:1,coinBalance:10,profile:{nickname:'농부',characterId:'sprout-slime',decorations:[],plazaPublic:true,position:{x:50,y:65},speech:'',version:0},runs:[],collections:[],unlocks:catalog.filter(i=>!i.harvests&&!i.fish&&!i.cropTypes&&!i.fishTypes&&!i.cropRequirements?.length&&!i.fishRequirements?.length).map(({kind,id})=>({kind,id})),catalog:clone(catalog),...overrides};}
+function legacyGame(){const value=game();delete value.charactersVersion;delete value.plazaPositionVersion;delete value.plazaSpeechVersion;delete value.cropUnlockVersion;delete value.fishUnlockVersion;delete value.profile.characterId;delete value.profile.position;delete value.profile.speech;Object.assign(value.profile,{avatar:{gender:'neutral',skin:0,hair:0,style:0,outfit:'blue',hat:null},pose:'stand',zone:'square'});value.catalog=clone(catalogContext.window.FarmV3Catalog.legacyItems);value.unlocks=value.catalog.filter(i=>!i.harvests&&!i.fish&&!i.cropTypes&&!i.fishTypes).map(({kind,id})=>({kind,id}));return value;}
 const result=(value,overrides={})=>({game:value,wallet:{coinBalance:value.coinBalance,farmMoneyBalance:20},event:{kind:'grown',spentCoin:1},...overrides});
 function harness({rpc,storage=new Map(),storageFailure=false,coins=10}={}){
   const calls=[],toasts=[];let uuid=0;
@@ -243,4 +243,40 @@ test('watering rejects missing capability, completed/fish runs and malformed clo
   const complete=latest();complete.runs[0].progress=3;assert.equal(h.api.applyState(complete),true);h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
   const fish=latest();fish.runs=[run({kind:'fish',itemId:'minnow',slot:null,waterReadyAt:null})];assert.equal(h.api.applyState(fish),true);h.click('water',{run:'run-1'});await h.settle();assert.equal(h.calls.length,0);
   const badClock=latest();badClock.serverNow='invalid';assert.equal(h.api.applyState(badClock),false);
+});
+
+test('specific fish paths stay server-owned and locked fish never send a start request',async()=>{
+  const initial=game({collections:[{kind:'fish',id:'minnow',count:3}]});
+  const unlocked=game({...initial,unlocks:[...initial.unlocks,{kind:'fish',id:'carp'}],runs:[run({kind:'fish',itemId:'carp',slot:null,cost:4})]});
+  const h=harness({rpc:()=>({data:result(unlocked,{event:{kind:'started',name:'잉어'}})})});
+  assert.equal(h.api.applyState(initial),true);
+  assert.equal(initial.catalog.filter(item=>item.kind==='fish').length,24);
+  assert.equal(initial.catalog.filter(item=>item.kind==='character').length,16);
+  assert.equal(initial.unlocks.filter(item=>item.kind==='fish').length,2);
+  h.click('fish_start',{item:'carp'});await h.settle();assert.equal(h.calls.length,0,'Local catch counts cannot invent server unlocks');
+  assert.equal(h.api.applyState({...initial,unlocks:unlocked.unlocks}),true);
+  h.click('fish_start',{item:'carp'});await h.settle();assert.equal(h.calls[0].params.p_payload.itemId,'carp');
+  assert.equal(h.api.snapshot().runs[0].itemId,'carp');
+});
+
+test('fish path validation rejects malformed requirements while older servers remain usable',()=>{
+  const h=harness();
+  for(const requirements of [null,undefined,[{id:'carrot',count:3}],[{id:'carp',count:3}],[{id:'minnow',count:0}],[{id:'minnow',count:1001}],[{id:'minnow',count:1.5}],[{id:'minnow',count:3},{id:'minnow',count:4}]]){
+    const value=game();value.catalog.find(item=>item.kind==='fish'&&item.id==='carp').fishRequirements=requirements;
+    assert.equal(h.api.applyState(value),false,JSON.stringify(requirements));
+  }
+  const wrongKind=game();wrongKind.catalog.find(item=>item.kind==='crop').fishRequirements=[{id:'minnow',count:3}];assert.equal(h.api.applyState(wrongKind),false);
+  for(const capability of [null,2,'1'])assert.equal(h.api.applyState(game({fishUnlockVersion:capability})),false);
+  const old=game();delete old.fishUnlockVersion;for(const item of old.catalog)delete item.fishRequirements;
+  assert.equal(h.api.applyState(old),true);assert.equal(h.api.snapshot().fishUnlockVersion,0);
+  assert.ok(h.api.snapshot().catalog.every(item=>item.fishRequirements.length===0));
+});
+
+test('fish choices show the required species and its own collection progress',()=>{
+  const ctx={window:{FarmV3Catalog:catalogContext.window.FarmV3Catalog,FarmV3Art:{fish:()=>'',crop:()=>'',character:()=>''}}};
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../farm-v3-views.js'),'utf8'),ctx);
+  const value=game({collections:[{kind:'fish',id:'minnow',count:2}]});
+  const html=ctx.window.FarmV3Views.render({game:value,tab:'fish',slot:0,coins:10,now:Date.now()});
+  assert.match(html,/피라미 낚기 2 \/ 3회/);assert.match(html,/붕어 낚기 0 \/ 3회/);
+  assert.equal((html.match(/data-fv-action="fish_start"/g)||[]).length,24);
 });

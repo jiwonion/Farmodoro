@@ -11,3 +11,6 @@ output/imagegen/*/*.png
 docs/previews/workspace/
 output/*.png
 output/*-preview.md
+
+# Local database test dependency installed without a package lock.
+node_modules/

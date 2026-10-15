@@ -42,7 +42,7 @@
 
 - 2×2 네 칸에 무료로 심고 Coin 또는 5시간마다 무료 물주기로 성장시킨다. 시간 자동 성장·시듦·수확 재화 보상은 없다. [물주기·맵 안 조작](farm-v3-watering-and-scene-controls.md)을 따른다.
 - 낚시터에서는 고른 어종을 Coin으로 완성하고 도감에 수집한다.
-- 작물 57종·물고기 8종의 수집으로 대표 친구 8종과 농장 장식을 해금한다. 이후 작물은 특정 다른 작물의 수확 횟수로 해금한다.
+- 작물 57종·물고기 24종의 수집으로 대표 친구 16종과 농장 장식을 해금한다. 이후 작물과 어종은 특정 다른 작물의 수확 횟수·어종의 포획 횟수로 해금한다.
 - 대표 친구를 선택해 저장하며 낚시 중에는 낚싯대·찌가 있는 모습을 표시한다. 장식은 직접 선택할 때만 배치한다.
 - 로그인 사용자는 공개 광장에 자동 참여하며 저장된 대표 친구·위치·말풍선을 불러온다. 순위나 실시간 접속 표시는 없다.
 - 이전 풍경 테마·완성 기록·진행 중 대상과 Farm Money는 별도 보관한다.
@@ -80,7 +80,7 @@
 - `app.js`: 로그인, 생산성 기록, 지갑, 오늘·집중·농장 화면 통합
 - `farm-v3.js` / `farm-v3-views.js` / `farm-v3.css`: 농장·낚시·광장·대표 캐릭터·도감과 서버 연동
 - `farm-v3-catalog.js` / `farm-v3-art.js` / `farm-v3-crop-art.js`: 카탈로그와 PNG 그림 렌더링
-- `farm-v3-character-art.js` / `farm-v3-characters-view.js`: 완성된 슬라임·친구 8종 표시와 선택·진행도. `097_representative_characters.sql`이 해금과 선택을 검증·저장한다. 예전 `farm-v3-avatar.js`는 앱에서 로드하지 않는다.
+- `farm-v3-character-art.js` / `farm-v3-characters-view.js`: 완성된 슬라임·친구 16종 표시와 선택·진행도. `097_representative_characters.sql`이 해금과 선택을 검증·저장하고, `103_fish_species_paths_and_friends.sql`이 새 어종과 친구를 추가한다. 예전 `farm-v3-avatar.js`는 앱에서 로드하지 않는다.
 - `assets/farm-v3/`: 새 배경·슬라임·친구·물고기 그림과 이전 캐릭터 제작 기록
 - `scenery-creations.js` / `scenery-creations.css`: 이전 풍경 진행 복구·완성·기록
 - `scenery-creation-art.js`: 대상의 단계별 그림

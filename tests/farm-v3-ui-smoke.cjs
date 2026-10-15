@@ -48,6 +48,10 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   const tab=name=>click(`[data-fv-action="tab"][data-tab="${name}"]`);
   const view=async(width,theme='white')=>{await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await evaluate(`applyWorkspaceTheme('${theme}');`);await pause(80);const geometry=await evaluate(`({width:innerWidth,scroll:document.documentElement.scrollWidth,root:document.querySelector('#farmGameRoot').getBoundingClientRect().width,scenes:Array.from(document.querySelectorAll('#farmGameRoot .fv-scene')).map(node=>{const r=node.getBoundingClientRect();return{w:r.width,h:r.height};})})`);assert.ok(geometry.scroll<=width+1,JSON.stringify(geometry));assert.ok(geometry.root>0);for(const scene of geometry.scenes){assert.ok(Math.abs(scene.w-scene.h)<1,JSON.stringify({width,...scene}));assert.ok(scene.w<=724.5,JSON.stringify(scene));}};
   const capture=async name=>{await pause(100);const image=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(path.join(root,'output','farm-v3-'+name+'.png'),Buffer.from(image.data,'base64'));};
+  const checkFishingStatus=async()=>{
+    const gap=await evaluate(`(()=>{const fisher=document.querySelector('.fv-fisher.is-fishing'),canvas=fisher.querySelector('canvas'),label=fisher.querySelector('.fv-fishing-status');if(!label)return null;const box=canvas.getBoundingClientRect(),pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let top=canvas.height;for(let y=0;y<canvas.height&&top===canvas.height;y++)for(let x=0;x<canvas.width;x++)if(pixels[(y*canvas.width+x)*4+3]>96){top=y;break;}return box.top+top/canvas.height*box.height-label.getBoundingClientRect().bottom;})()`);
+    assert.ok(gap!==null&&gap>=2&&gap<=12,'Fishing status stays just above the painted sprite: '+gap);
+  };
   await call('Runtime.enable');await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await call('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});await settle('document.readyState === "complete"');
   await evaluate(`window.mascotDrawChecks=[];const originalMascotDraw=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(...args){if(this.canvas.width===128&&this.canvas.height===160&&args.length===9)window.mascotDrawChecks.push(Math.abs((args[7]/args[3])/(args[8]/args[4])-1));return originalMascotDraw.apply(this,args);};`);
@@ -77,6 +81,7 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   assert.equal(await evaluate("document.querySelectorAll('#farmGameRoot .fv-decor').length"),0);
   await tab('fish');await click(action('fish_start')+'[data-item="minnow"]');
   await settle("!!document.querySelector('[data-fv-character-pose=fishing][data-painted=true]')");
+  await checkFishingStatus();
   assert.equal(await evaluate("!!document.querySelector('.fv-scene-fish [data-fv-action=fish_grow]')"),true);
   await capture('fishing-active-desktop');await click(action('fish_grow')+'[data-amount="2"]');
   assert.equal(await evaluate("!!document.querySelector('.fv-scene-fish [data-fv-action=fish_claim]')"),true);
@@ -99,7 +104,7 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
     assert.deepEqual(exceptions,[]);console.log('PASS: '+serverMode+' server opens farm/fishing and saved plaza without requiring newer features.');return;
   }
   await tab('wardrobe');
-  assert.equal(await evaluate("document.querySelectorAll('.fv-character-card').length"),8);
+  assert.equal(await evaluate("document.querySelectorAll('.fv-character-card').length"),16);
   assert.equal(await evaluate("document.querySelectorAll('[data-fv-action=appearance]').length"),0);
   assert.equal(await evaluate("typeof window.FarmV3AvatarParts"),'undefined');
   assert.equal(await evaluate("document.querySelector('[data-fv-action=choose_character][data-item=royal-slime]').disabled"),true);
@@ -119,15 +124,16 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   assert.equal(await evaluate('state.coins'),afterFishing,'Character selection is free');
   const fishingArt=await evaluate(`await Promise.all(FarmV3Catalog.items.filter(i=>i.kind==='character').map(async item=>{const c=await FarmV3CharacterArt.paint(item.id,'fishing'),p=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let hash=2166136261,opaque=0;for(let i=0;i<p.length;i++){hash=Math.imul(hash^p[i],16777619);if(i%4===3&&p[i]>96)opaque++;}return{hash:hash>>>0,opaque,w:c.width,h:c.height,corners:[p[3],p[(c.width-1)*4+3],p[p.length-1]]};}))`);
   assert.ok(Array.isArray(fishingArt),JSON.stringify(fishingArt));
-  assert.equal(new Set(fishingArt.map(i=>i.hash)).size,8);for(const art of fishingArt){assert.deepEqual([art.w,art.h],[256,192]);assert.ok(art.opaque>1000);assert.deepEqual(art.corners,[0,0,0]);}
+  assert.equal(new Set(fishingArt.map(i=>i.hash)).size,16);for(const art of fishingArt){assert.deepEqual([art.w,art.h],[256,192]);assert.ok(art.opaque>1000);assert.deepEqual(art.corners,[0,0,0]);}
+  assert.equal(await evaluate(`await (async()=>{const c=await FarmV3CharacterArt.paint('berry-slime','fishing'),p=c.getContext('2d').getImageData(0,0,256,192).data;let alpha=0;for(let y=120;y<145;y++)for(let x=202;x<208;x++)alpha+=p[(y*256+x)*4+3];return alpha;})()`),0,'The strawberry fishing sprite has no neighboring mushroom fragment');
   await settle(`Array.from(document.querySelectorAll('#farmGameRoot canvas[data-fv-character]')).every(canvas=>canvas.dataset.painted==='true')`);
   await capture('characters-desktop');
   await evaluate(`(() => {const qa=document.createElement('div');qa.id='characterQA';qa.style.cssText='position:fixed;inset:0;z-index:999999;background:#f1eee4;padding:24px;display:grid;grid-template-columns:repeat(8,1fr);gap:8px;align-content:center';for(const character of FarmV3Catalog.items.filter(item=>item.kind==='character')){const cell=document.createElement('div');cell.style.cssText='background:white;border-radius:10px;text-align:center;padding:10px;font:12px sans-serif';cell.innerHTML=FarmV3Art.character(character.id)+'<span>'+character.name+'</span>';cell.querySelector('canvas').style.cssText='width:100px;height:125px;margin:auto;image-rendering:pixelated';qa.append(cell);}document.body.append(qa);void FarmV3Art.paintAll(qa);})()`);
   await settle(`Array.from(document.querySelectorAll('#characterQA canvas')).every(canvas=>canvas.dataset.painted==='true')`);
-  const mascotPixels=await evaluate(`Array.from(document.querySelectorAll('#characterQA canvas')).slice(0,8).map(canvas=>{const p=canvas.getContext('2d').getImageData(0,0,128,160).data;let hash=2166136261,opaque=0;for(let i=0;i<p.length;i++){hash=Math.imul(hash^p[i],16777619);if(i%4===3&&p[i]>96)opaque++;}return{hash:hash>>>0,opaque,corners:[p[3],p[(128-1)*4+3],p[(128*159)*4+3],p[p.length-1]]};})`);
-  assert.equal(new Set(mascotPixels.map(p=>p.hash)).size,8,'Each atlas cell must show a distinct mascot');
+  const mascotPixels=await evaluate(`Array.from(document.querySelectorAll('#characterQA canvas')).map(canvas=>{const p=canvas.getContext('2d').getImageData(0,0,128,160).data;let hash=2166136261,opaque=0;for(let i=0;i<p.length;i++){hash=Math.imul(hash^p[i],16777619);if(i%4===3&&p[i]>96)opaque++;}return{hash:hash>>>0,opaque,corners:[p[3],p[(128-1)*4+3],p[(128*159)*4+3],p[p.length-1]]};})`);
+  assert.equal(new Set(mascotPixels.map(p=>p.hash)).size,16,'Each atlas cell must show a distinct mascot');
   for(const pixels of mascotPixels){assert.ok(pixels.opaque>1000,JSON.stringify(pixels));assert.deepEqual(pixels.corners,[0,0,0,0],'Sprites keep their transparent background');}
-  const drawChecks=await evaluate('window.mascotDrawChecks');assert.ok(drawChecks.length>=8);assert.ok(drawChecks.every(error=>error<1e-10),'Whole characters preserve source aspect ratios');
+  const drawChecks=await evaluate('window.mascotDrawChecks');assert.ok(drawChecks.length>=16);assert.ok(drawChecks.every(error=>error<1e-10),'Whole characters preserve source aspect ratios');
   await capture('characters-all');await evaluate("document.querySelector('#characterQA').remove()");
   assert.equal(await evaluate("document.querySelector('[data-fv-decor=well]').checked"),false);
   await click('[data-fv-decor=well]');await tab('farm');assert.equal(await evaluate("document.querySelectorAll('#farmGameRoot .fv-decor-well').length"),1);
@@ -200,7 +206,7 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   await capture('farm-desktop');
   for(const width of [390,320]){
     await view(width);const sizes=await evaluate(`Array.from(document.querySelectorAll('#farmGameRoot .fv-plot')).map(node=>({w:node.getBoundingClientRect().width,h:node.getBoundingClientRect().height}))`);assert.ok(sizes.every(s=>s.w>=44&&s.h>=44),JSON.stringify(sizes));await capture('farm-'+width);
-    for(const name of ['fish','plaza','wardrobe','collection']){await tab(name);if(name==='fish'&&!(await evaluate("FarmV3.snapshot().runs.some(r=>r.kind==='fish')")))await click(action('fish_start')+'[data-item="minnow"]');await view(width);await capture(name+'-'+width);}
+    for(const name of ['fish','plaza','wardrobe','collection']){await tab(name);if(name==='fish'&&!(await evaluate("FarmV3.snapshot().runs.some(r=>r.kind==='fish')")))await click(action('fish_start')+'[data-item="minnow"]');await view(width);if(name==='fish'){await settle("!!document.querySelector('[data-fv-character-pose=fishing][data-painted=true]')");await checkFishingStatus();}await capture(name+'-'+width);}
     await tab('farm');
   }
   await view(1440,'dark');await capture('farm-dark');await view(1440,'white');
@@ -221,5 +227,5 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   assert.equal(await evaluate("document.querySelector('[data-fv-action=water]').disabled"),false);
   await tab('plaza');await settle(`document.querySelectorAll('[data-fv-public-person="true"]').length===2`);
   assert.deepEqual(exceptions,[]);
-  console.log('PASS: real RPC watering/cooldown persistence, free growth, eight whole fishing sprites, in-scene Coin/harvest/claim controls, centred selection/focus border, desktop/mobile, negative Coin watering, collections, characters/plaza and older-server compatibility. Screenshots: output/farm-v3-*.png');
+  console.log('PASS: real RPC watering/cooldown persistence, free growth, sixteen whole fishing sprites, in-scene Coin/harvest/claim controls, centred selection/focus border, desktop/mobile, negative Coin watering, collections, characters/plaza and older-server compatibility. Screenshots: output/farm-v3-*.png');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{ws?.close();chrome?.kill();server?.close();await database?.db.close();});

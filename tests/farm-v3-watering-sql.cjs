@@ -34,7 +34,8 @@ const stable=game=>{game=JSON.parse(JSON.stringify(game));delete game.serverNow;
     await setUser(other);await state();await assert.rejects(act('water',{runId:secondId,userId:user}),/RUN_NOT_FOUND/);
     await setUser(user);await db.exec('set role authenticated');await assert.rejects(db.exec('update public.farm_v3_runs set last_watered_at=null'),/permission denied/);await db.exec('reset role');
     const final=stable(await state());await db.exec(h.source('102_farm_free_watering.sql'));assert.deepEqual(stable(await state()),final);
-    await db.exec(fs.readFileSync(path.join(__dirname,'../supabase/operations/2026-10-15-upgrade-farm-v3.sql'),'utf8'));assert.deepEqual(stable(await state()),final);
+    await db.exec(h.source('103_fish_species_paths_and_friends.sql'));const latest=stable(await state());
+    await db.exec(fs.readFileSync(path.join(__dirname,'../supabase/operations/2026-10-15-upgrade-farm-v3.sql'),'utf8'));assert.deepEqual(stable(await state()),latest);
     await setUser(null);await assert.rejects(act('water',{runId:secondId}),/Authentication/);
     console.log('PASS: safe upgrade, immediate free +1 even with negative Coin, exact five-hour boundary, server cooldown/tamper rejection, durable retries and concurrent clicks, no withering/time growth, new-plant/plot independence, harvest, fish/other-user denial, RLS and atomic reapply.');
   }finally{await db.close();}

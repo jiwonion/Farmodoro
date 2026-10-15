@@ -7,7 +7,7 @@ const extract=(source,name)=>{const match=source.match(new RegExp(`create or rep
 const context={window:{}};vm.runInNewContext(fs.readFileSync(path.join(root,'farm-v3-catalog.js'),'utf8'),context);
 // 097 is historical. Later difficulty changes are written by 098.
 const initialRequirements=[[0,0],[0,1],[3,0],[6,0],[10,0],[5,5],[0,12],[25,20]];
-const characters=context.window.FarmV3Catalog.items.filter(item=>item.kind==='character').map((item,index)=>({...item,harvests:initialRequirements[index][0],fish:initialRequirements[index][1]}));
+const characters=context.window.FarmV3Catalog.items.filter(item=>item.kind==='character').slice(0,8).map((item,index)=>({...item,harvests:initialRequirements[index][0],fish:initialRequirements[index][1],order:91+index}));
 const rows=characters.map(i=>`('character','${i.id}','${i.name.replaceAll("'","''")}',0,${i.harvests},${i.fish},${i.cropTypes},${i.fishTypes},${i.order})`);
 const active="('crop','fish','decor','character')";
 const refresh=extract(base,'farm_v3_refresh_unlocks').replace('where c.need_harvests',`where c.kind in ${active} and c.need_harvests`);
