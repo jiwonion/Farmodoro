@@ -493,6 +493,7 @@ async function applyAuthSession(session) {
     farmSessionGeneration += 1;
 
     window.SceneryCreations?.reset();
+    window.FarmV3?.reset();
   }
   authGate.hidden = isSignedIn;
   document.body.classList.toggle("auth-gated", !isSignedIn);
@@ -1061,8 +1062,6 @@ let lastHabitHeatmapDate = "";
 let selectedHabitDate = null;
 let farmRealtimeChannel = null;
 let farmContentRealtimeRefreshTimer = null;
-let farmLeaderboard = [];
-let farmLeaderboardStatus = "idle";
 
 const taskForm = document.querySelector("#taskForm");
 const taskInput = document.querySelector("#taskInput");
@@ -1129,6 +1128,7 @@ let editingHabitId = null;
 function resetFarmDataDatabaseState() {
   farmSessionGeneration += 1;
   window.SceneryCreations?.reset();
+  window.FarmV3?.reset();
   stopFarmRealtime();
   farmDataHydrated = false;
   farmDataUserId = null;
@@ -1138,8 +1138,6 @@ function resetFarmDataDatabaseState() {
   farmDataLoadPending = null;
   farmActionChain = Promise.resolve();
   state.legacySettlement = null;
-  farmLeaderboard = [];
-  farmLeaderboardStatus = "idle";
 }
 
 function captureFarmState() {
@@ -1208,7 +1206,7 @@ function startFarmRealtime(user) {
     supabaseClient.channel(`scenery:${user.id}`).on("postgres_changes", {
       event: "*", schema: "public", table: "farm_wallets", filter: `user_id=eq.${user.id}`,
     }, () => scheduleFarmWalletRealtimeRefresh(user)),
-    ["farms", "farm_cosmetics", "farm_weekly_earnings", "farm_scenery_creations", "farm_scenery_unlocked_types"],
+    ["farms", "farm_cosmetics", "farm_scenery_creations", "farm_scenery_unlocked_types", "farm_v3_profiles", "farm_v3_runs", "farm_v3_collections", "farm_v3_unlocks"],
     user.id, () => {
       if (Date.now() >= farmContentRealtimeMutedUntil) scheduleFarmContentRealtimeRefresh(user.id);
     },
@@ -1283,6 +1281,10 @@ async function fetchFarmDataFromDatabase(user) {
   farmDataHydrated = true;
   if (window.SceneryCreations) {
     await window.SceneryCreations.load(user);
+    if (!current()) return;
+  }
+  if (window.FarmV3) {
+    await window.FarmV3.load(user);
     if (!current()) return;
   }
   const nextSignature = farmRenderSignature();
@@ -2860,33 +2862,12 @@ function getFarmWeekStart(date = new Date()) {
   return toLocalDateString(monday);
 }
 
-function getFarmRankings(userScore = state.weeklyFarmMoneyEarned) {
-  if (farmLeaderboard.length) return farmLeaderboard.map((farmer) => farmer.isMe
-    ? { ...farmer, farmName: state.farmName || "내 농장" }
-    : farmer);
-  return [
-    {
-      farmName: state.farmName || "내 농장",
-      displayName: currentProfile?.display_name || "농부",
-      score: userScore,
-      isMe: true,
-    },
-  ].sort((first, second) => second.score - first.score || Number(second.isMe) - Number(first.isMe));
-}
-
 function ensureWeeklyFarmRanking() {
   const currentWeekStart = getFarmWeekStart();
   if (state.farmRankingWeekStart === currentWeekStart) return false;
   state.farmRankingWeekStart = currentWeekStart;
   state.weeklyFarmMoneyEarned = 0;
   return true;
-}
-
-function formatFarmRankingWeek() {
-  const start = new Date(`${state.farmRankingWeekStart}T12:00:00`);
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  return `${start.getMonth() + 1}월 ${start.getDate()}일 ― ${end.getMonth() + 1}월 ${end.getDate()}일`;
 }
 
 function persistPendingFocusEvents() {
@@ -3619,96 +3600,6 @@ async function savePastHabitRecord(habit, date, progress, completionLevel = "max
   }
 }
 
-async function loadFarmLeaderboard() {
-  if (!supabaseClient || !activeAuthUser) return;
-  const requestedUserId = activeAuthUser.id;
-  farmLeaderboardStatus = "loading";
-
-  try {
-    const { data, error } = await supabaseClient.rpc("get_farm_leaderboard", {});
-    if (activeAuthUser?.id !== requestedUserId) return;
-    if (error) throw error;
-    farmLeaderboard = (data ?? []).map((farmer) => ({
-      rank: Number(farmer.rank_position),
-      farmCode: String(farmer.farm_code || "").toUpperCase(),
-      farmName: farmer.farm_name || "이름 없는 농장",
-      displayName: farmer.display_name || "농부",
-      score: Number(farmer.earned_farm_money ?? 0),
-      isMe: Boolean(farmer.is_me),
-    }));
-    farmLeaderboardStatus = "ready";
-  } catch (error) {
-    if (activeAuthUser?.id !== requestedUserId) return;
-    console.warn("Farmodoro leaderboard could not be loaded", error);
-    farmLeaderboardStatus = "error";
-  } finally {
-    if (activeAuthUser?.id === requestedUserId) renderFarmRanking();
-  }
-}
-
-function renderFarmRanking() {
-  const weekLabel = document.querySelector("#farmRankingWeekLabel");
-  const weeklyEarned = document.querySelector("#weeklyFarmMoneyEarned");
-  const myRankLabel = document.querySelector("#farmRankingMyRank");
-  const rankingPodium = document.querySelector("#farmRankingPodium");
-  const rankingList = document.querySelector("#farmRankingList");
-  if (!weekLabel || !weeklyEarned || !myRankLabel || !rankingPodium || !rankingList) return;
-
-  ensureWeeklyFarmRanking();
-  const rankings = getFarmRankings();
-
-  weekLabel.textContent = formatFarmRankingWeek();
-  weeklyEarned.textContent = state.weeklyFarmMoneyEarned.toLocaleString("ko-KR");
-  const myRank = rankings.findIndex((farmer) => farmer.isMe);
-  myRankLabel.textContent = myRank >= 0 ? `현재 ${myRank + 1}위` : "순위 집계 중";
-
-  rankingPodium.innerHTML = [2, 1, 3]
-    .map((rank) => {
-      const farmer = rankings[rank - 1];
-      if (!farmer) {
-        return `
-          <article class="farm-podium-place is-empty" data-rank="${rank}">
-            <span class="farm-podium-medal">${rank}</span>
-            <div class="farm-podium-farmer"><strong>도전자 대기</strong><small>아직 자리가 비어 있어</small></div>
-            <strong class="farm-podium-score">-</strong>
-            <i aria-hidden="true">${rank}</i>
-          </article>
-        `;
-      }
-      return `
-        <article class="farm-podium-place ${farmer.isMe ? "is-me" : ""}" data-rank="${rank}">
-          <span class="farm-podium-medal">${rank === 1 ? "🏆" : rank === 2 ? "🥈" : "🥉"}</span>
-          <div class="farm-podium-farmer">
-            <strong class="farm-ranking-farm-title">${escapeHtml(farmer.farmName)}</strong>
-            <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
-          </div>
-          <strong class="farm-podium-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
-          <i aria-hidden="true">${rank}</i>
-        </article>
-      `;
-    })
-    .join("");
-
-  const remainingRankings = rankings.slice(3);
-  rankingList.innerHTML = remainingRankings.length
-    ? remainingRankings
-    .map((farmer, index) => {
-      const rank = index + 4;
-      return `
-        <li class="farm-ranking-row ${farmer.isMe ? "is-me" : ""}">
-          <span class="farm-ranking-rank">${rank}</span>
-          <span class="farm-ranking-name">
-            <strong class="farm-ranking-farm-title">${escapeHtml(farmer.farmName)}</strong>
-            <small>${escapeHtml(farmer.displayName)}${farmer.isMe ? " · 나" : ""}</small>
-          </span>
-          <strong class="farm-ranking-score">✦ ${farmer.score.toLocaleString("ko-KR")}</strong>
-        </li>
-      `;
-    })
-    .join("")
-    : '<li class="farm-ranking-row farm-ranking-empty">4위 이하의 농장이 아직 없어</li>';
-}
-
 const COSMETIC_TYPE_LABELS = {
   farm_theme: "풍경 테마",
 };
@@ -3769,7 +3660,7 @@ function renderFarm() {
   if (balance) balance.textContent = state.farmMoney;
   renderTodayFarmPreview();
   renderFarmDashboard();
-  renderFarmRanking();
+  window.FarmV3?.render();
   window.SceneryCreations?.render();
   renderFocusFarmBackground();
   refreshOpenSceneryPreview();
@@ -3848,6 +3739,19 @@ const SUMMARY_PROGRESS_SEGMENTS = 10;
 
 function renderTodayFarmPreview() {
   const plots = document.querySelector("#todayFarmPlots");
+  if (plots && window.FarmV3?.snapshot()) {
+    const game = window.FarmV3.snapshot();
+    plots.classList.add("fv-preview");
+    plots.innerHTML = window.FarmV3.previewMarkup();
+    void window.FarmV3Art?.paintAll(plots);
+    document.querySelector(".today-farm-landscape").style.backgroundImage = "none";
+    document.querySelector("#todayFarmStatus").innerHTML = '<strong>내 작은 농장</strong><span>' + game.runs.filter(run => run.kind === "crop").length + ' / 4칸 재배 중</span>';
+    document.querySelector("#previewFarmMoney").textContent = state.coins;
+    document.querySelector("#previewFarmCurrency").textContent = "Coin";
+    document.querySelector("#todaySceneryProgress").hidden = true;
+    return;
+  }
+  plots?.classList.remove("fv-preview");
   if (plots) {
     const scenery = window.SceneryCreations?.snapshot?.();
     const creation = scenery?.activeCreation;
@@ -3862,6 +3766,7 @@ function renderTodayFarmPreview() {
       landscape.style.backgroundPosition = `${art.x}% ${art.y}%`;
     }
     document.querySelector("#previewFarmMoney").textContent = state.farmMoney;
+    document.querySelector("#previewFarmCurrency").textContent = "Farm";
     const info = creation ? window.SceneryCreations?.progressInfo(creation) : null;
     const preset = window.SceneryThemePresets?.theme(state.equippedFarmTheme);
     const status = document.querySelector("#todayFarmStatus");
@@ -7015,22 +6920,10 @@ async function equipFarmCosmetic(button) {
   render();
 }
 
-const farmRankingModal = document.querySelector("#farmRankingModal");
-document.querySelector("#openFarmRanking").addEventListener("click", async () => {
-  await loadFarmLeaderboard();
-  renderFarmRanking();
-  farmRankingModal.classList.remove("hidden");
-});
-farmRankingModal.addEventListener("click", (event) => {
-  if (event.target.closest("[data-close-farm-ranking]")) {
-    farmRankingModal.classList.add("hidden");
-  }
-});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     if (closeThemedDateCalendar()) return;
     closeUserSettings();
-    farmRankingModal.classList.add("hidden");
     if (editingTaskId) closeTaskInlineEdit();
     closeHabitModal();
     closeHabitDeleteModal();
@@ -7199,6 +7092,14 @@ function renderFocusFarmBackground() {
   const stage = document.querySelector("#focusPageStage");
   stage.querySelector(".focus-farm-background")?.remove();
   if (document.querySelector("#toggleFocusFarmBackground").getAttribute("aria-pressed") !== "true") return;
+  if (window.FarmV3?.snapshot()) {
+    const background = document.createElement("div");
+    background.className = "focus-farm-background fv-focus-background";
+    background.setAttribute("aria-hidden", "true"); background.inert = true;
+    background.innerHTML = window.FarmV3.previewMarkup();
+    stage.prepend(background); void window.FarmV3Art?.paintAll(background);
+    return;
+  }
   const source = document.querySelector("#sceneryCreationScene");
   if (!source) return;
   const scene = source.cloneNode(true);
@@ -7710,7 +7611,7 @@ function showPage(page) {
     link.classList.toggle("active", link.dataset.page === validPage);
   });
 
-  const titles = { today: "오늘", tasks: "할 일", habits: "습관", focus: "집중", farm: "내 풍경" };
+  const titles = { today: "오늘", tasks: "할 일", habits: "습관", focus: "집중", farm: "내 농장" };
   document.title = `${titles[validPage]} · Farmodoro`;
   renderTasks();
   renderHabits();

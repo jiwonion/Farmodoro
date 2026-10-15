@@ -358,7 +358,7 @@ test("checking a past habit saves the displayed date even if navigation changes 
   const handlerSource = source.match(/document\.querySelector\("#habitList"\)\.addEventListener\("click",[^]*?^\}\);/m);
   assert.ok(handlerSource, "The habit click handler is available independently of farm controls");
   vm.runInContext(handlerSource[0], ctx);
-  const button = { dataset: { toggleHabit: "habit" }, disabled: false };
+  const button = { dataset: { toggleHabit: "habit" }, disabled: false, matches: () => false };
   const event = { target: { closest: (selector) => selector === "[data-toggle-habit]" ? button : null } };
   const pending = handler(event);
   await handler(event);

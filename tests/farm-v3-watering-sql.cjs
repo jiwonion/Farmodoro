@@ -1,0 +1,41 @@
+const assert=require('node:assert/strict'),{randomUUID}=require('node:crypto'),fs=require('node:fs'),path=require('node:path');
+const {createDatabase}=require('./helpers/farm-v3-db.cjs');
+const stable=game=>{game=JSON.parse(JSON.stringify(game));delete game.serverNow;return game;};
+(async()=>{
+  const h=await createDatabase({watering:false}),{db,scalar,setUser,rpc,user,other}=h;
+  const state=()=>rpc('get_my_farm_v3_state');
+  const act=(action,payload={},request=randomUUID())=>rpc('perform_my_farm_v3_action',{p_action:action,p_payload:payload,p_request_id:request});
+  try{
+    await state();const started=await act('plant',{itemId:'carrot',slot:0}),id=started.game.runs[0].id;
+    const before=await state();await db.exec(h.source('102_farm_free_watering.sql'));let game=await state();
+    assert.equal(game.wateringVersion,1);assert.equal(game.runs[0].waterReadyAt,null);
+    const oldShape=stable(game);delete oldShape.wateringVersion;for(const run of oldShape.runs)delete run.waterReadyAt;assert.deepEqual(oldShape,before);
+    await db.query('update public.farm_wallets set coin_balance=-3,farm_money_balance=789 where user_id=$1',[user]);
+    const request=randomUUID(),watered=await act('water',{runId:id,amount:100},request);
+    assert.equal(watered.game.runs[0].progress,1);assert.equal(watered.wallet.coinBalance,-3);assert.equal(watered.wallet.farmMoneyBalance,789);
+    assert.equal(Date.parse(watered.game.runs[0].waterReadyAt)-Date.parse(watered.game.serverNow),5*3600000);
+    assert.equal((await act('water',{runId:id},request)).game.runs[0].progress,1);
+    await assert.rejects(act('water',{runId:id,waterReadyAt:'2000-01-01',lastWateredAt:null}),/WATER_COOLDOWN/);
+    assert.equal(Number(await scalar('select count(*) from public.farm_wallet_ledger where user_id=$1',[user])),0);
+    await db.exec('begin');await db.query("update public.farm_v3_runs set last_watered_at=now()-interval '5 hours'+interval '1 microsecond' where id=$1",[id]);
+    await assert.rejects(act('water',{runId:id}),/WATER_COOLDOWN/);await db.exec('rollback');
+    await db.exec('begin');await db.query("update public.farm_v3_runs set last_watered_at=now()-interval '5 hours' where id=$1",[id]);
+    assert.equal((await act('water',{runId:id})).game.runs[0].progress,2);await db.exec('commit');
+    await db.query("update public.farm_v3_runs set started_at=now()-interval '60 days',last_watered_at=now()-interval '6 hours' where id=$1",[id]);
+    game=await state();assert.equal(game.runs[0].progress,2,'No time growth or withering');
+    const results=await Promise.allSettled([act('water',{runId:id}),act('water',{runId:id})]);assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+    assert.equal((await state()).runs[0].progress,3);await assert.rejects(act('water',{runId:id}),/COMPLETE/);
+    await act('harvest',{runId:id});assert.equal((await state()).collections.find(c=>c.id==='carrot').count,1);
+    await assert.rejects(act('water',{runId:id}),/RUN_NOT_FOUND/);
+    const fresh=await act('plant',{itemId:'carrot',slot:0});assert.equal(fresh.game.runs[0].waterReadyAt,null);
+    await act('water',{runId:fresh.game.runs[0].id});const second=await act('plant',{itemId:'potato',slot:1});
+    const secondId=second.game.runs.find(r=>r.slot===1).id;assert.equal((await act('water',{runId:secondId})).game.runs.find(r=>r.slot===1).progress,1);
+    const fish=await act('fish_start',{itemId:'minnow'});await assert.rejects(act('water',{runId:fish.game.runs.find(r=>r.kind==='fish').id}),/RUN_NOT_FOUND/);
+    await setUser(other);await state();await assert.rejects(act('water',{runId:secondId,userId:user}),/RUN_NOT_FOUND/);
+    await setUser(user);await db.exec('set role authenticated');await assert.rejects(db.exec('update public.farm_v3_runs set last_watered_at=null'),/permission denied/);await db.exec('reset role');
+    const final=stable(await state());await db.exec(h.source('102_farm_free_watering.sql'));assert.deepEqual(stable(await state()),final);
+    await db.exec(fs.readFileSync(path.join(__dirname,'../supabase/operations/2026-10-15-upgrade-farm-v3.sql'),'utf8'));assert.deepEqual(stable(await state()),final);
+    await setUser(null);await assert.rejects(act('water',{runId:secondId}),/Authentication/);
+    console.log('PASS: safe upgrade, immediate free +1 even with negative Coin, exact five-hour boundary, server cooldown/tamper rejection, durable retries and concurrent clicks, no withering/time growth, new-plant/plot independence, harvest, fish/other-user denial, RLS and atomic reapply.');
+  }finally{await db.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

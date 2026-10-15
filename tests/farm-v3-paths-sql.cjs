@@ -1,0 +1,40 @@
+const assert=require('node:assert/strict'),{randomUUID}=require('node:crypto'),fs=require('node:fs'),path=require('node:path');
+const {createDatabase}=require('./helpers/farm-v3-db.cjs');
+(async()=>{
+  const h=await createDatabase({paths:false}),{db,scalar,setUser,rpc,user,other}=h;
+  const state=()=>rpc('get_my_farm_v3_state');
+  const act=(action,payload={},request=randomUUID())=>rpc('perform_my_farm_v3_action',{p_action:action,p_payload:payload,p_request_id:request});
+  try{
+    await state();await db.query("insert into public.farm_v3_collections(user_id,kind,item_id,total) values($1,'crop','carrot',20)",[user]);
+    const old=await state(),oldCrops=old.unlocks.filter(i=>i.kind==='crop');assert.ok(oldCrops.some(i=>i.id==='pepper'));
+    await db.query("update public.farm_v3_profiles set plaza_message='기존 대사',plaza_x=32,plaza_y=68 where user_id=$1",[user]);
+    await db.exec(h.source('100_public_plaza_and_crop_paths.sql'));
+    let game=await state();assert.equal(game.plazaAllUsersVersion,1);assert.equal(game.cropUnlockVersion,1);assert.equal(game.profile.plazaPublic,true);
+    assert.equal(game.profile.speech,'기존 대사');assert.deepEqual(game.profile.position,{x:32,y:68});assert.deepEqual(game.unlocks.filter(i=>i.kind==='crop'),oldCrops);
+    await setUser(other);game=await state();assert.equal(game.profile.plazaPublic,true);assert.equal((await rpc('get_farm_v3_plaza')).total,2);
+    const crops=game.catalog.filter(i=>i.kind==='crop'),owned=id=>game.unlocks.some(i=>i.kind==='crop'&&i.id===id);
+    assert.equal(crops.length,57);assert.equal(crops.filter(c=>!c.cropRequirements.length).length,5);assert.equal(game.unlocks.filter(i=>i.kind==='crop').length,5);
+    const reachable=new Set(crops.filter(c=>!c.cropRequirements.length).map(c=>c.id));
+    for(let pass=0;pass<57;pass++)for(const crop of crops)if(crop.cropRequirements.every(req=>reachable.has(req.id)))reachable.add(crop.id);
+    assert.equal(reachable.size,57,'No dead ends or cycles');assert.equal(crops.every(c=>c.harvests===0),true);
+    assert.deepEqual(crops.find(c=>c.id==='corn').cropRequirements,[{id:'carrot',count:3}]);
+    assert.deepEqual(crops.find(c=>c.id==='onion').cropRequirements,[{id:'corn',count:4}]);
+    await assert.rejects(act('plant',{itemId:'corn',slot:0}),/LOCKED/);
+    await db.query("insert into public.farm_v3_collections(user_id,kind,item_id,total) values($1,'crop','carrot',500)",[other]);
+    game=await state();assert.equal(owned('corn'),true);assert.equal(owned('sweetPotato'),false);assert.equal(owned('onion'),false);assert.equal(owned('sweetCorn'),false);
+    await db.query("insert into public.farm_v3_collections(user_id,kind,item_id,total) values($1,'crop','corn',3)",[other]);
+    game=await state();assert.equal(owned('onion'),false);
+    await db.query('update public.farm_wallets set coin_balance=20 where user_id=$1',[other]);
+    const started=await act('plant',{itemId:'corn',slot:0}),run=started.game.runs[0];await act('grow',{runId:run.id,amount:4});
+    const request=randomUUID(),harvest=await act('harvest',{runId:run.id},request);game=harvest.game;
+    assert.equal(owned('onion'),true);assert.equal(owned('sweetPotato'),false);assert.ok(harvest.event.unlocks.some(i=>i.kind==='crop'&&i.id==='onion'));
+    await act('harvest',{runId:run.id},request);assert.equal((await state()).collections.find(c=>c.id==='corn').count,4);
+    const saved=await act('plaza',{version:game.profile.version,nickname:'자동 참여',public:false,speech:'버튼 없이 참여',position:{x:65,y:70}});
+    assert.equal(saved.game.profile.plazaPublic,true);assert.equal((await rpc('get_farm_v3_plaza')).total,2);
+    assert.equal((await rpc('get_farm_v3_plaza')).items.find(i=>i.isMe).speech,'버튼 없이 참여');
+    await db.exec('set role authenticated');await assert.rejects(db.exec('delete from public.farm_v3_crop_requirements'),/permission denied/);assert.equal(Number(await scalar('select count(*) from public.farm_v3_profiles')),1);await db.exec('reset role');
+    const final=await state();await db.exec(h.source('100_public_plaza_and_crop_paths.sql'));assert.deepEqual(await state(),final);
+    await setUser(null);await assert.rejects(rpc('get_farm_v3_plaza'),/Authentication/);
+    console.log('PASS: automatic plaza for existing/new users, old opt-out ignored, own-user privacy, crop-specific paths, 57 reachable crops, cheap harvests cannot unlock other paths, actual prerequisite harvest and retry, permanent ownership, catalog RLS, speech/positions preserved, safe atomic reapply.');
+  }finally{await db.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

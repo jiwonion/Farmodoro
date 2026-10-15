@@ -1,0 +1,63 @@
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const {PGlite}=require(process.env.PGLITE_MODULE||'@electric-sql/pglite');
+const root=path.resolve(__dirname,'../..');
+const user='00000000-0000-4000-8000-000000000001',other='00000000-0000-4000-8000-000000000002';
+const source=name=>fs.readFileSync(path.join(root,'supabase/migrations',name),'utf8');
+async function createDatabase({characters=true,positions=true,speech=true,paths=true,decor=true,watering=true}={}){
+  const db=new PGlite();
+  const scalar=async(sql,params)=>(Object.values((await db.query(sql,params)).rows[0]||{}))[0];
+  const setUser=id=>scalar("select set_config('app.test_user',$1,false)",[id||'']);
+  const migrateFunction=async(file,name)=>{
+    const match=source(file).match(new RegExp(`create or replace function public\\.${name}\\([^]*?\\$\\$;`,'i'));
+    if(!match)throw Error('Missing '+name);await db.exec(match[0]);
+  };
+  await db.exec(`
+    create role anon;create role authenticated;create schema auth;
+    create table auth.users(id uuid primary key);
+    insert into auth.users values('${user}'),('${other}');
+    create function auth.uid() returns uuid language sql as $$select nullif(current_setting('app.test_user',true),'')::uuid$$;
+    grant usage on schema auth to authenticated;
+    create publication supabase_realtime;
+    create table public.farms(user_id uuid primary key references auth.users(id) on delete cascade,farm_name text default '내 풍경',equipped_farm_theme text);
+    create table public.farm_wallets(user_id uuid primary key references auth.users(id) on delete cascade,coin_balance bigint not null default 0,farm_money_balance bigint not null default 0);
+    create table public.farm_wallet_idempotency(user_id uuid,currency text,reference_key text,primary key(user_id,currency,reference_key));
+    create table public.farm_wallet_ledger(user_id uuid,currency text,amount bigint,balance_after bigint,reason text,reference_key text);
+    create table public.farm_weekly_earnings(user_id uuid,week_start date,earned_farm_money bigint default 0,primary key(user_id,week_start));
+    create table public.farm_cosmetics(user_id uuid references auth.users(id) on delete cascade,cosmetic_type text,cosmetic_id text,primary key(user_id,cosmetic_type,cosmetic_id));
+    create table public.farm_cosmetic_catalog(cosmetic_type text,cosmetic_id text,price integer,primary key(cosmetic_type,cosmetic_id));
+    create table public.farm_action_log(user_id uuid references auth.users(id) on delete cascade,request_id uuid,action text,result jsonb,created_at timestamptz default now(),primary key(user_id,request_id));
+    create table public.farm_action_locks(user_id uuid primary key references auth.users(id) on delete cascade);
+    create function public.get_farm_leaderboard(date default null) returns jsonb language sql as $$select '[]'::jsonb$$;
+    grant execute on function public.get_farm_leaderboard(date) to authenticated;
+    create table public.tasks(id uuid primary key,user_id uuid references auth.users(id),status text default 'waiting',completed_on date,completion_reward integer default 0,completion_cycle_id uuid,completed_with_free_pass boolean default false,archived_at timestamptz);
+    create table public.farm_legacy_pass_entitlements(user_id uuid,refund_key text,amount bigint,primary key(user_id,refund_key));
+    create table public.farm_legacy_pass_refunds(user_id uuid,refund_key text,amount bigint,primary key(user_id,refund_key));
+    create function public.productivity_today() returns date language sql as $$select current_date$$;
+  `);
+  await migrateFunction('006_farm_economy_inventory_mail.sql','current_farm_week_start');
+  await migrateFunction('089_retire_legacy_farm_and_mail.sql','ensure_farm_user');
+  await migrateFunction('037_wallet_and_farm_state_hardening.sql','apply_farm_wallet_change');
+  for(const name of ['farm_action_begin','farm_action_finish','cleanup_stale_farm_actions'])await migrateFunction('051_farm_catalogs_and_action_log.sql',name);
+  for(const name of ['lock_my_farm_actions','begin_my_farm_action'])await migrateFunction('078_retire_farm_decorations.sql',name);
+  for(const name of ['refund_retired_farm_pass','complete_my_task','uncomplete_my_task'])await migrateFunction('089_retire_legacy_farm_and_mail.sql',name);
+  const context={};vm.runInNewContext(fs.readFileSync(path.join(root,'app.js'),'utf8').match(/const FARM_THEMES = [^]*?;\n/)[0],context);
+  const themes=vm.runInNewContext('FARM_THEMES',context);
+  for(const theme of themes)await db.query("insert into public.farm_cosmetic_catalog values('farm_theme',$1,2000)",[theme.id]);
+  for(const migration of ['086_theme_creations.sql','087_scenery_unlock_prices.sql','088_theme_specific_creations.sql','090_space_and_tuxedo_cat_scenery.sql','094_free_scenery_access.sql','095_farm_v3_world.sql','096_avatar_parts.sql'])await db.exec(source(migration));
+  if(characters)await db.exec(source('097_representative_characters.sql'));
+  if(characters&&positions)await db.exec(source('098_plaza_positions_and_character_goals.sql'));
+  if(characters&&positions&&speech)await db.exec(source('099_plaza_speech.sql'));
+  if(characters&&positions&&speech&&paths)await db.exec(source('100_public_plaza_and_crop_paths.sql'));
+  if(characters&&positions&&speech&&paths&&decor)await db.exec(source('101_manual_farm_decorations.sql'));
+  if(characters&&positions&&speech&&paths&&decor&&watering)await db.exec(source('102_farm_free_watering.sql'));
+  await setUser(user);
+  const rpc=async(name,params={})=>{
+    if(name==='get_my_farm_v3_state')return scalar('select public.get_my_farm_v3_state()');
+    if(name==='get_farm_v3_plaza')return scalar('select public.get_farm_v3_plaza($1)',[params.p_page??0]);
+    if(name==='perform_my_farm_v3_action')return scalar('select public.perform_my_farm_v3_action($1,$2::jsonb,$3::uuid)',[params.p_action,JSON.stringify(params.p_payload),params.p_request_id]);
+    if(name==='get_my_scenery_state')return scalar('select public.get_my_scenery_state()');
+    return null;
+  };
+  return{db,scalar,setUser,rpc,user,other,source,migrateFunction};
+}
+module.exports={createDatabase,user,other};

@@ -20,6 +20,7 @@
   };
   const THEME_NAMES = { ocean: "바다", bubbleField: "버블 들판", iceKingdom: "눈의 왕국", christmas: "크리스마스", galaxyNight: "은하수 밤", moonGarden: "달빛 정원", volcano: "화산", auroraNight: "오로라 밤", desertOasis: "사막 오아시스" };
   const ERRORS = {
+    SCENERY_ARCHIVED: "이전 풍경은 컬렉션에 보관했어. 새 농장에서 작물을 키워봐.",
     SCENERY_UNKNOWN_TYPE: "이 종류를 찾을 수 없어. 목록을 다시 불러올게.",
     SCENERY_THEME_NOT_OWNED: "보유한 테마에서 시작할 수 있어.",
     SCENERY_THEME_MISMATCH: "지금 테마에 어울리는 종류를 골라줘.",
@@ -50,7 +51,7 @@
   const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const number = value => Math.max(0, Math.floor(Number(value) || 0)).toLocaleString("ko-KR");
   const integer = value => Number.isSafeInteger(value) && value >= 0;
-  const validWallet = (value, coinKey, moneyKey) => value && value[coinKey] != null && value[moneyKey] != null && integer(Number(value[coinKey])) && integer(Number(value[moneyKey]));
+  const validWallet = (value, coinKey, moneyKey) => value && value[coinKey] != null && value[moneyKey] != null && Number.isSafeInteger(Number(value[coinKey])) && integer(Number(value[moneyKey]));
   const accountId = () => typeof activeAuthUser !== "undefined" ? activeAuthUser?.id || null : null;
   const generation = () => typeof farmSessionGeneration !== "undefined" ? farmSessionGeneration : 0;
   const selectedTheme = () => typeof state !== "undefined" ? state.equippedFarmTheme || null : null;
@@ -269,7 +270,7 @@
     const active = scenery.activeCreation;
     let params;
     if (kind === "start") {
-      if (active || !typesForTheme(selectedTheme()).includes(typeId) || !scenery.unlockedTypes.includes(typeId)) return null;
+      if (scenery.archived || active || !typesForTheme(selectedTheme()).includes(typeId) || !scenery.unlockedTypes.includes(typeId)) return null;
       params = { p_type_id: typeId, p_theme_id: selectedTheme() };
     } else if (kind === "grow") {
       const spend = Math.floor(Number(amount));
@@ -352,10 +353,11 @@
     const usedLabel = free ? "회 성장" : "Coin 사용";
     const spend5 = active ? Math.min(5, free ? Infinity : Math.max(0, Math.floor(wallet().coins)), cost - progress) : 0;
     const canAct = actionable();
+    const canStart = canAct && !scenery?.archived;
     const preparing = !!scenery && !scenery.catalog.some(candidate => candidate.id === first.id);
     const stage = active ? `${info.stage + 1} / 4단계 · ${info.stageName}` : "완성 예시";
-    const status = message || (!accountId() ? "로그인하면 내 풍경을 만들 수 있어." : loading || !scenery ? "내 풍경을 불러오는 중이야…" : free ? "버튼을 눌러 자유롭게 키워봐. Coin은 차감되지 않아." : active ? "할 일과 집중으로 모은 Coin으로 조금씩 키워봐." : preparing ? "새 테마 풍경을 준비 중이야. 서버 업데이트 후 시작할 수 있어." : "한 번에 하나씩, 오늘의 성취를 풍경으로 만들어봐.");
-    const controls = !active ? button("picker", "종류 골라 시작하기", !canAct, "choose", "", "scenery-primary") : complete ? button("claim", `보상 받기 · +${number(reward)} Farm Money`, !canAct, "claim", "", "scenery-primary") : button("grow", free ? "한 번 키우기" : "1 Coin으로 키우기", !canAct || !free && wallet().coins < 1, "grow-1", 'data-scenery-amount="1" ', "scenery-primary") + button("grow", free ? `${number(spend5 || Math.min(5, cost - progress))}번 한 번에 키우기` : `${number(spend5 || Math.min(5, cost - progress))} Coin 한 번에 쓰기`, !canAct || spend5 < 2, "grow-5", `data-scenery-amount="${spend5}" `, "scenery-secondary");
+    const status = message || (!accountId() ? "로그인하면 내 풍경을 만들 수 있어." : loading || !scenery ? "내 풍경을 불러오는 중이야…" : scenery.archived ? active ? "만들던 풍경은 무료로 마저 완성할 수 있어. 완성 기록은 그대로 보관돼." : "이전에 완성한 풍경을 보관했어. 새 농장에서 다음 수집을 시작해봐." : free ? "버튼을 눌러 자유롭게 키워봐. Coin은 차감되지 않아." : active ? "할 일과 집중으로 모은 Coin으로 조금씩 키워봐." : preparing ? "새 테마 풍경을 준비 중이야. 서버 업데이트 후 시작할 수 있어." : "한 번에 하나씩, 오늘의 성취를 풍경으로 만들어봐.");
+    const controls = !active ? button("picker", "종류 골라 시작하기", !canStart, "choose", "", "scenery-primary") : complete ? button("claim", `보상 받기 · +${number(reward)} Farm Money`, !canAct, "claim", "", "scenery-primary") : button("grow", free ? "한 번 키우기" : "1 Coin으로 키우기", !canAct || !free && wallet().coins < 1, "grow-1", 'data-scenery-amount="1" ', "scenery-primary") + button("grow", free ? `${number(spend5 || Math.min(5, cost - progress))}번 한 번에 키우기` : `${number(spend5 || Math.min(5, cost - progress))} Coin 한 번에 쓰기`, !canAct || spend5 < 2, "grow-5", `data-scenery-amount="${spend5}" `, "scenery-secondary");
     const completedCounts = scenery && ownerId === accountId()
       ? new Map(scenery.completedTypes.map(entry => [entry.typeId, entry.count])) : null;
     const cards = candidates.map(candidate => {
@@ -365,7 +367,7 @@
       let cardButton;
       if (!available) cardButton = button("start", "준비 중", true, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
       else if (!unlocked) cardButton = button("unlock", `해금 · ${number(candidate.unlockPrice)} Farm Money`, !canAct || wallet().farmMoney < candidate.unlockPrice, `unlock-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
-      else cardButton = button("start", making ? "만드는 중" : active ? "다음에 만들 수 있어" : "무료로 시작하기", !canAct || !!active, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
+      else cardButton = button("start", making ? "만드는 중" : scenery?.archived ? "컬렉션 보관" : active ? "다음에 만들 수 있어" : "무료로 시작하기", !canStart || !!active, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
       const completionCount = available && completedCounts ? `<strong>${number(completedCounts.get(candidate.id) || 0)}</strong>회` : "<strong>—</strong>";
       return `<article class="scenery-type-card${making ? " is-current" : ""}" data-scenery-card="${escape(candidate.id)}">
         <div class="scenery-type-preview">${sprite(candidate.id, making ? progress : candidate.growthCost, making ? cost : candidate.growthCost)}</div>
