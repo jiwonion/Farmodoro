@@ -55,6 +55,7 @@
   const generation = () => typeof farmSessionGeneration !== "undefined" ? farmSessionGeneration : 0;
   const selectedTheme = () => typeof state !== "undefined" ? state.equippedFarmTheme || null : null;
   const wallet = () => ({ coins: Number(state.coins) || 0, farmMoney: Number(state.farmMoney) || 0 });
+  const freeGrowth = () => ownerId === accountId() && scenery?.freeGrowth === true;
   const catalog = () => scenery?.catalog || FALLBACK_CATALOG;
   const typesForTheme = theme => window.SceneryThemePresets?.themeTypes?.(theme) || THEME_GROUPS[theme] || ["tree", "blossomTree", "goldenTree"];
   const current = (id, session) => accountId() === id && ownerId === id && generation() === session;
@@ -78,6 +79,7 @@
   }
   function validState(value) {
     if (!value || !Array.isArray(value.catalog) || !value.catalog.length || !Array.isArray(value.unlockedTypes) || !Array.isArray(value.completedTypes) || !integer(value.totalCompleted)) return false;
+    if (value.freeGrowth !== undefined && typeof value.freeGrowth !== "boolean") return false;
     const ids = new Set();
     for (const item of value.catalog) {
       if (!item || typeof item.id !== "string" || !item.id || ids.has(item.id) || typeof item.name !== "string" || !integer(item.growthCost) || !item.growthCost || !integer(item.reward) || !integer(item.unlockPrice)) return false;
@@ -176,7 +178,7 @@
   function successMessage(intent, result) {
     const name = typeById(intent.params.p_type_id)?.name || "새 풍경";
     if (intent.kind === "start") return `${name} 만들기를 시작했어.`;
-    if (intent.kind === "grow") return result.scenery.activeCreation?.progress >= result.scenery.activeCreation?.growthCost ? "풍경을 완성했어! 보상을 받아줘." : `${number(result.event?.spentCoin ?? intent.params.p_amount)} Coin으로 키웠어.`;
+    if (intent.kind === "grow") return result.scenery.activeCreation?.progress >= result.scenery.activeCreation?.growthCost ? "풍경을 완성했어! 보상을 받아줘." : result.scenery.freeGrowth === true ? `${number(result.event?.growthAdded ?? intent.params.p_amount)}번 키웠어.` : `${number(result.event?.spentCoin ?? intent.params.p_amount)} Coin으로 키웠어.`;
     if (intent.kind === "claim") return `풍경을 완성해서 ${number(result.event?.reward ?? 50)} Farm Money를 받았어.`;
     return `${name}을 해금했어. 이제 계속 선택할 수 있어.`;
   }
@@ -271,7 +273,7 @@
       params = { p_type_id: typeId, p_theme_id: selectedTheme() };
     } else if (kind === "grow") {
       const spend = Math.floor(Number(amount));
-      if (!active || !Number.isFinite(spend) || spend < 1 || spend > Math.min(wallet().coins, active.growthCost - active.progress)) return null;
+      if (!active || !Number.isFinite(spend) || spend < 1 || spend > Math.min(100, freeGrowth() ? Infinity : wallet().coins, active.growthCost - active.progress)) return null;
       params = { p_creation_id: active.id, p_amount: spend };
     } else if (kind === "claim") {
       if (!active || active.progress < active.growthCost) return null;
@@ -303,7 +305,7 @@
   function growthTimeline(item, theme, info, active) {
     const preset = window.SceneryThemePresets?.theme?.(theme);
     const labels = preset?.defaultType === item.id ? preset.stageLabels : null;
-    return `<section class="scenery-growth-timeline" aria-label="${escape(item.name)} 성장 모습"><div class="scenery-timeline-heading"><strong>${active ? "내 성장 단계" : "성장 모습 미리보기"}</strong><span>${active ? `${info.stage + 1} / 4단계` : "사용한 Coin에 따라 모습이 달라져"}</span></div><ol>${info.stageProgress.map((value, index) => `<li class="scenery-growth-step${active && info.stage === index ? " is-current" : ""}${active && info.stage > index ? " is-reached" : ""}" data-scenery-stage="${index}"${active && info.stage === index ? ' aria-current="step"' : ""}><div class="scenery-step-art">${sprite(item.id, value, info.cost)}</div><strong>${STAGE_NAMES[index]}</strong>${labels?.[index] ? `<span class="scenery-step-description">${escape(labels[index])}</span>` : ""}<span class="scenery-step-coin">${number(value)} Coin</span>${active && info.stage === index ? '<b class="scenery-step-current">지금 여기</b>' : ""}</li>`).join("")}</ol></section>`;
+    return `<section class="scenery-growth-timeline" aria-label="${escape(item.name)} 성장 모습"><div class="scenery-timeline-heading"><strong>${active ? "내 성장 단계" : "성장 모습 미리보기"}</strong><span>${active ? `${info.stage + 1} / 4단계` : freeGrowth() ? "키운 횟수에 따라 모습이 달라져" : "사용한 Coin에 따라 모습이 달라져"}</span></div><ol>${info.stageProgress.map((value, index) => `<li class="scenery-growth-step${active && info.stage === index ? " is-current" : ""}${active && info.stage > index ? " is-reached" : ""}" data-scenery-stage="${index}"${active && info.stage === index ? ' aria-current="step"' : ""}><div class="scenery-step-art">${sprite(item.id, value, info.cost)}</div><strong>${STAGE_NAMES[index]}</strong>${labels?.[index] ? `<span class="scenery-step-description">${escape(labels[index])}</span>` : ""}<span class="scenery-step-coin">${number(value)} ${freeGrowth() ? "회 성장" : "Coin"}</span>${active && info.stage === index ? '<b class="scenery-step-current">지금 여기</b>' : ""}</li>`).join("")}</ol></section>`;
   }
   function settlementPanel() {
     const settlement = typeof state !== "undefined" ? state.legacySettlement : null;
@@ -345,12 +347,15 @@
     const { progress, cost } = info;
     const reward = active?.reward ?? item.reward;
     const complete = !!active && progress >= cost;
-    const spend5 = active ? Math.min(5, Math.max(0, Math.floor(wallet().coins)), cost - progress) : 0;
+    const free = freeGrowth();
+    const unit = free ? "회" : "Coin";
+    const usedLabel = free ? "회 성장" : "Coin 사용";
+    const spend5 = active ? Math.min(5, free ? Infinity : Math.max(0, Math.floor(wallet().coins)), cost - progress) : 0;
     const canAct = actionable();
     const preparing = !!scenery && !scenery.catalog.some(candidate => candidate.id === first.id);
     const stage = active ? `${info.stage + 1} / 4단계 · ${info.stageName}` : "완성 예시";
-    const status = message || (!accountId() ? "로그인하면 내 풍경을 만들 수 있어." : loading || !scenery ? "내 풍경을 불러오는 중이야…" : active ? "할 일과 집중으로 모은 Coin으로 조금씩 키워봐." : preparing ? "새 테마 풍경을 준비 중이야. 서버 업데이트 후 시작할 수 있어." : "한 번에 하나씩, 오늘의 성취를 풍경으로 만들어봐.");
-    const controls = !active ? button("picker", "종류 골라 시작하기", !canAct, "choose", "", "scenery-primary") : complete ? button("claim", `보상 받기 · +${number(reward)} Farm Money`, !canAct, "claim", "", "scenery-primary") : button("grow", "1 Coin으로 키우기", !canAct || wallet().coins < 1, "grow-1", 'data-scenery-amount="1" ', "scenery-primary") + button("grow", `${number(spend5 || Math.min(5, cost - progress))} Coin 한 번에 쓰기`, !canAct || spend5 < 2, "grow-5", `data-scenery-amount="${spend5}" `, "scenery-secondary");
+    const status = message || (!accountId() ? "로그인하면 내 풍경을 만들 수 있어." : loading || !scenery ? "내 풍경을 불러오는 중이야…" : free ? "버튼을 눌러 자유롭게 키워봐. Coin은 차감되지 않아." : active ? "할 일과 집중으로 모은 Coin으로 조금씩 키워봐." : preparing ? "새 테마 풍경을 준비 중이야. 서버 업데이트 후 시작할 수 있어." : "한 번에 하나씩, 오늘의 성취를 풍경으로 만들어봐.");
+    const controls = !active ? button("picker", "종류 골라 시작하기", !canAct, "choose", "", "scenery-primary") : complete ? button("claim", `보상 받기 · +${number(reward)} Farm Money`, !canAct, "claim", "", "scenery-primary") : button("grow", free ? "한 번 키우기" : "1 Coin으로 키우기", !canAct || !free && wallet().coins < 1, "grow-1", 'data-scenery-amount="1" ', "scenery-primary") + button("grow", free ? `${number(spend5 || Math.min(5, cost - progress))}번 한 번에 키우기` : `${number(spend5 || Math.min(5, cost - progress))} Coin 한 번에 쓰기`, !canAct || spend5 < 2, "grow-5", `data-scenery-amount="${spend5}" `, "scenery-secondary");
     const completedCounts = scenery && ownerId === accountId()
       ? new Map(scenery.completedTypes.map(entry => [entry.typeId, entry.count])) : null;
     const cards = candidates.map(candidate => {
@@ -367,14 +372,14 @@
         <span class="scenery-type-preview-caption">${making ? `현재 성장 · ${number(info.percent)}%` : "완성 예시"}</span>
         <div class="scenery-type-heading"><h4>${escape(candidate.name)}</h4><span class="scenery-type-label">${!available ? "서버 준비 중" : unlocked ? candidate.unlockPrice === 0 ? "기본 종류" : "해금됨" : "영구 해금"}</span></div>
         <div class="scenery-type-completions"><span>누적 완성</span> <span>${completionCount}</span></div>
-        <p>${making ? `${number(progress)} / ${number(cost)} Coin 사용 · ${number(info.remaining)} Coin 남음` : `${number(candidate.growthCost)} Coin으로 완성 · 보상 ${number(candidate.reward)}`}</p>
+        <p>${making ? `${number(progress)} / ${number(cost)} ${usedLabel} · ${number(info.remaining)} ${unit} 남음` : free ? `${number(candidate.growthCost)}회 키우면 완성 · 보상 ${number(candidate.reward)}` : `${number(candidate.growthCost)} Coin으로 완성 · 보상 ${number(candidate.reward)}`}</p>
         ${cardButton}</article>`;
     }).join("");
     const history = (scenery?.completedTypes || []).filter(entry => entry.count > 0).map(entry => `<li><span class="scenery-history-art">${sprite(entry.typeId, typeById(entry.typeId).growthCost, typeById(entry.typeId).growthCost)}</span><span>${escape(typeById(entry.typeId).name)}</span><strong>${number(entry.count)}회</strong></li>`).join("");
     const retry = pending && ownerId === accountId() ? `<div class="scenery-pending"><span>아직 결과를 확인하지 못한 작업이 있어.</span>${button("retry", busy ? "확인 중…" : "같은 작업 다시 확인", !ready() || busy, "retry", "", "scenery-secondary")}</div>` : "";
     const reload = unavailable || storageError || (!scenery && !loading && accountId()) ? button("reload", "다시 불러오기", loading || busy, "reload", "", "scenery-secondary") : "";
-    const growth = active ? `<div class="scenery-growth-copy"><strong>${number(info.percent)}% 성장</strong><span>완성 보상 ${number(reward)} Farm Money</span></div><div class="scenery-growth-numbers"><span><b>${number(progress)} / ${number(cost)}</b> Coin 사용</span><span>${complete ? "완성! 보상을 받아봐" : `완성까지 <b>${number(info.remaining)} Coin</b>`}</span></div><div class="scenery-progress" role="progressbar" aria-label="${escape(item.name)} 성장" aria-valuemin="0" aria-valuemax="${cost}" aria-valuenow="${progress}" aria-valuetext="${info.percent}% · ${progress} / ${cost} Coin 사용 · ${info.remaining} Coin 남음"><span style="width:${progress / cost * 100}%"></span></div>` : '<div class="scenery-growth-copy"><strong>마음에 드는 모습으로 시작해</strong><span>기본 종류는 무료로 시작할 수 있어</span></div>';
-    const html = `<div class="scenery-creation"><article class="scenery-main-card"><header class="scenery-scene-heading"><div><span class="scenery-eyebrow">${escape(themeName(theme))} · ${active ? "나의 풍경" : "새로운 시작"}</span><h2 tabindex="-1" data-scenery-focus="creation-title">${escape(item.name)}</h2></div><span class="scenery-stage-label${complete ? " is-complete" : ""}">${stage}</span></header><div id="sceneryCreationScene" class="scenery-creation-scene${complete ? " is-complete" : ""}" role="img" aria-label="${escape(themeName(theme))}에서 ${escape(item.name)} · ${active ? `${info.percent}% 성장 · ${progress}/${cost} Coin 사용` : "완성 모습 미리보기"}">${terrain(theme)}<div class="scenery-centerpiece${!active ? " is-preview" : ""}">${sprite(item.id, active ? progress : cost, cost)}</div>${complete ? '<span class="scenery-complete-sparkle" aria-hidden="true">✦</span>' : ""}</div><div class="scenery-growth-panel">${growth}${growthTimeline(item, theme, info, !!active)}<div class="scenery-actions">${controls}${active ? button("picker", "종류 고르기", false, "choose", "", "scenery-text-button") : ""}</div>${active && !complete && wallet().coins < 1 ? '<p class="scenery-coin-note">할 일·습관·집중을 완료하면 Coin을 모을 수 있어.</p>' : ""}</div></article><div class="scenery-status-row"><p id="sceneryActionStatus" class="scenery-action-status" role="status" aria-live="polite" aria-atomic="true">${escape(status)}</p>${reload}</div>${retry}<section class="scenery-picker" aria-labelledby="sceneryPickerTitle"><div class="scenery-section-heading"><h3 id="sceneryPickerTitle" tabindex="-1" data-scenery-focus="picker-title">${escape(themeName(selectedTheme()))}에서 만들기</h3><span>한 번 해금하면 계속 선택할 수 있어</span></div>${preparing ? '<p class="scenery-theme-note">새 대표 풍경은 서버 업데이트 후 시작할 수 있어. 만들던 풍경은 계속 키울 수 있어.</p>' : ""}${active && active.themeId !== selectedTheme() ? '<p class="scenery-theme-note">지금 만드는 풍경은 그대로 이어지고, 새 테마는 다음 풍경부터 적용돼.</p>' : ""}<div class="scenery-type-grid">${cards}</div></section><section class="scenery-history" aria-labelledby="sceneryHistoryTitle"><div class="scenery-section-heading"><h3 id="sceneryHistoryTitle">완성한 풍경</h3><span>총 ${number(scenery?.totalCompleted || 0)}회 완성 · 보상 수령 기준</span></div>${history ? `<ul>${history}</ul>` : '<p class="scenery-history-empty">완성한 뒤 보상을 받으면 기록이 쌓여.</p>'}</section></div>`;
+    const growth = active ? `<div class="scenery-growth-copy"><strong>${number(info.percent)}% 성장</strong><span>완성 보상 ${number(reward)} Farm Money</span></div><div class="scenery-growth-numbers"><span><b>${number(progress)} / ${number(cost)}</b> ${usedLabel}</span><span>${complete ? "완성! 보상을 받아봐" : `완성까지 <b>${number(info.remaining)} ${unit}</b>`}</span></div><div class="scenery-progress" role="progressbar" aria-label="${escape(item.name)} 성장" aria-valuemin="0" aria-valuemax="${cost}" aria-valuenow="${progress}" aria-valuetext="${info.percent}% · ${progress} / ${cost} ${usedLabel} · ${info.remaining} ${unit} 남음"><span style="width:${progress / cost * 100}%"></span></div>` : '<div class="scenery-growth-copy"><strong>마음에 드는 모습으로 시작해</strong><span>기본 종류는 무료로 시작할 수 있어</span></div>';
+    const html = `<div class="scenery-creation"><article class="scenery-main-card"><header class="scenery-scene-heading"><div><span class="scenery-eyebrow">${escape(themeName(theme))} · ${active ? "나의 풍경" : "새로운 시작"}</span><h2 tabindex="-1" data-scenery-focus="creation-title">${escape(item.name)}</h2></div><span class="scenery-stage-label${complete ? " is-complete" : ""}">${stage}</span></header><div id="sceneryCreationScene" class="scenery-creation-scene${complete ? " is-complete" : ""}" role="img" aria-label="${escape(themeName(theme))}에서 ${escape(item.name)} · ${active ? `${info.percent}% 성장 · ${progress}/${cost} ${usedLabel}` : "완성 모습 미리보기"}">${terrain(theme)}<div class="scenery-centerpiece${!active ? " is-preview" : ""}">${sprite(item.id, active ? progress : cost, cost)}</div>${complete ? '<span class="scenery-complete-sparkle" aria-hidden="true">✦</span>' : ""}</div><div class="scenery-growth-panel">${growth}${growthTimeline(item, theme, info, !!active)}<div class="scenery-actions">${controls}${active ? button("picker", "종류 고르기", false, "choose", "", "scenery-text-button") : ""}</div>${active && !complete && !free && wallet().coins < 1 ? '<p class="scenery-coin-note">할 일·습관·집중을 완료하면 Coin을 모을 수 있어.</p>' : ""}</div></article><div class="scenery-status-row"><p id="sceneryActionStatus" class="scenery-action-status" role="status" aria-live="polite" aria-atomic="true">${escape(status)}</p>${reload}</div>${retry}<section class="scenery-picker" aria-labelledby="sceneryPickerTitle"><div class="scenery-section-heading"><h3 id="sceneryPickerTitle" tabindex="-1" data-scenery-focus="picker-title">${escape(themeName(selectedTheme()))}에서 만들기</h3><span>한 번 해금하면 계속 선택할 수 있어</span></div>${preparing ? '<p class="scenery-theme-note">새 대표 풍경은 서버 업데이트 후 시작할 수 있어. 만들던 풍경은 계속 키울 수 있어.</p>' : ""}${active && active.themeId !== selectedTheme() ? '<p class="scenery-theme-note">지금 만드는 풍경은 그대로 이어지고, 새 테마는 다음 풍경부터 적용돼.</p>' : ""}<div class="scenery-type-grid">${cards}</div></section><section class="scenery-history" aria-labelledby="sceneryHistoryTitle"><div class="scenery-section-heading"><h3 id="sceneryHistoryTitle">완성한 풍경</h3><span>총 ${number(scenery?.totalCompleted || 0)}회 완성 · 보상 수령 기준</span></div>${history ? `<ul>${history}</ul>` : '<p class="scenery-history-empty">완성한 뒤 보상을 받으면 기록이 쌓여.</p>'}</section></div>`;
     const settlement = settlementPanel();
     const signature = settlement + html;
     if (signature === renderSignature) return;

@@ -3851,6 +3851,8 @@ function renderTodayFarmPreview() {
   if (plots) {
     const scenery = window.SceneryCreations?.snapshot?.();
     const creation = scenery?.activeCreation;
+    const growthUnit = scenery?.freeGrowth === true ? "회" : "Coin";
+    const growthUsedLabel = scenery?.freeGrowth === true ? "회 성장" : "Coin 사용";
     const type = scenery?.catalog?.find((entry) => entry.id === creation?.typeId);
     const art = window.FarmGardenArt?.theme(creation ? creation.themeId : state.equippedFarmTheme);
     const landscape = document.querySelector(".today-farm-landscape");
@@ -3864,7 +3866,7 @@ function renderTodayFarmPreview() {
     const preset = window.SceneryThemePresets?.theme(state.equippedFarmTheme);
     const status = document.querySelector("#todayFarmStatus");
     status.innerHTML = creation
-      ? `<strong>${escapeHtml(type?.name || "내 풍경")}</strong><span>${creation.progress} / ${creation.growthCost} Coin · ${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}%</span><span>${creation.progress >= creation.growthCost ? "완성! 보상을 받아봐" : `완성까지 ${info?.remaining ?? creation.growthCost - creation.progress} Coin`}</span>`
+      ? `<strong>${escapeHtml(type?.name || "내 풍경")}</strong><span>${creation.progress} / ${creation.growthCost} ${growthUnit} · ${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}%</span><span>${creation.progress >= creation.growthCost ? "완성! 보상을 받아봐" : `완성까지 ${info?.remaining ?? creation.growthCost - creation.progress} ${growthUnit}`}</span>`
       : `<strong>${escapeHtml(preset?.subject || "내 풍경")}</strong><span>시작 모습 예시 · 아직 시작하지 않았어</span>`;
     const progressBar = document.querySelector("#todaySceneryProgress");
     if (progressBar) {
@@ -3872,7 +3874,7 @@ function renderTodayFarmPreview() {
       if (creation) {
         progressBar.setAttribute("aria-valuemax", String(creation.growthCost));
         progressBar.setAttribute("aria-valuenow", String(creation.progress));
-        progressBar.setAttribute("aria-valuetext", `${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}% · ${creation.progress} / ${creation.growthCost} Coin 사용`);
+        progressBar.setAttribute("aria-valuetext", `${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}% · ${creation.progress} / ${creation.growthCost} ${growthUsedLabel}`);
         progressBar.querySelector("span").style.width = `${creation.progress / creation.growthCost * 100}%`;
       }
     }
@@ -6805,6 +6807,7 @@ function renderSceneryThemePreview() {
   if (!context || !cosmeticTryonStage || !window.SceneryThemePresets || !window.SceneryCreations) return;
   const preset = window.SceneryThemePresets.theme(context.themeId);
   const snapshot = window.SceneryCreations.snapshot();
+  const growthUnit = snapshot?.freeGrowth === true ? "회" : "Coin";
   const creation = snapshot?.activeCreation;
   const actual = creation && (creation.themeId || null) === (context.themeId || null) ? creation : null;
   const typeId = actual?.typeId || preset.defaultType;
@@ -6844,8 +6847,8 @@ function renderSceneryThemePreview() {
   details.className = "scenery-preview-details";
   const stageNames = ["시작", "성장 중", "거의 완성", "완성"];
   details.innerHTML = `<div class="scenery-preview-personal" id="cosmeticPreviewProgress">${actual
-    ? `<strong>내 진행 · ${escapeHtml(name)} · ${actualInfo.progress} / ${cost} Coin · ${actualInfo.percent}%</strong><span>${actualInfo.stage + 1} / 4단계 · ${actualInfo.remaining ? `완성까지 ${actualInfo.remaining} Coin` : "완성! 보상을 받아봐"}</span>`
-    : `<strong>${escapeHtml(preset.subject)} · 완성 모습 예시</strong><span>이 테마에서 새로 만들 모습이야. 아래에서 성장 단계를 볼 수 있어.</span>`}</div><div class="scenery-preview-stage-buttons" aria-label="성장 모습 예시 선택">${actualInfo.stageProgress.map((value, index) => `<button type="button" class="scenery-preview-stage-button" data-scenery-preview-stage="${index}" aria-pressed="${selected === index}" title="${escapeHtml(labels[index])}">${stageNames[index]}<span>${value} / ${cost} Coin</span></button>`).join("")}</div>${actual ? `<button type="button" class="scenery-preview-stage-button scenery-preview-current-button" data-scenery-preview-stage="current" aria-pressed="${showingCurrent}">내 현재 모습 · ${actualInfo.progress} / ${cost} Coin</button>` : ""}<p class="scenery-preview-stage-note">단계 선택은 모습만 미리 보여줘. 내 성장 수치와 Coin은 바뀌지 않아.</p>`;
+    ? `<strong>내 진행 · ${escapeHtml(name)} · ${actualInfo.progress} / ${cost} ${growthUnit} · ${actualInfo.percent}%</strong><span>${actualInfo.stage + 1} / 4단계 · ${actualInfo.remaining ? `완성까지 ${actualInfo.remaining} ${growthUnit}` : "완성! 보상을 받아봐"}</span>`
+    : `<strong>${escapeHtml(preset.subject)} · 완성 모습 예시</strong><span>이 테마에서 새로 만들 모습이야. 아래에서 성장 단계를 볼 수 있어.</span>`}</div><div class="scenery-preview-stage-buttons" aria-label="성장 모습 예시 선택">${actualInfo.stageProgress.map((value, index) => `<button type="button" class="scenery-preview-stage-button" data-scenery-preview-stage="${index}" aria-pressed="${selected === index}" title="${escapeHtml(labels[index])}">${stageNames[index]}<span>${value} / ${cost} ${growthUnit}</span></button>`).join("")}</div>${actual ? `<button type="button" class="scenery-preview-stage-button scenery-preview-current-button" data-scenery-preview-stage="current" aria-pressed="${showingCurrent}">내 현재 모습 · ${actualInfo.progress} / ${cost} ${growthUnit}</button>` : ""}<p class="scenery-preview-stage-note">단계 선택은 모습만 미리 보여줘. 내 성장 수치와 Coin은 바뀌지 않아.</p>`;
   cosmeticTryonStage.replaceChildren(preview, details);
   if (focusKey != null) {
     Array.from(details.querySelectorAll("[data-scenery-preview-stage]")).find(button => button.dataset.sceneryPreviewStage === focusKey)?.focus({ preventScroll: true });

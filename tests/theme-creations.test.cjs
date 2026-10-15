@@ -89,6 +89,64 @@ test('server catalog and permanent unlocks determine valid starts; the active sc
   assert.equal(h.api.snapshot().activeCreation.themeId, 'ocean');
 });
 
+test('free growth enables both controls at zero Coin and uses server-confirmed growth without changing the wallet', async () => {
+  let progress = 0;
+  const h = harness({ state: { coins: 0 }, rpc: (name, params) => {
+    progress += params.p_amount;
+    return { data: result(serverState({ freeGrowth: true, activeCreation: creation({ progress }) }), {
+      wallet: { coinBalance: 0, farmMoneyBalance: 100 }, event: { spentCoin: 0, growthAdded: params.p_amount },
+    }) };
+  } });
+  h.api.applyState(serverState({ freeGrowth: true, activeCreation: creation() }));
+  for (const focus of ['grow-1', 'grow-5']) {
+    const control = h.root.innerHTML.match(new RegExp(`<button[^>]*data-scenery-focus="${focus}"[^>]*>`))?.[0];
+    assert.ok(control);
+    assert.doesNotMatch(control, /\bdisabled\b/);
+  }
+  assert.match(h.root.innerHTML, /한 번 키우기/);
+  assert.match(h.root.innerHTML, /5번 한 번에 키우기/);
+  assert.match(h.root.innerHTML, /0 \/ 20<\/b> 회 성장/);
+  assert.doesNotMatch(h.root.innerHTML, /Coin 사용|Coin 남음|scenery-coin-note/);
+  h.click('grow', undefined, '1'); await h.settle();
+  h.click('grow', undefined, '5'); await h.settle();
+  assert.deepEqual(h.calls.map(call => call.params.p_amount), [1, 5]);
+  assert.equal(h.api.snapshot().activeCreation.progress, 6);
+  assert.equal(h.ctx.state.coins, 0);
+  assert.equal(h.toasts.at(-1), '5번 키웠어.');
+  assert.match(h.root.innerHTML, /완성까지 <b>14 회<\/b>/);
+});
+
+test('free growth limits the batch to remaining progress and rejects invalid amounts', async () => {
+  const h = harness({ state: { coins: 0 }, rpc: () => ({ data: result(serverState({
+    freeGrowth: true, activeCreation: creation({ progress: 20 }),
+  }), { wallet: { coinBalance: 0, farmMoneyBalance: 100 }, event: { spentCoin: 0, growthAdded: 2 } }) }) });
+  h.api.applyState(serverState({ freeGrowth: true, activeCreation: creation({ progress: 18 }) }));
+  assert.match(h.root.innerHTML, /2번 한 번에 키우기/);
+  for (const amount of ['0', '-1', '5', '101', 'NaN']) h.click('grow', undefined, amount);
+  await h.settle();
+  assert.equal(h.calls.length, 0);
+  h.click('grow', undefined, '2'); await h.settle();
+  assert.equal(h.calls.length, 1);
+  assert.match(h.root.innerHTML, /보상 받기/);
+  assert.equal(h.ctx.state.coins, 0);
+});
+
+test('databases without free-growth support keep Coin checks and reject a malformed mode flag', async () => {
+  const h = harness({ state: { coins: 0 } });
+  for (const freeGrowth of [undefined, false]) {
+    assert.equal(h.api.applyState(serverState({ freeGrowth, activeCreation: creation() })), true);
+    assert.match(h.root.innerHTML, /data-scenery-focus="grow-1"[^>]*\bdisabled\b/);
+    h.click('grow', undefined, '1'); await h.settle();
+    assert.equal(h.calls.length, 0);
+  }
+  assert.equal(h.api.applyState(serverState({ freeGrowth: 'true' })), false);
+  h.api.applyState(serverState({ freeGrowth: true, activeCreation: creation() }));
+  h.ctx.activeAuthUser = { id: 'user-b' }; h.ctx.farmSessionGeneration += 1;
+  h.click('grow', undefined, '1'); await h.settle();
+  assert.equal(h.calls.length, 0, 'a previous account cannot confer free growth on the new session');
+  assert.equal(h.api.snapshot(), null);
+});
+
 test('rapid growth clicks send one durable action, wait for the shared action queue, and spend only after confirmation', async () => {
   const queue = deferred();
   const response = deferred();
