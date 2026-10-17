@@ -132,7 +132,38 @@
 }
 @media (max-width: 900px) {body #focusPage .focus-item-picker { max-width: none; }body #focusPage .focus-stage-actions { justify-content: flex-start; }
 }
-@media (max-width: 700px) {body #focusPage .focus-page-stage {
+@media (max-width: 700px) {
+  /* Keep the timer and mode switch aligned above the full-width controls. */
+  body #todayPage #focusCard {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "timer mode" "target target" "controls controls";
+    align-items: center;
+    padding: 0;
+    border-bottom: 0 !important;
+  }
+  body #todayPage #focusCard .focus-copy { display: contents; }
+  body #todayPage #focusCard .focus-visual {
+    grid-area: timer;
+    width: 100%;
+    height: auto;
+  }
+  body #todayPage #focusCard .timer-ring { justify-items: start; }
+  body #todayPage #focusCard .timer-ring > div { padding: 0; }
+  body #todayPage #focusCard .focus-mode-row {
+    grid-area: mode;
+    display: flex;
+    justify-content: flex-end;
+    justify-self: end;
+    width: auto;
+    margin: 0;
+  }
+  body #todayPage #focusCard #focusTarget {
+    grid-area: target;
+    overflow-wrap: anywhere;
+  }
+  body #todayPage #focusCard .focus-controls { grid-area: controls; }
+
+  body #focusPage .focus-page-stage {
     height: auto !important;
     min-height: 0 !important;
   }body #focusPage .focus-page-stage .focus-stage-toolbar {
@@ -149,4 +180,13 @@
     padding: 24px 14px 32px;
     gap: 20px;
   }body #focusPage .focus-page-stage .focus-card.standalone .timer-ring strong { font-size: clamp(32px, 9cqw, 42px); }
+}
+@media (max-width: 360px) {
+  body #todayPage #focusCard {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "timer" "mode" "target" "controls";
+  }
+  body #todayPage #focusCard .timer-ring { justify-items: center; }
+  body #todayPage #focusCard .focus-mode-row { justify-self: center; }
+  body #todayPage #focusCard #focusTarget { text-align: center; }
 }

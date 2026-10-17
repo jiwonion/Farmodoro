@@ -46,7 +46,21 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   const click=async selector=>{assert.equal(await evaluate(`!!document.querySelector(${JSON.stringify(selector)})`),true,selector);assert.equal(await evaluate(`document.querySelector(${JSON.stringify(selector)}).disabled`),false,selector+' enabled');await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);await settle(`document.querySelector('#farmGameRoot').getAttribute('aria-busy') === 'false'`);};
   const action=name=>`[data-fv-action="${name}"]`;
   const tab=name=>click(`[data-fv-action="tab"][data-tab="${name}"]`);
-  const view=async(width,theme='white')=>{await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await evaluate(`applyWorkspaceTheme('${theme}');`);await pause(80);const geometry=await evaluate(`({width:innerWidth,scroll:document.documentElement.scrollWidth,root:document.querySelector('#farmGameRoot').getBoundingClientRect().width,scenes:Array.from(document.querySelectorAll('#farmGameRoot .fv-scene')).map(node=>{const r=node.getBoundingClientRect();return{w:r.width,h:r.height};})})`);assert.ok(geometry.scroll<=width+1,JSON.stringify(geometry));assert.ok(geometry.root>0);for(const scene of geometry.scenes){assert.ok(Math.abs(scene.w-scene.h)<1,JSON.stringify({width,...scene}));assert.ok(scene.w<=724.5,JSON.stringify(scene));}};
+  const view=async(width,theme='white')=>{
+    await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});await evaluate(`applyWorkspaceTheme('${theme}');`);await pause(80);
+    const geometry=await evaluate(`(() => {
+      const issues=[],fits=(node,parent)=>{const r=node.getBoundingClientRect(),p=parent.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=p.left-1&&r.right<=p.right+1&&r.top>=p.top-1&&r.bottom<=p.bottom+1;};
+      const overflow=node=>node.scrollWidth>node.clientWidth+1||node.scrollHeight>node.clientHeight+1;
+      for(const cell of document.querySelectorAll('.fv-mini-codex>div,.fv-codex-card')){
+        if(overflow(cell))issues.push({type:'cell overflow',name:cell.title||cell.querySelector('h4')?.textContent});
+        const nodes=cell.matches('.fv-codex-card')?cell.querySelectorAll(':scope>.fv-codex-art,:scope>h4,:scope>strong,:scope>small'):cell.querySelectorAll(':scope>span,:scope>small');
+        for(const node of nodes)if(!fits(node,cell)||overflow(node))issues.push({type:'clipped codex content',name:cell.title||cell.querySelector('h4')?.textContent,tag:node.className||node.tagName,text:node.matches('small,h4,strong')?node.textContent:'art'});
+      }
+      return{width:innerWidth,scroll:document.documentElement.scrollWidth,root:document.querySelector('#farmGameRoot').getBoundingClientRect().width,legacy:document.querySelectorAll('#farmLegacyPanel,#farmV3Return,[data-fv-action="legacy"]').length,codexIssues:issues,scenes:Array.from(document.querySelectorAll('#farmGameRoot .fv-scene')).map(node=>{const r=node.getBoundingClientRect();return{w:r.width,h:r.height};})};
+    })()`);
+    assert.ok(geometry.scroll<=width+1,JSON.stringify(geometry));assert.ok(geometry.root>0);assert.equal(geometry.legacy,0);assert.deepEqual(geometry.codexIssues,[],JSON.stringify({width,issues:geometry.codexIssues}));
+    for(const scene of geometry.scenes){assert.ok(Math.abs(scene.w-scene.h)<1,JSON.stringify({width,...scene}));assert.ok(scene.w<=724.5,JSON.stringify(scene));}
+  };
   const capture=async name=>{await pause(100);const image=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});fs.writeFileSync(path.join(root,'output','farm-v3-'+name+'.png'),Buffer.from(image.data,'base64'));};
   const checkFishingStatus=async()=>{
     const gap=await evaluate(`(()=>{const fisher=document.querySelector('.fv-fisher.is-fishing'),canvas=fisher.querySelector('canvas'),label=fisher.querySelector('.fv-fishing-status');if(!label)return null;const box=canvas.getBoundingClientRect(),pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let top=canvas.height;for(let y=0;y<canvas.height&&top===canvas.height;y++)for(let x=0;x<canvas.width;x++)if(pixels[(y*canvas.width+x)*4+3]>96){top=y;break;}return box.top+top/canvas.height*box.height-label.getBoundingClientRect().bottom;})()`);
@@ -57,9 +71,15 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   await evaluate(`window.mascotDrawChecks=[];const originalMascotDraw=CanvasRenderingContext2D.prototype.drawImage;CanvasRenderingContext2D.prototype.drawImage=function(...args){if(this.canvas.width===128&&this.canvas.height===160&&args.length===9)window.mascotDrawChecks.push(Math.abs((args[7]/args[3])/(args[8]/args[4])-1));return originalMascotDraw.apply(this,args);};`);
   await evaluate(`document.documentElement.className='';document.body.classList.remove('auth-gated');document.querySelector('#authGate').hidden=true;document.querySelector('.auth-boot')?.remove();activeAuthUser={id:'${user}'};farmDataHydrated=true;farmDataUserId=activeAuthUser.id;farmWalletHydrated=true;farmWalletUserId=activeAuthUser.id;taskDataHydrated=true;state.tasks=[];state.habits=[];focusTimerDatabaseUnavailable=true;for(const page of ['farm','today','focus','tasks','habits'])pageDataRefreshTimes.set(activeAuthUser.id+':'+page,Date.now()+3600000);await FarmV3.load(activeAuthUser);await SceneryCreations.load(activeAuthUser);showPage('farm');`);
   if(serverMode==='missing'){
-    assert.equal(await evaluate("document.querySelector('#farmPage').classList.contains('farm-v3-show-legacy')"),true);
-    assert.equal(await evaluate("getComputedStyle(document.querySelector('#farmLegacyPanel')).display!=='none'"),true);
-    await capture('legacy-missing-api');assert.deepEqual(exceptions,[]);console.log('PASS: missing farm API opens existing scenery instead of blocking entry.');return;
+    assert.equal(await evaluate("document.querySelector('#farmPage').classList.contains('farm-v3-show-legacy')"),false);
+    assert.equal(await evaluate(`document.querySelectorAll('#farmLegacyPanel,#farmV3Return,[data-fv-action="legacy"]').length`),0);
+    assert.equal(await evaluate("getComputedStyle(document.querySelector('#farmGameRoot')).display!=='none'"),true);
+    assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('농장을 준비하고 있어')"),true);
+    assert.equal(await evaluate(`!!document.querySelector('[data-fv-action="reload"]')&&!document.querySelector('[data-fv-action="reload"]').disabled`),true);
+    await click(action('reload'));
+    assert.equal(await evaluate('FarmV3.snapshot()'),null);
+    for(const width of [390,320])await view(width);
+    await capture('missing-api');assert.deepEqual(exceptions,[]);console.log('PASS: missing farm API keeps the farm preparation view and an enabled reload button.');return;
   }
   await settle('!!FarmV3.snapshot()');assert.equal(await evaluate(`document.querySelectorAll('#farmGameRoot .fv-plot').length`),4);
   if(serverMode==='current')assert.equal(await evaluate('FarmV3.snapshot().wateringVersion'),0,'Migration 104 retires server watering');
@@ -214,14 +234,19 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   await capture('farm-desktop');
   for(const width of [390,320]){
     await view(width);const sizes=await evaluate(`Array.from(document.querySelectorAll('#farmGameRoot .fv-plot')).map(node=>({w:node.getBoundingClientRect().width,h:node.getBoundingClientRect().height}))`);assert.ok(sizes.every(s=>s.w>=44&&s.h>=44),JSON.stringify(sizes));await capture('farm-'+width);
-    for(const name of ['fish','plaza','wardrobe','collection']){await tab(name);if(name==='fish'&&!(await evaluate("FarmV3.snapshot().runs.some(r=>r.kind==='fish')")))await click(action('fish_start')+'[data-item="minnow"]');await view(width);if(name==='fish'){await settle("!!document.querySelector('[data-fv-character-pose=fishing][data-painted=true]')");await checkFishingStatus();}await capture(name+'-'+width);}
+    for(const name of ['fish','plaza','wardrobe','collection']){
+      await tab(name);if(name==='fish'&&!(await evaluate("FarmV3.snapshot().runs.some(r=>r.kind==='fish')")))await click(action('fish_start')+'[data-item="minnow"]');
+      if(name==='collection'){
+        for(const kind of ['crop','fish']){await click(action('collection_kind')+`[data-kind="${kind}"]`);await view(width);await capture('collection-'+kind+'-'+width);}
+      }else{
+        await view(width);if(name==='fish'){await settle("!!document.querySelector('[data-fv-character-pose=fishing][data-painted=true]')");await checkFishingStatus();}await capture(name+'-'+width);
+      }
+    }
     await tab('farm');
   }
   await view(1440,'dark');await capture('farm-dark');await view(1440,'white');
-  await evaluate(`showPage('today');renderTodayFarmPreview();`);assert.equal(await evaluate(`document.querySelectorAll('#todayFarmPlots .fv-plot').length`),4);
-  assert.equal(await evaluate(`document.querySelector('#todayFarmPlots .fv-farmer canvas').dataset.fvCharacter`),'berry-slime');
-  assert.equal(await evaluate(`(() => {const r=document.querySelector('#todayFarmPlots .fv-scene').getBoundingClientRect();return r.width>0&&Math.abs(r.width-r.height)<1;})()`),true);
-  await capture('today-preview');
+  await evaluate(`showPage('today');`);
+  assert.equal(await evaluate(`document.querySelectorAll('#todayPage .today-farm-preview,#todayFarmPlots,#todayPage a[href="#farm"]').length`),0);
   await evaluate(`showPage('focus');document.querySelector('#toggleFocusFarmBackground').setAttribute('aria-pressed','true');renderFocusFarmBackground();`);
   assert.equal(await evaluate(`document.querySelectorAll('.focus-farm-background [data-fv-action]').length`),0);
   assert.equal(await evaluate(`document.querySelectorAll('.focus-farm-background .fv-plot').length`),4);

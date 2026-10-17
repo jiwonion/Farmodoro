@@ -44,17 +44,17 @@
     <link rel="stylesheet" href="./pixel-theme.css?v=195" />
     <link rel="stylesheet" href="./pixel-layout.css?v=275" />
     <link rel="stylesheet" href="./farm-scenery.css?v=302" />
-    <link rel="stylesheet" href="./workspace.css?v=8" />
+    <link rel="stylesheet" href="./workspace.css?v=9" />
     <link rel="stylesheet" href="./workspace-controls.css?v=5" />
-    <link rel="stylesheet" href="./workspace-responsive.css?v=6" />
+    <link rel="stylesheet" href="./workspace-responsive.css?v=7" />
     <link rel="stylesheet" href="./workspace-forms.css?v=4" />
     <link rel="stylesheet" href="./habit-tiers.css?v=10" />
     <link rel="stylesheet" href="./farm-workspace.css?v=3" />
     <link rel="stylesheet" href="./garden-shell.css?v=9" />
     <link rel="stylesheet" href="./garden-modals.css?v=5" />
     <link rel="stylesheet" href="./scenery-creations.css?v=5" />
-    <link rel="stylesheet" href="./scenery-workspace.css?v=8" />
-    <link rel="stylesheet" href="./farm-v3.css?v=18" />
+    <link rel="stylesheet" href="./scenery-workspace.css?v=9" />
+    <link rel="stylesheet" href="./farm-v3.css?v=20" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -509,16 +509,10 @@
               <button id="habitDateToday" type="button">오늘</button>
             </nav>
             <div class="habit-list" id="habitList"></div>
-            <footer class="habit-encouragement"><span class="pixel-sprout" aria-hidden="true"></span><div><strong>오늘도 잘하고 있어요!</strong><p>꾸준한 습관이 더 좋은 내일을 만들어요.</p></div><a href="#farm" class="growth-link">하루하루,<br />조금씩 자라는 중 <span aria-hidden="true">→</span></a></footer>
+            <footer class="habit-encouragement"><span class="pixel-sprout" aria-hidden="true"></span><div><strong>오늘도 잘하고 있어요!</strong><p>꾸준한 습관이 더 좋은 내일을 만들어요.</p></div></footer>
 
           </aside>
         </section>
-        <a class="today-farm-preview" href="#farm" aria-label="내 농장 열기">
-          <header><strong>내 농장</strong><span><b id="previewFarmMoney">0</b> <span id="previewFarmCurrency">Farm</span> ›</span></header>
-          <div class="today-farm-landscape" aria-hidden="true"><div id="todayFarmPlots"></div></div>
-          <small id="todayFarmStatus">나만의 풍경을 조금씩 키워봐</small>
-          <div id="todaySceneryProgress" class="today-scenery-progress" role="progressbar" aria-label="내 풍경 성장" aria-valuemin="0" aria-valuemax="20" aria-valuenow="0" hidden><span></span></div>
-        </a>
         </section>
 
         <section class="page-view" id="tasksPage" data-view="tasks">
@@ -607,36 +601,6 @@
 
         <section class="page-view" id="farmPage" data-view="farm">
           <section id="farmGameRoot" aria-label="농장·낚시터·광장"></section>
-          <section class="farm-layout" id="farmLegacyPanel">
-              <button id="farmV3Return" type="button">← 새 농장으로 돌아가기</button>
-              <header class="farm-panel-header farm-workspace-header">
-                <div class="farm-header-copy">
-                  <p class="farm-workspace-kicker">MY SCENERY</p>
-                  <h2 class="scenery-page-title">이전 풍경</h2>
-                  <p class="farm-workspace-description">버튼으로 조금씩 완성하는 나만의 풍경</p>
-                </div>
-                <div class="farm-workspace-toolbar">
-                  <div class="farm-workspace-wallet" aria-label="보유 재화">
-                    <span><i aria-hidden="true">C</i><b id="farmWorkspaceCoinBalance">0</b><small>Coin</small></span>
-                    <span><i aria-hidden="true">✦</i><b id="farmWorkspaceMoneyBalance">0</b><small>Farm Money</small></span>
-                  </div>
-                  <span class="farm-active-theme" id="farmActiveThemeLabel">초록 정원</span>
-                </div>
-              </header>
-            <div class="farm-workspace-body">
-            <div class="garden-map-column">
-            <section id="sceneryCreationRoot" aria-label="내 풍경 만들기"></section>
-            </div>
-            <aside class="farm-collection-panel" aria-label="풍경 테마">
-              <div class="farm-collection-scroll">
-              <section class="farm-theme-section" id="farmCollectionThemes" aria-labelledby="farmThemesTitle">
-                <div class="farm-theme-heading"><div><h3 id="farmThemesTitle">내 취향의 풍경</h3><p>테마마다 다른 대상을 완성해봐요</p></div><span>THEME COLLECTION</span></div>
-                <div id="farmThemeChoices" class="farm-theme-choices" aria-label="풍경 테마"></div>
-              </section>
-              </div>
-            </aside>
-            </div>
-          </section>
         </section>
       </main>
     </div>
@@ -858,7 +822,7 @@
     <script src="./supabase-config.js"></script>
     <script src="./mobile-orientation.js?v=1"></script>
     <script src="./scenery-theme-presets.js?v=4"></script>
-    <script src="./app.js?v=342"></script>
+    <script src="./app.js?v=343"></script>
     <script src="./garden-art.js?v=10"></script>
     <script src="./scenery-creation-art.js?v=4"></script>
     <script src="./scenery-creations.js?v=10"></script>
@@ -868,8 +832,8 @@
     <script src="./farm-v3-characters-view.js?v=4"></script>
     <script src="./farm-v3-plaza-view.js?v=3"></script>
     <script src="./farm-v3-art.js?v=9"></script>
-    <script src="./farm-v3-views.js?v=12"></script>
-    <script src="./farm-v3.js?v=12"></script>
+    <script src="./farm-v3-views.js?v=14"></script>
+    <script src="./farm-v3.js?v=13"></script>
     <script src="./pwa-register.js?v=177"></script>
   </body>
 </html>

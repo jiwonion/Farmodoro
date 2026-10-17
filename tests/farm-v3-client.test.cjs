@@ -13,7 +13,7 @@ function harness({rpc,storage=new Map(),storageFailure=false,coins=10}={}){
   const classList={add(){},remove(){}};
   const pageClasses=new Set(),farmPage={classList:{add:name=>pageClasses.add(name),remove:name=>pageClasses.delete(name),contains:name=>pageClasses.has(name)}};
   const root={innerHTML:'',attributes:{},handlers:{},contains:node=>!!node?.insideRoot,querySelectorAll:()=>[],setAttribute(name,value){this.attributes[name]=value;},addEventListener(name,callback){this.handlers[name]=callback;}};
-  const ctx=vm.createContext({console,window:{FarmV3Views:{render:value=>JSON.stringify({tab:value.tab,disabled:value.disabled,message:value.message,pending:!!value.pending,game:value.game})},FarmV3Art:{paintAll:async()=>{}}},document:{documentElement:{classList},activeElement:null,getElementById:id=>id==='farmGameRoot'?root:id==='farmPage'?farmPage:null},
+  const ctx=vm.createContext({console,window:{FarmV3Views:{render:value=>JSON.stringify({tab:value.tab,disabled:value.disabled,message:value.message,pending:!!value.pending,game:value.game,loading:value.loading,unavailable:value.unavailable,error:value.error})},FarmV3Art:{paintAll:async()=>{}}},document:{documentElement:{classList},activeElement:null,getElementById:id=>id==='farmGameRoot'?root:id==='farmPage'?farmPage:null},
     FormData:class{constructor(form){this.form=form;}get(key){return this.form.fields[key]??null;}},
     localStorage:{getItem:key=>storage.get(key)||null,setItem(key,value){if(storageFailure)throw Error('quota');storage.set(key,value);},removeItem:key=>storage.delete(key)},
     activeAuthUser:null,farmSessionGeneration:1,state:{coins,farmMoney:20},farmActionChain:Promise.resolve(),farmWalletMutationChain:Promise.resolve(),farmWalletMutationVersion:0,
@@ -167,10 +167,20 @@ test('097 servers keep character selection available while new plaza positions a
   h.click('plaza_position',{}, {clientX:170,clientY:180});await h.settle();assert.equal(h.calls.length,1);
 });
 
-test('a missing farm API opens the existing scenery panel and recovery restores the farm',async()=>{
-  let missing=true;const h=harness({rpc:()=>missing?{error:{code:'PGRST202'}}:{data:game()}});
-  assert.equal(await h.api.load(h.ctx.activeAuthUser),false);assert.equal(h.farmPage.classList.contains('farm-v3-show-legacy'),true);
-  missing=false;assert.equal(await h.api.load(h.ctx.activeAuthUser),true);assert.equal(h.farmPage.classList.contains('farm-v3-show-legacy'),false);
+test('a missing farm API keeps the farm preparation view and recovery restores the farm',async()=>{
+  for(const code of ['PGRST202','42883']){
+    let missing=true;const h=harness({rpc:()=>missing?{error:{code}}:{data:game()}});
+    assert.equal(await h.api.load(h.ctx.activeAuthUser),false);
+    const unavailable=JSON.parse(h.root.innerHTML);
+    assert.equal(unavailable.unavailable,true);assert.equal(unavailable.error,false);assert.equal(unavailable.loading,false);
+    assert.equal(h.api.snapshot(),null);assert.equal(h.root.attributes['aria-busy'],'false');
+    assert.equal(h.farmPage.classList.contains('farm-v3-show-legacy'),false);
+    missing=false;assert.equal(await h.api.load(h.ctx.activeAuthUser),true);
+    const recovered=JSON.parse(h.root.innerHTML);
+    assert.equal(recovered.unavailable,false);assert.equal(recovered.error,false);assert.equal(recovered.loading,false);
+    assert.ok(h.api.snapshot());assert.equal(recovered.game.profile.nickname,'농부');
+    assert.equal(h.farmPage.classList.contains('farm-v3-show-legacy'),false);
+  }
 });
 
 test('plaza clicks are clamped drafts and saving sends coordinates without pose or zone',async()=>{

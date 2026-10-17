@@ -63,7 +63,7 @@
   }
   function farm(ctx) {
     const run=ctx.game.runs.find(r=>r.kind==='crop'&&r.slot===ctx.slot);
-    return `<div class="fv-main-layout"><div class="fv-main-column">${farmScene(ctx.game,ctx.slot,true,sceneControls(ctx,run))}<div class="fv-under-scene"><span>${ctx.slot+1}번 밭</span><span>시간이 지나도 시들지 않아</span></div>${!run?chooser(ctx,'crop'):''}${ctx.coins<0&&run&&run.progress<run.cost?'<p class="fv-debt-note">Coin 잔액을 채우면 작물을 더 키울 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
+    return `<div class="fv-main-layout"><div class="fv-main-column">${farmScene(ctx.game,ctx.slot,true,sceneControls(ctx,run))}<div class="fv-under-scene"><span>${ctx.slot+1}번 밭</span></div>${!run?chooser(ctx,'crop'):''}${ctx.coins<0&&run&&run.progress<run.cost?'<p class="fv-debt-note">Coin 잔액을 채우면 작물을 더 키울 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
   }
   function fishing(ctx) {
     const run=ctx.game.runs.find(r=>r.kind==='fish');
@@ -81,8 +81,8 @@
   }
   function render(ctx) {
     const tabs=[['farm','농장'],['fish','낚시터'],['plaza','광장'],['wardrobe','캐릭터'],['collection','도감']];
-    const header=`<header class="fv-header"><div><span class="fv-eyebrow">MY LITTLE WORLD</span><h2>내 농장</h2><p>오늘의 성취가 나만의 작은 세상이 돼</p></div><div class="fv-header-tools"><span class="fv-wallet${ctx.coins<0?' is-negative':''}" aria-label="보유 Coin">● <strong>${Number(ctx.coins).toLocaleString('ko-KR')}</strong> Coin</span>${btn('legacy','이전 풍경',false,'','fv-text')}</div></header><nav class="fv-tabs" aria-label="농장 안에서 이동">${tabs.map(([id,name])=>btn('tab',name,false,`data-tab="${id}" aria-current="${ctx.tab===id?'page':'false'}" `)).join('')}</nav>`;
-    if(!ctx.game)return header+`<section class="fv-empty"><span class="fv-empty-sprout">🌱</span><h3>${ctx.loading?'내 작은 세상을 불러오는 중이야':'농장을 준비하고 있어'}</h3><p>${ctx.error?'연결 상태를 확인하고 다시 불러와줘.':ctx.unavailable?'서버 업데이트가 적용되면 새 농장·낚시터·광장이 열려. 이전 풍경은 계속 확인할 수 있어.':'잠시만 기다려줘.'}</p>${btn('reload','다시 불러오기',ctx.loading)}</section>`;
+    const header=`<header class="fv-header"><div><span class="fv-eyebrow">MY LITTLE WORLD</span><h2>내 농장</h2><p>오늘의 성취가 나만의 작은 세상이 돼</p></div><div class="fv-header-tools"><span class="fv-wallet${ctx.coins<0?' is-negative':''}" aria-label="보유 Coin">● <strong>${Number(ctx.coins).toLocaleString('ko-KR')}</strong> Coin</span></div></header><nav class="fv-tabs" aria-label="농장 안에서 이동">${tabs.map(([id,name])=>btn('tab',name,false,`data-tab="${id}" aria-current="${ctx.tab===id?'page':'false'}" `)).join('')}</nav>`;
+    if(!ctx.game)return header+`<section class="fv-empty"><span class="fv-empty-sprout">🌱</span><h3>${ctx.loading?'내 작은 세상을 불러오는 중이야':'농장을 준비하고 있어'}</h3><p>${ctx.error?'연결 상태를 확인하고 다시 불러와줘.':ctx.unavailable?'농장을 준비하고 있어. 잠시 후 다시 불러와줘.':'잠시만 기다려줘.'}</p>${btn('reload','다시 불러오기',ctx.loading)}</section>`;
     const body=ctx.tab==='fish'?fishing(ctx):ctx.tab==='plaza'?plaza(ctx):ctx.tab==='wardrobe'?wardrobe(ctx):ctx.tab==='collection'?collection(ctx):farm(ctx);
     const recovery=ctx.pending&&!ctx.busy&&!ctx.loading;
     const statusIssue=recovery||ctx.error||ctx.unavailable||ctx.storageError;

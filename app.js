@@ -3658,7 +3658,6 @@ function renderFarmDashboard() {
 function renderFarm() {
   const balance = document.querySelector("#marketFarmMoneyBalance");
   if (balance) balance.textContent = state.farmMoney;
-  renderTodayFarmPreview();
   renderFarmDashboard();
   window.FarmV3?.render();
   window.SceneryCreations?.render();
@@ -3736,57 +3735,6 @@ function renderFocusPicker() {
 }
 
 const SUMMARY_PROGRESS_SEGMENTS = 10;
-
-function renderTodayFarmPreview() {
-  const plots = document.querySelector("#todayFarmPlots");
-  if (plots && window.FarmV3?.snapshot()) {
-    const game = window.FarmV3.snapshot();
-    plots.classList.add("fv-preview");
-    plots.innerHTML = window.FarmV3.previewMarkup();
-    void window.FarmV3Art?.paintAll(plots);
-    document.querySelector(".today-farm-landscape").style.backgroundImage = "none";
-    document.querySelector("#todayFarmStatus").innerHTML = '<strong>내 작은 농장</strong><span>' + game.runs.filter(run => run.kind === "crop").length + ' / 4칸 재배 중</span>';
-    document.querySelector("#previewFarmMoney").textContent = state.coins;
-    document.querySelector("#previewFarmCurrency").textContent = "Coin";
-    document.querySelector("#todaySceneryProgress").hidden = true;
-    return;
-  }
-  plots?.classList.remove("fv-preview");
-  if (plots) {
-    const scenery = window.SceneryCreations?.snapshot?.();
-    const creation = scenery?.activeCreation;
-    const growthUnit = scenery?.freeGrowth === true ? "회" : "Coin";
-    const growthUsedLabel = scenery?.freeGrowth === true ? "회 성장" : "Coin 사용";
-    const type = scenery?.catalog?.find((entry) => entry.id === creation?.typeId);
-    const art = window.FarmGardenArt?.theme(creation ? creation.themeId : state.equippedFarmTheme);
-    const landscape = document.querySelector(".today-farm-landscape");
-    if (art && landscape) {
-      landscape.style.backgroundImage = `url('${art.url}')`;
-      landscape.style.backgroundSize = art.thumbnailSize || art.size;
-      landscape.style.backgroundPosition = `${art.x}% ${art.y}%`;
-    }
-    document.querySelector("#previewFarmMoney").textContent = state.farmMoney;
-    document.querySelector("#previewFarmCurrency").textContent = "Farm";
-    const info = creation ? window.SceneryCreations?.progressInfo(creation) : null;
-    const preset = window.SceneryThemePresets?.theme(state.equippedFarmTheme);
-    const status = document.querySelector("#todayFarmStatus");
-    status.innerHTML = creation
-      ? `<strong>${escapeHtml(type?.name || "내 풍경")}</strong><span>${creation.progress} / ${creation.growthCost} ${growthUnit} · ${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}%</span><span>${creation.progress >= creation.growthCost ? "완성! 보상을 받아봐" : `완성까지 ${info?.remaining ?? creation.growthCost - creation.progress} ${growthUnit}`}</span>`
-      : `<strong>${escapeHtml(preset?.subject || "내 풍경")}</strong><span>시작 모습 예시 · 아직 시작하지 않았어</span>`;
-    const progressBar = document.querySelector("#todaySceneryProgress");
-    if (progressBar) {
-      progressBar.hidden = !creation;
-      if (creation) {
-        progressBar.setAttribute("aria-valuemax", String(creation.growthCost));
-        progressBar.setAttribute("aria-valuenow", String(creation.progress));
-        progressBar.setAttribute("aria-valuetext", `${info?.percent ?? Math.round(creation.progress / creation.growthCost * 100)}% · ${creation.progress} / ${creation.growthCost} ${growthUsedLabel}`);
-        progressBar.querySelector("span").style.width = `${creation.progress / creation.growthCost * 100}%`;
-      }
-    }
-    plots.innerHTML = creation ? (window.SceneryCreationArt?.sprite(creation.typeId, creation.progress, creation.growthCost) || "") : (window.SceneryCreationArt?.sprite(preset?.defaultType || "tree", 0, 20) || "");
-    return;
-  }
-}
 
 function renderSummaryProgress(selector, ratio) {
   const progress = document.querySelector(selector);

@@ -7,7 +7,7 @@
   messages.FARM_V3_INVALID_SPEECH='대사는 줄바꿈 없이 80자까지 쓸 수 있어.';
   let game=null,owner=null,pending=null,busy=false,loading=false,unavailable=false,error=false,storageError=false;
   let loadRequest=0,root=null,signature='',message='',tab='farm',slot=0,collectionKind='crop';
-  let characterDraft=null,characterVersion=null,plazaDraft=null,plazaVersion=null,legacyFallback=false;
+  let characterDraft=null,characterVersion=null,plazaDraft=null,plazaVersion=null;
   let plaza=null,plazaPage=0,plazaLoading=false,plazaError=false,plazaRequest=0;
   let renderedOwner=null,renderedTab=null,focusToRestore=null;
   const account=()=>typeof activeAuthUser!=='undefined'?activeAuthUser?.id||null:null;
@@ -123,12 +123,10 @@
   function applyState(value,{wallet=false}={}) {
     if(!account()||!valid(value))return false;
     owner=account();game=clone(normalize(value));unavailable=false;error=false;document.documentElement?.classList.add("farm-v3-ready");
-    if(legacyFallback){document.getElementById('farmPage')?.classList.remove('farm-v3-show-legacy');legacyFallback=false;}
     if(wallet&&typeof applyFarmActionResult==='function')applyFarmActionResult({wallet:{coinBalance:Number(value.coinBalance)}});
     render();return true;
   }
   function reset() {
-    if(legacyFallback){document.getElementById('farmPage')?.classList.remove('farm-v3-show-legacy');legacyFallback=false;}
     document.documentElement?.classList.remove("farm-v3-ready");loadRequest++;plazaRequest++;game=null;owner=null;pending=null;busy=false;loading=false;unavailable=false;error=false;storageError=false;
     message='';signature='';characterDraft=null;characterVersion=null;plazaDraft=null;plazaVersion=null;plaza=null;plazaLoading=false;plazaError=false;plazaPage=0;
     render();
@@ -159,7 +157,7 @@
       applyState(data,{wallet:true});
       message=storageError?message:pending?'이전에 보낸 작업의 결과를 확인해줘. 같은 요청으로 다시 확인할 수 있어.':'';
       hostRefresh();return true;
-    }catch(caught){if(!current(id,session)||request!==loadRequest)return false;unavailable=['PGRST202','42883'].includes(caught?.code);error=!unavailable;message='';if(unavailable&&!game){legacyFallback=true;document.getElementById('farmPage')?.classList.add('farm-v3-show-legacy');}return false;}
+    }catch(caught){if(!current(id,session)||request!==loadRequest)return false;unavailable=['PGRST202','42883'].includes(caught?.code);error=!unavailable;message='';return false;}
     finally{if(current(id,session)&&request===loadRequest){loading=false;render();}}
   }
   function actionMessage(intent,event){
@@ -278,7 +276,6 @@
     if(action==='slot'){slot=Number(control.dataset.slot);return render();}
     if(action==='reload')return void load(activeAuthUser);
     if(action==='retry')return void (pending&&runIntent(pending,true));
-    if(action==='legacy'){document.getElementById('farmPage')?.classList.add('farm-v3-show-legacy');return;}
     if(action==='choose_character')return chooseCharacter(control.dataset.item);
     if(action==='plaza_position'){
       if(!actionable()||game.plazaPositionVersion!==1)return;
@@ -306,6 +303,5 @@
   function onSubmit(event){const form=event.target.closest('[data-fv-form="plaza"]');if(!form)return;event.preventDefault();const old=game.plazaPositionVersion!==1?{pose:game.profile.pose||'stand',zone:game.profile.zone||'square'}:{};const {speech,...payload}=readPlazaForm(form);void act('plaza',{...payload,...(game.plazaSpeechVersion===1?{speech}:{}),...old,version:plazaVersion??game.profile.version});}
   function previewMarkup(){return owner===account()&&game?window.FarmV3Views.farmScene(game,0,false):'';}
   window.FarmV3={load,render,reset,applyState,validState:valid,snapshot:()=>owner===account()&&game?clone(game):null,previewMarkup,loadPlaza};
-  document.getElementById('farmV3Return')?.addEventListener('click',()=>document.getElementById('farmPage')?.classList.remove('farm-v3-show-legacy'));
   render();if(account())void load(activeAuthUser);
 })();

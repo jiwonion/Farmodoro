@@ -21,13 +21,6 @@ body #farmPage .farm-workspace-toolbar { display: flex !important; justify-conte
 body #farmPage .farm-workspace-body { grid-template-columns: minmax(0, 3fr) minmax(250px, 1fr); }
 body #farmPage .farm-collection-panel .farm-theme-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 body #farmPage .farm-collection-scroll { padding: 14px; }
-body #todayFarmPlots { position: absolute; inset: 0; display: grid; place-items: center; }
-body #todayFarmPlots > .scenery-creation-art { width: 105px; height: 105px; }
-body #todayFarmStatus { display: grid; gap: 3px; line-height: 1.5; }
-body #todayFarmStatus > strong { font-weight: 650; color: var(--ink); }
-body .today-scenery-progress { height: 5px; margin: 9px 0 0; overflow: hidden; border-radius: 20px; background: var(--green-100); }
-body .today-scenery-progress[hidden] { display: none; }
-body .today-scenery-progress > span { display: block; height: 100%; border-radius: inherit; background: #4d75d9; }
 body .scenery-theme-thumb { position: relative; overflow: hidden; }
 body .scenery-thumb-object { position: absolute; display: grid; place-items: center; width: 62%; height: 92%; left: 50%; bottom: 0; transform: translateX(-50%); filter: drop-shadow(0 2px 2px rgba(28,46,54,.13)); }
 body .scenery-thumb-object > svg { width: 100%; height: 100%; }
