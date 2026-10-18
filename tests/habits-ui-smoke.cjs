@@ -400,7 +400,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             previousBottom = r.bottom;
           }
           for (const habit of [sample, timeOnly]) {
-            for (const [level, name, minutes] of [['max', habit.title, 25], ['min', habit.minimumTitle || habit.title, 5]]) {
+            for (const [level, badgeText, name, minutes] of [['max', '최대', habit.title, 25], ['min', '최소', habit.minimumTitle || habit.title, 5]]) {
               if (level === 'min') document.querySelector('[data-habit-id="' + habit.id + '"] [data-habit-view-level="min"]').click();
               const card = document.querySelector('[data-habit-id="' + habit.id + '"]');
               const cardRect = card.getBoundingClientRect();
@@ -409,8 +409,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
               const tierSwitch = card.querySelector('.habit-tier-switch');
               if (card.querySelector('input[type="checkbox"], .habit-goal-row') || checks.length !== 1 || focusButtons.length !== 1 || !tierSwitch) throw Error(page + ': a tiered habit needs one check, one focus control and a tier switch');
               if (card.dataset.habitViewTier !== level || checks[0].dataset.habitLevel !== level || focusButtons[0].dataset.focusLevel !== level) throw Error(page + ': the check and focus controls must follow the shown tier');
-              const title = card.querySelector('.habit-copy > strong');
-              if (title?.textContent.trim() !== name || card.querySelector('.habit-tier-badge') || !card.querySelector('.habit-summary').textContent.includes('목표 ' + minutes + '분')) throw Error(page + ': the shown goal must retain its name and target time without a tier badge');
+              const title = card.querySelector('.habit-title-line > strong');
+              const badge = card.querySelector('.habit-tier-badge');
+              if (title?.textContent.trim() !== name || badge?.textContent.trim() !== badgeText || !card.querySelector('.habit-summary').textContent.includes('목표 ' + minutes + '분')) throw Error(page + ': the shown tier must name its goal, tier and target time');
               if (!checks[0].getAttribute('aria-label')?.includes(name)) throw Error(page + ': the check needs the shown goal name');
               for (const control of [...checks, ...focusButtons, tierSwitch]) {
                 const r = control.getBoundingClientRect();

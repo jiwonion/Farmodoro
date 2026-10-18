@@ -3305,6 +3305,8 @@ function renderHabits() {
       // After a minimum completion the maximum timer stays available as the upgrade path.
       const focusLevel = completionLevel === "min" ? "max" : viewLevel;
       const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
+      const tierBadge = hasMinimum
+        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"}</span>` : "";
       // The switch only picks which goal to complete; a completed tier must be undone before switching.
       const tierSwitch = hasMinimum && !completeToday
         ? `<button class="habit-tier-switch" type="button" data-habit-view-level="${otherLevel}" data-habit-view-id="${habit.id}" aria-label="${escapeHtml(getHabitGoalTitle(habit, otherLevel))} ${otherLevel === "min" ? "최소" : "최대"} 목표로 바꾸기">⇄ ${otherLevel === "min" ? "최소로" : "최대로"}</button>` : "";
@@ -3312,7 +3314,7 @@ function renderHabits() {
         <article class="habit-item ${hasMinimum ? "has-tiers" : ""} ${["today", "habits"].includes(currentPage) ? "reorderable" : ""} ${completeToday ? "complete" : ""} ${scheduledToday ? "" : "off-day"}" draggable="${["today", "habits"].includes(currentPage)}" data-habit-id="${habit.id}" ${hasMinimum ? `data-habit-view-tier="${viewLevel}"` : ""}>
           ${control}
           <span class="habit-copy">
-            <strong>${escapeHtml(shownTitle)}</strong>
+            ${hasMinimum ? `<span class="habit-title-line"><strong>${escapeHtml(shownTitle)}</strong>${tierBadge}</span>` : `<strong>${escapeHtml(habit.title)}</strong>`}
             <small class="habit-summary">
               <span class="habit-summary-primary">${scheduledToday ? (completeToday ? (completionLevel === "min" ? "최소 달성" : hasMinimum ? "최대 달성" : "완료") : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${targetMinutes > 0 ? ` · 목표 ${targetMinutes}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
             </small>
