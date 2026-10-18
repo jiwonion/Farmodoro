@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v396";
+const CACHE_VERSION = "farmodoro-v397";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -42,7 +42,7 @@ const APP_SHELL = [
   "./garden-modals.css?v=5",
   "./mobile-orientation.js?v=1",
   "./scenery-theme-presets.js?v=4",
-  "./app.js?v=344",
+  "./app.js?v=345",
   "./garden-art.js?v=10",
   "./scenery-creation-art.js?v=4",
   "./scenery-creations.js?v=10",

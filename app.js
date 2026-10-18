@@ -3306,7 +3306,7 @@ function renderHabits() {
       const focusLevel = completionLevel === "min" ? "max" : viewLevel;
       const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
       const tierBadge = hasMinimum
-        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"} · 1 Coin</span>` : "";
+        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"}</span>` : "";
       // The switch only picks which goal to complete; a completed tier must be undone before switching.
       const tierSwitch = hasMinimum && !completeToday
         ? `<button class="habit-tier-switch" type="button" data-habit-view-level="${otherLevel}" data-habit-view-id="${habit.id}" aria-label="${escapeHtml(getHabitGoalTitle(habit, otherLevel))} ${otherLevel === "min" ? "최소" : "최대"} 목표로 바꾸기">⇄ ${otherLevel === "min" ? "최소로" : "최대로"}</button>` : "";
@@ -5680,7 +5680,7 @@ function openHabitModal(habit = null) {
     return `<label><span>${day}요일 (분)</span><input type="number" data-habit-focus-weekday="${weekday}" min="1" max="9999" step="1" value="${value == null ? "" : Math.min(9999, Math.max(1, Math.floor(Number(value) || 25)))}" /></label>`;
   }).join("");
   updateHabitFocusWeekdayInputs();
-  updateHabitGoalReward();
+  updateHabitGoalLabel();
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
   habitForm.classList.remove("hidden");
@@ -5688,16 +5688,14 @@ function openHabitModal(habit = null) {
   window.setTimeout(() => habitInput.focus(), 0);
 }
 
-function updateHabitGoalReward() {
+function updateHabitGoalLabel() {
   const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
   document.querySelector("#habitGoalLabel").textContent = hasMinimum ? "최대 목표" : "기본 목표";
-  document.querySelector("#habitMaximumReward").textContent = hasMinimum
-    ? "최대 달성 · 1 Coin" : "완료하면 1 Coin";
   updateHabitFocusWeekdayInputs();
 }
 
-habitMinimumInput.addEventListener("input", updateHabitGoalReward);
-habitMinimumFocusMinutes.addEventListener("input", updateHabitGoalReward);
+habitMinimumInput.addEventListener("input", updateHabitGoalLabel);
+habitMinimumFocusMinutes.addEventListener("input", updateHabitGoalLabel);
 
 function updateHabitFocusWeekdayInputs() {
   document.querySelector("#habitFocusSettings").hidden = !habitFocusEnabled.checked;
@@ -5715,7 +5713,7 @@ function updateHabitFocusWeekdayInputs() {
 }
 
 habitForm.addEventListener("change", (event) => {
-  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitGoalReward();
+  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitGoalLabel();
 });
 habitFocusMinutes.addEventListener("input", updateHabitFocusWeekdayInputs);
 

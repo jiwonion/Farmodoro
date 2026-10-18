@@ -83,7 +83,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       openHabitModal();
       if (habitMinimumInput.value !== '' || habitMinimumInput.maxLength !== 30) throw Error('Minimum goal must be optional and limited to 30 characters');
-      if (document.querySelector('#habitMaximumReward').textContent.trim() !== '완료하면 1 Coin' || document.querySelector('#habitMinimumHint').textContent.includes('2 Coin')) throw Error('Habit form must describe one coin for either completion level');
+      if (habitForm.textContent.includes('Coin')) throw Error('Habit form must omit redundant coin labels');
       habitInput.value = '영어 공부하기';
       habitMinimumInput.value = '영어 단어 보기';
       habitForm.requestSubmit();
@@ -92,7 +92,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       openHabitModal(habit);
       if (habitMinimumInput.value !== '영어 단어 보기') throw Error('Editing lost the minimum goal');
       habitMinimumInput.value = '단어 3개 보기';
-      if (!document.querySelector('#habitMaximumReward').textContent.includes('1 Coin') || document.querySelector('#habitMaximumReward').textContent.includes('2 Coin')) throw Error('A minimum goal must not increase the maximum reward');
+      if (habitForm.textContent.includes('Coin')) throw Error('A minimum goal must not add a coin label');
       habitForm.requestSubmit();
       if (habit.minimumTitle !== '단어 3개 보기') throw Error('Minimum goal edit was not saved');
       const snapshot = JSON.parse(serializeTaskDatabaseState());
@@ -400,7 +400,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             previousBottom = r.bottom;
           }
           for (const habit of [sample, timeOnly]) {
-            for (const [level, badgeText, name, minutes] of [['max', '최대 · 1 Coin', habit.title, 25], ['min', '최소 · 1 Coin', habit.minimumTitle || habit.title, 5]]) {
+            for (const [level, badgeText, name, minutes] of [['max', '최대', habit.title, 25], ['min', '최소', habit.minimumTitle || habit.title, 5]]) {
               if (level === 'min') document.querySelector('[data-habit-id="' + habit.id + '"] [data-habit-view-level="min"]').click();
               const card = document.querySelector('[data-habit-id="' + habit.id + '"]');
               const cardRect = card.getBoundingClientRect();
@@ -411,7 +411,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
               if (card.dataset.habitViewTier !== level || checks[0].dataset.habitLevel !== level || focusButtons[0].dataset.focusLevel !== level) throw Error(page + ': the check and focus controls must follow the shown tier');
               const title = card.querySelector('.habit-title-line > strong');
               const badge = card.querySelector('.habit-tier-badge');
-              if (title?.textContent.trim() !== name || badge?.textContent.trim() !== badgeText || !card.querySelector('.habit-summary').textContent.includes('목표 ' + minutes + '분')) throw Error(page + ': the shown tier must name its goal, reward and target time');
+              if (title?.textContent.trim() !== name || badge?.textContent.trim() !== badgeText || !card.querySelector('.habit-summary').textContent.includes('목표 ' + minutes + '분')) throw Error(page + ': the shown tier must name its goal, tier and target time');
               if (!checks[0].getAttribute('aria-label')?.includes(name)) throw Error(page + ': the check needs the shown goal name');
               for (const control of [...checks, ...focusButtons, tierSwitch]) {
                 const r = control.getBoundingClientRect();
