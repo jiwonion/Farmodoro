@@ -1,4 +1,4 @@
-// Runs migrations 091/092/093 and real wallet/refund helpers in PostgreSQL/PGlite.
+// Runs migrations 091/092/093/105 and real wallet/refund helpers in PostgreSQL/PGlite.
 // PGLITE_MODULE may point to an existing @electric-sql/pglite installation.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -286,6 +286,130 @@ const asRole = async (role, callback) => {
   await assert.rejects(complete(converted, 'min'), /no minimum goal/);
   assert.equal((await complete(converted)).completionReward, 1);
 
+  // The one-Coin policy changes future completions without rewriting history.
+  const historicalTwo = await addHabit('Previously completed', 'One word');
+  const historicalUndo = await addTimedHabit({ title: null });
+  const historicalPass = await addHabit('Previously used a pass', 'One word');
+  const historicalZero = await addHabit('Historical zero payout', 'One word');
+  for (const id of [historicalTwo, historicalUndo, historicalPass]) {
+    assert.equal((await complete(id, 'max')).completionReward, 2);
+  }
+  const historicalPassCycle = (await record(historicalPass)).completion_cycle_id;
+  const historicalPassKey = `habit:${historicalPass}:${day}:${historicalPassCycle}`;
+  await db.query('update public.habit_daily_records set completed_with_free_pass = true where habit_id = $1', [historicalPass]);
+  await db.query("insert into public.farm_legacy_pass_entitlements values($1, $2, 1300, '{}'::jsonb)", [user, historicalPassKey]);
+  await db.query(`insert into public.habit_daily_records(habit_id, record_date, completed_at, completion_reward, completion_level, completion_cycle_id)
+    values($1, $2, now(), 0, 'max', gen_random_uuid())`, [historicalZero, day]);
+  const rewardMigration = source('105_habit_one_coin_reward.sql');
+  const historySnapshot = () => db.query('select * from public.habit_daily_records order by habit_id, record_date').then(result => result.rows);
+  const beforeRewardHistory = await historySnapshot();
+  const beforeRewardBalance = await balance();
+  const beforeRewardLedger = await ledgerCount();
+  await db.exec(rewardMigration);
+  assert.deepEqual(await historySnapshot(), beforeRewardHistory, 'One-Coin migration never rewrites completion history');
+  assert.equal(await balance(), beforeRewardBalance, 'One-Coin migration never changes the wallet');
+  assert.equal(await ledgerCount(), beforeRewardLedger);
+
+  const cappedNamed = await addHabit('New named minimum', 'One word');
+  const cappedTimeOnly = await addTimedHabit({ title: null });
+  const cappedOrdinary = await addHabit('New ordinary habit');
+  for (const [id, firstLevel, hasMinimum] of [
+    [cappedNamed, 'max', true], [cappedTimeOnly, 'min', true], [cappedOrdinary, 'max', false],
+  ]) {
+    const before = await balance();
+    const firstCapped = await asRole('authenticated', () => complete(id, firstLevel));
+    assert.equal(firstCapped.completionReward, 1, 'New min, max and ordinary completions all earn one Coin');
+    assert.equal(firstCapped.completionLevel, firstLevel);
+    assert.equal(firstCapped.coinBalance, before + 1);
+    assert.equal((await record(id)).completed_with_free_pass, false);
+    const cappedLedger = await ledgerCount();
+    const cappedRetries = await Promise.all(Array.from({ length: 5 }, () => complete(id, firstLevel)));
+    assert.ok(cappedRetries.every(result => result.alreadyDone && result.completionReward === 1));
+    assert.equal(await ledgerCount(), cappedLedger, 'Repeated completions do not pay again');
+    if (hasMinimum) {
+      const otherLevel = firstLevel === 'max' ? 'min' : 'max';
+      const switched = await complete(id, otherLevel);
+      assert.equal(switched.alreadyDone, false);
+      assert.equal(switched.completionLevel, otherLevel);
+      assert.equal(switched.completionReward, 1);
+      assert.equal(switched.completionCycleId, firstCapped.completionCycleId);
+      await Promise.all(Array.from({ length: 6 }, (_, index) => complete(id, index % 2 ? 'min' : 'max')));
+      assert.equal(await balance(), before + 1, 'Min/max switches never award or return Coin');
+      assert.equal(await ledgerCount(), cappedLedger, 'Min/max switches never write the wallet ledger');
+    }
+    await undo(id);
+    assert.equal(await balance(), before, 'Undo reverses the actual one-Coin payout');
+    assert.equal((await record(id)).completion_reward, 0);
+    const afterCappedUndo = await ledgerCount();
+    assert.equal((await undo(id)).alreadyUndone, true);
+    assert.equal(await ledgerCount(), afterCappedUndo, 'Repeated undo never deducts again');
+    const cappedAgain = await complete(id, 'max');
+    assert.equal(cappedAgain.completionReward, 1);
+    assert.notEqual(cappedAgain.completionCycleId, firstCapped.completionCycleId);
+    await undo(id);
+    assert.equal(await balance(), before, 'A new cycle still earns and reverses exactly one Coin');
+  }
+  const cappedOldCaller = await addHabit('Caller without level', 'One word');
+  assert.equal((await scalar('select public.complete_my_habit($1::uuid, $2::date, 1, true)', [cappedOldCaller, day])).completionReward, 1,
+    'Old callers default to a maximum completion worth one Coin');
+  await assert.rejects(complete(cappedOrdinary, 'min'), /no minimum goal/);
+  await assert.rejects(complete(cappedNamed, 'invalid'), /Unsupported habit completion level/);
+  await assert.rejects(complete(cappedNamed, null), /Unsupported habit completion level/);
+  await assert.rejects(complete(cappedNamed, 'max', null), /Habit record date is required/);
+
+  // Historical payouts survive retries and level changes; undo uses the payout.
+  for (const [id, earned] of [[historicalTwo, 2], [historicalZero, 0]]) {
+    const before = await balance();
+    const oldRecord = await record(id);
+    const ledgerBefore = await ledgerCount();
+    assert.equal((await complete(id, 'max')).completionReward, earned);
+    for (const level of ['min', 'max', 'min']) {
+      const changed = await complete(id, level);
+      assert.equal(changed.completionReward, earned, 'Changing the historical level preserves its actual payout');
+      assert.equal(changed.completionCycleId, oldRecord.completion_cycle_id);
+    }
+    assert.equal(await balance(), before, 'Historical tier switches never change balances');
+    assert.equal(await ledgerCount(), ledgerBefore);
+    await undo(id);
+    assert.equal(await balance(), before - earned, 'Undo reverses historical two-Coin or zero-Coin payouts exactly');
+    assert.equal((await complete(id, 'max')).completionReward, 1, 'A fresh completion uses the new policy after historical undo');
+  }
+  await db.query('update public.habits set minimum_focus_minutes = null where id = $1', [historicalUndo]);
+  assert.equal((await complete(historicalUndo)).completionReward, 2, 'Removing a minimum preserves historical rewards');
+  const beforeHistoricalUndo = await balance();
+  await undo(historicalUndo);
+  assert.equal(await balance(), beforeHistoricalUndo - 2);
+  assert.equal((await complete(historicalUndo)).completionReward, 1);
+  const beforeHistoricalPassUndo = await balance();
+  assert.equal((await complete(historicalPass, 'min')).completionReward, 2);
+  assert.equal((await record(historicalPass)).completion_cycle_id, historicalPassCycle);
+  const cappedPassRefund = await undo(historicalPass);
+  assert.equal(cappedPassRefund.hadFreePass, true);
+  assert.equal(cappedPassRefund.legacyPassRefundAmount, 1300);
+  assert.equal(await balance(), beforeHistoricalPassUndo - 2);
+  assert.equal((await undo(historicalPass)).legacyPassRefundAmount, 0, 'Historical pass refunds remain idempotent');
+
+  // Wallet failure remains atomic; a level change needs no wallet operation.
+  const cappedRollback = await addTimedHabit({ title: null });
+  const beforeCappedFailure = await balance();
+  await scalar("select set_config('app.test_reject_wallet', 'true', false)");
+  await assert.rejects(complete(cappedRollback, 'max'), /test_wallet_failure/);
+  assert.equal(await record(cappedRollback), undefined);
+  assert.equal(await balance(), beforeCappedFailure);
+  await scalar("select set_config('app.test_reject_wallet', 'false', false)");
+  await complete(cappedRollback, 'min');
+  await scalar("select set_config('app.test_reject_wallet', 'true', false)");
+  assert.equal((await complete(cappedRollback, 'max')).completionReward, 1);
+  assert.equal(await balance(), beforeCappedFailure + 1);
+  await scalar("select set_config('app.test_reject_wallet', 'false', false)");
+  const beforeRewardReplayHistory = await historySnapshot();
+  const beforeRewardReplayBalance = await balance();
+  const beforeRewardReplayLedger = await ledgerCount();
+  await db.exec(rewardMigration);
+  assert.deepEqual(await historySnapshot(), beforeRewardReplayHistory, 'One-Coin migration replay preserves every record');
+  assert.equal(await balance(), beforeRewardReplayBalance);
+  assert.equal(await ledgerCount(), beforeRewardReplayLedger);
+
   // The real timer persistence is opaque JSONB: both the active target and
   // in-flight runtime retain their tier when another device reads them.
   for (const completionLevel of ['min', 'max']) {
@@ -330,5 +454,5 @@ const asRole = async (role, callback) => {
   assert.deepEqual(signatures.map(row => row.signature), ['complete_my_habit(uuid,date,integer,boolean,text)']);
   assert.equal(await scalar("select has_function_privilege('anon', 'public.complete_my_habit(uuid,date,integer,boolean,text)', 'execute')"), false);
   assert.equal(await scalar("select has_function_privilege('authenticated', 'public.complete_my_habit(uuid,date,integer,boolean,text)', 'execute')"), true);
-  console.log('Habit minimum goals SQL PASS: legacy compatibility, encrypted state, named and time-only minima, min/max deltas, retries, undo, rollback, pass refunds, minimum focus validation, timer round-trip and ownership');
+  console.log('Habit minimum goals SQL PASS: legacy compatibility, encrypted state, named and time-only minima, one-Coin cap, free tier switches, historical payouts, retries, undo, rollback, pass refunds, minimum focus validation, timer round-trip and ownership');
 })().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => db.close());

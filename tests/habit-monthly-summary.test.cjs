@@ -226,13 +226,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
   })()`);
   assert.deepEqual([tierUpdates.before.stats.eligible,tierUpdates.before.stats.completed,tierUpdates.before.rate],[4,2,'50%']);
-  for (const [name,level,coins] of [['min','min',1],['max','max',2],['downgraded','min',1]]) {
+  for (const [name,level,coins] of [['min','min',1],['max','max',1],['downgraded','min',1]]) {
     const update=tierUpdates[name];
     assert.deepEqual([update.level,update.coins,update.dateCopies,update.progress],[level,coins,1,1],`${name}: one completion level and its total reward`);
     assert.deepEqual([update.stats.eligible,update.stats.completed,update.rate,update.count],[4,3,'75%','3 / 4회 완료'],`${name}: visible monthly rate uses normal completion weighting`);
     assert.deepEqual(update.weekly,[0,75,0,0,0],`${name}: visible weekly bar includes minimum completion`);
     assert.deepEqual(update.ranking,[{title:'영어 공부',rate:'100%'},{title:'비타민',rate:'50%'}],`${name}: visible ranking includes minimum-only success`);
-    assert.deepEqual(update.stats,tierUpdates.min.stats,`${name}: switching level changes coins without changing statistics`);
+    assert.deepEqual(update.stats,tierUpdates.min.stats,`${name}: switching level preserves coins and statistics`);
   }
   assert.deepEqual([tierUpdates.undone.level,tierUpdates.undone.coins,tierUpdates.undone.dateCopies,tierUpdates.undone.progress],[null,0,0,0]);
   assert.deepEqual(tierUpdates.undone.stats,tierUpdates.before.stats,'Undoing minimum completion removes exactly one success from every statistic');

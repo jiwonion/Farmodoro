@@ -83,6 +83,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       openHabitModal();
       if (habitMinimumInput.value !== '' || habitMinimumInput.maxLength !== 30) throw Error('Minimum goal must be optional and limited to 30 characters');
+      if (document.querySelector('#habitMaximumReward').textContent.trim() !== '완료하면 1 Coin' || document.querySelector('#habitMinimumHint').textContent.includes('2 Coin')) throw Error('Habit form must describe one coin for either completion level');
       habitInput.value = '영어 공부하기';
       habitMinimumInput.value = '영어 단어 보기';
       habitForm.requestSubmit();
@@ -91,6 +92,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       openHabitModal(habit);
       if (habitMinimumInput.value !== '영어 단어 보기') throw Error('Editing lost the minimum goal');
       habitMinimumInput.value = '단어 3개 보기';
+      if (!document.querySelector('#habitMaximumReward').textContent.includes('1 Coin') || document.querySelector('#habitMaximumReward').textContent.includes('2 Coin')) throw Error('A minimum goal must not increase the maximum reward');
       habitForm.requestSubmit();
       if (habit.minimumTitle !== '단어 3개 보기') throw Error('Minimum goal edit was not saved');
       const snapshot = JSON.parse(serializeTaskDatabaseState());
@@ -157,11 +159,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         if (originalTheme === undefined) delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = originalTheme;
       }
-      checkbox('max').click(); check('max', 2);
+      checkbox('max').click(); check('max', 1);
       const maximumHeatmap = document.querySelector('#habitHeatmapGrid .heatmap-cell[aria-label^="영어 공부하기"][aria-label*="' + toProductivityDateString() + '"]')?.className;
       if (!minimumHeatmap || !maximumHeatmap || minimumHeatmap === maximumHeatmap) throw Error('Heatmap must distinguish minimum and maximum completion');
       checkbox('min').click(); check('min', 1);
       checkbox('min').click(); check(null, 0);
+      checkbox('max').click(); check('max', 1);
+      checkbox('max').click(); check(null, 0);
       openHabitModal(habit);
       habitMinimumInput.value = '';
       habitForm.requestSubmit();
@@ -344,7 +348,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if ((activeFocus?.completionLevel || 'max') !== 'max' || focusSeconds !== 1200) throw Error('Maximum focus must continue from the five minutes already recorded');
       focusLastTickAt = Date.now() - 1210 * 1000;
       advanceRunningFocusTimer('linked');
-      if (getHabitCompletionLevel(habit) !== 'max' || state.coins !== originalCoins + 2 || getHabitDailyFocusSeconds(habit) !== 1500) throw Error('Maximum timer must add only the remaining time and one more coin');
+      if (getHabitCompletionLevel(habit) !== 'max' || state.coins !== originalCoins + 1 || getHabitDailyFocusSeconds(habit) !== 1500) throw Error('Maximum timer must add the remaining time while keeping the habit reward at one coin total');
       return true;
     } finally {
       closeHabitModal();
@@ -396,7 +400,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             previousBottom = r.bottom;
           }
           for (const habit of [sample, timeOnly]) {
-            for (const [level, badgeText, name, minutes] of [['max', '최대 · 2 Coin', habit.title, 25], ['min', '최소 · 1 Coin', habit.minimumTitle || habit.title, 5]]) {
+            for (const [level, badgeText, name, minutes] of [['max', '최대 · 1 Coin', habit.title, 25], ['min', '최소 · 1 Coin', habit.minimumTitle || habit.title, 5]]) {
               if (level === 'min') document.querySelector('[data-habit-id="' + habit.id + '"] [data-habit-view-level="min"]').click();
               const card = document.querySelector('[data-habit-id="' + habit.id + '"]');
               const cardRect = card.getBoundingClientRect();

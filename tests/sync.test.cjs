@@ -229,7 +229,7 @@ test("a tiered habit shows one check row for its current tier with a switch to t
   let markup = html();
   assert.doesNotMatch(markup, /type="checkbox"|habit-goal-row/);
   assert.match(markup, /class="habit-check"[^>]*data-toggle-habit="habit"[^>]*data-habit-level="max"/);
-  assert.match(text(markup), /Exercise 최대 · 2 Coin/);
+  assert.match(text(markup), /Exercise 최대 · 1 Coin/);
   assert.doesNotMatch(text(markup), /Stretching/);
   assert.match(markup, /<button class="habit-tier-switch"[^>]*data-habit-view-level="min" data-habit-view-id="habit"/);
 

@@ -174,7 +174,7 @@ function completionContext(habit, extra = {}) {
     state: { habits: [habit], coins: 0 }, farmWalletHydrated: true,
     productionCoinReward: () => 1, createUuid: () => "client-cycle",
     isHabitScheduledToday: () => true,
-    isHabitCompleteToday: () => habit.completionDates.includes(today),
+    isHabitCompleteToday: (currentHabit) => currentHabit.completionDates.includes(today),
     getHabitTargetForDate: () => 1,
     confirmHabitCompletionWithServer: (...args) => confirmations.push({ action: "complete", args }),
     confirmHabitUncompletionWithServer: (...args) => confirmations.push({ action: "undo", args }),
@@ -192,7 +192,7 @@ function emptyHabit(minimumTitle = "영어 단어 보기") {
   };
 }
 
-test("minimum, maximum, downgrade and undo adjust only the reward difference for the same habit day", () => {
+test("minimum, maximum and tier changes share one coin, which undo returns for the same habit day", () => {
   const habit = emptyHabit();
   const { ctx, confirmations } = completionContext(habit);
   const check = (level, coins, reward) => {
@@ -206,12 +206,49 @@ test("minimum, maximum, downgrade and undo adjust only the reward difference for
   ctx.toggleHabit(habit.id, "min");
   check("min", 1, 1);
   ctx.toggleHabit(habit.id, "max");
-  check("max", 2, 2);
+  check("max", 1, 1);
   ctx.toggleHabit(habit.id, "min");
   check("min", 1, 1);
   ctx.toggleHabit(habit.id, "min");
   check(null, 0, 0);
   assert.deepEqual(confirmations.map(({ action }) => action), ["complete", "complete", "complete", "undo"]);
+});
+
+test("completing the maximum first awards one coin, and tier changes never award it twice", () => {
+  const habit = emptyHabit();
+  const { ctx } = completionContext(habit);
+  ctx.toggleHabit(habit.id, "max");
+  assert.equal(ctx.getHabitCompletionLevel(habit), "max");
+  assert.equal(ctx.state.coins, 1);
+  assert.equal(habit.completionReward, 1);
+  ctx.toggleHabit(habit.id, "min");
+  ctx.toggleHabit(habit.id, "max");
+  assert.equal(ctx.state.coins, 1);
+  assert.equal(habit.recordMetaByDate[today].completionReward, 1);
+  ctx.toggleHabit(habit.id, "max");
+  assert.equal(ctx.state.coins, 0);
+  assert.equal(habit.complete, false);
+});
+
+test("an existing two-coin maximum keeps its awarded amount across tier changes and returns it on undo", () => {
+  const habit = emptyHabit();
+  Object.assign(habit, {
+    complete: true, completedDate: today, completionDates: [today], completionReward: 2,
+    recordMetaByDate: { [today]: {
+      completionLevel: "max", completionReward: 2, completionCycleId: "historical-cycle",
+      completedAt: `${today}T12:00:00+09:00`, completedWithFreePass: false,
+    } },
+  });
+  const { ctx } = completionContext(habit);
+  ctx.state.coins = 12;
+  ctx.toggleHabit(habit.id, "min");
+  assert.equal(ctx.getHabitCompletionLevel(habit), "min");
+  assert.equal(ctx.state.coins, 12);
+  assert.equal(habit.completionReward, 2);
+  ctx.toggleHabit(habit.id, "min");
+  assert.equal(ctx.state.coins, 10);
+  assert.equal(habit.completionReward, 0);
+  assert.equal(habit.complete, false);
 });
 
 test("habits without a minimum goal retain one coin and a single completion toggle", () => {
@@ -231,13 +268,13 @@ test("changing a historical level preserves today's completion and refunds the h
   const { ctx } = completionContext(habit);
   ctx.toggleHabit(habit.id, "max");
   ctx.applyHabitCompletionChange(habit, false, true, yesterday, "min");
-  assert.equal(ctx.state.coins, 3);
-  assert.equal(habit.completionReward, 2);
+  assert.equal(ctx.state.coins, 2);
+  assert.equal(habit.completionReward, 1);
   assert.equal(habit.completedDate, today);
   assert.equal(habit.recordMetaByDate[yesterday].completionReward, 1);
   ctx.applyHabitCompletionChange(habit, true, false, yesterday, "min");
-  assert.equal(ctx.state.coins, 2, "Undo refunds yesterday's minimum reward, without taking today's maximum reward");
-  assert.equal(habit.completionReward, 2);
+  assert.equal(ctx.state.coins, 1, "Undo refunds yesterday's minimum reward, without taking today's maximum reward");
+  assert.equal(habit.completionReward, 1);
   assert.equal(habit.complete, true);
   assert.equal(habit.completedDate, today);
   assert.deepEqual(plain(habit.completionDates), [today]);
@@ -272,7 +309,7 @@ for (const level of ["min", "max", "legacy"]) {
     const { ctx } = completionContext(habit);
     const calls = [];
     const requestedLevel = level === "legacy" ? "max" : level;
-    const reward = level === "max" ? 2 : 1;
+    const reward = 1;
     useServerConfirmation(ctx, async (name, params) => {
       calls.push({ name, params: plain(params) });
       return { data: {
@@ -358,11 +395,11 @@ test("historical minimum, maximum and undo save the selected date and level whil
       rpc: async (name, params) => {
         calls.push({ name, params: plain(params) });
         savedLevel = name === "uncomplete_my_habit" ? null : params.p_completion_level;
-        return { data: { coinBalance: 10 + (savedLevel === "max" ? 2 : savedLevel === "min" ? 1 : 0) } };
+        return { data: { coinBalance: 10 + (savedLevel ? 1 : 0) } };
       },
       from: () => ({ upsert: (row) => {
         assert.deepEqual(plain(row), { habit_id: habit.id, record_date: yesterday, progress_value: savedLevel ? 1 : 0 });
-        return { select: () => ({ single: async () => ({ data: record(yesterday, savedLevel, savedLevel === "max" ? 2 : savedLevel ? 1 : 0) }) }) };
+        return { select: () => ({ single: async () => ({ data: record(yesterday, savedLevel, savedLevel ? 1 : 0) }) }) };
       } }),
     },
   });
@@ -373,11 +410,12 @@ test("historical minimum, maximum and undo save the selected date and level whil
     assert.equal(last.name, level ? "complete_my_habit" : "uncomplete_my_habit");
     if (level) assert.equal(last.params.p_completion_level, level);
     assert.equal(habit.recordMetaByDate[yesterday].completionLevel, level);
+    assert.equal(habit.recordMetaByDate[yesterday].completionReward, level ? 1 : 0);
     assert.deepEqual(plain(habit.recordMetaByDate[today]), todayMeta);
     assert.equal(habit.completionReward, 2);
     assert.equal(habit.completedDate, today);
     assert.equal(habit.focusSecondsByDate[yesterday], 240);
-    assert.equal(ctx.state.coins, 10 + (level === "max" ? 2 : level ? 1 : 0));
+    assert.equal(ctx.state.coins, 10 + (level ? 1 : 0));
     assert.equal(ctx.habitRecordEditsInFlight.size, 0);
   }
 });
@@ -449,7 +487,7 @@ function useFocusFinish(ctx, habit, completionLevel) {
   vm.runInContext(source.match(/function finishFocusRuntime\([^]*?^\}/m)[0], ctx);
 }
 
-test("finishing a minimum timer awards one coin, then the maximum timer adds only one more", () => {
+test("finishing minimum and maximum timers awards one coin total for the habit day", () => {
   const habit = emptyHabit();
   Object.assign(habit, { measureType: "time", targetValue: 30, minimumFocusMinutes: 5 });
   const { ctx, confirmations } = completionContext(habit);
@@ -462,19 +500,19 @@ test("finishing a minimum timer awards one coin, then the maximum timer adds onl
   useFocusFinish(ctx, habit, "max");
   ctx.finishFocusRuntime("linked");
   assert.equal(ctx.getHabitCompletionLevel(habit), "max");
-  assert.equal(ctx.state.coins, 2);
-  assert.equal(habit.completionReward, 2);
+  assert.equal(ctx.state.coins, 1);
+  assert.equal(habit.completionReward, 1);
   assert.equal(confirmations.length, 2);
 });
 
-test("a time-only minimum timer awards one coin and upgrades to two, using the tier-aware server RPC", async () => {
+test("time-only minimum and maximum timers share one coin, using the tier-aware server RPC", async () => {
   const habit = emptyHabit("");
   Object.assign(habit, { measureType: "time", targetValue: 25, minimumFocusMinutes: 5 });
   const { ctx } = completionContext(habit);
   const calls = [];
   useServerConfirmation(ctx, async (name, params) => {
     calls.push({ name, params: plain(params) });
-    const reward = params.p_completion_level === "max" ? 2 : 1;
+    const reward = 1;
     return { data: { coinBalance: reward, completionReward: reward,
       completionLevel: params.p_completion_level, completionCycleId: "time-only-" + params.p_completion_level } };
   });
@@ -489,8 +527,8 @@ test("a time-only minimum timer awards one coin and upgrades to two, using the t
   ctx.finishFocusRuntime("linked");
   await ctx.farmWalletMutationChain;
   assert.equal(ctx.getHabitCompletionLevel(habit), "max");
-  assert.equal(ctx.state.coins, 2);
-  assert.equal(habit.recordMetaByDate[today].completionReward, 2);
+  assert.equal(ctx.state.coins, 1);
+  assert.equal(habit.recordMetaByDate[today].completionReward, 1);
   assert.deepEqual(calls.map(({ name, params }) => [name, params.p_completion_level]),
     [["complete_my_habit", "min"], ["complete_my_habit", "max"]]);
 });
@@ -502,7 +540,7 @@ test("a minimum timer finishing after a maximum completion cannot downgrade it",
   useFocusFinish(ctx, habit, "min");
   ctx.finishFocusRuntime("linked");
   assert.equal(ctx.getHabitCompletionLevel(habit), "max");
-  assert.equal(ctx.state.coins, 2);
+  assert.equal(ctx.state.coins, 1);
   assert.equal(confirmations.length, 1);
 });
 
@@ -531,15 +569,15 @@ test("finishing a minimum timer during a pending minimum reward does not upgrade
   assert.equal(ctx.state.coins, 1);
 });
 
-test("finishing a focus target upgrades an already completed minimum habit to maximum for one additional coin", () => {
+test("finishing a focus target upgrades an already completed minimum habit without an additional coin", () => {
   const habit = emptyHabit();
   const { ctx } = completionContext(habit);
   ctx.toggleHabit(habit.id, "min");
   useFocusFinish(ctx, habit);
   ctx.finishFocusRuntime("linked");
   assert.equal(ctx.getHabitCompletionLevel(habit), "max");
-  assert.equal(ctx.state.coins, 2);
-  assert.equal(habit.completionReward, 2);
+  assert.equal(ctx.state.coins, 1);
+  assert.equal(habit.completionReward, 1);
   assert.deepEqual(plain(habit.completionDates), [today]);
   assert.equal(ctx.activeFocus, null);
   assert.equal(ctx.runningFocusMode, null);
@@ -558,7 +596,7 @@ test("a focus target reached during a pending minimum request upgrades after tha
       started();
       return new Promise((resolve) => { releaseMinimum = resolve; });
     }
-    return { data: { coinBalance: 2, completionReward: 2, completionLevel: "max", completionCycleId: "server-max" } };
+    return { data: { coinBalance: 1, completionReward: 1, completionLevel: "max", completionCycleId: "server-max" } };
   });
   ctx.toggleHabit(habit.id, "min");
   await ready;
@@ -571,7 +609,7 @@ test("a focus target reached during a pending minimum request upgrades after tha
   await ctx.farmWalletMutationChain;
   assert.deepEqual(calls, ["min", "max"]);
   assert.equal(ctx.getHabitCompletionLevel(habit), "max");
-  assert.equal(ctx.state.coins, 2);
+  assert.equal(ctx.state.coins, 1);
   assert.equal(habit.recordMetaByDate[today].completionCycleId, "server-max");
 });
 
@@ -582,7 +620,7 @@ test("habit tier rewards and undo preserve an existing negative coin balance exa
   ctx.toggleHabit(habit.id, "min");
   assert.equal(ctx.state.coins, -4);
   ctx.toggleHabit(habit.id, "max");
-  assert.equal(ctx.state.coins, -3);
+  assert.equal(ctx.state.coins, -4);
   ctx.toggleHabit(habit.id, "min");
   assert.equal(ctx.state.coins, -4);
   ctx.toggleHabit(habit.id, "min");
@@ -615,13 +653,19 @@ test("removing a minimum goal leaves the completed habit's single control ready 
   assert.deepEqual(confirmations.map(({ action }) => action), ["complete", "undo"]);
 });
 
-test("a failed downgrade queued behind another habit's success retains the authoritative wallet balance", async () => {
+test("a failed historical tier change queued behind another habit's success retains the authoritative wallet balance", async () => {
   const habitA = emptyHabit();
   habitA.id = "habit-a";
   const habitB = emptyHabit();
   habitB.id = "habit-b";
+  Object.assign(habitB, {
+    complete: true, completedDate: today, completionDates: [today], completionReward: 2,
+    recordMetaByDate: { [today]: {
+      completionLevel: "max", completionReward: 2, completionCycleId: "historical-b-cycle",
+      completedAt: `${today}T12:00:00+09:00`, completedWithFreePass: false,
+    } },
+  });
   const { ctx } = completionContext(habitB);
-  ctx.toggleHabit(habitB.id, "max");
   ctx.state.habits.push(habitA);
   ctx.state.coins = 10;
   let releaseFirst;
@@ -640,12 +684,13 @@ test("a failed downgrade queued behind another habit's success retains the autho
   await ready;
   assert.equal(ctx.state.coins, 11);
   ctx.toggleHabit(habitB.id, "min");
-  assert.equal(ctx.state.coins, 10);
+  assert.equal(ctx.state.coins, 11, "Changing a historical tier preserves its previously awarded two coins");
   releaseFirst({ data: { coinBalance: 11, completionReward: 1, completionLevel: "min", completionCycleId: "server-a" } });
   await ctx.farmWalletMutationChain;
-  assert.equal(ctx.state.coins, 11, "Failed B must not add its optimistic refund onto A's canonical balance");
+  assert.equal(ctx.state.coins, 11, "Failed B must retain A's canonical balance");
   assert.equal(ctx.getHabitCompletionLevel(habitA), "min");
   assert.equal(ctx.getHabitCompletionLevel(habitB), "max");
+  assert.equal(habitB.completionReward, 2);
 });
 
 function useFailureRecovery(ctx, readRecord) {

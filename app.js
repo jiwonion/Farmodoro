@@ -2987,7 +2987,7 @@ function getHabitCompletionLevel(habit, dateString = toProductivityDateString())
 }
 
 function getHabitCompletionReward(habit, completionLevel = "max") {
-  return hasHabitMinimum(habit) && completionLevel === "max" ? 2 : 1;
+  return 1;
 }
 
 function getHabitStreak(habit, dateString = toProductivityDateString()) {
@@ -3306,7 +3306,7 @@ function renderHabits() {
       const focusLevel = completionLevel === "min" ? "max" : viewLevel;
       const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
       const tierBadge = hasMinimum
-        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소 · 1" : "최대 · 2"} Coin</span>` : "";
+        ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"} · 1 Coin</span>` : "";
       // The switch only picks which goal to complete; a completed tier must be undone before switching.
       const tierSwitch = hasMinimum && !completeToday
         ? `<button class="habit-tier-switch" type="button" data-habit-view-level="${otherLevel}" data-habit-view-id="${habit.id}" aria-label="${escapeHtml(getHabitGoalTitle(habit, otherLevel))} ${otherLevel === "min" ? "최소" : "최대"} 목표로 바꾸기">⇄ ${otherLevel === "min" ? "최소로" : "최대로"}</button>` : "";
@@ -4212,7 +4212,7 @@ function applyHabitCompletionChange(habit, wasComplete, complete, today = toProd
     : (complete ? getHabitTargetForDate(habit, today) : 0);
 
   if (complete) {
-    const totalReward = getHabitCompletionReward(habit, completionLevel);
+    const totalReward = wasComplete ? previousReward : getHabitCompletionReward(habit, completionLevel);
     const reward = totalReward - previousReward;
     const completedAt = previousMeta?.completedAt || new Date().toISOString();
     if (isToday) {
@@ -5069,7 +5069,7 @@ function finishFocusRuntime(mode) {
     scheduleTaskDatabaseSync(0);
     showToast(
       completionResult
-        ? `${completionLevel === "min" ? "최소" : hasHabitMinimum(item) ? "최대" : "습관"} 목표를 채웠어 ${completionResult.reward} Coin 획득`
+        ? `${completionLevel === "min" ? "최소" : hasHabitMinimum(item) ? "최대" : "습관"} 목표를 채웠어${completionResult.reward > 0 ? ` · ${completionResult.reward} Coin 획득` : completionResult.reward < 0 ? ` · ${-completionResult.reward} Coin 차감` : ""}`
         : "집중 측정을 완료했어",
     );
     scheduleFocusTimerDatabaseSync(0);
@@ -5692,7 +5692,7 @@ function updateHabitGoalReward() {
   const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
   document.querySelector("#habitGoalLabel").textContent = hasMinimum ? "최대 목표" : "기본 목표";
   document.querySelector("#habitMaximumReward").textContent = hasMinimum
-    ? "최대 달성 · 총 2 Coin" : "완료하면 1 Coin";
+    ? "최대 달성 · 1 Coin" : "완료하면 1 Coin";
   updateHabitFocusWeekdayInputs();
 }
 
