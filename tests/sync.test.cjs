@@ -227,16 +227,16 @@ test("a tiered habit shows one check row for its current tier with a switch to t
   const text = (markup) => markup.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
 
   let markup = html();
-  assert.doesNotMatch(markup, /type="checkbox"|habit-goal-row/);
+  assert.doesNotMatch(markup, /type="checkbox"|habit-goal-row|habit-tier-badge/);
   assert.match(markup, /class="habit-check"[^>]*data-toggle-habit="habit"[^>]*data-habit-level="max"/);
-  assert.match(text(markup), /Exercise 최대/);
+  assert.match(markup, /<strong>Exercise<\/strong>/);
   assert.doesNotMatch(text(markup), /Stretching/);
   assert.match(markup, /<button class="habit-tier-switch"[^>]*data-habit-view-level="min" data-habit-view-id="habit"/);
 
   habitTierViewLevels.set("habit:2026-09-09", "min");
   markup = html();
   assert.match(markup, /class="habit-check"[^>]*data-habit-level="min"/);
-  assert.match(text(markup), /Stretching 최소/);
+  assert.match(markup, /<strong>Stretching<\/strong>/);
   assert.doesNotMatch(text(markup), /Exercise/);
   assert.match(markup, /data-habit-view-level="max"[^>]*>⇄ 최대로</);
 
@@ -259,7 +259,7 @@ test("a timed minimum without a distinct name keeps the habit name and shows the
     });
     const text = html().replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     assert.equal(text.match(/Self study/g).length, 1, JSON.stringify(minimumTitle));
-    assert.match(text, /Self study 최소/);
+    assert.match(text, /Self study/);
     assert.match(text, /목표 30분/);
   }
 });
