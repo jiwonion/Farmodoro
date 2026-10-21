@@ -21,3 +21,48 @@ body #habitModal .habit-date-row label > span { margin-bottom: 8px; font-size: 1
 }
 body #habitsPage #habitModal { margin-inline: auto; }
 body #habitModal #habitForm { max-width: none; }
+
+html.list-share-open, body.list-share-open { overflow: hidden; }
+body .list-share-modal {
+  position: fixed; inset: 0; z-index: 9500; display: grid; place-items: center;
+  padding: 16px; color: var(--ink);
+}
+body .list-share-modal.hidden { display: none; }
+body .list-share-backdrop { position: absolute; inset: 0; background: #101c3380; }
+body .list-share-panel {
+  position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(560px, 100%); max-height: calc(100dvh - 32px); min-height: 240px;
+  padding: 22px; gap: 14px; overflow: hidden;
+  border: 1px solid var(--pixel-edge); border-radius: 16px !important;
+  background: var(--paper); box-shadow: 0 16px 64px #101c3340;
+}
+body .list-share-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+body .list-share-panel .section-kicker { color: var(--pixel-accent); font-size: 10px; letter-spacing: .08em; }
+body .list-share-panel h2 { margin: 5px 0 0; font-size: 21px; line-height: 1.35; }
+body #listShareStatus { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+body .list-share-preview { min-height: 80px; overflow: auto; border-radius: 10px; background: var(--theme-board); }
+body .list-share-preview img { display: block; width: 100%; height: auto; }
+body .list-share-preview[aria-busy="true"] { min-height: 160px; }
+body .list-share-panel > footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+body .list-share-pages { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+body .list-share-pages button {
+  width: 36px; height: 38px; padding: 0; border: 1px solid var(--pixel-edge);
+  border-radius: 7px !important; background: var(--paper); color: var(--ink); font-size: 22px;
+}
+body .list-share-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: 8px; margin-left: auto; }
+body .list-share-actions :is(a, button) {
+  display: inline-flex; min-height: 42px; align-items: center; justify-content: center;
+  padding: 9px 14px; border: 1px solid var(--pixel-edge); border-radius: 7px !important;
+  background: var(--paper); color: var(--ink); font-size: 13px; font-weight: 600; text-decoration: none; box-shadow: none;
+}
+body .list-share-actions .primary-button { border-color: var(--pixel-accent); background: var(--pixel-accent); color: var(--pixel-on-accent); }
+body .list-share-modal [hidden] { display: none !important; }
+body .list-share-modal :is(button, a):focus-visible,
+body .list-share-trigger:focus-visible { outline: 2px solid var(--pixel-accent); outline-offset: 3px; }
+body .list-share-modal button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 420px) {
+  body .list-share-modal { padding: 10px; }
+  body .list-share-panel { max-height: calc(100dvh - 20px); padding: 16px; gap: 12px; }
+  body .list-share-panel h2 { font-size: 19px; }
+  body .list-share-actions :is(a, button) { padding: 9px 11px; font-size: 12px; }
+}

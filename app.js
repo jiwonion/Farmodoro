@@ -491,6 +491,7 @@ async function applyAuthSession(session) {
   activeAuthUser = session?.user ?? null;
   if (previousUserId !== (session?.user?.id ?? null)) {
     farmSessionGeneration += 1;
+    closeListSharePreview(false);
 
     window.SceneryCreations?.reset();
     window.FarmV3?.reset();
@@ -4279,6 +4280,263 @@ function showToast(message) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2100);
 }
 
+function getListShareSnapshot(kind) {
+  const date = kind === "habits" ? getHabitViewDate() : toProductivityDateString();
+  const viewDate = new Date(`${date}T12:00:00`);
+  let subtitle = date.replaceAll("-", ".");
+  let items;
+  if (kind === "tasks") {
+    const groupLabel = taskGroupFilter === "all" ? "전체 그룹"
+      : taskGroupFilter === "none" ? "그룹 없음" : getGroup(taskGroupFilter)?.name || "전체 그룹";
+    subtitle += ` · ${groupLabel}${currentPage === "tasks" && taskArchiveView ? " · 보관함" : ""}`;
+    items = [...getVisibleTasks("waiting"), ...getVisibleTasks("done")].map((task) => ({
+      title: task.title,
+      status: task.status === "done" ? "완료" : "미완료",
+      complete: task.status === "done",
+      offDay: false,
+      detail: getGroup(task.groupId)?.name || "그룹 없음",
+    }));
+  } else {
+    // Match renderHabits: the management view includes off-days; today/past views do not.
+    const visible = currentPage === "today" || date < toProductivityDateString()
+      ? state.habits.filter((habit) => isHabitScheduledOn(habit, viewDate))
+      : state.habits.filter((habit) => !habit.endDate || habit.endDate >= date);
+    items = visible.map((habit) => {
+      const offDay = !isHabitScheduledOn(habit, viewDate);
+      const level = getHabitCompletionLevel(habit, date);
+      const tiered = hasHabitMinimum(habit);
+      const viewLevel = tiered ? level || habitTierViewLevels.get(`${habit.id}:${date}`) || "max" : "max";
+      const targetMinutes = getHabitFocusMinutes(habit, date, viewLevel);
+      return {
+        title: getHabitGoalTitle(habit, viewLevel),
+        status: offDay ? "쉬는 날" : level === "min" ? "최소 달성" : level ? (tiered ? "최대 달성" : "완료") : "미완료",
+        complete: Boolean(level) && !offDay,
+        offDay,
+        detail: `${formatHabitSchedule(habit, currentPage === "habits")}${targetMinutes > 0 ? ` · 목표 ${targetMinutes}분` : ""}`,
+      };
+    });
+  }
+  return {
+    kind, date, title: kind === "tasks" ? "나의 할 일" : "나의 습관", subtitle, items,
+    completed: items.filter((item) => item.complete).length,
+    eligible: items.filter((item) => !item.offDay).length,
+  };
+}
+
+function wrapListShareText(context, text, width) {
+  const lines = [];
+  // Grapheme clusters keep emoji and combined Korean characters intact at line breaks.
+  const segments = typeof Intl.Segmenter === "function"
+    ? [...new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(String(text))].map((part) => part.segment)
+    : Array.from(String(text));
+  let line = "";
+  for (const character of segments) {
+    if (character === "\n") { lines.push(line); line = ""; continue; }
+    if (line && context.measureText(line + character).width > width) {
+      lines.push(line); line = character;
+    } else line += character;
+  }
+  lines.push(line);
+  return lines;
+}
+
+async function createListShareImages(snapshot, cancelled = () => false) {
+  await document.fonts?.ready;
+  const pages = [];
+  // Small pages keep PNGs sharp and comfortably within mobile canvas limits.
+  const pageSize = 12;
+  const pageCount = Math.ceil(snapshot.items.length / pageSize);
+  const family = '"Pretendard Variable", "Malgun Gothic", sans-serif';
+  for (let page = 0; page < pageCount; page += 1) {
+    if (cancelled()) return [];
+    const canvas = document.createElement("canvas");
+    canvas.width = 900;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+    context.font = `550 30px ${family}`;
+    const items = snapshot.items.slice(page * pageSize, (page + 1) * pageSize);
+    const rows = items.map((item) => {
+      const titleLines = wrapListShareText(context, item.title, 644);
+      context.font = `450 22px ${family}`;
+      const detailLines = wrapListShareText(context, `${item.status} · ${item.detail}`, 644);
+      context.font = `550 30px ${family}`;
+      return { item, titleLines, detailLines, height: 44 + titleLines.length * 42 + detailLines.length * 32 };
+    });
+    context.font = `450 25px ${family}`;
+    const subtitleLines = wrapListShareText(context, snapshot.subtitle, 772);
+    const headerHeight = 318 + subtitleLines.length * 35;
+    canvas.height = headerHeight + rows.reduce((total, row) => total + row.height + 14, 0) + 90;
+    // A malformed imported title should fail visibly rather than producing a blank image.
+    if (canvas.height > 14000) throw new Error("Share image too tall");
+    context.fillStyle = "#f3f6fc";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#0755ff";
+    context.fillRect(64, 52, 12, 12);
+    context.fillRect(78, 38, 12, 12);
+    context.fillRect(78, 66, 12, 12);
+    context.font = `750 24px ${family}`;
+    context.fillText("FARMODORO", 108, 68);
+    context.fillStyle = "#182238";
+    context.font = `750 54px ${family}`;
+    context.fillText(snapshot.title, 64, 155);
+    context.fillStyle = "#69758b";
+    context.font = `450 25px ${family}`;
+    subtitleLines.forEach((line, index) => context.fillText(line, 64, 204 + index * 35));
+    const summaryTop = 231 + (subtitleLines.length - 1) * 35;
+    context.fillStyle = "#e5edff";
+    context.beginPath();
+    context.roundRect(64, summaryTop, 772, 78, 16);
+    context.fill();
+    context.fillStyle = "#0755ff";
+    context.font = `700 30px ${family}`;
+    context.fillText(`${snapshot.completed} / ${snapshot.eligible} 완료`, 88, summaryTop + 50);
+    context.fillStyle = "#69758b";
+    context.font = `450 23px ${family}`;
+    context.textAlign = "right";
+    const restDays = snapshot.items.length - snapshot.eligible;
+    context.fillText(restDays ? `쉬는 날 ${restDays}개` : `총 ${snapshot.items.length}개`, 810, summaryTop + 49);
+    context.textAlign = "left";
+    let top = headerHeight;
+    for (const row of rows) {
+      context.fillStyle = "#ffffff";
+      context.beginPath();
+      context.roundRect(48, top, 804, row.height, 18);
+      context.fill();
+      context.fillStyle = row.item.complete ? "#0755ff" : row.item.offDay ? "#e8ecf2" : "#ffffff";
+      context.strokeStyle = row.item.complete ? "#0755ff" : "#b9c6d8";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.roundRect(80, top + 28, 34, 34, 8);
+      context.fill(); context.stroke();
+      if (row.item.complete) {
+        context.strokeStyle = "#ffffff"; context.lineWidth = 3;
+        context.beginPath(); context.moveTo(88, top + 45); context.lineTo(95, top + 52); context.lineTo(107, top + 38); context.stroke();
+      }
+      context.fillStyle = row.item.offDay ? "#69758b" : "#182238";
+      context.font = `550 30px ${family}`;
+      row.titleLines.forEach((line, index) => context.fillText(line, 144, top + 53 + index * 42));
+      context.fillStyle = row.item.complete ? "#0755ff" : "#69758b";
+      context.font = `450 22px ${family}`;
+      row.detailLines.forEach((line, index) => context.fillText(line, 144, top + 53 + row.titleLines.length * 42 + index * 32));
+      top += row.height + 14;
+    }
+    context.fillStyle = "#69758b";
+    context.font = `450 22px ${family}`;
+    context.fillText("작은 실천이 쌓이는 하루", 64, canvas.height - 38);
+    context.textAlign = "right";
+    context.fillText(`${page + 1} / ${pageCount}`, 836, canvas.height - 38);
+    const blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("PNG encoding failed")), "image/png"));
+    const file = new File([blob], `farmodoro-${snapshot.kind}-${snapshot.date}-${page + 1}.png`, { type: "image/png" });
+    pages.push({ file, alt: `${snapshot.title} · ${snapshot.subtitle}\n${items.map((item) => `${item.title}: ${item.status} · ${item.detail}`).join("\n")}` });
+    canvas.width = canvas.height = 1;
+  }
+  return pages;
+}
+
+const listShareModal = document.querySelector("#listShareModal");
+const listShareImage = document.querySelector("#listShareImage");
+const listShareStatus = document.querySelector("#listShareStatus");
+const listShareSend = document.querySelector("#sendListShare");
+const listShareDownload = document.querySelector("#downloadListShare");
+let listSharePages = [];
+let listSharePage = 0;
+let listShareGeneration = 0;
+let listShareReturnFocus = null;
+let listShareSending = false;
+
+function closeListSharePreview(restoreFocus = true) {
+  const wasOpen = !listShareModal.classList.contains("hidden");
+  listShareGeneration += 1;
+  listShareModal.classList.add("hidden");
+  document.body.classList.remove("list-share-open");
+  document.documentElement.classList.remove("list-share-open");
+  listShareImage.hidden = true;
+  listShareImage.removeAttribute("src");
+  listShareDownload.removeAttribute("href");
+  listSharePages.forEach((page) => URL.revokeObjectURL(page.url));
+  listSharePages = [];
+  if (wasOpen && restoreFocus) listShareReturnFocus?.focus();
+  listShareReturnFocus = null;
+}
+
+function renderListSharePage() {
+  const page = listSharePages[listSharePage];
+  if (!page) return;
+  listShareImage.src = page.url;
+  listShareImage.alt = page.alt;
+  listShareImage.hidden = false;
+  listShareDownload.href = page.url;
+  listShareDownload.download = page.file.name;
+  listShareDownload.hidden = false;
+  document.querySelector("#listSharePages").hidden = listSharePages.length < 2;
+  document.querySelector("#listSharePageLabel").textContent = `${listSharePage + 1} / ${listSharePages.length}`;
+  document.querySelector("#previousListSharePage").disabled = listSharePage === 0;
+  document.querySelector("#nextListSharePage").disabled = listSharePage === listSharePages.length - 1;
+  document.querySelector("#listSharePreview").scrollTop = 0;
+}
+
+async function openListSharePreview(kind, trigger) {
+  if (!taskDataHydrated) { showToast("목록을 불러온 뒤에 공유할 수 있어"); return; }
+  const snapshot = getListShareSnapshot(kind);
+  if (!snapshot.items.length) { showToast(`공유할 ${kind === "tasks" ? "할 일이" : "습관이"} 없어`); return; }
+  closeListSharePreview(false);
+  const generation = listShareGeneration;
+  listShareReturnFocus = trigger;
+  listShareSending = false;
+  listSharePage = 0;
+  listShareSend.hidden = listShareDownload.hidden = true;
+  listShareSend.disabled = false;
+  document.querySelector("#listSharePages").hidden = true;
+  document.querySelector("#listShareTitle").textContent = `${kind === "tasks" ? "할 일" : "습관"} 이미지 공유`;
+  listShareStatus.textContent = "이미지를 만드는 중이야…";
+  document.querySelector("#listSharePreview").setAttribute("aria-busy", "true");
+  listShareModal.classList.remove("hidden");
+  document.body.classList.add("list-share-open");
+  document.documentElement.classList.add("list-share-open");
+  listShareModal.querySelector("button[data-close-list-share]").focus();
+  try {
+    const pages = await createListShareImages(snapshot, () => generation !== listShareGeneration);
+    if (generation !== listShareGeneration) return;
+    listSharePages = pages.map((page) => ({ ...page, url: URL.createObjectURL(page.file) }));
+    let canShare = false;
+    try { canShare = Boolean(navigator.share && navigator.canShare?.({ files: pages.map((page) => page.file) })); } catch {}
+    listShareSend.hidden = !canShare;
+    listShareSend.textContent = pages.length > 1 ? `${pages.length}장 모두 공유` : "이미지 공유";
+    listShareStatus.textContent = pages.length > 1
+      ? `총 ${pages.length}장의 이미지야. ${canShare ? "모두 공유하거나 한 장씩 저장할 수 있어." : "화살표로 넘기며 한 장씩 저장해 줘."}`
+      : canShare ? "이미지를 확인하고 공유하거나 저장해 봐." : "이미지를 저장해서 원하는 앱에 공유해 봐.";
+    renderListSharePage();
+  } catch (error) {
+    if (generation !== listShareGeneration) return;
+    listShareStatus.textContent = "이미지를 만들지 못했어. 창을 닫고 다시 시도해 줘.";
+    console.warn("Farmodoro share image could not be created", error);
+  } finally {
+    if (generation === listShareGeneration) document.querySelector("#listSharePreview").setAttribute("aria-busy", "false");
+  }
+}
+
+document.querySelector("#shareTasks").addEventListener("click", (event) => void openListSharePreview("tasks", event.currentTarget));
+document.querySelector("#shareHabits").addEventListener("click", (event) => void openListSharePreview("habits", event.currentTarget));
+listShareModal.addEventListener("click", (event) => { if (event.target.closest("[data-close-list-share]")) closeListSharePreview(); });
+document.querySelector("#previousListSharePage").addEventListener("click", () => { if (listSharePage > 0) { listSharePage -= 1; renderListSharePage(); } });
+document.querySelector("#nextListSharePage").addEventListener("click", () => { if (listSharePage < listSharePages.length - 1) { listSharePage += 1; renderListSharePage(); } });
+listShareSend.addEventListener("click", async () => {
+  if (listShareSending || !listSharePages.length) return;
+  const generation = listShareGeneration;
+  listShareSending = true;
+  listShareSend.disabled = true;
+  try {
+    // Files already exist: call share directly from this click to preserve mobile user activation.
+    await navigator.share({ files: listSharePages.map((page) => page.file) });
+  } catch (error) {
+    if (generation === listShareGeneration && error?.name !== "AbortError") {
+      listShareStatus.textContent = "공유를 열지 못했어. 이미지 저장으로 저장한 뒤 공유해 줘.";
+    }
+  } finally {
+    if (generation === listShareGeneration) { listShareSending = false; listShareSend.disabled = false; }
+  }
+});
+
 function updateFocusDisplay() {
   const runtime = focusRuntimeByMode[focusMode];
   if (focusMode === "linked" && runningFocusMode !== "linked" && activeFocus?.type === "habit") {
@@ -6869,6 +7127,7 @@ async function equipFarmCosmetic(button) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    if (!listShareModal.classList.contains("hidden")) { closeListSharePreview(); return; }
     if (closeThemedDateCalendar()) return;
     closeUserSettings();
     if (editingTaskId) closeTaskInlineEdit();
@@ -7442,6 +7701,7 @@ if ("ResizeObserver" in window) {
 document.fonts?.ready.then(scheduleFocusStageCenterUpdate);
 
 function closePageModals() {
+  closeListSharePreview(false);
   closeUserSettings();
   closeHabitModal();
   closeHabitDeleteModal();

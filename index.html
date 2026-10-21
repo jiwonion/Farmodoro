@@ -47,14 +47,14 @@
     <link rel="stylesheet" href="./workspace.css?v=9" />
     <link rel="stylesheet" href="./workspace-controls.css?v=5" />
     <link rel="stylesheet" href="./workspace-responsive.css?v=7" />
-    <link rel="stylesheet" href="./workspace-forms.css?v=4" />
+    <link rel="stylesheet" href="./workspace-forms.css?v=5" />
     <link rel="stylesheet" href="./habit-tiers.css?v=12" />
     <link rel="stylesheet" href="./farm-workspace.css?v=3" />
     <link rel="stylesheet" href="./garden-shell.css?v=9" />
     <link rel="stylesheet" href="./garden-modals.css?v=5" />
     <link rel="stylesheet" href="./scenery-creations.css?v=5" />
     <link rel="stylesheet" href="./scenery-workspace.css?v=9" />
-    <link rel="stylesheet" href="./farm-v3.css?v=20" />
+    <link rel="stylesheet" href="./farm-v3.css?v=21" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -329,6 +329,7 @@
                 <p class="section-description">오늘도 하나씩, 해내는 하루!</p>
               </div>
               <div class="section-header-actions">
+              <button class="secondary-button list-share-trigger" id="shareTasks" type="button" aria-haspopup="dialog" aria-controls="listShareModal" aria-label="할 일 이미지 공유하기">공유하기</button>
               <button class="secondary-button" id="toggleGroupManager" type="button" aria-controls="groupManager" aria-expanded="false">그룹 관리</button>
               <button class="add-button" id="openTaskForm" type="button" aria-controls="taskCreateModal" aria-expanded="false">
                 <span aria-hidden="true">＋</span><span>할 일 추가</span>
@@ -421,7 +422,10 @@
                 <h2>오늘의 습관</h2>
                 <p class="section-description">작은 습관이, 큰 변화를 키워요.</p>
               </div>
-              <button class="text-button" id="openHabitForm" type="button" aria-controls="habitModal" aria-expanded="false">＋ 습관 추가</button>
+              <div class="section-header-actions">
+                <button class="secondary-button list-share-trigger" id="shareHabits" type="button" aria-haspopup="dialog" aria-controls="listShareModal" aria-label="습관 이미지 공유하기">공유하기</button>
+                <button class="text-button" id="openHabitForm" type="button" aria-controls="habitModal" aria-expanded="false">＋ 습관 추가</button>
+              </div>
             </div>
 
             <div
@@ -784,6 +788,27 @@
       </section>
     </div>
 
+    <div class="list-share-modal hidden" id="listShareModal" role="dialog" aria-modal="true" aria-labelledby="listShareTitle" aria-describedby="listShareStatus">
+      <div class="list-share-backdrop" data-close-list-share></div>
+      <section class="list-share-panel">
+        <header>
+          <div><span class="section-kicker">SHARE YOUR DAY</span><h2 id="listShareTitle">이미지 공유하기</h2></div>
+          <button class="pixel-close-button" type="button" data-close-list-share aria-label="공유 미리보기 닫기">×</button>
+        </header>
+        <p id="listShareStatus" role="status" aria-live="polite">이미지를 만드는 중이야…</p>
+        <div class="list-share-preview" id="listSharePreview" aria-busy="true"><img id="listShareImage" alt="" hidden /></div>
+        <footer>
+          <nav class="list-share-pages" id="listSharePages" aria-label="공유 이미지 페이지" hidden>
+            <button id="previousListSharePage" type="button" aria-label="이전 이미지">‹</button><span id="listSharePageLabel"></span><button id="nextListSharePage" type="button" aria-label="다음 이미지">›</button>
+          </nav>
+          <div class="list-share-actions">
+            <a class="secondary-button" id="downloadListShare" hidden>이미지 저장</a>
+            <button class="primary-button" id="sendListShare" type="button" hidden>이미지 공유</button>
+          </div>
+        </footer>
+      </section>
+    </div>
+
     <div class="focus-floating-status">
       <aside class="mini-focus-music" id="miniFocusMusic" aria-live="polite" hidden>
         <button class="mini-focus-music-main" id="openMiniFocusMusic" type="button" aria-label="집중 페이지 열기">
@@ -822,7 +847,7 @@
     <script src="./supabase-config.js"></script>
     <script src="./mobile-orientation.js?v=1"></script>
     <script src="./scenery-theme-presets.js?v=4"></script>
-    <script src="./app.js?v=347"></script>
+    <script src="./app.js?v=348"></script>
     <script src="./garden-art.js?v=10"></script>
     <script src="./scenery-creation-art.js?v=4"></script>
     <script src="./scenery-creations.js?v=10"></script>
