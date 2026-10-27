@@ -967,8 +967,8 @@ const defaultState = {
   legacySettlement: null,
   focusRewardSeconds: 0,
   settings: {
-    linked: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
-    quick: { focusMinutes: 25, breakEnabled: true, breakMinutes: 5 },
+    linked: { focusMinutes: 25 },
+    quick: { focusMinutes: 25 },
   },
   groups: [
     { id: "work", name: "업무", colorIndex: 0 },
@@ -1526,12 +1526,13 @@ async function callPreferencesRpc(rpcName, params) {
   return supabaseClient.rpc(rpcName, params);
 }
 
-async function saveMyFocusSettings(mode, focusMinutes, breakEnabled, breakMinutes) {
+async function saveMyFocusSettings(mode, focusMinutes) {
   const { data, error } = await callPreferencesRpc("save_my_focus_settings", {
     p_mode: mode,
     p_focus_minutes: focusMinutes,
-    p_break_enabled: breakEnabled,
-    p_break_minutes: breakMinutes,
+    // Keep the existing preferences RPC compatible while retiring breaks.
+    p_break_enabled: false,
+    p_break_minutes: 5,
   });
   if (error) throw error;
   return data;
@@ -1624,16 +1625,14 @@ function getFocusTimerDatabasePayload() {
 }
 
 function normalizeFocusTimerRuntime(value, fallback) {
-  const seconds = Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds)));
+  const seconds = value?.overtime ? 0 : Math.max(0, Math.floor(Number(value?.seconds ?? fallback.seconds)));
   return {
     seconds,
     date: typeof value?.date === "string" ? value.date : "",
     carryOver: Boolean(value?.carryOver),
-    phase: value?.phase === "break" ? "break" : "focus",
+    phase: "focus",
     started: Boolean(value?.started),
     countdown: Boolean(value?.countdown),
-    overtime: Boolean(value?.overtime),
-    overtimeSeconds: Math.max(0, Math.floor(Number(value?.overtimeSeconds) || 0)),
     ...(["min", "max"].includes(value?.completionLevel) ? { completionLevel: value.completionLevel } : {}),
     sessionMinutes: Math.max(
       1,
@@ -1663,7 +1662,11 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   );
   const savedQuickMinutes = focusRuntimeByMode.quick.sessionMinutes;
   const configuredQuickMinutes = getFocusSettings("quick").focusMinutes;
-  const staleQuickRuntime = !focusRuntimeByMode.quick.started && savedQuickMinutes !== configuredQuickMinutes;
+  // Saved break timers and paused overtime sessions no longer have a phase to resume.
+  const retiredQuickRuntime = payload.runtimes?.quick?.phase === "break" ||
+    (payload.runtimes?.quick?.overtime && payload.runningMode !== "quick");
+  const staleQuickRuntime = retiredQuickRuntime ||
+    (!focusRuntimeByMode.quick.started && savedQuickMinutes !== configuredQuickMinutes);
   if (staleQuickRuntime) {
     focusRuntimeByMode.quick = {
       seconds: configuredQuickMinutes * 60,
@@ -1715,19 +1718,14 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
       : 0;
     const item = runningFocusMode === "linked" ? getFocusItem() : null;
     const isLinkedStopwatch = runningFocusMode === "linked" && Boolean(activeFocus) && !runtime.countdown;
-    const quickFocus = runningFocusMode === "quick" && runtime.phase === "focus";
     const habitCountdown = item && activeFocus?.type === "habit" && runtime.countdown;
     runtime.date ||= toProductivityDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()));
     const appliedSeconds = habitCountdown
       ? advanceHabitTimer(runtime, item, Number.isFinite(syncedAt) ? syncedAt : Date.now(), elapsedSeconds, ownsTimer)
-      : isLinkedStopwatch || quickFocus
+      : isLinkedStopwatch
       ? elapsedSeconds
       : Math.min(elapsedSeconds, runtime.seconds);
-    if (quickFocus && (runtime.overtime || appliedSeconds >= runtime.seconds)) {
-      runtime.overtimeSeconds += runtime.overtime ? appliedSeconds : appliedSeconds - runtime.seconds;
-      runtime.overtime = true;
-      runtime.seconds = 0;
-    } else if (!habitCountdown) {
+    if (!habitCountdown) {
       runtime.seconds = isLinkedStopwatch
         ? runtime.seconds + appliedSeconds
         : Math.max(0, runtime.seconds - appliedSeconds);
@@ -1764,7 +1762,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     if (habitCountdown && ownsTimer && runtime.seconds > 0 &&
         runtime.date !== toProductivityDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()))) {
       scheduleFarmPushNotification("timer_end", "", Date.now() + runtime.seconds * 1000,
-        "집중이 끝났어", "쉬고 싶으면 앱을 열어줘");
+        "집중이 끝났어", "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘");
     }
     startFocusTickInterval(runningFocusMode);
   } else {
@@ -1804,6 +1802,11 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   updateFocusTarget();
   updateMiniFocusTimer();
   renderSummary();
+  if (runningFocusMode === "quick" && focusRuntimeByMode.quick.seconds <= 0) {
+    finishFocusRuntime("quick");
+  } else if (retiredQuickRuntime && payload.runningMode === "quick") {
+    cancelFarmPushNotification("timer_end", "");
+  }
 }
 
 function handleFocusTimerDatabaseError(error) {
@@ -2512,14 +2515,9 @@ function getGroup(groupId) {
 }
 
 function normalizeFocusSettings(savedSettings = {}) {
-  const legacySettings = {
-    focusMinutes: savedSettings.focusMinutes ?? 25,
-    breakEnabled: savedSettings.breakEnabled ?? true,
-    breakMinutes: savedSettings.breakMinutes ?? 5,
-  };
   return {
-    linked: { ...legacySettings, ...(savedSettings.linked ?? {}) },
-    quick: { ...legacySettings, ...(savedSettings.quick ?? {}) },
+    linked: { focusMinutes: savedSettings.linked?.focusMinutes ?? savedSettings.focusMinutes ?? 25 },
+    quick: { focusMinutes: savedSettings.quick?.focusMinutes ?? savedSettings.focusMinutes ?? 25 },
   };
 }
 
@@ -4548,11 +4546,7 @@ function updateFocusDisplay() {
       renderHabits();
     }
   }
-  // Matches the action button's own overtime test -- the ring must never say
-  // OVERTIME while the button offers a fresh set.
-  const inOvertime =
-    focusMode === "quick" && timerPhase === "focus" && Boolean(runtime.overtime) && runtime.started;
-  const displaySeconds = inOvertime ? (runtime.overtimeSeconds ?? 0) : focusSeconds;
+  const displaySeconds = focusSeconds;
   const minutes = String(Math.floor(displaySeconds / 60)).padStart(2, "0");
   const seconds = String(displaySeconds % 60).padStart(2, "0");
   const settings = getFocusSettings();
@@ -4562,29 +4556,23 @@ function updateFocusDisplay() {
     1,
     focusMode === "linked" && activeFocus?.type === "habit" && item
       ? (runtime.sessionMinutes ?? getHabitFocusMinutes(item, runtime.date || toProductivityDateString(), runtime.completionLevel || "max")) * 60
-      : (timerPhase === "focus" ? settings.focusMinutes : settings.breakMinutes) * 60,
+      : (focusMode === "quick" ? runtime.sessionMinutes ?? settings.focusMinutes : settings.focusMinutes) * 60,
   );
-  const remainingRatio = isLinkedStopwatch || inOvertime
+  const remainingRatio = isLinkedStopwatch
     ? 1
     : Math.max(0, Math.min(1, focusSeconds / totalSeconds));
   const timerCircumference = 2 * Math.PI * 46;
   const timerRing = document.querySelector(".timer-ring");
-  document.querySelector("#focusTime").textContent = `${inOvertime ? "+" : ""}${minutes}:${seconds}`;
+  document.querySelector("#focusTime").textContent = `${minutes}:${seconds}`;
   timerRing.style.setProperty(
     "--timer-offset",
     `${timerCircumference * (1 - remainingRatio)}`,
   );
   timerRing.style.setProperty(
     "--timer-ring-color",
-    inOvertime ? "#e8895f" : timerPhase === "focus" ? "#ffd65c" : "#9bd9bd",
+    "#ffd65c",
   );
-  timerRing.querySelector("span").textContent = isLinkedStopwatch
-    ? "STOPWATCH"
-    : inOvertime
-      ? "OVERTIME"
-      : timerPhase === "focus"
-        ? "FOCUS"
-        : "BREAK";
+  timerRing.querySelector("span").textContent = isLinkedStopwatch ? "STOPWATCH" : "FOCUS";
   updateMiniFocusTimer();
 }
 
@@ -4615,26 +4603,15 @@ function updateMiniFocusTimer() {
   requestAnimationFrame(clampMiniFocusPosition);
 
   const item = visibleMode === "linked" ? getFocusItem() : null;
-  const inOvertime = visibleMode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
-  const displaySeconds = inOvertime ? (runtime.overtimeSeconds ?? 0) : runtime.seconds;
+  const displaySeconds = runtime.seconds;
   const minutes = String(Math.floor(displaySeconds / 60)).padStart(2, "0");
   const seconds = String(displaySeconds % 60).padStart(2, "0");
-  miniFocusStatus.textContent = inOvertime
-    ? "초과 집중 중"
-    : runtime.phase === "break"
-      ? "휴식 중"
-      : timerRunning
-        ? "집중 중"
-        : "일시정지";
+  miniFocusStatus.textContent = timerRunning ? "집중 중" : "일시정지";
   miniFocusTitle.textContent =
-    runtime.phase === "break"
-      ? visibleMode === "quick"
-        ? "빠른 집중 휴식"
-        : "다음 집중을 위한 휴식"
-      : visibleMode === "quick"
-        ? "빠른 집중"
-        : activeFocus?.type === "habit" && runtime.completionLevel === "min" ? item?.minimumTitle || item?.title || "최소 목표" : item?.title ?? "항목 집중";
-  miniFocusTime.textContent = `${inOvertime ? "+" : ""}${minutes}:${seconds}`;
+    visibleMode === "quick"
+      ? "빠른 집중"
+      : activeFocus?.type === "habit" && runtime.completionLevel === "min" ? item?.minimumTitle || item?.title || "최소 목표" : item?.title ?? "항목 집중";
+  miniFocusTime.textContent = `${minutes}:${seconds}`;
   miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
 }
@@ -4757,24 +4734,9 @@ function updateFocusTarget() {
   const focusButton = document.querySelector("#focusButton");
   description.hidden = false;
 
-  if (timerPhase === "break") {
-    focusButton.disabled = false;
-    target.textContent = "잠깐 쉬어";
-    description.textContent = `${settings.breakMinutes}분 휴식 후 다시 집중해`;
-    fitFocusTargetText();
-    return;
-  }
-
   if (focusMode === "quick") {
     focusButton.disabled = false;
     const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
-    if (focusRuntimeByMode.quick.overtime && focusRuntimeByMode.quick.started) {
-      target.textContent = "목표 시간을 넘겨서 집중 중이야";
-      description.textContent = "쉬고 싶으면 아래 버튼을 눌러줘";
-      description.hidden = false;
-      fitFocusTargetText();
-      return;
-    }
     target.textContent = `그냥 ${sessionMinutes}분 집중해`;
     description.textContent = "";
     description.hidden = true;
@@ -5036,28 +4998,12 @@ function updateActiveFocusCard() {
 function updateFocusActionButton() {
   void syncFocusWakeLock();
   const button = document.querySelector("#focusButton");
-  const runtime = focusRuntimeByMode[focusMode];
-  const skipBreakButton = document.querySelector("#focusSkipBreakButton");
-  if (skipBreakButton) {
-    skipBreakButton.hidden = !(focusMode === "quick" && timerPhase === "break");
-  }
-  if (runningFocusMode === focusMode && focusMode === "quick" && runtime.phase === "focus" && runtime.overtime) {
-    const quickSettings = getFocusSettings("quick");
-    button.innerHTML = quickSettings.breakEnabled
-      ? `<span>■</span> ${quickSettings.breakMinutes}분 휴식 시작`
-      : "<span>■</span> 세트 종료";
-    return;
-  }
   if (runningFocusMode === focusMode) {
-    button.innerHTML = timerPhase === "focus"
-      ? "<span>Ⅱ</span> 집중 멈춤"
-      : "<span>Ⅱ</span> 휴식 멈춤";
+    button.innerHTML = "<span>Ⅱ</span> 집중 멈춤";
     return;
   }
   if (focusSessionStarted) {
-    button.innerHTML = timerPhase === "break"
-      ? `<span>▶</span> ${getFocusSettings("quick").breakMinutes}분 휴식`
-      : "<span>▶</span> 계속하기";
+    button.innerHTML = "<span>▶</span> 계속하기";
     return;
   }
   if (focusMode === "quick") {
@@ -5155,18 +5101,16 @@ function notifyFocusPhaseComplete(kind) {
   if (kind === "habit") {
     title = "습관 목표 시간을 채웠어";
     subtitle = "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아.";
-  } else if (kind === "focus") {
-    title = "집중 시간이 끝났어";
-    subtitle = "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘.";
   } else {
-    title = "휴식이 끝났어";
-    subtitle = "버튼을 눌러 다시 집중을 시작해줘.";
+    title = "집중 시간이 끝났어";
+    subtitle = "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘.";
   }
   showFocusAlertBanner(title, subtitle);
   void showFocusSystemNotification(title, subtitle);
 }
 
 function advanceRunningFocusTimer(mode) {
+  if (runningFocusMode !== mode) return { advanced: false, finished: false };
   const ownsTimer = isFocusTimerOwner();
   const runtime = focusRuntimeByMode[mode];
   const now = Date.now();
@@ -5182,20 +5126,14 @@ function advanceRunningFocusTimer(mode) {
 
   const item = mode === "linked" ? getFocusItem() : null;
   const isLinkedStopwatch = mode === "linked" && Boolean(activeFocus) && !runtime.countdown;
-  // Quick-mode focus keeps counting overtime; habit countdowns finish at zero.
-  const isQuickOvertime = mode === "quick" && runtime.phase === "focus" && Boolean(runtime.overtime);
-  const countsUp = isLinkedStopwatch || isQuickOvertime;
-  const remainingSeconds = runtime.seconds;
   const previousDate = runtime.date;
   const habitCountdown = item && activeFocus?.type === "habit" && runtime.countdown;
   const appliedSeconds = habitCountdown
     ? advanceHabitTimer(runtime, item, startAt, elapsedSeconds, ownsTimer)
-    : countsUp || (mode === "quick" && runtime.phase === "focus")
+    : isLinkedStopwatch
     ? elapsedSeconds
     : Math.min(elapsedSeconds, runtime.seconds);
-  if (isQuickOvertime) {
-    runtime.overtimeSeconds = (runtime.overtimeSeconds ?? 0) + appliedSeconds;
-  } else if (!habitCountdown) {
+  if (!habitCountdown) {
     runtime.seconds = isLinkedStopwatch
       ? runtime.seconds + appliedSeconds
       : Math.max(0, runtime.seconds - appliedSeconds);
@@ -5203,7 +5141,7 @@ function advanceRunningFocusTimer(mode) {
   if (ownsTimer && runtime.phase === "focus") {
     if (habitCountdown && previousDate && previousDate !== runtime.date && runtime.seconds > 0) {
       scheduleFarmPushNotification("timer_end", "", now + runtime.seconds * 1000,
-        "집중이 끝났어", "쉬고 싶으면 앱을 열어줘");
+        "집중이 끝났어", "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘");
       renderHabits();
       scheduleFocusTimerDatabaseSync(0);
     }
@@ -5228,25 +5166,9 @@ function advanceRunningFocusTimer(mode) {
     updateMiniFocusTimer();
   }
 
-  if (!isLinkedStopwatch && !isQuickOvertime && mode === "quick" && runtime.phase === "focus" && runtime.seconds <= 0) {
-    runtime.overtime = true;
-    runtime.overtimeSeconds = Math.max(0, elapsedSeconds - remainingSeconds);
-    if (ownsTimer) notifyFocusPhaseComplete("focus");
-    if (focusMode === mode) {
-      updateFocusActionButton();
-      // The heading/description switch to the "over your target" copy that
-      // explains what the button now does, so they have to move together.
-      updateFocusTarget();
-    }
-    return { advanced: true, finished: false };
-  }
-
-  if (ownsTimer && !isLinkedStopwatch && !isQuickOvertime && runtime.seconds <= 0) {
-    if (runtime.phase === "focus") {
-      finishFocusRuntime(mode);
-      if (mode === "linked") notifyFocusPhaseComplete("habit");
-    }
-    else finishBreakRuntime(mode);
+  if (!isLinkedStopwatch && runtime.seconds <= 0 && (ownsTimer || mode === "quick")) {
+    finishFocusRuntime(mode);
+    if (ownsTimer && mode === "linked") notifyFocusPhaseComplete("habit");
     return { advanced: true, finished: true };
   }
   return { advanced: true, finished: false };
@@ -5261,12 +5183,6 @@ function resetToFocus() {
     const quickSettings = getFocusSettings("quick");
     focusSeconds = quickSettings.focusMinutes * 60;
     focusRuntimeByMode.quick.sessionMinutes = quickSettings.focusMinutes;
-    // A reset drops the finished set entirely. saveCurrentFocusRuntime()
-    // spreads the old runtime, so leaving the overtime flag behind would keep
-    // the ring painting "+MM:SS" OVERTIME next to a "N분 시작" button -- and the
-    // next set would then count up instead of counting down.
-    focusRuntimeByMode.quick.overtime = false;
-    focusRuntimeByMode.quick.overtimeSeconds = 0;
     saveCurrentFocusRuntime();
   }
   updateFocusActionButton();
@@ -5277,14 +5193,13 @@ function resetToFocus() {
 function finishFocusRuntime(mode) {
   const runtime = focusRuntimeByMode[mode];
   const item = mode === "linked" ? getFocusItem() : null;
+  const ownsQuickTimer = mode === "quick" && isFocusTimerOwner();
 
   clearInterval(focusInterval);
   focusLastTickAt = 0;
   runningFocusMode = null;
-  runtime.overtime = false;
-  runtime.overtimeSeconds = 0;
   hideFocusAlertBanner();
-  cancelFarmPushNotification("timer_end", "");
+  if (mode === "linked" || ownsQuickTimer) cancelFarmPushNotification("timer_end", "");
 
   if (mode === "linked") {
     let completionResult = null;
@@ -5336,71 +5251,10 @@ function finishFocusRuntime(mode) {
   }
 
   const settings = getFocusSettings("quick");
-  if (settings.breakEnabled) {
-    runtime.phase = "break";
-    runtime.seconds = settings.breakMinutes * 60;
-    runtime.started = true;
-
-    if (focusMode === mode) {
-      timerPhase = runtime.phase;
-      focusSeconds = runtime.seconds;
-      focusSessionStarted = runtime.started;
-    }
-    // Ending overtime already means "start the break now" -- go straight into
-    // the running timer instead of leaving it paused and making the user
-    // press the button a second time.
-    runningFocusMode = mode;
-    focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
-    focusTimerLastHeartbeatAt = Date.now();
-    focusLastTickAt = Date.now();
-    if (focusMode === mode) {
-      focusRunning = true;
-      updateFocusActionButton();
-      updateFocusDisplay();
-      updateFocusTarget();
-    }
-    startFocusTickInterval(mode);
-    scheduleFarmPushNotification(
-      "timer_end",
-      "",
-      Date.now() + runtime.seconds * 1000,
-      "휴식이 끝났어",
-      "다시 집중을 시작해봐",
-    );
-  } else {
-    runtime.phase = "focus";
-    runtime.seconds = settings.focusMinutes * 60;
-    runtime.started = false;
-
-    if (focusMode === mode) {
-      focusRunning = false;
-      timerPhase = runtime.phase;
-      focusSeconds = runtime.seconds;
-      focusSessionStarted = runtime.started;
-      updateFocusActionButton();
-      updateFocusDisplay();
-      updateFocusTarget();
-    }
-  }
-  updateMiniFocusTimer();
-  render();
-  showToast("집중 세트를 완료했어");
-  scheduleFocusTimerDatabaseSync(0);
-  void flushFocusTime();
-}
-
-function finishBreakRuntime(mode, { skipped = false } = {}) {
-  const runtime = focusRuntimeByMode[mode];
-  const settings = getFocusSettings(mode);
-  clearInterval(focusInterval);
-  focusLastTickAt = 0;
-  runningFocusMode = null;
-  cancelFarmPushNotification("timer_end", "");
   runtime.phase = "focus";
   runtime.seconds = settings.focusMinutes * 60;
+  runtime.sessionMinutes = settings.focusMinutes;
   runtime.started = false;
-  runtime.overtime = false;
-  runtime.overtimeSeconds = 0;
   if (focusMode === mode) {
     focusRunning = false;
     timerPhase = "focus";
@@ -5411,20 +5265,13 @@ function finishBreakRuntime(mode, { skipped = false } = {}) {
     updateFocusTarget();
   }
   updateMiniFocusTimer();
-  showToast(skipped ? "휴식을 건너뛰었어" : "휴식 끝 다음 세트를 시작하면 돼");
-  // A deliberate skip doesn't need the alarm-style banner+sound that a
-  // passive "break ended while you weren't looking" completion does.
-  if (!skipped) notifyFocusPhaseComplete("break");
-  scheduleFocusTimerDatabaseSync(0);
-}
-
-function skipFocusBreak() {
-  if (focusMode !== "quick" || timerPhase !== "break") return;
-  if (runningFocusMode === "quick") {
-    const tickResult = advanceRunningFocusTimer("quick");
-    if (tickResult.finished) return;
+  if (ownsQuickTimer) {
+    render();
+    showToast("정한 시간만큼 집중했어");
+    scheduleFocusTimerDatabaseSync(0);
+    void flushFocusTime();
+    notifyFocusPhaseComplete("focus");
   }
-  finishBreakRuntime("quick", { skipped: true });
 }
 
 function startFocusTickInterval(mode) {
@@ -5471,14 +5318,6 @@ function toggleFocus() {
     focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
     const tickResult = advanceRunningFocusTimer(focusMode);
     if (tickResult.finished) return;
-    // Clicking the button while a quick-mode set is in overtime ends the
-    // set (starts the break, or resets for the next set) instead of just
-    // pausing -- this is the "휴식"/"세트 종료" action the overtime banner
-    // is waiting on.
-    if (focusMode === "quick" && runtime.phase === "focus" && runtime.overtime) {
-      finishFocusRuntime(focusMode);
-      return;
-    }
     clearInterval(focusInterval);
     focusLastTickAt = 0;
     runningFocusMode = null;
@@ -5503,13 +5342,6 @@ function toggleFocus() {
   }
 
   hideFocusAlertBanner();
-  // Starting a set from an idle timer must drop any leftover overtime state --
-  // a stale flag (from a runtime saved before it was cleared) would make
-  // advanceRunningFocusTimer count up from the start instead of counting down.
-  if (focusMode === "quick" && !runtime.started) {
-    runtime.overtime = false;
-    runtime.overtimeSeconds = 0;
-  }
   runningFocusMode = focusMode;
   focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
   focusTimerLastHeartbeatAt = Date.now();
@@ -5529,8 +5361,8 @@ function toggleFocus() {
       "timer_end",
       "",
       Date.now() + runtime.seconds * 1000,
-      runtime.phase === "focus" ? "집중이 끝났어" : "휴식이 끝났어",
-      runtime.phase === "focus" ? "쉬고 싶으면 앱을 열어줘" : "다시 집중을 시작해봐",
+      "집중이 끝났어",
+      "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘",
     );
   }
 
@@ -7167,7 +6999,6 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#focusButton").addEventListener("click", toggleFocus);
-document.querySelector("#focusSkipBreakButton").addEventListener("click", skipFocusBreak);
 document.querySelectorAll("[data-focus-mode]").forEach((button) => {
   button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
 });
@@ -7563,8 +7394,6 @@ const focusSettings = document.querySelector("#focusSettings");
 const focusSettingsBackdrop = document.querySelector("#focusSettingsBackdrop");
 const focusSettingsButton = document.querySelector("#toggleFocusSettings");
 const focusMinutesInput = document.querySelector("#focusMinutesInput");
-const breakEnabledInput = document.querySelector("#breakEnabledInput");
-const breakMinutesInput = document.querySelector("#breakMinutesInput");
 
 // Keep the settings dialog at the document root so its fixed backdrop and
 // centered panel are relative to the viewport, not the compact focus card.
@@ -7573,9 +7402,6 @@ document.body.append(focusSettingsBackdrop, focusSettings);
 function syncFocusSettingsForm() {
   const settings = getFocusSettings("quick");
   focusMinutesInput.value = settings.focusMinutes;
-  breakEnabledInput.checked = settings.breakEnabled;
-  breakMinutesInput.value = settings.breakMinutes;
-  breakMinutesInput.disabled = !settings.breakEnabled;
 }
 
 function closeFocusSettings({ restoreFocus = false } = {}) {
@@ -7623,27 +7449,17 @@ focusSettings.addEventListener("keydown", (event) => {
   }
 });
 
-breakEnabledInput.addEventListener("change", () => {
-  breakMinutesInput.disabled = !breakEnabledInput.checked;
-});
-
 document.querySelector("#saveFocusSettings").addEventListener("click", async (event) => {
   const saveButton = event.currentTarget;
   const focusMinutes = Math.min(120, Math.max(5, Number(focusMinutesInput.value) || 25));
-  const breakMinutes = Math.min(60, Math.max(1, Number(breakMinutesInput.value) || 5));
-
-  state.settings.quick = {
-    focusMinutes,
-    breakEnabled: breakEnabledInput.checked,
-    breakMinutes,
-  };
+  state.settings.quick = { focusMinutes };
   if (runningFocusMode === "quick") stopFocusTimer();
   resetToFocus();
   saveState();
   saveButton.disabled = true;
   try {
     await Promise.all([
-      saveMyFocusSettings("quick", focusMinutes, breakEnabledInput.checked, breakMinutes),
+      saveMyFocusSettings("quick", focusMinutes),
       syncFocusTimerDatabaseImmediately(),
       flushFocusTime(),
     ]);

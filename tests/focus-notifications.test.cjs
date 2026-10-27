@@ -97,8 +97,7 @@ for (const failure of ["ready", "subscription", "show"]) {
 
 for (const [kind, title, subtitle] of [
   ["habit", "습관 목표 시간을 채웠어", "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아."],
-  ["focus", "집중 시간이 끝났어", "계속 집중 중이면 그대로 둬도 돼. 쉬고 싶으면 집중 버튼을 눌러줘."],
-  ["break", "휴식이 끝났어", "버튼을 눌러 다시 집중을 시작해줘."],
+  ["focus", "집중 시간이 끝났어", "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘."],
 ]) {
   test(`${kind} completion preserves its in-app banner and cancels the pending push while showing a native popup`, async () => {
     const { ctx, effects } = setup();

@@ -240,16 +240,8 @@
                     <button class="pixel-close-button" type="button" data-close-focus-settings aria-label="집중 설정 닫기">×</button>
                   </header>
                   <label>
-                    <span>한 세트 집중</span>
+                    <span>집중 시간</span>
                     <span><input id="focusMinutesInput" type="number" min="5" max="120" />분</span>
-                  </label>
-                  <label class="break-toggle">
-                    <span>휴식 사용</span>
-                    <input id="breakEnabledInput" type="checkbox" />
-                  </label>
-                  <label id="breakMinutesRow">
-                    <span>휴식 시간</span>
-                    <span><input id="breakMinutesInput" type="number" min="1" max="60" />분</span>
                   </label>
                   <button id="saveFocusSettings" type="button">설정 저장</button>
                 </div>
@@ -261,7 +253,6 @@
                   <span>▶</span>
                   25분 시작
                 </button>
-                <button class="secondary-button" id="focusSkipBreakButton" type="button" hidden>휴식 건너뛰기</button>
               </div>
               <div class="focus-reward">
                 <div>
@@ -748,7 +739,7 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="pushSettingsTitle">휴대폰 알림</strong>
-                <small id="pushSettingsStatus">집중과 휴식이 끝나면 알려줘</small>
+                <small id="pushSettingsStatus">집중 시간이 끝나면 알려줘</small>
               </div>
             </div>
             <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
@@ -847,7 +838,7 @@
     <script src="./supabase-config.js"></script>
     <script src="./mobile-orientation.js?v=1"></script>
     <script src="./scenery-theme-presets.js?v=4"></script>
-    <script src="./app.js?v=348"></script>
+    <script src="./app.js?v=349"></script>
     <script src="./garden-art.js?v=10"></script>
     <script src="./scenery-creation-art.js?v=4"></script>
     <script src="./scenery-creations.js?v=10"></script>

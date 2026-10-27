@@ -478,6 +478,7 @@ function timerContext(owner = false, mode = "quick") {
     "normalizeFocusTimerRuntime", "applyFocusTimerDatabaseState",
     "resumeFocusTimerAfterBackground", "getHabitDailyFocusSeconds",
     "advanceHabitTimer", "refreshHabitTimerDate", "getHabitFocusMinutes",
+    "finishFocusRuntime",
   ], {
     Date: class extends Date { static now() { return now; } },
     isFocusTimerOwner: () => owner,
@@ -506,6 +507,8 @@ function timerContext(owner = false, mode = "quick") {
     updateMiniFocusTimer: noop, updateFocusActionButton: noop,
     renderFocusPicker: noop, updateFocusTarget: noop, renderSummary: noop,
     clearInterval: noop, startFocusTickInterval: noop,
+    hideFocusAlertBanner: noop, cancelFarmPushNotification: noop,
+    render: noop, showToast: noop,
     closeFocusSettings: noop,
     scheduleTaskDatabaseSync: noop, scheduleFocusTimerDatabaseSync: noop,
     flushFocusTime: noop,
@@ -652,30 +655,62 @@ test("a second device ticks without the owner's heartbeat or duplicate rewards",
   assert.equal(ctx.rewarded, 0);
 });
 
-test("a suspended owner recovers countdown and all overtime", () => {
+for (const elapsed of [60, 90, 23 * 60 * 60]) {
+  test(`a quick focus ends at its target after ${elapsed} seconds away without extra rewards`, () => {
+    const ctx = timerContext(true);
+    ctx.elapse(elapsed);
+    ctx.resumeFocusTimerAfterBackground();
+    assert.equal(ctx.runningFocusMode, null);
+    assert.equal(ctx.focusRuntimeByMode.quick.started, false);
+    assert.equal(ctx.focusRuntimeByMode.quick.phase, "focus");
+    assert.equal(ctx.focusRuntimeByMode.quick.seconds, 60);
+    assert.equal(ctx.rewarded, 60);
+    assert.equal(ctx.alarms, 1);
+    ctx.elapse(23 * 60 * 60);
+    assert.equal(ctx.advanceRunningFocusTimer("quick").advanced, false);
+    ctx.resumeFocusTimerAfterBackground();
+    assert.equal(ctx.rewarded, 60);
+    assert.equal(ctx.alarms, 1);
+  });
+}
+
+test("reopening an expired quick focus records only its remaining duration, once", () => {
   const ctx = timerContext(true);
-  ctx.elapse(90);
-  ctx.resumeFocusTimerAfterBackground();
-  assert.equal(ctx.focusRuntimeByMode.quick.seconds, 0);
-  assert.equal(ctx.focusRuntimeByMode.quick.overtimeSeconds, 30);
-  assert.equal(ctx.rewarded, 90);
+  ctx.focusRuntimeByMode.quick.seconds = 20;
+  const payload = ctx.getFocusTimerDatabasePayload();
+  ctx.elapse(23 * 60 * 60);
+  ctx.applyFocusTimerDatabaseState(payload, "revision");
+  assert.equal(ctx.runningFocusMode, null);
+  assert.equal(ctx.focusRuntimeByMode.quick.started, false);
+  assert.equal(ctx.rewarded, 20);
   assert.equal(ctx.alarms, 1);
-  ctx.elapse(10);
-  ctx.advanceRunningFocusTimer("quick");
-  assert.equal(ctx.focusRuntimeByMode.quick.overtimeSeconds, 40);
+  const completed = ctx.getFocusTimerDatabasePayload();
+  ctx.elapse(60);
+  ctx.applyFocusTimerDatabaseState(completed, "next-revision");
+  assert.equal(ctx.rewarded, 20);
   assert.equal(ctx.alarms, 1);
 });
 
-test("reopening on another device derives elapsed time from the saved anchor", () => {
+test("another device stops an expired quick focus without duplicate rewards or alarms", () => {
   const ctx = timerContext();
   const payload = ctx.getFocusTimerDatabasePayload();
   ctx.elapse(90);
   ctx.applyFocusTimerDatabaseState(payload, "revision");
-  assert.equal(ctx.focusRuntimeByMode.quick.overtimeSeconds, 30);
+  assert.equal(ctx.runningFocusMode, null);
+  assert.equal(ctx.focusRuntimeByMode.quick.started, false);
   assert.equal(ctx.rewarded, 0);
+  assert.equal(ctx.alarms, 0);
   ctx.elapse(5);
-  ctx.advanceRunningFocusTimer("quick");
-  assert.equal(ctx.focusRuntimeByMode.quick.overtimeSeconds, 35);
+  assert.equal(ctx.advanceRunningFocusTimer("quick").advanced, false);
+});
+
+test("a follower also stops when a live quick countdown reaches zero", () => {
+  const ctx = timerContext();
+  ctx.elapse(60);
+  assert.equal(ctx.advanceRunningFocusTimer("quick").finished, true);
+  assert.equal(ctx.runningFocusMode, null);
+  assert.equal(ctx.rewarded, 0);
+  assert.equal(ctx.alarms, 0);
 });
 
 test("task stopwatch runs on a follower even before task data arrives", () => {
@@ -807,16 +842,82 @@ test("saving while suspended retains the time corresponding to the saved seconds
   assert.equal(Date.parse(ctx.getFocusTimerDatabasePayload().syncedAt), 100000);
 });
 
-test("a running timer survives different local duration settings and preserves overtime", () => {
+test("a running quick timer keeps its session duration when local settings differ", () => {
   const ctx = timerContext();
   const payload = ctx.getFocusTimerDatabasePayload();
-  payload.runtimes.quick = { seconds: 0, phase: "focus", started: true,
-    sessionMinutes: 25, overtime: true, overtimeSeconds: 40 };
+  payload.runtimes.quick = { seconds: 300, phase: "focus", started: true, sessionMinutes: 25 };
   ctx.elapse(10);
   ctx.applyFocusTimerDatabaseState(payload);
   assert.equal(ctx.runningFocusMode, "quick");
   assert.equal(ctx.focusRuntimeByMode.quick.sessionMinutes, 25);
-  assert.equal(ctx.focusRuntimeByMode.quick.overtimeSeconds, 50);
+  assert.equal(ctx.focusRuntimeByMode.quick.seconds, 290);
+});
+
+for (const owner of [true, false]) {
+  test(`legacy running overtime ends without adding more focus (owner: ${owner})`, () => {
+    const ctx = timerContext(owner);
+    const payload = ctx.getFocusTimerDatabasePayload();
+    payload.runtimes.quick = { seconds: 0, phase: "focus", started: true,
+      sessionMinutes: 25, overtime: true, overtimeSeconds: 23 * 60 * 60 };
+    ctx.elapse(60);
+    ctx.applyFocusTimerDatabaseState(payload);
+    assert.equal(ctx.runningFocusMode, null);
+    assert.equal(ctx.focusRuntimeByMode.quick.started, false);
+    assert.equal(ctx.rewarded, 0);
+    assert.equal(ctx.alarms, owner ? 1 : 0);
+    assert.equal("overtime" in ctx.focusRuntimeByMode.quick, false);
+  });
+}
+
+for (const running of [true, false]) {
+  test(`a saved break is retired without starting focus or earning rewards (running: ${running})`, () => {
+    const ctx = timerContext(true);
+    const payload = ctx.getFocusTimerDatabasePayload();
+    payload.runningMode = running ? "quick" : null;
+    payload.runtimes.quick = { seconds: 300, phase: "break", started: true, sessionMinutes: 25 };
+    ctx.elapse(23 * 60 * 60);
+    ctx.applyFocusTimerDatabaseState(payload);
+    assert.equal(ctx.runningFocusMode, null);
+    assert.equal(ctx.focusRuntimeByMode.quick.phase, "focus");
+    assert.equal(ctx.focusRuntimeByMode.quick.seconds, 60);
+    assert.equal(ctx.focusRuntimeByMode.quick.started, false);
+    assert.equal(ctx.rewarded, 0);
+    assert.equal(ctx.alarms, 0);
+  });
+}
+
+test("a saved paused overtime session becomes a fresh, stopped focus timer", () => {
+  const ctx = timerContext(true);
+  const payload = ctx.getFocusTimerDatabasePayload();
+  payload.runningMode = null;
+  payload.runtimes.quick = { seconds: 0, phase: "focus", started: true,
+    sessionMinutes: 25, overtime: true, overtimeSeconds: 40 };
+  ctx.applyFocusTimerDatabaseState(payload);
+  assert.equal(ctx.runningFocusMode, null);
+  assert.equal(ctx.focusRuntimeByMode.quick.started, false);
+  assert.equal(ctx.focusRuntimeByMode.quick.seconds, 60);
+  assert.equal(ctx.rewarded, 0);
+});
+
+test("focus settings discard legacy break options and retain selected durations", () => {
+  const ctx = context(["normalizeFocusSettings"]);
+  assert.deepEqual(plain(ctx.normalizeFocusSettings({
+    linked: { focusMinutes: 45, breakEnabled: true, breakMinutes: 10 },
+    quick: { focusMinutes: 15, breakEnabled: true, breakMinutes: 3 },
+  })), { linked: { focusMinutes: 45 }, quick: { focusMinutes: 15 } });
+  assert.deepEqual(plain(ctx.normalizeFocusSettings({ focusMinutes: 30, breakEnabled: true })),
+    { linked: { focusMinutes: 30 }, quick: { focusMinutes: 30 } });
+});
+
+test("saving a focus duration disables breaks through the compatible preferences API", async () => {
+  const calls = [];
+  const ctx = context(["saveMyFocusSettings"], {
+    callPreferencesRpc: async (name, params) => { calls.push({ name, params: plain(params) }); return { data: {} }; },
+  });
+  await ctx.saveMyFocusSettings("quick", 30);
+  assert.deepEqual(calls, [{ name: "save_my_focus_settings", params: {
+    p_mode: "quick", p_focus_minutes: 30, p_break_enabled: false, p_break_minutes: 5,
+  } }]);
 });
 
 test("editing one task writes only its changed fields", async () => {

@@ -34,6 +34,7 @@ function timerContext(phase, ownsTimer) {
     getFocusItem: () => null,
     activeFocus: null,
     focusMode: "quick",
+    runningFocusMode: "quick",
     focusSeconds: 1_500,
     timerPhase: phase,
     addFocusSecond: (seconds, mode) => credited.push({ seconds, mode }),
