@@ -4295,10 +4295,8 @@ function getListShareSnapshot(kind) {
       detail: getGroup(task.groupId)?.name || "그룹 없음",
     }));
   } else {
-    // Match renderHabits: the management view includes off-days; today/past views do not.
-    const visible = currentPage === "today" || date < toProductivityDateString()
-      ? state.habits.filter((habit) => isHabitScheduledOn(habit, viewDate))
-      : state.habits.filter((habit) => !habit.endDate || habit.endDate >= date);
+    // Share only habits scheduled for the selected date, including from the management view.
+    const visible = state.habits.filter((habit) => isHabitScheduledOn(habit, viewDate));
     items = visible.map((habit) => {
       const offDay = !isHabitScheduledOn(habit, viewDate);
       const level = getHabitCompletionLevel(habit, date);
@@ -5915,8 +5913,8 @@ confirmHabitReset.addEventListener("click", async () => {
 
     const today = toProductivityDateString();
     state.habits.forEach((habit) => {
+      if (habit.endDate && habit.endDate < today) return;
       habit.startDate = today;
-      if (habit.endDate && habit.endDate < today) habit.endDate = "";
       habit.complete = false;
       habit.completedDate = "";
       habit.completionDates = [];
