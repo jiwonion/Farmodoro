@@ -121,6 +121,8 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
     assert.equal(await evaluate('FarmV3.snapshot().plazaPositionVersion'),serverMode==='positions'?1:0);
     assert.equal(await evaluate('FarmV3.snapshot().plazaSpeechVersion'),0);
     await tab('wardrobe');assert.equal(await evaluate("document.querySelectorAll('[data-fv-action=preview_pose]').length"),0);
+    assert.equal(await evaluate("document.querySelectorAll('[data-fv-decor],.fv-decor-options').length"),0);
+    assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('농장 장식')"),false);
     if(serverMode==='parts'){assert.equal(await evaluate('FarmV3.snapshot().charactersVersion'),0);assert.equal(await evaluate("document.querySelectorAll('.fv-character-card').length"),0);}
     else{assert.equal(await evaluate("document.querySelectorAll('.fv-character-card').length"),8);if(serverMode==='characters'){await click(action('choose_character')+'[data-item="berry-slime"]');await click(action('save_character'));}}
     await tab('plaza');await settle(`!document.querySelector('#farmGameRoot').textContent.includes('광장을 불러오는 중')`);
@@ -163,9 +165,15 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
   for(const pixels of mascotPixels){assert.ok(pixels.opaque>1000,JSON.stringify(pixels));assert.deepEqual(pixels.corners,[0,0,0,0],'Sprites keep their transparent background');}
   const drawChecks=await evaluate('window.mascotDrawChecks');assert.ok(drawChecks.length>=16);assert.ok(drawChecks.every(error=>error<1e-10),'Whole characters preserve source aspect ratios');
   await capture('characters-all');await evaluate("document.querySelector('#characterQA').remove()");
-  assert.equal(await evaluate("document.querySelector('[data-fv-decor=well]').checked"),false);
-  await click('[data-fv-decor=well]');await tab('farm');assert.equal(await evaluate("document.querySelectorAll('#farmGameRoot .fv-decor-well').length"),1);
-  await tab('wardrobe');await click('[data-fv-decor=well]');await tab('farm');assert.equal(await evaluate("document.querySelectorAll('#farmGameRoot .fv-decor').length"),0);
+  await db.query("update public.farm_v3_profiles set decorations=array['sign','flowers','crate','well','fence','lantern'] where user_id=$1",[user]);
+  await evaluate('await FarmV3.load(activeAuthUser)');
+  assert.equal(await evaluate('FarmV3.snapshot().profile.decorations.length'),6,'Existing saved placements remain a compatible server response');
+  assert.equal(await evaluate("document.querySelectorAll('[data-fv-decor],.fv-decor-options').length"),0);
+  assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('농장 장식')"),false);
+  for(const scene of ['farm','fish']){
+    await tab(scene);assert.equal(await evaluate("document.querySelectorAll('#farmGameRoot .fv-decor').length"),0,scene+' ignores saved decorations');
+  }
+  assert.equal(await evaluate("FarmV3Views.farmScene(FarmV3.snapshot(),0,false).includes('fv-decor')"),false,'Passive previews ignore saved decorations');
   await tab('plaza');await settle(`!document.querySelector('#farmGameRoot').textContent.includes('광장을 불러오는 중')`);
   assert.equal(await evaluate('FarmV3.snapshot().profile.plazaPublic'),true);
   assert.equal(await evaluate("document.querySelectorAll('[name=public],[data-fv-action=plaza_center],.fv-position-status,.fv-public-toggle').length"),0);

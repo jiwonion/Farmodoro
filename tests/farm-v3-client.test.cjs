@@ -235,7 +235,7 @@ test('invalid speech cannot poison a current state or send a save, and 80 emoji 
   h.submit({nickname:'농부',speech:'🫠'.repeat(80)});await h.settle();assert.equal(h.calls[0].params.p_payload.speech,'🫠'.repeat(80));
 });
 
-test('older servers cannot display or re-equip automatic props; manual placements become available after upgrade',async()=>{
+test('saved decorations stay compatible while retired controls never send a placement request',async()=>{
   const old=game({profile:{...game().profile,decorations:['well','flowers']}});delete old.manualDecorVersion;
   const h=harness({rpc:()=>({data:result(game())})});assert.equal(h.api.applyState(old),true);
   assert.equal(h.api.snapshot().manualDecorVersion,0);assert.deepEqual(clone(h.api.snapshot().profile.decorations),[]);
@@ -243,7 +243,32 @@ test('older servers cannot display or re-equip automatic props; manual placement
   const event={target:{closest:()=>null,dataset:{fvDecor:'well'}}};h.root.handlers.change(event);await h.settle();assert.equal(h.calls.length,0);
   const upgraded=game({profile:{...game().profile,decorations:['well']},unlocks:[...game().unlocks,{kind:'decor',id:'well'}]});
   assert.equal(h.api.applyState(upgraded),true);assert.deepEqual(clone(h.api.snapshot().profile.decorations),['well']);
-  h.root.querySelectorAll=()=>[];h.root.handlers.change(event);await h.settle();assert.equal(h.calls[0].params.p_action,'decor');assert.deepEqual(h.calls[0].params.p_payload.decorations,[]);
+  h.root.querySelectorAll=()=>[];h.root.handlers.change(event);await h.settle();assert.equal(h.calls.length,0);
+});
+
+test('saved decorations never appear in farm, fishing, passive previews, wardrobe or upcoming unlocks',()=>{
+  const ctx={window:{FarmV3Catalog:catalogContext.window.FarmV3Catalog,FarmV3Art:{fish:()=>'',crop:()=>'',character:()=>''}}};
+  for(const file of ['farm-v3-characters-view.js','farm-v3-views.js'])vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),ctx);
+  const decorations=catalog.filter(item=>item.kind==='decor');
+  for(const charactersVersion of [0,1])for(const manualDecorVersion of [0,1]){
+    const value=game({charactersVersion,manualDecorVersion,profile:{...game().profile,decorations:decorations.map(item=>item.id)}});
+    for(const tab of ['farm','fish','wardrobe']){
+      const html=ctx.window.FarmV3Views.render({game:value,tab,slot:0,coins:10,disabled:false});
+      assert.doesNotMatch(html,/fv-decor|data-fv-decor|농장 장식/);
+      for(const item of decorations)assert.equal(html.includes(item.name),false,tab+' hides '+item.name);
+    }
+    assert.doesNotMatch(ctx.window.FarmV3Views.farmScene(value,0,false),/fv-decor/);
+  }
+});
+
+test('collection messages announce character unlocks without retired decorations',async()=>{
+  const unlocked=[{kind:'decor',id:'sign'},{kind:'character',id:'berry-slime'}];
+  const saved=game({unlocks:[...game().unlocks,...unlocked],collections:[{kind:'crop',id:'carrot',count:1}]});
+  const h=harness({rpc:()=>({data:result(saved,{event:{kind:'collected',name:'당근',itemKind:'crop',unlocks:unlocked}})})});
+  assert.equal(h.api.applyState(game({runs:[run({progress:3})]})),true);
+  h.click('harvest',{run:'run-1'});await h.settle();
+  const message=JSON.parse(h.root.innerHTML).message;
+  assert.match(message,/당근 수확!/);assert.match(message,/해금/);assert.match(message,/딸기 젤리/);assert.doesNotMatch(message,/첫 수확 표지판/);
 });
 
 test('retired watering never dispatches on old or updated servers, including with negative Coin',async()=>{

@@ -164,10 +164,10 @@
     if(event.kind==='started')return `${event.name}${intent.action==='plant'?' 심었어.':' 낚시를 시작했어.'}`;
     if(event.kind==='grown')return event.completed?'완성했어! 이제 수집할 수 있어.':`${event.spentCoin} Coin으로 진행했어.`;
     if(event.kind==='collected'){
-      const names=(event.unlocks||[]).filter(i=>['character','decor'].includes(i.kind)).map(i=>selected(i.kind,i.id)?.name).filter(Boolean);
+      const names=(event.unlocks||[]).filter(i=>i.kind==='character').map(i=>selected(i.kind,i.id)?.name).filter(Boolean);
       return `${event.name} ${event.itemKind==='crop'?'수확':'획득'}!${names.length?' · '+names.slice(0,3).join(', ')+' 해금':''}`;
     }
-    return event.kind==='character'?'대표 캐릭터를 바꿨어.':event.kind==='avatar'?'이전 캐릭터 작업을 확인했어.':event.kind==='plaza'?'광장에 보일 모습을 저장했어.':'농장 장식을 바꿨어.';
+    return event.kind==='character'?'대표 캐릭터를 바꿨어.':event.kind==='avatar'?'이전 캐릭터 작업을 확인했어.':event.kind==='plaza'?'광장에 보일 모습을 저장했어.':'이전 작업을 확인했어.';
   }
   async function runIntent(intent,recovering=false){
     if(!ready()||busy||intent.userId!==account())return null;
@@ -298,7 +298,6 @@
   function onChange(event){
     const form=event.target.closest('[data-fv-form="plaza"]');
     if(form){if(plazaVersion==null)plazaVersion=game.profile.version;plazaDraft=readPlazaForm(form);syncSpeechPreview();return;}
-    if(event.target.dataset.fvDecor){const ids=[...root.querySelectorAll('[data-fv-decor]:checked')].map(node=>node.dataset.fvDecor);void act('decor',{decorations:ids,version:game.profile.version});}
   }
   function onSubmit(event){const form=event.target.closest('[data-fv-form="plaza"]');if(!form)return;event.preventDefault();const old=game.plazaPositionVersion!==1?{pose:game.profile.pose||'stand',zone:game.profile.zone||'square'}:{};const {speech,...payload}=readPlazaForm(form);void act('plaza',{...payload,...(game.plazaSpeechVersion===1?{speech}:{}),...old,version:plazaVersion??game.profile.version});}
   function previewMarkup(){return owner===account()&&game?window.FarmV3Views.farmScene(game,0,false):'';}

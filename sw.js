@@ -1,16 +1,16 @@
-const CACHE_VERSION = "farmodoro-v403";
+const CACHE_VERSION = "farmodoro-v404";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
-  "./farm-v3.css?v=21",
+  "./farm-v3.css?v=22",
   "./farm-v3-catalog.js?v=8",
   "./farm-v3-crop-art.js?v=1",
   "./farm-v3-character-art.js?v=5",
-  "./farm-v3-characters-view.js?v=4",
+  "./farm-v3-characters-view.js?v=5",
   "./farm-v3-plaza-view.js?v=3",
   "./farm-v3-art.js?v=9",
-  "./farm-v3-views.js?v=14",
-  "./farm-v3.js?v=13",
+  "./farm-v3-views.js?v=15",
+  "./farm-v3.js?v=14",
   "./assets/farm-v3/worlds-v1.png",
   "./assets/farm-v3/mascots-v1.png",
   "./assets/farm-v3/mascots-fishing-v1.png",

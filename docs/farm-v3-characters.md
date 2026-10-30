@@ -40,7 +40,7 @@
 
 - `farm-v3-catalog.js`: ID·그림 인덱스·조건. `legacyItems`는 095 시드 재생성 호환용이며 실제 목록에는 옷·모자를 넣지 않는다.
 - `farm-v3-character-art.js`: 완성 그림 자르기·원본 비율 합성.
-- `farm-v3-characters-view.js`: 선택·미리보기·해금 진행도·농장 장식.
+- `farm-v3-characters-view.js`: 대표 캐릭터 선택·미리보기·친구 해금 진행도. 농장 장식 영역은 제거했다.
 - `farm-v3-art.js`, `farm-v3-views.js`, `farm-v3.js`: 화면 전체 표시와 요청 저장·복구.
 - `097_representative_characters.sql`: 카탈로그, 대표 ID, 해금·선택 검증, 공개 광장.
 - `scripts/build-farm-v3-characters-sql.cjs`: 처음 8종의 역사적 097 생성. 신규 8종은 103에서 추가하며 095~097 시드의 목록을 바꾸지 않는다.

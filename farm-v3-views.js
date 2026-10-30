@@ -16,17 +16,6 @@
     if(entry.kind==='fish'&&entry.fishRequirements?.length)return entry.fishRequirements.map(req=>`${item(game||{catalog:[]},'fish',req.id)?.name||visual('fish',req.id)?.name||req.id} 낚기 ${game?Math.min(count(game,'fish',req.id),req.count)+' / ':''}${req.count}회`).join(' · ');
     return [[entry.harvests,'작물 수확'],[entry.fish,'물고기 획득'],[entry.cropTypes,'작물 종류 수집'],[entry.fishTypes,'어종 수집']].filter(([value])=>value>0).map(([value,label])=>`${label} ${value}${label.includes('종')?'종':'회'}`).join(' · ')||'처음부터 사용 가능';
   }
-  function decorations(game,scene) {
-    if(game.manualDecorVersion!==1)return '';
-    const active=game.profile.decorations||[];
-    const src={sign:'noticeboard',crate:'produce-crate',well:'well',fence:'fence-horizontal'};
-    return active.map(id=>{
-      if(id==='lantern')return scene==='fish'?`<span class="fv-decor fv-decor-pond">${art().crop('lavender',4,4)}</span>`:'';
-      if(scene!=='farm')return '';
-      if(id==='flowers')return `<span class="fv-decor fv-decor-flowers">${art().crop('sunflower',4,4)}${art().crop('lavender',4,4)}</span>`;
-      return src[id]?`<img class="fv-decor fv-decor-${id}" src="./assets/farm-b-v1/objects/rustic/${src[id]}.png" alt="${e(visual('decor',id)?.name||'농장 장식')}" draggable="false">`:'';
-    }).join('');
-  }
   function farmScene(game,selected=0,interactive=true,controls='') {
     const plots=Array.from({length:4},(_,slot)=>{
       const run=game.runs.find(r=>r.kind==='crop'&&r.slot===slot);
@@ -35,7 +24,7 @@
       const tag=interactive?'button':'div';
       return `<${tag}${interactive?` type="button" data-fv-action="slot" data-slot="${slot}" aria-pressed="${slot===selected}"`:''} class="fv-plot${interactive&&slot===selected?' is-selected':''}${done?' is-ripe':''}" aria-label="${slot+1}번 밭 · ${crop?e(crop.name)+' · '+run.progress+'/'+run.cost:'비어 있음'}"><span class="fv-soil"></span>${run?`<span class="fv-planted">${art().crop(run.itemId,run.progress,run.cost)}</span>`:''}<span class="fv-plot-label">${done?'✦ 수확 가능':crop?e(crop.name):'＋ 심기'}</span>${run&&!done?`<span class="fv-plot-progress"><i style="width:${run.progress/run.cost*100}%"></i></span>`:''}</${tag}>`;
     }).join('');
-    return `<div class="fv-scene fv-scene-farm${interactive?'':' fv-scene-passive'}" role="group" aria-label="2×2 네 칸 농장"><div class="fv-plots">${plots}</div>${decorations(game,'farm')}<div class="fv-farmer">${art().character(game.profile.characterId)}</div>${controls}</div>`;
+    return `<div class="fv-scene fv-scene-farm${interactive?'':' fv-scene-passive'}" role="group" aria-label="2×2 네 칸 농장"><div class="fv-plots">${plots}</div><div class="fv-farmer">${art().character(game.profile.characterId)}</div>${controls}</div>`;
   }
   function chooser(ctx,kind) {
     const entries=ctx.game.catalog.filter(c=>c.kind===kind);
@@ -55,7 +44,7 @@
     const game=ctx.game,kind=ctx.tab==='fish'?'fish':'crop';
     const entries=game.catalog.filter(c=>c.kind===kind),found=game.collections.filter(c=>c.kind===kind).length;
     const totals=stats(game);
-    const locked=game.catalog.filter(c=>!owned(game,c.kind,c.id)).sort((a,b)=>{
+    const locked=game.catalog.filter(c=>c.kind!=='decor'&&!owned(game,c.kind,c.id)).sort((a,b)=>{
       const score=x=>Math.max(0,x.harvests-totals.harvests)+Math.max(0,x.fish-totals.fish)+Math.max(0,x.cropTypes-totals.cropTypes)*2+Math.max(0,x.fishTypes-totals.fishTypes)*2+(x.cropRequirements||[]).reduce((sum,req)=>sum+Math.max(0,req.count-count(game,'crop',req.id)),0)+(x.fishRequirements||[]).reduce((sum,req)=>sum+Math.max(0,req.count-count(game,'fish',req.id)),0);
       return score(a)-score(b);
     }).slice(0,2);
@@ -68,7 +57,7 @@
   function fishing(ctx) {
     const run=ctx.game.runs.find(r=>r.kind==='fish');
     const done=!!run&&run.progress>=run.cost;
-    return `<div class="fv-main-layout"><div class="fv-main-column"><div class="fv-scene fv-scene-fish" aria-label="내 캐릭터가 낚시하는 연못"><div class="fv-fisher${run?' is-fishing':''}${done?' is-ready':''}">${art().character(ctx.game.profile.characterId,'',run?'fishing':'')}${run?`<i class="fv-fishing-ripple" aria-hidden="true"></i><span class="fv-fishing-status">${done?'✦ 입질이 왔어!':'🎣 낚시 중'}</span>`:''}</div>${decorations(ctx.game,'fish')}${sceneControls(ctx,run)}</div><div class="fv-under-scene"><span>내 작은 낚시터</span><span>Coin을 쓰면 낚시가 진행돼</span></div>${!run?chooser(ctx,'fish'):''}${ctx.coins<0&&run&&!done?'<p class="fv-debt-note">Coin 잔액을 채우면 낚시를 더 진행할 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
+    return `<div class="fv-main-layout"><div class="fv-main-column"><div class="fv-scene fv-scene-fish" aria-label="내 캐릭터가 낚시하는 연못"><div class="fv-fisher${run?' is-fishing':''}${done?' is-ready':''}">${art().character(ctx.game.profile.characterId,'',run?'fishing':'')}${run?`<i class="fv-fishing-ripple" aria-hidden="true"></i><span class="fv-fishing-status">${done?'✦ 입질이 왔어!':'🎣 낚시 중'}</span>`:''}</div>${sceneControls(ctx,run)}</div><div class="fv-under-scene"><span>내 작은 낚시터</span><span>Coin을 쓰면 낚시가 진행돼</span></div>${!run?chooser(ctx,'fish'):''}${ctx.coins<0&&run&&!done?'<p class="fv-debt-note">Coin 잔액을 채우면 낚시를 더 진행할 수 있어.</p>':''}</div>${sidebar(ctx)}</div>`;
   }
   function wardrobe(ctx) { return window.FarmV3CharactersView.render(ctx); }
   function plaza(ctx) { return window.FarmV3PlazaView.render(ctx); }
