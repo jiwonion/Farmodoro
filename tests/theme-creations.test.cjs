@@ -85,7 +85,7 @@ test('server catalog and permanent unlocks determine valid starts; the active sc
   h.api.render();
   assert.match(h.root.innerHTML, /background-image:url\('\.\/ocean\.png'\)/);
   assert.match(h.root.innerHTML, /눈의 왕국에서 만들기/);
-  assert.match(h.root.innerHTML, /새 테마는 다음 풍경부터 적용돼/);
+  assert.match(h.root.innerHTML, /새 테마는 다음 풍경부터 적용/);
   assert.equal(h.api.snapshot().activeCreation.themeId, 'ocean');
 });
 
@@ -112,7 +112,7 @@ test('free growth enables both controls at zero Coin and uses server-confirmed g
   assert.deepEqual(h.calls.map(call => call.params.p_amount), [1, 5]);
   assert.equal(h.api.snapshot().activeCreation.progress, 6);
   assert.equal(h.ctx.state.coins, 0);
-  assert.equal(h.toasts.at(-1), '5번 키웠어.');
+  assert.equal(h.toasts.at(-1), '5회 성장');
   assert.match(h.root.innerHTML, /완성까지 <b>14 회<\/b>/);
 });
 
@@ -210,7 +210,7 @@ test('pending intent survives a browser reload even when the server already comm
   const committed = serverState({ activeCreation: creation({ progress: 1 }) });
   const second = harness({ storage, state: { coins: 9 }, rpc: name => ({ data: name === 'get_my_scenery_state' ? committed : name === 'get_my_farm_wallet' ? { coin_balance: 9, farm_money_balance: 100 } : result(committed) }) });
   await second.api.load(second.ctx.activeAuthUser);
-  assert.match(second.root.innerHTML, /이전에 보낸 작업/);
+  assert.match(second.root.innerHTML, /이전 작업 결과 미확인/);
   second.click('grow', undefined, '1');
   assert.equal(second.calls.length, 1);
   second.click('retry');
@@ -281,7 +281,7 @@ test('a missing server migration renders a useful unavailable state and sends no
   assert.equal(h.calls.length, 1);
   assert.equal(h.api.snapshot(), null);
   assert.equal(h.ctx.state.coins, 10);
-  assert.match(h.root.innerHTML, /서버 업데이트가 적용되면/);
+  assert.match(h.root.innerHTML, /내 풍경 준비 중/);
   assert.match(h.root.innerHTML, /다시 불러오기/);
 });
 
@@ -292,7 +292,7 @@ test('a storage failure blocks outbound spending so a recoverable request is alw
   await h.settle();
   assert.equal(h.calls.length, 0);
   assert.equal(h.ctx.state.coins, 10);
-  assert.match(h.root.innerHTML, /브라우저에 작업을 저장할 수 없어/);
+  assert.match(h.root.innerHTML, /브라우저 저장소 사용 불가/);
 });
 
 test('business rejections clear the intent and refresh authoritative progress without spending locally', async () => {
@@ -484,7 +484,7 @@ test('a missing new primary stays a disabled preview while an old pinned creatio
   assert.equal(h.calls.length, 0, 'a preview cannot invent server ownership or send a start');
   h.api.applyState(oldState);
   assert.match(h.root.innerHTML, /data-art="tree-14-20"/);
-  assert.match(h.root.innerHTML, /만들던 풍경은 계속 키울 수 있어/);
+  assert.match(h.root.innerHTML, /새 풍경 준비 중/);
   h.click('grow', undefined, '1');
   await h.settle();
   assert.equal(h.calls.length, 1);

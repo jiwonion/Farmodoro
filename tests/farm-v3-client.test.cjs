@@ -313,7 +313,7 @@ test('farming offers free planting and Coin growth without watering controls or 
     const growing=render();assert.doesNotMatch(growing,/data-fv-action="water"|물주기|물을 줘|5시간/);
     const growButton=growing.match(/<button\b[^>]*data-fv-action="grow"[^>]*data-amount="1"[^>]*>/)?.[0];
     assert.ok(growButton);assert.equal(/\bdisabled\b/.test(growButton),balance<1);
-    value.runs=[];const empty=render();assert.match(empty,/시작은 무료/);assert.match(empty,/3 Coin/);
+    value.runs=[];const empty=render();assert.match(empty,/무료 시작/);assert.match(empty,/3 Coin/);
     assert.doesNotMatch(empty,/물주기|성장 3칸/);
     const plantButton=empty.match(/<button\b[^>]*data-fv-action="plant"[^>]*data-item="carrot"[^>]*>/)?.[0];
     assert.ok(plantButton);assert.doesNotMatch(plantButton,/\bdisabled\b/,'Planting remains free even with a negative wallet');

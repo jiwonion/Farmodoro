@@ -74,7 +74,7 @@ let chrome,ws,server,database;const exceptions=[],calls=[];
     assert.equal(await evaluate("document.querySelector('#farmPage').classList.contains('farm-v3-show-legacy')"),false);
     assert.equal(await evaluate(`document.querySelectorAll('#farmLegacyPanel,#farmV3Return,[data-fv-action="legacy"]').length`),0);
     assert.equal(await evaluate("getComputedStyle(document.querySelector('#farmGameRoot')).display!=='none'"),true);
-    assert.equal(await evaluate("document.querySelector('#farmGameRoot').textContent.includes('농장을 준비하고 있어')"),true);
+    assert.equal(await evaluate("document.querySelector('#farmGameRoot .fv-empty h3').textContent"),'농장 연결 대기');
     assert.equal(await evaluate(`!!document.querySelector('[data-fv-action="reload"]')&&!document.querySelector('[data-fv-action="reload"]').disabled`),true);
     await click(action('reload'));
     assert.equal(await evaluate('FarmV3.snapshot()'),null);

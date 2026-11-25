@@ -20,19 +20,19 @@
   };
   const THEME_NAMES = { ocean: "바다", bubbleField: "버블 들판", iceKingdom: "눈의 왕국", christmas: "크리스마스", galaxyNight: "은하수 밤", moonGarden: "달빛 정원", volcano: "화산", auroraNight: "오로라 밤", desertOasis: "사막 오아시스" };
   const ERRORS = {
-    SCENERY_ARCHIVED: "이전 풍경은 컬렉션에 보관했어. 새 농장에서 작물을 키워봐.",
-    SCENERY_UNKNOWN_TYPE: "이 종류를 찾을 수 없어. 목록을 다시 불러올게.",
-    SCENERY_THEME_NOT_OWNED: "보유한 테마에서 시작할 수 있어.",
-    SCENERY_THEME_MISMATCH: "지금 테마에 어울리는 종류를 골라줘.",
-    SCENERY_TYPE_LOCKED: "먼저 이 종류를 해금해줘.",
-    SCENERY_ALREADY_ACTIVE: "이미 만들고 있는 풍경이 있어. 진행 상황을 다시 불러올게.",
-    SCENERY_CREATION_NOT_FOUND: "진행 상황이 바뀌었어. 다시 불러올게.",
-    SCENERY_ALREADY_COMPLETE: "이미 완성했어. 보상을 받아줘.",
-    SCENERY_NOT_COMPLETE: "완성한 뒤 보상을 받을 수 있어.",
-    SCENERY_ALREADY_CLAIMED: "이미 보상을 받았어. 기록을 다시 불러올게.",
-    SCENERY_INVALID_AMOUNT: "사용할 Coin을 다시 확인해줘.",
-    FARM_INSUFFICIENT_COIN: "Coin이 부족해. 할 일이나 집중을 완료해서 모아봐.",
-    FARM_INSUFFICIENT_FARM_MONEY: "Farm Money가 부족해. 풍경을 완성해서 모아봐.",
+    SCENERY_ARCHIVED: "이전 풍경 컬렉션 보관됨",
+    SCENERY_UNKNOWN_TYPE: "알 수 없는 종류 · 목록 새로고침",
+    SCENERY_THEME_NOT_OWNED: "보유한 테마만 시작 가능",
+    SCENERY_THEME_MISMATCH: "현재 테마와 맞지 않는 종류",
+    SCENERY_TYPE_LOCKED: "잠긴 종류",
+    SCENERY_ALREADY_ACTIVE: "진행 중인 풍경 있음",
+    SCENERY_CREATION_NOT_FOUND: "진행 상황 변경됨 · 새로고침",
+    SCENERY_ALREADY_COMPLETE: "이미 완성됨 · 보상 수령 가능",
+    SCENERY_NOT_COMPLETE: "완성 후 보상 수령 가능",
+    SCENERY_ALREADY_CLAIMED: "보상 수령 완료",
+    SCENERY_INVALID_AMOUNT: "Coin 수량 오류",
+    FARM_INSUFFICIENT_COIN: "Coin 부족",
+    FARM_INSUFFICIENT_FARM_MONEY: "Farm Money 부족",
   };
   const RPCS = { start: "start_my_scenery_creation", grow: "grow_my_scenery_creation", claim: "claim_my_scenery_creation", unlock: "unlock_my_scenery_type" };
   let scenery = null;
@@ -110,7 +110,7 @@
       return intent;
     } catch (_) {
       storageError = true;
-      message = "브라우저의 풍경 저장 기록을 읽을 수 없어. 저장소를 사용할 수 있는지 확인해줘.";
+      message = "브라우저 풍경 기록 읽기 실패";
       return null;
     }
   }
@@ -121,7 +121,7 @@
       return true;
     } catch (_) {
       storageError = true;
-      message = "브라우저에 작업을 저장할 수 없어. 저장소를 사용할 수 있는지 확인해줘.";
+      message = "브라우저 저장소 사용 불가";
       showToast(message);
       render();
       return false;
@@ -133,7 +133,7 @@
       if (pending?.requestId === intent.requestId) pending = null;
       return true;
     } catch (_) {
-      message = "작업은 완료했어. 저장 확인을 다시 눌러 기록을 정리해줘.";
+      message = "작업 완료 · 저장 확인 필요";
       return false;
     }
   }
@@ -162,12 +162,12 @@
       if (!validState(data)) throw new Error("Invalid scenery state");
       scenery = JSON.parse(JSON.stringify(data));
       unavailable = false;
-      message = storageError ? message : pending ? "이전에 보낸 작업의 결과를 확인해야 해. 같은 작업으로 안전하게 다시 확인할 수 있어." : "";
+      message = storageError ? message : pending ? "이전 작업 결과 미확인" : "";
       return true;
     } catch (error) {
       if (!current(id, session) || request !== loadRequest) return false;
       unavailable = isUnavailable(error);
-      message = unavailable ? "내 풍경을 준비 중이야. 서버 업데이트가 적용되면 만들기를 시작할 수 있어." : "내 풍경을 불러오지 못했어. 연결을 확인하고 다시 불러와줘.";
+      message = unavailable ? "내 풍경 준비 중" : "내 풍경 불러오기 실패";
       return false;
     } finally {
       if (current(id, session) && request === loadRequest) {
@@ -178,10 +178,10 @@
   }
   function successMessage(intent, result) {
     const name = typeById(intent.params.p_type_id)?.name || "새 풍경";
-    if (intent.kind === "start") return `${name} 만들기를 시작했어.`;
-    if (intent.kind === "grow") return result.scenery.activeCreation?.progress >= result.scenery.activeCreation?.growthCost ? "풍경을 완성했어! 보상을 받아줘." : result.scenery.freeGrowth === true ? `${number(result.event?.growthAdded ?? intent.params.p_amount)}번 키웠어.` : `${number(result.event?.spentCoin ?? intent.params.p_amount)} Coin으로 키웠어.`;
-    if (intent.kind === "claim") return `풍경을 완성해서 ${number(result.event?.reward ?? 50)} Farm Money를 받았어.`;
-    return `${name}을 해금했어. 이제 계속 선택할 수 있어.`;
+    if (intent.kind === "start") return `${name} 만들기 시작`;
+    if (intent.kind === "grow") return result.scenery.activeCreation?.progress >= result.scenery.activeCreation?.growthCost ? "풍경 완성 · 보상 수령 가능" : result.scenery.freeGrowth === true ? `${number(result.event?.growthAdded ?? intent.params.p_amount)}회 성장` : `${number(result.event?.spentCoin ?? intent.params.p_amount)} Coin 사용 · 성장`;
+    if (intent.kind === "claim") return `풍경 완성 · ${number(result.event?.reward ?? 50)} Farm Money 획득`;
+    return `${name} 해금됨`;
   }
   async function runIntent(intent, recovering = false) {
     if (!ready() || busy || intent.userId !== accountId()) return null;
@@ -191,7 +191,7 @@
     busy = true;
     loading = false;
     loadRequest += 1;
-    message = "저장하고 있어…";
+    message = "저장 중";
     render();
     let reload = false;
     const previousFarmChain = farmActionChain;
@@ -233,7 +233,7 @@
           reload = true;
         } else {
           unavailable = isUnavailable(error);
-          message = unavailable ? "내 풍경 서버 업데이트가 필요해. 업데이트 후 같은 작업을 다시 확인할 수 있어." : "저장 결과를 확인하지 못했어. 다시 확인을 누르면 같은 작업을 확인해. Coin과 보상을 중복 처리하지 않아.";
+          message = unavailable ? "서버 업데이트 필요" : "저장 결과 미확인 · 재확인 시 중복 처리 없음";
         }
         showToast(message);
         return null;
@@ -325,7 +325,7 @@
       groups.set(key, group);
     }
     const rows = [...groups.values()].map(group => `<tr><th scope="row">${group.label}</th><td>${number(group.quantity)}개</td><td>+${number(group.amount)} ${group.currency === "coin" ? "Coin" : "Farm Money"}</td></tr>`).join("");
-    return `<details class="scenery-settlement" data-scenery-settlement><summary data-scenery-focus="settlement-summary"><span>농장 개편 정산 완료</span><strong>${settlement.coinRefund > 0 ? `+${number(settlement.coinRefund)} Coin` : ""}${settlement.coinRefund > 0 && settlement.farmMoneyRefund > 0 ? " · " : ""}${settlement.farmMoneyRefund > 0 ? `+${number(settlement.farmMoneyRefund)} Farm Money` : ""}</strong></summary><p>기존 재산과 미수령 우편 속 물품을 한 번 정산해 지갑에 지급했어. 이 금액은 주간 랭킹 수익에 포함되지 않아.</p><table><caption>기존 농장 재산의 정산 내역</caption><thead><tr><th scope="col">항목</th><th scope="col">수량</th><th scope="col">지급액</th></tr></thead><tbody>${rows}</tbody></table><p class="scenery-settlement-note">씨앗·용품은 남은 수량의 기준가, 심은 작물은 씨앗값과 성장 단계로 계산했어. 수확물·요리는 판매 기준가, 구매한 밭 스킨은 실제 결제액을 돌려줬어.</p></details>`;
+    return `<details class="scenery-settlement" data-scenery-settlement><summary data-scenery-focus="settlement-summary"><span>농장 개편 정산 완료</span><strong>${settlement.coinRefund > 0 ? `+${number(settlement.coinRefund)} Coin` : ""}${settlement.coinRefund > 0 && settlement.farmMoneyRefund > 0 ? " · " : ""}${settlement.farmMoneyRefund > 0 ? `+${number(settlement.farmMoneyRefund)} Farm Money` : ""}</strong></summary><p>기존 재산·미수령 우편 정산 지급 · 주간 랭킹 미포함</p><table><caption>기존 농장 재산의 정산 내역</caption><thead><tr><th scope="col">항목</th><th scope="col">수량</th><th scope="col">지급액</th></tr></thead><tbody>${rows}</tbody></table><p class="scenery-settlement-note">씨앗·용품: 잔여 수량 기준가 · 심은 작물: 씨앗값·성장 단계 · 수확물·요리: 판매 기준가 · 밭 스킨: 실제 결제액</p></details>`;
   }
   function render() {
     const root = document.getElementById("sceneryCreationRoot");
@@ -356,7 +356,7 @@
     const canStart = canAct && !scenery?.archived;
     const preparing = !!scenery && !scenery.catalog.some(candidate => candidate.id === first.id);
     const stage = active ? `${info.stage + 1} / 4단계 · ${info.stageName}` : "완성 예시";
-    const status = message || (!accountId() ? "로그인하면 내 풍경을 만들 수 있어." : loading || !scenery ? "내 풍경을 불러오는 중이야…" : scenery.archived ? active ? "만들던 풍경은 무료로 마저 완성할 수 있어. 완성 기록은 그대로 보관돼." : "이전에 완성한 풍경을 보관했어. 새 농장에서 다음 수집을 시작해봐." : free ? "버튼을 눌러 자유롭게 키워봐. Coin은 차감되지 않아." : active ? "할 일과 집중으로 모은 Coin으로 조금씩 키워봐." : preparing ? "새 테마 풍경을 준비 중이야. 서버 업데이트 후 시작할 수 있어." : "한 번에 하나씩, 오늘의 성취를 풍경으로 만들어봐.");
+    const status = message || (!accountId() ? "로그인 필요" : loading || !scenery ? "불러오는 중" : scenery.archived ? active ? "무료 완성 가능 · 기록 보관됨" : "이전 풍경 보관됨" : free ? "무료 성장 · Coin 차감 없음" : active ? "" : preparing ? "새 테마 준비 중" : "");
     const controls = !active ? button("picker", "종류 골라 시작하기", !canStart, "choose", "", "scenery-primary") : complete ? button("claim", `보상 받기 · +${number(reward)} Farm Money`, !canAct, "claim", "", "scenery-primary") : button("grow", free ? "한 번 키우기" : "1 Coin으로 키우기", !canAct || !free && wallet().coins < 1, "grow-1", 'data-scenery-amount="1" ', "scenery-primary") + button("grow", free ? `${number(spend5 || Math.min(5, cost - progress))}번 한 번에 키우기` : `${number(spend5 || Math.min(5, cost - progress))} Coin 한 번에 쓰기`, !canAct || spend5 < 2, "grow-5", `data-scenery-amount="${spend5}" `, "scenery-secondary");
     const completedCounts = scenery && ownerId === accountId()
       ? new Map(scenery.completedTypes.map(entry => [entry.typeId, entry.count])) : null;
@@ -367,7 +367,7 @@
       let cardButton;
       if (!available) cardButton = button("start", "준비 중", true, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
       else if (!unlocked) cardButton = button("unlock", `해금 · ${number(candidate.unlockPrice)} Farm Money`, !canAct || wallet().farmMoney < candidate.unlockPrice, `unlock-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
-      else cardButton = button("start", making ? "만드는 중" : scenery?.archived ? "컬렉션 보관" : active ? "다음에 만들 수 있어" : "무료로 시작하기", !canStart || !!active, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
+      else cardButton = button("start", making ? "만드는 중" : scenery?.archived ? "컬렉션 보관" : active ? "다음 차례" : "무료로 시작하기", !canStart || !!active, `start-${candidate.id}`, `data-scenery-type="${escape(candidate.id)}" `, "scenery-secondary");
       const completionCount = available && completedCounts ? `<strong>${number(completedCounts.get(candidate.id) || 0)}</strong>회` : "<strong>—</strong>";
       return `<article class="scenery-type-card${making ? " is-current" : ""}" data-scenery-card="${escape(candidate.id)}">
         <div class="scenery-type-preview">${sprite(candidate.id, making ? progress : candidate.growthCost, making ? cost : candidate.growthCost)}</div>
@@ -378,10 +378,10 @@
         ${cardButton}</article>`;
     }).join("");
     const history = (scenery?.completedTypes || []).filter(entry => entry.count > 0).map(entry => `<li><span class="scenery-history-art">${sprite(entry.typeId, typeById(entry.typeId).growthCost, typeById(entry.typeId).growthCost)}</span><span>${escape(typeById(entry.typeId).name)}</span><strong>${number(entry.count)}회</strong></li>`).join("");
-    const retry = pending && ownerId === accountId() ? `<div class="scenery-pending"><span>아직 결과를 확인하지 못한 작업이 있어.</span>${button("retry", busy ? "확인 중…" : "같은 작업 다시 확인", !ready() || busy, "retry", "", "scenery-secondary")}</div>` : "";
+    const retry = pending && ownerId === accountId() ? `<div class="scenery-pending"><span>미확인 작업 있음</span>${button("retry", busy ? "확인 중…" : "같은 작업 다시 확인", !ready() || busy, "retry", "", "scenery-secondary")}</div>` : "";
     const reload = unavailable || storageError || (!scenery && !loading && accountId()) ? button("reload", "다시 불러오기", loading || busy, "reload", "", "scenery-secondary") : "";
-    const growth = active ? `<div class="scenery-growth-copy"><strong>${number(info.percent)}% 성장</strong><span>완성 보상 ${number(reward)} Farm Money</span></div><div class="scenery-growth-numbers"><span><b>${number(progress)} / ${number(cost)}</b> ${usedLabel}</span><span>${complete ? "완성! 보상을 받아봐" : `완성까지 <b>${number(info.remaining)} ${unit}</b>`}</span></div><div class="scenery-progress" role="progressbar" aria-label="${escape(item.name)} 성장" aria-valuemin="0" aria-valuemax="${cost}" aria-valuenow="${progress}" aria-valuetext="${info.percent}% · ${progress} / ${cost} ${usedLabel} · ${info.remaining} ${unit} 남음"><span style="width:${progress / cost * 100}%"></span></div>` : '<div class="scenery-growth-copy"><strong>마음에 드는 모습으로 시작해</strong><span>기본 종류는 무료로 시작할 수 있어</span></div>';
-    const html = `<div class="scenery-creation"><article class="scenery-main-card"><header class="scenery-scene-heading"><div><span class="scenery-eyebrow">${escape(themeName(theme))} · ${active ? "나의 풍경" : "새로운 시작"}</span><h2 tabindex="-1" data-scenery-focus="creation-title">${escape(item.name)}</h2></div><span class="scenery-stage-label${complete ? " is-complete" : ""}">${stage}</span></header><div id="sceneryCreationScene" class="scenery-creation-scene${complete ? " is-complete" : ""}" role="img" aria-label="${escape(themeName(theme))}에서 ${escape(item.name)} · ${active ? `${info.percent}% 성장 · ${progress}/${cost} ${usedLabel}` : "완성 모습 미리보기"}">${terrain(theme)}<div class="scenery-centerpiece${!active ? " is-preview" : ""}">${sprite(item.id, active ? progress : cost, cost)}</div>${complete ? '<span class="scenery-complete-sparkle" aria-hidden="true">✦</span>' : ""}</div><div class="scenery-growth-panel">${growth}${growthTimeline(item, theme, info, !!active)}<div class="scenery-actions">${controls}${active ? button("picker", "종류 고르기", false, "choose", "", "scenery-text-button") : ""}</div>${active && !complete && !free && wallet().coins < 1 ? '<p class="scenery-coin-note">할 일·습관·집중을 완료하면 Coin을 모을 수 있어.</p>' : ""}</div></article><div class="scenery-status-row"><p id="sceneryActionStatus" class="scenery-action-status" role="status" aria-live="polite" aria-atomic="true">${escape(status)}</p>${reload}</div>${retry}<section class="scenery-picker" aria-labelledby="sceneryPickerTitle"><div class="scenery-section-heading"><h3 id="sceneryPickerTitle" tabindex="-1" data-scenery-focus="picker-title">${escape(themeName(selectedTheme()))}에서 만들기</h3><span>한 번 해금하면 계속 선택할 수 있어</span></div>${preparing ? '<p class="scenery-theme-note">새 대표 풍경은 서버 업데이트 후 시작할 수 있어. 만들던 풍경은 계속 키울 수 있어.</p>' : ""}${active && active.themeId !== selectedTheme() ? '<p class="scenery-theme-note">지금 만드는 풍경은 그대로 이어지고, 새 테마는 다음 풍경부터 적용돼.</p>' : ""}<div class="scenery-type-grid">${cards}</div></section><section class="scenery-history" aria-labelledby="sceneryHistoryTitle"><div class="scenery-section-heading"><h3 id="sceneryHistoryTitle">완성한 풍경</h3><span>총 ${number(scenery?.totalCompleted || 0)}회 완성 · 보상 수령 기준</span></div>${history ? `<ul>${history}</ul>` : '<p class="scenery-history-empty">완성한 뒤 보상을 받으면 기록이 쌓여.</p>'}</section></div>`;
+    const growth = active ? `<div class="scenery-growth-copy"><strong>${number(info.percent)}% 성장</strong><span>완성 보상 ${number(reward)} Farm Money</span></div><div class="scenery-growth-numbers"><span><b>${number(progress)} / ${number(cost)}</b> ${usedLabel}</span><span>${complete ? "완성 · 보상 수령 가능" : `완성까지 <b>${number(info.remaining)} ${unit}</b>`}</span></div><div class="scenery-progress" role="progressbar" aria-label="${escape(item.name)} 성장" aria-valuemin="0" aria-valuemax="${cost}" aria-valuenow="${progress}" aria-valuetext="${info.percent}% · ${progress} / ${cost} ${usedLabel} · ${info.remaining} ${unit} 남음"><span style="width:${progress / cost * 100}%"></span></div>` : '<div class="scenery-growth-copy"><strong>종류 선택</strong><span>기본 종류 무료</span></div>';
+    const html = `<div class="scenery-creation"><article class="scenery-main-card"><header class="scenery-scene-heading"><div><span class="scenery-eyebrow">${escape(themeName(theme))} · ${active ? "나의 풍경" : "새로운 시작"}</span><h2 tabindex="-1" data-scenery-focus="creation-title">${escape(item.name)}</h2></div><span class="scenery-stage-label${complete ? " is-complete" : ""}">${stage}</span></header><div id="sceneryCreationScene" class="scenery-creation-scene${complete ? " is-complete" : ""}" role="img" aria-label="${escape(themeName(theme))}에서 ${escape(item.name)} · ${active ? `${info.percent}% 성장 · ${progress}/${cost} ${usedLabel}` : "완성 모습 미리보기"}">${terrain(theme)}<div class="scenery-centerpiece${!active ? " is-preview" : ""}">${sprite(item.id, active ? progress : cost, cost)}</div>${complete ? '<span class="scenery-complete-sparkle" aria-hidden="true">✦</span>' : ""}</div><div class="scenery-growth-panel">${growth}${growthTimeline(item, theme, info, !!active)}<div class="scenery-actions">${controls}${active ? button("picker", "종류 고르기", false, "choose", "", "scenery-text-button") : ""}</div>${active && !complete && !free && wallet().coins < 1 ? '<p class="scenery-coin-note">Coin 부족</p>' : ""}</div></article><div class="scenery-status-row"><p id="sceneryActionStatus" class="scenery-action-status" role="status" aria-live="polite" aria-atomic="true">${escape(status)}</p>${reload}</div>${retry}<section class="scenery-picker" aria-labelledby="sceneryPickerTitle"><div class="scenery-section-heading"><h3 id="sceneryPickerTitle" tabindex="-1" data-scenery-focus="picker-title">${escape(themeName(selectedTheme()))}에서 만들기</h3><span>영구 해금</span></div>${preparing ? '<p class="scenery-theme-note">새 풍경 준비 중</p>' : ""}${active && active.themeId !== selectedTheme() ? '<p class="scenery-theme-note">새 테마는 다음 풍경부터 적용</p>' : ""}<div class="scenery-type-grid">${cards}</div></section><section class="scenery-history" aria-labelledby="sceneryHistoryTitle"><div class="scenery-section-heading"><h3 id="sceneryHistoryTitle">완성한 풍경</h3><span>총 ${number(scenery?.totalCompleted || 0)}회 완성 · 보상 수령 기준</span></div>${history ? `<ul>${history}</ul>` : '<p class="scenery-history-empty">완성 기록 없음</p>'}</section></div>`;
     const settlement = settlementPanel();
     const signature = settlement + html;
     if (signature === renderSignature) return;

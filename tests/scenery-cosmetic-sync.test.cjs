@@ -157,7 +157,7 @@ test('a purchase rejection preserves money, re-enables the control and does not 
   assert.equal(h.ctx.state.farmMoney, 3000);
   assert.equal(h.ctx.state.equippedFarmTheme, null);
   assert.equal(h.reconciliations.length, 0);
-  assert.match(h.toasts[0], /Farm Money가 부족해/);
+  assert.match(h.toasts[0], /Farm Money 부족/);
   assert.equal(await h.ctx.purchaseFarmCosmetic(button), true);
   assert.equal(h.calls.length, 2);
   assert.equal(h.ctx.state.farmMoney, 1000);

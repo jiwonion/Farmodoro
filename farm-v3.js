@@ -3,8 +3,8 @@
   "use strict";
   const PREFIX='farmodoro-v3-intent:';
   const ACTIONS=['plant','grow','harvest','fish_start','fish_grow','fish_claim','character','plaza','decor'];
-  const messages={FARM_INSUFFICIENT_COIN:'Coin이 부족해. 할 일·습관·집중으로 모아봐.',FARM_V3_LOCKED:'아직 해금하지 않은 아이템이야.',FARM_V3_OCCUPIED:'이미 진행 중인 회차가 있어. 최신 상태를 불러올게.',FARM_V3_RUN_NOT_FOUND:'진행 상태가 바뀌었어. 다시 불러올게.',FARM_V3_COMPLETE:'이미 완성했어. 수집 버튼을 눌러줘.',FARM_V3_NOT_COMPLETE:'진행을 마친 뒤 받을 수 있어.',FARM_V3_ALREADY_CLAIMED:'이미 받은 기록이야. 최신 상태를 불러올게.',FARM_V3_PROFILE_CHANGED:'다른 화면에서 설정이 바뀌었어. 최신 모습에서 다시 골라줘.',FARM_V3_INVALID_PLAZA:'닉네임과 공개 여부를 다시 확인해줘.',FARM_V3_INVALID_POSITION:'광장 안에서 자리를 다시 골라줘.',FARM_V3_UNKNOWN_CHARACTER:'캐릭터 목록을 다시 불러와줘.',FARM_V3_AVATAR_RETIRED:'꾸미기가 대표 캐릭터 선택으로 바뀌었어. 새로운 친구를 골라줘.'};
-  messages.FARM_V3_INVALID_SPEECH='대사는 줄바꿈 없이 80자까지 쓸 수 있어.';
+  const messages={FARM_INSUFFICIENT_COIN:'Coin 부족',FARM_V3_LOCKED:'미해금 아이템',FARM_V3_OCCUPIED:'진행 중인 항목 있음 · 상태 갱신',FARM_V3_RUN_NOT_FOUND:'진행 상태 변경 · 상태 갱신',FARM_V3_COMPLETE:'완성 · 수집 가능',FARM_V3_NOT_COMPLETE:'아직 미완성',FARM_V3_ALREADY_CLAIMED:'이미 수령한 항목 · 상태 갱신',FARM_V3_PROFILE_CHANGED:'설정 변경 감지 · 상태 갱신',FARM_V3_INVALID_PLAZA:'닉네임 또는 공개 설정 오류',FARM_V3_INVALID_POSITION:'광장 위치 범위 초과',FARM_V3_UNKNOWN_CHARACTER:'캐릭터 정보 확인 실패',FARM_V3_AVATAR_RETIRED:'종료된 꾸미기 기능'};
+  messages.FARM_V3_INVALID_SPEECH='대사 최대 80자 · 줄바꿈 불가';
   let game=null,owner=null,pending=null,busy=false,loading=false,unavailable=false,error=false,storageError=false;
   let loadRequest=0,root=null,signature='',message='',tab='farm',slot=0,collectionKind='crop';
   let characterDraft=null,characterVersion=null,plazaDraft=null,plazaVersion=null;
@@ -140,10 +140,10 @@
       // growth already committed by an older client without blocking Coin actions.
       if(intent.action==='water'){localStorage.removeItem(PREFIX+id);return null;}
       return intent;
-    }catch(_){storageError=true;message='저장 중이던 작업을 읽을 수 없어. 브라우저 저장소를 확인해줘.';return null;}
+    }catch(_){storageError=true;message='임시 저장 기록 읽기 실패';return null;}
   }
-  function persist(intent){try{localStorage.setItem(PREFIX+intent.userId,JSON.stringify(intent));pending=intent;return true;}catch(_){storageError=true;message='브라우저에 작업을 보관할 수 없어. 저장소를 확인하고 다시 불러와줘.';render();return false;}}
-  function clearPending(intent){try{localStorage.removeItem(PREFIX+intent.userId);if(pending?.requestId===intent.requestId)pending=null;}catch(_){message='작업은 끝났어. 같은 작업 다시 확인으로 저장 기록을 정리해줘.';}}
+  function persist(intent){try{localStorage.setItem(PREFIX+intent.userId,JSON.stringify(intent));pending=intent;return true;}catch(_){storageError=true;message='브라우저 임시 저장 실패';render();return false;}}
+  function clearPending(intent){try{localStorage.removeItem(PREFIX+intent.userId);if(pending?.requestId===intent.requestId)pending=null;}catch(_){message='저장 완료 · 임시 기록 정리 실패';}}
   async function load(user) {
     const id=user?.id;if(!id||id!==account())return false;
     if(owner!==id){reset();owner=id;pending=readPending(id);}else if(storageError){storageError=false;pending=readPending(id);}
@@ -155,23 +155,23 @@
       if(!current(id,session)||request!==loadRequest||actionChain!==farmActionChain||walletChain!==farmWalletMutationChain)return false;
       if(rpcError)throw rpcError;if(!valid(data))throw Error('Invalid game state');
       applyState(data,{wallet:true});
-      message=storageError?message:pending?'이전에 보낸 작업의 결과를 확인해줘. 같은 요청으로 다시 확인할 수 있어.':'';
+      message=storageError?message:pending?'저장 결과 확인 대기':'';
       hostRefresh();return true;
     }catch(caught){if(!current(id,session)||request!==loadRequest)return false;unavailable=['PGRST202','42883'].includes(caught?.code);error=!unavailable;message='';return false;}
     finally{if(current(id,session)&&request===loadRequest){loading=false;render();}}
   }
   function actionMessage(intent,event){
-    if(event.kind==='started')return `${event.name}${intent.action==='plant'?' 심었어.':' 낚시를 시작했어.'}`;
-    if(event.kind==='grown')return event.completed?'완성했어! 이제 수집할 수 있어.':`${event.spentCoin} Coin으로 진행했어.`;
+    if(event.kind==='started')return `${event.name} ${intent.action==='plant'?'심기 완료':'낚시 시작'}`;
+    if(event.kind==='grown')return event.completed?'완성 · 수집 가능':`${event.spentCoin} Coin 사용`;
     if(event.kind==='collected'){
       const names=(event.unlocks||[]).filter(i=>i.kind==='character').map(i=>selected(i.kind,i.id)?.name).filter(Boolean);
       return `${event.name} ${event.itemKind==='crop'?'수확':'획득'}!${names.length?' · '+names.slice(0,3).join(', ')+' 해금':''}`;
     }
-    return event.kind==='character'?'대표 캐릭터를 바꿨어.':event.kind==='avatar'?'이전 캐릭터 작업을 확인했어.':event.kind==='plaza'?'광장에 보일 모습을 저장했어.':'이전 작업을 확인했어.';
+    return event.kind==='character'?'대표 캐릭터 변경 완료':event.kind==='avatar'?'이전 캐릭터 작업 확인 완료':event.kind==='plaza'?'광장 모습 저장 완료':'이전 작업 확인 완료';
   }
   async function runIntent(intent,recovering=false){
     if(!ready()||busy||intent.userId!==account())return null;
-    const id=intent.userId,session=generation();busy=true;loading=false;loadRequest++;message='저장하고 있어…';render();
+    const id=intent.userId,session=generation();busy=true;loading=false;loadRequest++;message='저장 중';render();
     let reload=false;
     const call=Promise.all([farmActionChain,farmWalletMutationChain]).then(async()=>{
       if(!current(id,session))return null;
@@ -195,7 +195,7 @@
         if(!current(id,session))return null;
         const sentinel=Object.keys(messages).find(key=>String(caught?.message||'').includes(key));
         if(sentinel){clearPending(intent);message=messages[sentinel];reload=true;if(sentinel==='FARM_V3_PROFILE_CHANGED'){characterDraft=null;characterVersion=null;plazaDraft=null;plazaVersion=null;}}
-        else{message='저장 결과를 확인하지 못했어. 같은 작업 다시 확인을 눌러줘. Coin과 수집을 중복 처리하지 않아.';}
+        else{message='저장 결과 미확인 · 재확인 필요';}
         if(typeof showToast==='function')showToast(message);return null;
       }finally{if(current(id,session)){busy=false;render();}}
     });
@@ -252,7 +252,7 @@
     if(bubble){bubble.textContent=speech.trim();bubble.hidden=!speech.trim();}
     const count=root.querySelector?.('#fvSpeechCount');if(count)count.textContent=`${Array.from(speech).length} / 80자`;
     const input=root.querySelector?.('[name="speech"]');
-    input?.setCustomValidity(validSpeech(speech)?'':'대사는 줄바꿈 없이 80자까지 쓸 수 있어.');
+    input?.setCustomValidity(validSpeech(speech)?'':'줄바꿈 없이 최대 80자');
     window.FarmV3PlazaView?.layoutSpeech(root);
   }
   function movePosition(position){

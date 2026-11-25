@@ -33,7 +33,7 @@
         if (boot) {
           boot.innerHTML =
             '<div style="text-align:center;color:#2f5d45;font:15px/1.5 -apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:0 24px;">' +
-            "불러오는 데 문제가 생겼어.<br />인터넷 연결을 확인해줘." +
+            "불러오기 실패<br />네트워크 연결 확인" +
             '<br /><button type="button" onclick="location.reload()" ' +
             'style="margin-top:14px;padding:8px 18px;border:0;border-radius:8px;background:#2f5d45;color:#fff;font-size:14px;cursor:pointer;">새로고침</button></div>';
         }
@@ -55,7 +55,7 @@
     <link rel="stylesheet" href="./scenery-workspace.css?v=9" />
     <link rel="stylesheet" href="./farm-v3.css?v=22" />
     <link rel="stylesheet" href="./focus-pomodoro.css?v=2" />
-    <link rel="stylesheet" href="./task-planner.css?v=5" />
+    <link rel="stylesheet" href="./task-planner.css?v=6" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -67,8 +67,7 @@
         <div class="auth-landscape-shade"></div>
         <div class="auth-landscape-copy">
           <span class="auth-landscape-kicker">GROW YOUR DAY</span>
-          <h2>하루를 심고,<br />내일을 거둬봐</h2>
-          <p>할 일을 기록하고 나만의 풍경을 키워봐</p>
+          <h2>하루의 기록,<br />나만의 농장</h2>
           <div class="auth-landscape-tags">
             <span>
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 8 3 3 7-7" /></svg>
@@ -97,30 +96,17 @@
 
           <header class="auth-heading">
             <span>WELCOME, FARMER!</span>
-            <h1 id="authTitle">다시 만나 반가워</h1>
-            <p>Google 계정 하나로 기록을 안전하게 보관하고 어디서든 이어서 사용해</p>
+            <h1 id="authTitle">Farmodoro 로그인</h1>
           </header>
 
           <div class="google-login-button loading" id="googleSignInButton" aria-label="Google 계정으로 계속하기"></div>
 
           <p class="auth-status" id="authStatus" role="status" aria-live="polite">
-            파머도로를 사용하려면 Google 로그인이 필요해
+            Google 로그인
           </p>
-
-          <div class="auth-benefits" aria-label="로그인하면 좋은 점">
-            <div>
-              <span aria-hidden="true">☁</span>
-              <p><strong>기록을 안전하게</strong><small>할 일과 풍경 기록을 계정에 보관해</small></p>
-            </div>
-            <div>
-              <span aria-hidden="true">↻</span>
-              <p><strong>어디서든 그대로</strong><small>다른 기기에서도 오늘을 이어가</small></p>
-            </div>
-          </div>
 
         </div>
 
-        <p class="auth-footer">오늘도 한 칸씩, Farmodoro</p>
         <nav class="public-info-links" aria-label="서비스 안내"><a href="./about.html">서비스 소개</a><a href="./privacy.html">개인정보처리방침</a></nav>
       </div>
     </section>
@@ -211,7 +197,7 @@
       </aside>
 
       <main class="main-content">
-        <button class="productivity-sync-status" id="productivitySyncStatus" type="button" data-status="loading" aria-live="polite" title="눌러서 동기화 다시 시도">저장 상태 확인 중</button>
+        <button class="productivity-sync-status" id="productivitySyncStatus" type="button" data-status="loading" aria-live="polite" title="동기화 재시도">저장 상태 확인 중</button>
         <section class="page-view" id="todayPage" data-view="today">
         <div class="today-splitter" id="todaySplitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="할 일과 오른쪽 영역 너비 조절" aria-controls="taskSection summaryGrid habitSection" aria-valuemin="20" aria-valuemax="60" aria-valuenow="30" aria-valuetext="할 일 70%, 오른쪽 30%" title="드래그 또는 방향키로 너비 조절 · 더블클릭으로 초기화"></div>
         <header class="topbar">
@@ -219,17 +205,12 @@
           <div>
             <h1>오늘</h1>
             <p id="todayLabel"></p>
-            <p class="today-description">오늘도, 꾸준히 한 걸음씩 <span class="pixel-sprout" aria-hidden="true"></span></p>
-          </div>
-          <div class="today-welcome">
-            <div class="welcome-grow pixel-frame"><p>오늘도<br />좋은 하루가 자라고 있어요.</p><span class="pixel-sprout" aria-hidden="true"></span></div>
-            <blockquote class="welcome-quote pixel-frame">꾸준함이<br />언제나, 좋은 변화를 만들어요.<span>—</span></blockquote>
           </div>
         </header>
 
         <section class="summary-grid" id="summaryGrid" aria-label="오늘 요약">
           <article class="focus-card pomodoro-timer" id="focusCard">
-            <div class="focus-strip-heading"><span class="pixel-clock" aria-hidden="true"></span><div><strong>집중 타이머</strong><small>지금, 온전히 한 가지에 집중해요.</small></div></div>
+            <div class="focus-strip-heading"><span class="pixel-clock" aria-hidden="true"></span><div><strong>집중 타이머</strong></div></div>
             <div class="focus-copy">
               <span class="section-kicker">POMODORO</span>
               <div class="focus-mode-row">
@@ -250,7 +231,6 @@
                 </div>
               </div>
               <h2 id="focusTarget">25분 집중</h2>
-              <p id="focusDescription">집중 누적 60분마다 1 Coin을 받아</p>
               <div class="focus-controls">
                 <button class="primary-button" id="focusButton" type="button">
                   <span>▶</span>
@@ -320,7 +300,6 @@
               <div>
                 <span class="section-kicker">WORKFLOW</span>
                 <h2>오늘의 할 일</h2>
-                <p class="section-description">오늘도 하나씩, 해내는 하루!</p>
               </div>
               <div class="section-header-actions">
               <button class="secondary-button list-share-trigger" id="shareTasks" type="button" aria-haspopup="dialog" aria-controls="listShareModal" aria-label="할 일 이미지 공유하기">공유하기</button>
@@ -337,7 +316,6 @@
               <button type="button" data-task-date-step="1" aria-label="다음 날짜의 할 일">›</button>
               <button type="button" id="todayTaskDateReset">오늘</button>
             </nav>
-            <p class="today-task-date-hint" id="todayTaskDateHint" aria-live="polite" hidden></p>
             <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="선택한 날짜의 할 일 그룹 필터"></div>
 
             <section id="taskCreateModal" class="inline-composer hidden" aria-labelledby="taskCreateTitle">
@@ -348,7 +326,7 @@
                   id="taskInput"
                   rows="1"
                   maxlength="60"
-                  placeholder="새 할 일을 입력해"
+                  placeholder="할 일 이름"
                   aria-label="새 할 일 입력"
                   autocomplete="off"
                 ></textarea>
@@ -363,8 +341,8 @@
                 <fieldset id="taskRepeatWeekdays" hidden><legend>반복 요일</legend>
                   <label><input name="taskRepeatWeekday" type="checkbox" value="1" checked />월</label><label><input name="taskRepeatWeekday" type="checkbox" value="2" checked />화</label><label><input name="taskRepeatWeekday" type="checkbox" value="3" checked />수</label><label><input name="taskRepeatWeekday" type="checkbox" value="4" checked />목</label><label><input name="taskRepeatWeekday" type="checkbox" value="5" checked />금</label><label><input name="taskRepeatWeekday" type="checkbox" value="6" />토</label><label><input name="taskRepeatWeekday" type="checkbox" value="7" />일</label>
                 </fieldset>
-                <label id="taskRepeatMonthField" hidden>매월 <span><input id="taskRepeatMonthDay" type="number" min="1" max="31" value="1" />일</span><small>해당 날짜가 없으면 그달 마지막 날</small></label>
-                <label id="taskRepeatEndField" hidden>반복 종료일 <input id="taskRepeatEndDate" type="date" /><small>비워두면 계속 반복해</small></label>
+                <label id="taskRepeatMonthField" hidden>매월 <span><input id="taskRepeatMonthDay" type="number" min="1" max="31" value="1" />일</span></label>
+                <label id="taskRepeatEndField" hidden>반복 종료일 · 선택 <input id="taskRepeatEndDate" type="date" /></label>
               </div>
               <div class="custom-group-select" id="customTaskGroupSelect">
                 <select id="taskGroup" aria-label="그룹 선택" hidden></select>
@@ -430,7 +408,6 @@
               <div>
                 <span class="section-kicker">ROUTINE</span>
                 <h2>오늘의 습관</h2>
-                <p class="section-description">작은 습관이, 큰 변화를 키워요.</p>
               </div>
               <div class="section-header-actions">
                 <button class="secondary-button list-share-trigger" id="shareHabits" type="button" aria-haspopup="dialog" aria-controls="listShareModal" aria-label="습관 이미지 공유하기">공유하기</button>
@@ -447,7 +424,6 @@
                   <div>
                     <span class="section-kicker">NEW ROUTINE</span>
                     <h2 id="habitModalTitle">새 습관 등록</h2>
-                    <p>반복 일정을 설정해</p>
                   </div>
                   <button class="pixel-close-button" type="button" data-close-habit-modal aria-label="습관 등록 닫기">×</button>
                 </header>
@@ -467,8 +443,7 @@
               </label>
               <label class="habit-goal-field" for="habitMinimumInput">
                 <span>최소 목표 이름 <small>선택</small></span>
-                <input id="habitMinimumInput" type="text" maxlength="30" placeholder="예: 영어 단어 3개 보기" aria-describedby="habitMinimumHint" autocomplete="off" />
-                <small id="habitMinimumHint">바쁜 날에도 할 수 있는 작은 목표를 적어봐. 비워두면 기본 목표만 체크해.</small>
+                <input id="habitMinimumInput" type="text" maxlength="30" placeholder="예: 영어 단어 3개 보기" autocomplete="off" />
               </label>
               <fieldset class="weekday-field">
                 <legend>반복 요일</legend>
@@ -504,7 +479,6 @@
               <button id="habitDateToday" type="button">오늘</button>
             </nav>
             <div class="habit-list" id="habitList"></div>
-            <footer class="habit-encouragement"><span class="pixel-sprout" aria-hidden="true"></span><div><strong>오늘도 잘하고 있어요!</strong><p>꾸준한 습관이 더 좋은 내일을 만들어요.</p></div></footer>
 
           </aside>
         </section>
@@ -513,7 +487,6 @@
         <section class="page-view" id="tasksPage" data-view="tasks">
           <div class="task-page-tools">
             <div class="task-filter-list" id="taskGroupFilters"></div>
-            <p class="task-archive-policy" id="taskArchivePolicy"></p>
             <button class="archive-toggle" id="toggleArchiveView" type="button">보관함</button>
           </div>
           <div class="page-section-slot" id="tasksPageSlot"></div>
@@ -550,13 +523,13 @@
         </section>
 
         <section class="page-view" id="calendarPage" data-view="calendar">
-          <header class="page-header"><div><h1>달력</h1><p>날짜별 할 일과 앞으로의 반복 일정을 확인해</p></div></header>
+          <header class="page-header"><div><h1>달력</h1></div></header>
           <div id="taskCalendarRoot"></div>
         </section>
         <section class="page-view" id="focusPage" data-view="focus">
           <section class="focus-page-stage" id="focusPageStage">
             <div class="focus-stage-toolbar">
-              <div class="pomodoro-heading"><span>POMODORO</span><strong>한 번에 한 가지</strong></div>
+              <div class="pomodoro-heading"><span>POMODORO</span></div>
               <button id="toggleFocusFullscreen" class="secondary-button" type="button">전체 화면</button>
             </div>
             <div class="focus-page-slot" id="focusPageSlot"></div>
@@ -576,7 +549,6 @@
           <div>
             <span class="section-kicker">SCENERY PREVIEW</span>
             <h2 id="cosmeticPreviewTitle">미리보기</h2>
-            <p>내 풍경에 먼저 입혀 보고, 마음에 들면 바로 적용해요</p>
           </div>
           <button class="pixel-close-button" type="button" data-close-cosmetic-preview aria-label="미리보기 닫기">×</button>
         </header>
@@ -585,7 +557,6 @@
           <aside class="cosmetic-preview-detail">
             <span class="cosmetic-preview-kind" id="cosmeticPreviewKind"></span>
             <p id="cosmeticPreviewDescription"></p>
-            <p class="cosmetic-preview-guide">미리보기에서는 실제 장착 상태가 변경되지 않아요.</p>
           </aside>
         </div>
       </section>
@@ -603,10 +574,10 @@
       <section class="habit-modal-panel delete-confirm-panel">
         <span class="delete-confirm-icon" aria-hidden="true">×</span>
         <span class="section-kicker">DELETE ROUTINE</span>
-        <h2 id="habitDeleteTitle">이 습관을 삭제할까?</h2>
+        <h2 id="habitDeleteTitle">습관 삭제</h2>
         <p id="habitDeleteDescription">
           <strong id="habitDeleteName"></strong>
-          습관을 삭제하면 기록을 복구할 수 없어.
+          습관과 기록 영구 삭제
         </p>
         <div class="delete-confirm-actions">
           <button class="secondary-button" type="button" data-cancel-habit-delete>취소</button>
@@ -627,10 +598,10 @@
       <section class="habit-modal-panel delete-confirm-panel">
         <span class="delete-confirm-icon" aria-hidden="true">↺</span>
         <span class="section-kicker">RESET ROUTINES</span>
-        <h2 id="habitResetTitle">습관을 초기화할까?</h2>
+        <h2 id="habitResetTitle">습관 초기화</h2>
         <p id="habitResetDescription">
-          진행 중인 습관의 달성 기록, 진행량, 집중시간을 삭제하고 시작일을 오늘로 바꿔.<br>
-          종료된 습관과 기록은 그대로 유지돼.
+          진행 중인 습관의 달성 기록·진행량·집중시간 삭제 및 시작일을 오늘로 변경<br>
+          종료된 습관과 기록 유지
         </p>
         <div class="delete-confirm-actions">
           <button class="secondary-button" type="button" data-cancel-habit-reset>취소</button>
@@ -651,10 +622,10 @@
       <section class="habit-modal-panel delete-confirm-panel">
         <span class="delete-confirm-icon" aria-hidden="true">×</span>
         <span class="section-kicker">DELETE TASK</span>
-        <h2 id="taskDeleteTitle">완료한 할 일을 삭제할까?</h2>
+        <h2 id="taskDeleteTitle">완료한 할 일 삭제</h2>
         <p id="taskDeleteDescription">
           <strong id="taskDeleteName"></strong>
-          삭제하면 완료 보상으로 받은 <b id="taskDeleteCoinAmount">1 Coin</b>도 함께 차감돼.
+          완료 보상 <b id="taskDeleteCoinAmount">1 Coin</b> 차감
         </p>
         <div class="delete-confirm-actions">
           <button class="secondary-button" type="button" data-cancel-task-delete>취소</button>
@@ -670,7 +641,6 @@
           <div>
             <span class="section-kicker">FARMER SETTINGS</span>
             <h2 id="userSettingsTitle">사용자 설정</h2>
-            <p>프로필과 계정 정보를 관리해</p>
           </div>
           <button class="pixel-close-button" type="button" data-close-user-settings aria-label="사용자 설정 닫기">×</button>
         </header>
@@ -680,7 +650,6 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="profileEditorTitle">프로필</strong>
-                <small>랭킹에 표시되는 정보야</small>
               </div>
             </div>
 
@@ -708,7 +677,7 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="pushSettingsTitle">휴대폰 알림</strong>
-                <small id="pushSettingsStatus">집중 시간이 끝나면 알려줘</small>
+                <small id="pushSettingsStatus">집중 종료 알림</small>
               </div>
             </div>
             <button class="secondary-button" id="togglePushNotifications" type="button">알림 받기</button>
@@ -717,7 +686,6 @@
           <section class="settings-section" aria-labelledby="syncDiagnosticsTitle">
             <div class="settings-section-heading"><div>
               <strong id="syncDiagnosticsTitle">동기화 진단</strong>
-              <small>이 기기의 최근 저장·연결 기록 200개야. 할 일 내용과 로그인 정보는 포함하지 않아.</small>
             </div></div>
             <button class="secondary-button" id="downloadSyncDiagnostics" type="button">진단 기록 내려받기</button>
           </section>
@@ -725,7 +693,6 @@
             <div class="settings-section-heading">
               <div>
                 <strong id="accountSettingsTitle">계정</strong>
-                <small>Google 계정 정보와 계정 식별코드야</small>
               </div>
             </div>
             <dl class="account-info-list">
@@ -742,7 +709,7 @@
             </button>
             <div class="account-delete-zone">
               <strong>계정 탈퇴</strong>
-              <small>할 일, 습관, 집중과 풍경 기록을 복구할 수 없게 모두 삭제해</small>
+              <small>계정 및 전체 기록 영구 삭제</small>
               <button id="deleteAccountButton" type="button">Farmodoro 계정과 데이터 삭제</button>
             </div>
           </section>
@@ -763,7 +730,7 @@
           <div><span class="section-kicker">SHARE YOUR DAY</span><h2 id="listShareTitle">이미지 공유하기</h2></div>
           <button class="pixel-close-button" type="button" data-close-list-share aria-label="공유 미리보기 닫기">×</button>
         </header>
-        <p id="listShareStatus" role="status" aria-live="polite">이미지를 만드는 중이야…</p>
+        <p id="listShareStatus" role="status" aria-live="polite">이미지 생성 중</p>
         <div class="list-share-preview" id="listSharePreview" aria-busy="true"><img id="listShareImage" alt="" hidden /></div>
         <footer>
           <nav class="list-share-pages" id="listSharePages" aria-label="공유 이미지 페이지" hidden>
@@ -794,7 +761,7 @@
     <div class="focus-alert-banner hidden" id="focusAlertBanner" role="alert">
       <div class="focus-alert-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2 2M5 3 2 6m17-3 3 3M6 20l-1 1m13-1 1 1" /></svg></div>
       <div class="focus-alert-text">
-        <strong id="focusAlertTitle">집중 시간이 끝났어</strong>
+        <strong id="focusAlertTitle">집중 완료</strong>
         <span id="focusAlertSubtitle"></span>
       </div>
       <div class="focus-alert-actions">
@@ -809,19 +776,19 @@
     <script defer src="./scenery-theme-presets.js?v=4"></script>
     <script defer src="./productivity-recovery.js?v=1"></script>
     <script defer src="./sync-diagnostics.js?v=1"></script>
-    <script defer src="./task-planner.js?v=8"></script>
-    <script defer src="./app.js?v=357"></script>
+    <script defer src="./task-planner.js?v=9"></script>
+    <script defer src="./app.js?v=358"></script>
     <script defer src="./garden-art.js?v=10"></script>
     <script defer src="./scenery-creation-art.js?v=4"></script>
-    <script defer src="./scenery-creations.js?v=10"></script>
+    <script defer src="./scenery-creations.js?v=11"></script>
     <script defer src="./farm-v3-catalog.js?v=8"></script>
     <script defer src="./farm-v3-crop-art.js?v=1"></script>
     <script defer src="./farm-v3-character-art.js?v=5"></script>
-    <script defer src="./farm-v3-characters-view.js?v=5"></script>
-    <script defer src="./farm-v3-plaza-view.js?v=3"></script>
+    <script defer src="./farm-v3-characters-view.js?v=6"></script>
+    <script defer src="./farm-v3-plaza-view.js?v=4"></script>
     <script defer src="./farm-v3-art.js?v=9"></script>
-    <script defer src="./farm-v3-views.js?v=15"></script>
-    <script defer src="./farm-v3.js?v=14"></script>
+    <script defer src="./farm-v3-views.js?v=16"></script>
+    <script defer src="./farm-v3.js?v=15"></script>
     <script defer src="./pwa-register.js?v=177"></script>
   </body>
 </html>

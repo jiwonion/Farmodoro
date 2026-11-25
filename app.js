@@ -268,7 +268,7 @@ function loadGoogleIdentityScript() {
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Google 로그인 모듈을 불러오지 못했어"));
+    script.onerror = () => reject(new Error("Google 로그인 모듈 불러오기 실패"));
     document.head.appendChild(script);
   });
 
@@ -292,13 +292,13 @@ async function createGoogleNonce() {
 
 async function handleGoogleCredential(response) {
   if (!response.credential || !supabaseClient) {
-    setAuthStatus("Google 계정 정보를 받지 못했어. 다시 시도해줘", true);
+    setAuthStatus("Google 계정 정보 확인 실패", true);
     return;
   }
 
   googleSignInButton.classList.add("authenticating");
   googleSignInButton.setAttribute("aria-busy", "true");
-  setAuthStatus("Google 계정을 확인하고 있어");
+  setAuthStatus("Google 계정 확인 중");
 
   const { error } = await supabaseClient.auth.signInWithIdToken({
     provider: "google",
@@ -307,7 +307,7 @@ async function handleGoogleCredential(response) {
   });
 
   if (error) {
-    setAuthStatus(`로그인하지 못했어: ${error.message}`, true);
+    setAuthStatus(`로그인 실패: ${error.message}`, true);
     await prepareGoogleSignIn();
   }
 }
@@ -339,7 +339,7 @@ function renderGoogleSignInButton() {
 
 async function prepareGoogleSignIn() {
   if (!supabaseConfig?.googleClientId) {
-    throw new Error("Google Client ID가 설정되지 않았어");
+    throw new Error("Google Client ID 미설정");
   }
 
   await loadGoogleIdentityScript();
@@ -472,7 +472,7 @@ async function loadFarmWallet(
   if (error) {
     console.error("Farmodoro wallet could not be loaded", error);
     if (!background) {
-      showToast("지갑 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
+      showToast("지갑 데이터 불러오기 실패");
     }
     return;
   }
@@ -561,7 +561,7 @@ async function applyAuthSession(session) {
     currentProfile = null;
 
     userSettingsModal.classList.add("hidden");
-    setAuthStatus("파머도로를 사용하려면 Google 로그인이 필요해");
+    setAuthStatus("Google 로그인");
   }
 }
 
@@ -571,16 +571,16 @@ function finishAuthResolution() {
 
 async function initializeAuth() {
   if (!supabaseClient) {
-    setAuthStatus("로그인 모듈을 불러오지 못했어. 인터넷 연결을 확인해줘", true);
+    setAuthStatus("로그인 모듈 불러오기 실패 · 네트워크 연결 확인", true);
     finishAuthResolution();
     return;
   }
 
-  setAuthStatus("로그인 상태를 확인하고 있어");
+  setAuthStatus("로그인 상태 확인 중");
 
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) {
-    setAuthStatus("로그인 상태를 확인하지 못했어. 잠시 후 다시 시도해줘", true);
+    setAuthStatus("로그인 상태 확인 실패", true);
   } else {
     await applyAuthSession(data.session);
   }
@@ -630,10 +630,10 @@ function getProfileSettingsErrorMessage(error) {
   const message = String(error?.message ?? "");
   if (message.includes("Bucket not found") || message.includes("avatars")) {
     console.warn("Farmodoro: 002 migration not applied (avatars bucket missing)");
-    return "프로필 사진을 저장하지 못했어. 잠시 후 다시 시도해줘";
+    return "프로필 사진 저장 실패";
   }
   if (message.startsWith("프로필 사진을")) return message;
-  return "사용자 설정을 저장하지 못했어. 잠시 후 다시 시도해줘";
+  return "사용자 설정 저장 실패";
 }
 
 function refreshSettingsProfileFields() {
@@ -686,13 +686,13 @@ async function refreshPushNotificationSettingsUI() {
   if (!isFarmPushSupported()) {
     button.disabled = true;
     button.textContent = "이 기기에서는 지원 안 함";
-    status.textContent = "이 브라우저는 휴대폰 알림을 지원하지 않아";
+    status.textContent = "알림 미지원 브라우저";
     return;
   }
   if (typeof Notification !== "undefined" && Notification.permission === "denied") {
     button.disabled = true;
     button.textContent = "브라우저에서 차단됨";
-    status.textContent = "브라우저/기기 설정에서 알림 권한을 허용해줘";
+    status.textContent = "알림 권한 차단됨";
     return;
   }
 
@@ -700,8 +700,8 @@ async function refreshPushNotificationSettingsUI() {
   const subscription = await getFarmPushSubscription();
   button.textContent = subscription ? "알림 끄기" : "알림 받기";
   status.textContent = subscription
-    ? "타이머 종료와 새 우편을 알려주고 있어"
-    : "타이머 종료와 새 우편을 알려줘";
+    ? "집중 종료 알림 사용 중"
+    : "집중 종료 알림 꺼짐";
 }
 
 async function enableFarmPushNotifications() {
@@ -709,7 +709,7 @@ async function enableFarmPushNotifications() {
   try {
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      showToast("알림 권한을 허용해야 켤 수 있어");
+      showToast("알림 권한 필요");
       return;
     }
     const registration = await navigator.serviceWorker.ready;
@@ -727,7 +727,7 @@ async function enableFarmPushNotifications() {
     showToast("휴대폰 알림을 켰어");
   } catch (error) {
     console.error("Farmodoro push subscribe failed", error);
-    showToast("알림을 켜지 못했어. 잠시 후 다시 시도해줘");
+    showToast("알림 켜기 실패");
   }
   await refreshPushNotificationSettingsUI();
 }
@@ -744,7 +744,7 @@ async function disableFarmPushNotifications() {
     showToast("휴대폰 알림을 껐어");
   } catch (error) {
     console.error("Farmodoro push unsubscribe failed", error);
-    showToast("알림을 끄지 못했어");
+    showToast("알림 끄기 실패");
   }
   await refreshPushNotificationSettingsUI();
 }
@@ -798,7 +798,7 @@ async function uploadProfileAvatar(user, file) {
     contentType: file.type,
     upsert: true,
   });
-  if (error) throw new Error(`프로필 사진을 올리지 못했어: ${error.message}`);
+  if (error) throw new Error(`프로필 사진 업로드 실패: ${error.message}`);
 
   const { data } = supabaseClient.storage.from("avatars").getPublicUrl(avatarPath);
   return `${data.publicUrl}?v=${Date.now()}`;
@@ -818,12 +818,12 @@ profileAvatarInput.addEventListener("change", () => {
   if (!file) return;
   if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
     profileAvatarInput.value = "";
-    showToast("JPG, PNG, WEBP 사진만 선택할 수 있어");
+    showToast("JPG, PNG, WEBP만 지원");
     return;
   }
   if (file.size > 5 * 1024 * 1024) {
     profileAvatarInput.value = "";
-    showToast("프로필 사진은 5MB 이하로 골라줘");
+    showToast("프로필 사진 최대 5MB");
     return;
   }
 
@@ -863,13 +863,13 @@ document.querySelector("#togglePushNotifications").addEventListener("click", asy
 copyFarmCodeButton.addEventListener("click", async () => {
   const farmCode = currentProfile?.farm_code;
   if (!farmCode) {
-    showToast("농장 코드가 아직 준비되지 않았어");
+    showToast("농장 코드 준비 중");
     return;
   }
 
   try {
     await navigator.clipboard.writeText(farmCode);
-    showToast("농장 코드를 복사했어");
+    showToast("농장 코드 복사됨");
   } catch {
     showToast(`농장 코드: ${farmCode}`);
   }
@@ -881,7 +881,7 @@ userSettingsForm.addEventListener("submit", async (event) => {
 
   const displayName = profileDisplayNameInput.value.trim();
   if (!displayName) {
-    showToast("닉네임을 입력해줘");
+    showToast("닉네임 입력 필요");
     profileDisplayNameInput.focus();
     return;
   }
@@ -910,7 +910,7 @@ userSettingsForm.addEventListener("submit", async (event) => {
 
     updateProfileFromUser(activeAuthUser, currentProfile);
     closeUserSettings();
-    showToast("사용자 설정을 저장했어");
+    showToast("사용자 설정 저장됨");
   } catch (error) {
     console.error("Farmodoro user settings could not be saved", error);
     showToast(getProfileSettingsErrorMessage(error));
@@ -927,7 +927,7 @@ signOutButton.addEventListener("click", async () => {
   signOutButton.disabled = false;
 
   if (error) {
-    showToast("로그아웃하지 못했어. 다시 시도해줘");
+    showToast("로그아웃 실패");
   } else {
     closeUserSettings();
     applyAuthSession(null);
@@ -1093,7 +1093,6 @@ const habitForm = document.querySelector("#habitForm");
 const habitModal = document.querySelector("#habitModal");
 const habitModalKicker = habitModal.querySelector(".section-kicker");
 const habitModalTitle = document.querySelector("#habitModalTitle");
-const habitModalDescription = habitModal.querySelector("header p");
 const habitSubmitButton = habitForm.querySelector(".habit-submit");
 const openHabitFormButton = document.querySelector("#openHabitForm");
 const habitDeleteModal = document.querySelector("#habitDeleteModal");
@@ -1264,7 +1263,7 @@ async function fetchFarmDataFromDatabase(user) {
   if (!current()) return;
   if (error) {
     console.error("Farmodoro scenery data could not be loaded", error);
-    showToast("내 풍경을 불러오지 못했어. 잠시 후 다시 시도해줘.");
+    showToast("내 풍경 불러오기 실패");
     return;
   }
   const farm = data?.farm ?? {};
@@ -1465,7 +1464,7 @@ async function loadUserPreferences(user, { isInitialLoad = true } = {}) {
   const previousFarmMoney = state.farmMoney;
   if (error) {
     console.error("Farmodoro preferences could not be loaded", error);
-    if (isInitialLoad) showToast("설정을 불러오지 못했어. 잠시 후 다시 시도해줘");
+    if (isInitialLoad) showToast("설정 불러오기 실패");
     return;
   }
 
@@ -1769,7 +1768,7 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     if (habitCountdown && ownsTimer && runtime.seconds > 0 &&
         runtime.date !== toProductivityDateString(new Date(Number.isFinite(syncedAt) ? syncedAt : Date.now()))) {
       scheduleFarmPushNotification("timer_end", "", Date.now() + runtime.seconds * 1000,
-        "집중이 끝났어", "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘");
+        "집중 완료", "타이머 종료");
     }
     startFocusTickInterval(runningFocusMode);
   } else {
@@ -1819,7 +1818,7 @@ function handleFocusTimerDatabaseError(error) {
   if (["42P01", "PGRST205"].includes(error?.code)) {
     if (!focusTimerDatabaseUnavailable) {
       console.warn("Farmodoro: 021 migration not applied (user_focus_timer missing)", error);
-      showToast("기기 간 타이머 동기화를 쓸 수 없어. 이 기기에서는 계속 사용할 수 있어");
+      showToast("기기 간 타이머 동기화 불가 · 이 기기에서만 동작");
     }
     focusTimerDatabaseUnavailable = true;
     return;
@@ -2004,7 +2003,7 @@ function persistProductivityCheckpoint() {
     return true;
   } catch {
     if (!productivityStorageFailed) {
-      showToast("기기에 복구 사본을 저장하지 못했어. 서버 저장이 끝날 때까지 앱을 열어둬");
+      showToast("기기 복구 사본 저장 실패 · 서버 저장 대기 중");
       logProductivityEvent("checkpoint_write_failed");
     }
     productivityStorageFailed = true;
@@ -2239,7 +2238,7 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
       await syncTaskDatabaseImmediately();
     } catch (error) {
       console.error("Farmodoro pending changes could not be saved", error);
-      showToast("변경 내용을 아직 저장하지 못했어. 연결되면 다시 시도할게");
+      showToast("저장 대기 중 · 연결 시 재시도");
       scheduleTaskDatabaseSync(5000);
       return;
     }
@@ -2345,7 +2344,7 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
           render();
           scheduleTaskDatabaseSync(1000);
         }
-        showToast("할 일과 습관 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
+        showToast("할 일·습관 불러오기 실패");
       }
     })
     .finally(() => {
@@ -2782,8 +2781,7 @@ function renderGroups() {
 function renderTaskFilters() {
   const filters = document.querySelectorAll("#taskGroupFilters, #todayTaskGroupFilters");
   const archiveButton = document.querySelector("#toggleArchiveView");
-  const archivePolicy = document.querySelector("#taskArchivePolicy");
-  if (!archiveButton || !archivePolicy) return;
+  if (!archiveButton) return;
 
   const options = [
     { id: "all", name: "전체" },
@@ -2811,9 +2809,7 @@ function renderTaskFilters() {
   archiveButton.setAttribute("aria-pressed", String(archiveActive));
   archiveButton.textContent = archiveActive ? "← 할 일로 돌아가기" : "보관함";
   if (currentPage === "tasks") taskSection.querySelector(".section-header h2").textContent = archiveActive ? "보관함" : "전체 할 일";
-  archivePolicy.textContent = archiveActive
-    ? "보관된 할 일은 보관 후 30일이 지나면 자동으로 삭제"
-    : "완료한 할 일은 다음 날 자동으로 보관함으로 이동";
+  archiveButton.title = archiveActive ? "보관 기간 30일" : "완료 항목 자동 보관";
   document.querySelector("#taskBoard").classList.toggle("archive-view", archiveActive);
   document.querySelector('[data-status="done"] h3').textContent =
     archiveActive ? "보관된 할 일" : "완료";
@@ -2825,8 +2821,7 @@ function getTaskViewDate() {
 
 function renderTaskDateControls() {
   const controls = document.querySelector("#todayTaskDateControls");
-  const hint = document.querySelector("#todayTaskDateHint");
-  controls.hidden = hint.hidden = currentPage !== "today";
+  controls.hidden = currentPage !== "today";
   if (controls.hidden) return;
   const date = getTaskViewDate(), today = toProductivityDateString();
   const input = document.querySelector("#todayTaskDate");
@@ -2834,9 +2829,6 @@ function renderTaskDateControls() {
   refreshThemedDateTrigger(input);
   document.querySelector("#todayTaskDateReset").disabled = date === today;
   taskSection.querySelector(".section-header h2").textContent = date === today ? "오늘의 할 일" : `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 할 일`;
-  hint.textContent = date > today
-    ? "선택한 날짜의 할 일과 반복 예정이야. 날짜 없는 할 일도 함께 보여."
-    : "선택한 날짜의 할 일이야. 날짜 없는 할 일도 함께 보여.";
 }
 
 function setTaskViewDate(value) {
@@ -3185,52 +3177,6 @@ function formatHabitTargets(habit) {
     .join(" / ");
 }
 
-const focusDailyQuotes = [
-  "작은 집중이 오늘의 흐름을 바꿔",
-  "완벽한 시작보다 꾸준한 한 걸음이 더 멀리 가",
-  "지금 이 순간에 마음을 모으면 길이 보여",
-  "천천히 가도 멈추지 않으면 충분해",
-  "오늘 쌓은 한 칸이 내일의 기반이 돼",
-  "해야 할 일보다 지금 할 한 가지에 집중해",
-  "짧은 몰입도 반복되면 큰 변화를 만들어",
-  "시작한 순간 이미 가장 어려운 고비를 넘었어",
-  "마음이 복잡할수록 다음 한 걸음만 바라봐",
-  "집중은 시간을 늘리는 가장 조용한 방법이야",
-  "조금씩 해낸 기록은 사라지지 않아",
-  "오늘의 성실함이 미래의 여유를 만들어",
-  "속도보다 방향, 방향보다 꾸준함이 중요해",
-  "한 번의 깊은 집중이 긴 망설임을 이겨",
-  "쉬어 가도 괜찮아, 다시 시작하면 돼",
-  "할 수 있는 만큼 시작하면 할 수 있는 일이 늘어나",
-  "지금의 노력은 눈에 보이지 않아도 자라고 있어",
-  "작은 완료 하나가 다음 움직임을 가볍게 해",
-  "집중할 때는 한 가지면 충분해",
-  "오늘의 최선은 어제와 달라도 괜찮아",
-  "꾸준함은 재능이 쉬는 날에도 자라",
-  "미루고 싶은 마음보다 5분 먼저 움직여 봐",
-  "차분히 쌓은 시간은 결국 결과로 답해",
-  "오늘도 나만의 속도로 앞으로 가자",
-  "생각을 줄이고 손을 움직이면 흐름이 시작돼",
-  "한 칸씩 채우다 보면 어느새 멀리 와 있어",
-  "집중한 시간은 스스로에게 주는 단단한 약속이야",
-  "잘하려는 마음보다 끝내려는 마음을 먼저 꺼내 봐",
-  "오늘 시작한 작은 일이 내일의 나를 도와줘",
-  "흔들려도 다시 돌아오는 힘이 꾸준함이야",
-  "할 일을 작게 나누면 시작할 용기가 커져",
-];
-
-function updateDailyFocusQuote() {
-  const quote = document.querySelector(".welcome-quote");
-  if (!quote) return;
-  const today = new Date();
-  const dayNumber = Math.floor(
-    Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) / 86400000,
-  );
-  quote.textContent = focusDailyQuotes[dayNumber % focusDailyQuotes.length];
-}
-
-updateDailyFocusQuote();
-
 customTaskGroupSelect.addEventListener("keydown", event => {
   if (taskGroupMenu.classList.contains("hidden")) return;
   if (event.key === "Escape") {
@@ -3304,7 +3250,7 @@ function openGroupDeleteDialog(groupId) {
   const group = getGroup(groupId);
   if (!group) return;
   pendingGroupDeleteId = groupId;
-  groupDeleteDialogMessage.textContent = `‘${group.name}’ 그룹을 정말 삭제할까? 이 그룹의 할 일은 그룹 없음으로 이동해.`;
+  groupDeleteDialogMessage.textContent = `‘${group.name}’ 그룹 삭제 · 포함된 할 일은 그룹 없음으로 이동`;
   groupDeleteDialog.classList.remove("hidden");
   confirmGroupDelete.focus();
 }
@@ -3610,12 +3556,12 @@ function renderHabitMonthlySummary() {
   const summary = getHabitMonthlySummary();
   const percentage = summary.percentage ?? 0;
   const periodLabel = summary.period === "future"
-    ? "아직 시작하지 않은 달이에요"
+    ? "시작 전"
     : summary.period === "current" ? "오늘까지의 달성률" : "월간 달성률";
   const emptyLabel = summary.period === "future"
-    ? "기록이 쌓이면 여기에 보여요"
-    : !summary.habitCount ? "이 달에 등록된 습관이 없어요"
-      : !summary.eligible ? "집계할 예정이 아직 없어요" : "완료한 습관이 아직 없어요";
+    ? "기록 없음"
+    : !summary.habitCount ? "등록된 습관 없음"
+      : !summary.eligible ? "예정 없음" : "완료 기록 없음";
   const weekBars = summary.weeks.map((week) => {
     const dateRange = `${summary.month}월 ${Number(week.startDate.slice(-2))}일–${Number(week.endDate.slice(-2))}일`;
     const weekValue = week.percentage ?? 0;
@@ -3680,8 +3626,8 @@ let habitRecordSaving = false;
 async function savePastHabitRecord(habit, date, progress, completionLevel = "max") {
   if (!activeAuthUser || !canEditHabitRecord(habit, date)) throw new Error("수정할 수 없는 날짜야");
   const target = getHabitTargetForDate(habit, date);
-  if (!Number.isInteger(progress) || progress < 0 || progress > target) throw new Error("기록값을 확인해");
-  if (!["min", "max"].includes(completionLevel) || (completionLevel === "min" && !hasHabitMinimum(habit))) throw new Error("달성 단계를 확인해");
+  if (!Number.isInteger(progress) || progress < 0 || progress > target) throw new Error("기록값 오류");
+  if (!["min", "max"].includes(completionLevel) || (completionLevel === "min" && !hasHabitMinimum(habit))) throw new Error("달성 단계 오류");
   const userId = activeAuthUser.id;
   await syncTaskDatabaseImmediately();
   const key = `${habit.id}:${date}`;
@@ -3689,7 +3635,7 @@ async function savePastHabitRecord(habit, date, progress, completionLevel = "max
   const walletChain = farmWalletMutationChain;
   const operation = taskSyncChain.then(async () => {
     await walletChain;
-    if (activeAuthUser?.id !== userId) throw new Error("로그인 정보가 바뀌었어");
+    if (activeAuthUser?.id !== userId) throw new Error("로그인 정보 변경됨");
     farmWalletMutationVersion += 1;
     const complete = progress >= target;
     const { data, error } = await supabaseClient.rpc(complete ? "complete_my_habit" : "uncomplete_my_habit", {
@@ -3779,7 +3725,7 @@ function renderFarmDashboard() {
       const owned = !theme.id || isCosmeticOwned("farm_theme", theme.id);
       const equipped = (state.equippedFarmTheme || "") === theme.id;
       const action = owned ? `data-equip-cosmetic="farm_theme:${theme.id}"` : `data-preview-farm-theme="${theme.id}"`;
-      const caption = equipped ? "사용 중" : owned ? "보유 · 눌러서 적용" : `✦ ${theme.price.toLocaleString()} · 미리보기`;
+      const caption = equipped ? "사용 중" : owned ? "보유" : `✦ ${theme.price.toLocaleString()} · 미리보기`;
       const art = window.FarmGardenArt?.theme(theme.id);
       const preset = window.SceneryThemePresets?.theme(theme.id);
       const object = preset ? `<span class="scenery-thumb-object">${window.SceneryCreationArt?.sprite(preset.defaultType, 20, 20) || ""}</span>` : "";
@@ -3868,7 +3814,6 @@ function render() {
 function renderHabitUpdates() {
   renderHabits();
   renderHabitHeatmap();
-  updateDailyFocusQuote();
   renderSummary();
   renderFarm();
   saveState();
@@ -3963,7 +3908,7 @@ function confirmTaskCompletionWithServer(task, optimisticCycleId, optimisticRewa
       state.coins = Math.max(0, state.coins - optimisticReward);
       renderSummary();
       renderFarm();
-      showToast(`할 일 완료를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+      showToast(`할 일 완료 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
     });
 }
 
@@ -3992,7 +3937,7 @@ function confirmTaskUncompletionWithServer(task, nextStatus, optimisticRefund) {
       state.coins += optimisticRefund;
       renderSummary();
       renderFarm();
-      showToast(`완료 취소를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+      showToast(`완료 취소 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
     });
 }
 
@@ -4028,7 +3973,7 @@ function confirmTaskStatusWithServer(taskId, nextStatus, previousStatus) {
         currentTask.status = previousStatus;
         render();
       }
-      showToast(`상태를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+      showToast(`상태 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
     })
     .finally(() => {
       if (taskStatusSyncChains.get(taskId) === sync) taskStatusSyncChains.delete(taskId);
@@ -4042,7 +3987,7 @@ function moveTaskTo(id, nextStatus) {
   const previousStatus = task.status;
   const changesCompletion = previousStatus === "done" || nextStatus === "done";
   if (changesCompletion && !farmWalletHydrated) {
-    showToast("지갑 데이터를 불러오는 중이야");
+    showToast("지갑 데이터 불러오는 중");
     return;
   }
   task.status = nextStatus;
@@ -4093,7 +4038,7 @@ function moveTaskTo(id, nextStatus) {
     task.completedWithFreePass = false;
     state.coins = Math.max(0, state.coins - returnedReward);
     confirmTaskUncompletionWithServer(task, nextStatus, returnedReward);
-    showToast(`완료를 취소했어 현재 ${state.coins} Coin`);
+    showToast(`완료 취소 · 현재 ${state.coins} Coin`);
   } else {
     confirmTaskStatusWithServer(task.id, nextStatus, previousStatus);
     showToast(nextStatus === "doing" ? "진행 중으로 옮겼어" : "대기로 옮겼어");
@@ -4187,7 +4132,7 @@ function confirmHabitCompletionWithServer(habit, recordDate, progressValue, opti
       renderHabitUpdates();
       renderSummary();
       renderFarm();
-      showToast(`습관 완료를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+      showToast(`습관 완료 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
     });
   habitCompletionRequests.set(key, request);
   farmWalletMutationChain = request.finally(() => {
@@ -4226,7 +4171,7 @@ function confirmHabitUncompletionWithServer(habit, recordDate, optimisticRefund,
       renderHabitUpdates();
       renderSummary();
       renderFarm();
-      showToast(`완료 취소를 저장하지 못했어 · ${error?.message || "알 수 없는 오류"}`);
+      showToast(`완료 취소 저장 실패 · ${error?.message || "알 수 없는 오류"}`);
     });
   habitCompletionRequests.set(key, request);
   farmWalletMutationChain = request.finally(() => {
@@ -4241,7 +4186,7 @@ function applyHabitCompletionChange(habit, wasComplete, complete, today = toProd
   if (wasComplete === complete && (!complete || previousLevel === completionLevel)) return null;
   const isToday = today === toProductivityDateString();
   if (!farmWalletHydrated) {
-    showToast("지갑 데이터를 불러오는 중이야");
+    showToast("지갑 데이터 불러오는 중");
     return null;
   }
   const previousMeta = habit.recordMetaByDate?.[today] ? { ...habit.recordMetaByDate[today] } : null;
@@ -4322,7 +4267,7 @@ function toggleHabit(id, completionLevel = "max") {
   if (!habit) return;
   if (habitCompletionRequests.has(`${id}:${toProductivityDateString()}`)) return;
   if (!isHabitScheduledToday(habit)) {
-    showToast("오늘 일정에 없는 습관이야");
+    showToast("오늘 일정에 없는 습관");
     return;
   }
 
@@ -4333,7 +4278,7 @@ function toggleHabit(id, completionLevel = "max") {
   showToast(
     result.complete
       ? `${hasHabitMinimum(habit) ? (result.completionLevel === "min" ? "최소" : "최대") + " 달성" : "습관 완료"}${result.reward > 0 ? ` · ${result.reward} Coin 획득` : result.reward < 0 ? ` · ${-result.reward} Coin 차감` : ""}`
-      : `완료를 취소했어 현재 ${state.coins} Coin`,
+      : `완료 취소 · 현재 ${state.coins} Coin`,
   );
   renderHabitUpdates();
   scheduleTaskDatabaseSync(0);
@@ -4539,9 +4484,9 @@ function renderListSharePage() {
 }
 
 async function openListSharePreview(kind, trigger) {
-  if (!taskDataHydrated) { showToast("목록을 불러온 뒤에 공유할 수 있어"); return; }
+  if (!taskDataHydrated) { showToast("목록 불러오는 중"); return; }
   const snapshot = getListShareSnapshot(kind);
-  if (!snapshot.items.length) { showToast(`공유할 ${kind === "tasks" ? "할 일이" : "습관이"} 없어`); return; }
+  if (!snapshot.items.length) { showToast(`공유할 ${kind === "tasks" ? "할 일" : "습관"} 없음`); return; }
   closeListSharePreview(false);
   const generation = listShareGeneration;
   listShareReturnFocus = trigger;
@@ -4551,7 +4496,7 @@ async function openListSharePreview(kind, trigger) {
   listShareSend.disabled = false;
   document.querySelector("#listSharePages").hidden = true;
   document.querySelector("#listShareTitle").textContent = `${kind === "tasks" ? "할 일" : "습관"} 이미지 공유`;
-  listShareStatus.textContent = "이미지를 만드는 중이야…";
+  listShareStatus.textContent = "이미지 생성 중";
   document.querySelector("#listSharePreview").setAttribute("aria-busy", "true");
   listShareModal.classList.remove("hidden");
   document.body.classList.add("list-share-open");
@@ -4565,13 +4510,11 @@ async function openListSharePreview(kind, trigger) {
     try { canShare = Boolean(navigator.share && navigator.canShare?.({ files: pages.map((page) => page.file) })); } catch {}
     listShareSend.hidden = !canShare;
     listShareSend.textContent = pages.length > 1 ? `${pages.length}장 모두 공유` : "이미지 공유";
-    listShareStatus.textContent = pages.length > 1
-      ? `총 ${pages.length}장의 이미지야. ${canShare ? "모두 공유하거나 한 장씩 저장할 수 있어." : "화살표로 넘기며 한 장씩 저장해 줘."}`
-      : canShare ? "이미지를 확인하고 공유하거나 저장해 봐." : "이미지를 저장해서 원하는 앱에 공유해 봐.";
+    listShareStatus.textContent = `이미지 ${pages.length}장`;
     renderListSharePage();
   } catch (error) {
     if (generation !== listShareGeneration) return;
-    listShareStatus.textContent = "이미지를 만들지 못했어. 창을 닫고 다시 시도해 줘.";
+    listShareStatus.textContent = "이미지 생성 실패";
     console.warn("Farmodoro share image could not be created", error);
   } finally {
     if (generation === listShareGeneration) document.querySelector("#listSharePreview").setAttribute("aria-busy", "false");
@@ -4593,7 +4536,7 @@ listShareSend.addEventListener("click", async () => {
     await navigator.share({ files: listSharePages.map((page) => page.file) });
   } catch (error) {
     if (generation === listShareGeneration && error?.name !== "AbortError") {
-      listShareStatus.textContent = "공유를 열지 못했어. 이미지 저장으로 저장한 뒤 공유해 줘.";
+      listShareStatus.textContent = "공유 실패 · 이미지 저장 이용";
     }
   } finally {
     if (generation === listShareGeneration) { listShareSending = false; listShareSend.disabled = false; }
@@ -4788,25 +4731,19 @@ function updateFocusTarget() {
   const item = getFocusItem();
   const settings = getFocusSettings();
   const target = document.querySelector("#focusTarget");
-  const description = document.querySelector("#focusDescription");
   const focusButton = document.querySelector("#focusButton");
-  description.hidden = false;
 
   if (focusMode === "quick") {
     focusButton.disabled = false;
     const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
     target.textContent = `${sessionMinutes}분 집중`;
-    description.textContent = "";
-    description.hidden = true;
     fitFocusTargetText();
     return;
   }
 
   if (!item) {
     focusButton.disabled = true;
-    target.textContent = "집중할 항목을 선택해";
-    description.textContent = "";
-    description.hidden = true;
+    target.textContent = "집중 타이머";
     fitFocusTargetText();
     return;
   }
@@ -4814,10 +4751,6 @@ function updateFocusTarget() {
   focusButton.disabled = false;
   const completionLevel = focusRuntimeByMode.linked.completionLevel || "max";
   target.textContent = activeFocus?.type === "habit" && completionLevel === "min" ? item.minimumTitle || item.title : item.title;
-  description.textContent = activeFocus?.type === "habit"
-    ? `${hasHabitMinimum(item) ? (completionLevel === "min" ? "최소 목표" : "최대 목표") : "오늘 목표"} ${focusRuntimeByMode.linked.sessionMinutes ?? getHabitFocusMinutes(item, toProductivityDateString(), completionLevel)}분 · 남은 시간만큼 집중해`
-    : "";
-  description.hidden = !description.textContent;
   fitFocusTargetText();
 }
 
@@ -4984,7 +4917,7 @@ async function flushFocusTime() {
           state.coins = Number(data.coinBalance);
         }
         const awardedCoins = Math.max(0, Number(data?.awardedCoins) || 0);
-        if (awardedCoins > 0) showToast(`집중 누적 60분 완료 ${awardedCoins} Coin을 받았어`);
+        if (awardedCoins > 0) showToast(`집중 누적 60분 · ${awardedCoins} Coin 획득`);
         refreshFocusProgress();
         renderFarm();
       });
@@ -4997,7 +4930,7 @@ async function flushFocusTime() {
       if (["42883", "PGRST202"].includes(error?.code)) {
         console.warn("Farmodoro: record_my_focus_time unavailable; unconfirmed seconds remain in the local outbox");
         focusProgressApiUnavailable = true;
-        showToast("집중 시간 저장을 쓸 수 없어. 미저장 시간은 이 기기에 보관했어");
+        showToast("집중 시간 저장 불가 · 기기에 임시 보관");
       }
     })
     .finally(() => {
@@ -5148,11 +5081,11 @@ function notifyFocusPhaseComplete(kind) {
   let title;
   let subtitle;
   if (kind === "habit") {
-    title = "습관 목표 시간을 채웠어";
-    subtitle = "오늘 정한 시간만큼 집중했어. 잠깐 쉬어도 좋아.";
+    title = "습관 목표 달성";
+    subtitle = "타이머 종료";
   } else {
-    title = "집중 시간이 끝났어";
-    subtitle = "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘.";
+    title = "집중 완료";
+    subtitle = "타이머 종료";
   }
   showFocusAlertBanner(title, subtitle);
   void showFocusSystemNotification(title, subtitle);
@@ -5190,7 +5123,7 @@ function advanceRunningFocusTimer(mode) {
   if (ownsTimer && runtime.phase === "focus") {
     if (habitCountdown && previousDate && previousDate !== runtime.date && runtime.seconds > 0) {
       scheduleFarmPushNotification("timer_end", "", now + runtime.seconds * 1000,
-        "집중이 끝났어", "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘");
+        "집중 완료", "타이머 종료");
       renderHabits();
       scheduleFocusTimerDatabaseSync(0);
     }
@@ -5291,8 +5224,8 @@ function finishFocusRuntime(mode) {
     scheduleTaskDatabaseSync(0);
     showToast(
       completionResult
-        ? `${completionLevel === "min" ? "최소" : hasHabitMinimum(item) ? "최대" : "습관"} 목표를 채웠어${completionResult.reward > 0 ? ` · ${completionResult.reward} Coin 획득` : completionResult.reward < 0 ? ` · ${-completionResult.reward} Coin 차감` : ""}`
-        : "집중 측정을 완료했어",
+        ? `${completionLevel === "min" ? "최소" : hasHabitMinimum(item) ? "최대" : "습관"} 목표 달성${completionResult.reward > 0 ? ` · ${completionResult.reward} Coin 획득` : completionResult.reward < 0 ? ` · ${-completionResult.reward} Coin 차감` : ""}`
+        : "집중 측정 완료",
     );
     scheduleFocusTimerDatabaseSync(0);
     void flushFocusTime();
@@ -5316,7 +5249,7 @@ function finishFocusRuntime(mode) {
   updateMiniFocusTimer();
   if (ownsQuickTimer) {
     render();
-    showToast("정한 시간만큼 집중했어");
+    showToast("집중 완료");
     scheduleFocusTimerDatabaseSync(0);
     void flushFocusTime();
     notifyFocusPhaseComplete("focus");
@@ -5409,8 +5342,8 @@ function toggleFocus() {
       "timer_end",
       "",
       Date.now() + runtime.seconds * 1000,
-      "집중이 끝났어",
-      "정한 시간만큼 집중했어. 더 하려면 새로 시작해줘",
+      "집중 완료",
+      "타이머 종료",
     );
   }
 
@@ -5435,7 +5368,7 @@ function endFocusSession(mode = focusMode) {
   scheduleTaskDatabaseSync(0);
   scheduleFocusTimerDatabaseSync(0);
   void flushFocusTime();
-  showToast(mode === "quick" ? "빠른 집중을 종료했어" : "집중 측정을 종료했어");
+  showToast(mode === "quick" ? "빠른 집중 종료" : "집중 측정 종료");
 }
 
 function setFocusMode(mode) {
@@ -5760,7 +5693,6 @@ function openHabitModal(habit = null) {
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
     habitModalTitle.textContent = "습관 수정";
-    habitModalDescription.textContent = "목표와 반복 일정을 다시 설정해";
     habitSubmitButton.textContent = "변경사항 저장";
     habitInput.value = habit.title;
     document.querySelectorAll('[name="habitWeekday"]').forEach((input) => {
@@ -5773,7 +5705,6 @@ function openHabitModal(habit = null) {
   } else {
     habitModalKicker.textContent = "NEW ROUTINE";
     habitModalTitle.textContent = "새 습관 등록";
-    habitModalDescription.textContent = "바쁜 날에도 이어갈 수 있는 목표를 설정해";
     habitSubmitButton.textContent = "습관 추가";
     resetHabitForm();
   }
@@ -5884,7 +5815,7 @@ habitResetModal.addEventListener("click", (event) => {
 
 confirmHabitReset.addEventListener("click", async () => {
   if (!taskDataHydrated || !activeAuthUser) {
-    showToast("습관 데이터를 불러오는 중이야");
+    showToast("습관 데이터 불러오는 중");
     return;
   }
 
@@ -5916,10 +5847,10 @@ confirmHabitReset.addEventListener("click", async () => {
     closeHabitResetModal();
     render();
     await loadTaskDataFromDatabase(activeAuthUser, { force: true });
-    showToast("습관을 오늘부터 다시 시작했어");
+    showToast("습관 초기화 완료");
   } catch (error) {
     console.error("Farmodoro habits could not be reset", error);
-    showToast(`습관 초기화에 실패했어${error.message ? `: ${error.message}` : ""}`);
+    showToast(`습관 초기화 실패${error.message ? `: ${error.message}` : ""}`);
   } finally {
     confirmHabitReset.disabled = false;
   }
@@ -5931,7 +5862,7 @@ confirmHabitDelete.addEventListener("click", () => {
   pendingHabitDatabaseDeletes.add(pendingHabitDeleteId);
   state.habits = state.habits.filter((habit) => habit.id !== pendingHabitDeleteId);
   closeHabitDeleteModal();
-  showToast("습관을 삭제했어");
+  showToast("습관 삭제됨");
   render();
   scheduleTaskDatabaseSync(0);
 });
@@ -5945,13 +5876,13 @@ document.querySelector("#toggleGroupManager").addEventListener("click", () => {
 
 document.querySelector("#addGroupButton").addEventListener("click", () => {
   if (!taskDataHydrated) {
-    showToast("할 일 데이터를 불러오는 중이야");
+    showToast("할 일 데이터 불러오는 중");
     return;
   }
   const name = groupInput.value.trim();
   if (!name) return;
   if (state.groups.some((group) => group.name === name)) {
-    showToast("이미 있는 그룹이야");
+    showToast("이미 있는 그룹");
     return;
   }
 
@@ -5966,7 +5897,7 @@ document.querySelector("#addGroupButton").addEventListener("click", () => {
   scheduleTaskDatabaseSync(0);
   taskGroup.value = group.id;
   renderGroups();
-  showToast(`‘${name}’ 그룹을 추가했어`);
+  showToast(`‘${name}’ 그룹 추가됨`);
 });
 
 groupInput.addEventListener("keydown", (event) => {
@@ -6004,7 +5935,7 @@ confirmGroupDelete.addEventListener("click", async () => {
   } catch (error) {
     console.error("Farmodoro task group could not be deleted", error);
     const reason = error.message ? `: ${error.message}` : "";
-    showToast(`그룹 삭제를 DB에 반영하지 못했어${reason}`);
+    showToast(`그룹 삭제 반영 실패${reason}`);
     taskDataHydrated = false;
     await loadTaskDataFromDatabase(activeAuthUser);
   } finally {
@@ -6024,7 +5955,7 @@ confirmTaskDelete.addEventListener("click", async () => {
   }
   const reward = task.completionReward ?? 1;
   if (!farmWalletHydrated) {
-    showToast("지갑 데이터를 불러오는 중이야");
+    showToast("지갑 데이터 불러오는 중");
     return;
   }
   confirmTaskDelete.disabled = true;
@@ -6039,10 +5970,10 @@ confirmTaskDelete.addEventListener("click", async () => {
     state.coins = Number(result?.coin_balance ?? state.coins - reward);
     closeTaskDeleteModal();
     deleteTask(task);
-    showToast(`할 일을 삭제하고 ${reward} Coin을 차감했어`);
+    showToast(`할 일 삭제 · ${reward} Coin 차감`);
   } catch (error) {
     console.error("Farmodoro completed task could not be deleted", error);
-    showToast("완료한 할 일을 삭제하지 못했어. 잠시 후 다시 시도해줘");
+    showToast("완료한 할 일 삭제 실패");
   } finally {
     confirmTaskDelete.disabled = false;
   }
@@ -6051,7 +5982,7 @@ confirmTaskDelete.addEventListener("click", async () => {
 taskForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!taskDataHydrated) {
-    showToast("할 일 데이터를 불러오는 중이야");
+    showToast("할 일 데이터 불러오는 중");
     return;
   }
   const title = taskInput.value.trim();
@@ -6060,7 +5991,7 @@ taskForm.addEventListener("submit", async (event) => {
   const editingTask = state.tasks.find((task) => task.id === editingTaskId);
   if (!editingTask && document.querySelector("#taskRepeatFrequency")?.value !== "none" && await window.TaskPlanner?.saveRecurringFromForm()) return;
   const scheduledDate = document.querySelector("#taskScheduledDate")?.value || "";
-  if (scheduledDate && !productivitySchedulingAvailable) { showToast("일정 기능을 준비 중이야. 서버 업데이트 후 다시 시도해줘"); return; }
+  if (scheduledDate && !productivitySchedulingAvailable) { showToast("일정 기능 준비 중"); return; }
   if (editingTask) {
     editingTask.title = title;
     editingTask.groupId = taskGroup.value || null;
@@ -6068,7 +5999,7 @@ taskForm.addEventListener("submit", async (event) => {
     closeTaskCreate();
     render();
     scheduleTaskDatabaseSync(0);
-    showToast("할 일을 수정했어");
+    showToast("할 일 수정됨");
     return;
   }
 
@@ -6084,7 +6015,7 @@ taskForm.addEventListener("submit", async (event) => {
     scheduledDate,
   });
   closeTaskCreate();
-  showToast("대기 목록에 추가했어");
+  showToast("대기 목록에 추가됨");
   render();
   scheduleTaskDatabaseSync(0);
 });
@@ -6095,7 +6026,7 @@ taskInput.addEventListener("keydown", (event) => submitOnEnterUnlessShift(event,
 habitForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (!taskDataHydrated) {
-    showToast("습관 데이터를 불러오는 중이야");
+    showToast("습관 데이터 불러오는 중");
     return;
   }
   const title = habitInput.value.trim();
@@ -6106,14 +6037,14 @@ habitForm.addEventListener("submit", (event) => {
   );
 
   if (!weekdays.length) {
-    showToast("반복할 요일을 하나 이상 선택해");
+    showToast("반복 요일 선택 필요");
     return;
   }
   const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
   const minimumTitle = typedMinimumTitle;
   const startDate = habitStartDate.value;
   if (!startDate || startDate > toProductivityDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
-    showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
+    showToast("시작일은 오늘 이전 · 종료일은 시작일 이후");
     return;
   }
   if (editingHabit) {
@@ -6157,7 +6088,7 @@ habitForm.addEventListener("submit", (event) => {
   closeHabitModal();
   render();
   scheduleTaskDatabaseSync(0);
-  showToast(wasEditing ? "습관을 수정했어" : "새 습관을 추가했어");
+  showToast(wasEditing ? "습관 수정됨" : "새 습관 추가됨");
 });
 
 document.querySelector("#taskBoard").addEventListener("click", (event) => {
@@ -6206,7 +6137,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task) {
       task.archived = true;
       task.archivedAt = new Date().toISOString();
-      showToast("완료한 할 일을 보관함에 넣었어");
+      showToast("보관함으로 이동됨");
       render();
       scheduleTaskDatabaseSync(0);
       void syncTaskArchivedFlag(task.id, true);
@@ -6234,7 +6165,7 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
       return;
     }
     deleteTask(task);
-    showToast("할 일을 삭제했어");
+    showToast("할 일 삭제됨");
   }
 });
 
@@ -6271,7 +6202,7 @@ document.querySelector("#taskBoard").addEventListener("submit", (event) => {
   editingTaskFocusMinutes = "";
   render();
   scheduleTaskDatabaseSync(0);
-  showToast("할 일을 수정했어");
+  showToast("할 일 수정됨");
 });
 
 document.addEventListener("click", (event) => {
@@ -6382,7 +6313,7 @@ document.querySelector("#taskBoard").addEventListener("drop", async (event) => {
     console.error("Farmodoro task status could not be saved", error);
     const scope = error.syncScope ? ` · ${error.syncScope}` : "";
     const reason = error.message ? `: ${error.message}` : "";
-    showToast(`상태 변경을 DB에 저장하지 못했어${scope}${reason}`);
+    showToast(`상태 변경 저장 실패${scope}${reason}`);
     taskDataHydrated = false;
     await loadTaskDataFromDatabase(activeAuthUser);
   }
@@ -6425,7 +6356,7 @@ document.querySelector("#habitList").addEventListener("drop", (event) => {
   saveState();
   void syncTaskDatabaseImmediately().catch((error) => {
     console.error("Farmodoro habit reorder could not be saved", error);
-    showToast("순서 변경을 저장하지 못했어");
+    showToast("순서 변경 저장 실패");
   });
 });
 
@@ -6611,7 +6542,7 @@ function installTouchReorder(container, type) {
       )) return;
       void syncTaskDatabaseImmediately().catch((error) => {
         console.error("Farmodoro touch task reorder could not be saved", error);
-        showToast("순서 변경을 저장하지 못했어");
+        showToast("순서 변경 저장 실패");
       });
     } else if (
       type === "habit" &&
@@ -6622,7 +6553,7 @@ function installTouchReorder(container, type) {
       saveState();
       void syncTaskDatabaseImmediately().catch((error) => {
         console.error("Farmodoro touch habit reorder could not be saved", error);
-        showToast("순서 변경을 저장하지 못했어");
+        showToast("순서 변경 저장 실패");
       });
     }
   };
@@ -6744,8 +6675,8 @@ function renderSceneryThemePreview() {
   details.className = "scenery-preview-details";
   const stageNames = ["시작", "성장 중", "거의 완성", "완성"];
   details.innerHTML = `<div class="scenery-preview-personal" id="cosmeticPreviewProgress">${actual
-    ? `<strong>내 진행 · ${escapeHtml(name)} · ${actualInfo.progress} / ${cost} ${growthUnit} · ${actualInfo.percent}%</strong><span>${actualInfo.stage + 1} / 4단계 · ${actualInfo.remaining ? `완성까지 ${actualInfo.remaining} ${growthUnit}` : "완성! 보상을 받아봐"}</span>`
-    : `<strong>${escapeHtml(preset.subject)} · 완성 모습 예시</strong><span>이 테마에서 새로 만들 모습이야. 아래에서 성장 단계를 볼 수 있어.</span>`}</div><div class="scenery-preview-stage-buttons" aria-label="성장 모습 예시 선택">${actualInfo.stageProgress.map((value, index) => `<button type="button" class="scenery-preview-stage-button" data-scenery-preview-stage="${index}" aria-pressed="${selected === index}" title="${escapeHtml(labels[index])}">${stageNames[index]}<span>${value} / ${cost} ${growthUnit}</span></button>`).join("")}</div>${actual ? `<button type="button" class="scenery-preview-stage-button scenery-preview-current-button" data-scenery-preview-stage="current" aria-pressed="${showingCurrent}">내 현재 모습 · ${actualInfo.progress} / ${cost} ${growthUnit}</button>` : ""}<p class="scenery-preview-stage-note">단계 선택은 모습만 미리 보여줘. 내 성장 수치와 Coin은 바뀌지 않아.</p>`;
+    ? `<strong>내 진행 · ${escapeHtml(name)} · ${actualInfo.progress} / ${cost} ${growthUnit} · ${actualInfo.percent}%</strong><span>${actualInfo.stage + 1} / 4단계 · ${actualInfo.remaining ? `완성까지 ${actualInfo.remaining} ${growthUnit}` : "완성 · 보상 수령 가능"}</span>`
+    : `<strong>${escapeHtml(preset.subject)} · 완성 모습 예시</strong>`}</div><div class="scenery-preview-stage-buttons" aria-label="성장 모습 예시 선택">${actualInfo.stageProgress.map((value, index) => `<button type="button" class="scenery-preview-stage-button" data-scenery-preview-stage="${index}" aria-pressed="${selected === index}" title="${escapeHtml(labels[index])}">${stageNames[index]}<span>${value} / ${cost} ${growthUnit}</span></button>`).join("")}</div>${actual ? `<button type="button" class="scenery-preview-stage-button scenery-preview-current-button" data-scenery-preview-stage="current" aria-pressed="${showingCurrent}">내 현재 모습 · ${actualInfo.progress} / ${cost} ${growthUnit}</button>` : ""}`;
   cosmeticTryonStage.replaceChildren(preview, details);
   if (focusKey != null) {
     Array.from(details.querySelectorAll("[data-scenery-preview-stage]")).find(button => button.dataset.sceneryPreviewStage === focusKey)?.focus({ preventScroll: true });
@@ -6787,7 +6718,7 @@ function openCosmeticPreview(type, id) {
   const equipped = !id ? !state.equippedFarmTheme : isCosmeticEquipped(type, id);
   const status = equipped ? "사용 중" : owned ? "보유 중" : `✦ ${entry.price.toLocaleString()}`;
   themeActions.innerHTML = `<div class="cosmetic-preview-price"><span>${owned ? "상태" : "가격"}</span><strong>${status}</strong></div>` + (owned
-    ? `<p>한 번 구매한 테마는 언제든 바꿀 수 있어요.</p><button type="button" class="farm-goal-action" data-equip-cosmetic="farm_theme:${id}" ${equipped ? "disabled" : ""}>${equipped ? "사용 중인 테마" : "이 테마 적용하기"}</button>`
+    ? `<button type="button" class="farm-goal-action" data-equip-cosmetic="farm_theme:${id}" ${equipped ? "disabled" : ""}>${equipped ? "사용 중인 테마" : "이 테마 적용하기"}</button>`
     : `<p>보유 ✦ ${state.farmMoney.toLocaleString()} Farm Money</p><button type="button" class="farm-goal-action" data-purchase-cosmetic="farm_theme:${id}" ${state.farmMoney < entry.price ? "disabled" : ""}>✦ ${entry.price.toLocaleString()} · 테마 구매하고 적용</button>`);
   cosmeticPreviewModal.classList.remove("hidden");
   cosmeticPreviewModal.querySelector("button[data-close-cosmetic-preview]")?.focus({ preventScroll: true });
@@ -6840,7 +6771,7 @@ async function runCosmeticRpc(rpc, params, userId, sessionGeneration) {
 async function purchaseFarmCosmetic(button) {
   if (!button || button.disabled) return false;
   if (!supabaseClient || !activeAuthUser) {
-    showToast("로그인 후 구매할 수 있어");
+    showToast("로그인 필요");
     return false;
   }
   const [type, id] = button.dataset.purchaseCosmetic.split(":");
@@ -6861,8 +6792,8 @@ async function purchaseFarmCosmetic(button) {
     console.error("Farmodoro cosmetic purchase failed", error);
     showToast(
       error.message?.includes("Insufficient")
-        ? "Farm Money가 부족해"
-        : "구매하지 못했어. 잠시 후 다시 시도해줘.",
+        ? "Farm Money 부족"
+        : "구매 실패",
     );
     button.disabled = false;
     return false;
@@ -6874,7 +6805,7 @@ async function purchaseFarmCosmetic(button) {
   if (activeAuthUser?.id !== userId || farmSessionGeneration !== sessionGeneration) return false;
   if (!isCosmeticOwned(type, id)) state.ownedCosmetics.push({ type, id });
   if (type === "farm_theme") state.equippedFarmTheme = id;
-  showToast(`${entry.name}을 구매해서 바로 장착했어`);
+  showToast(`${entry.name} 구매 · 장착 완료`);
   render();
   return true;
 }
@@ -6882,7 +6813,7 @@ async function purchaseFarmCosmetic(button) {
 async function equipFarmCosmetic(button) {
   if (!button || button.disabled) return;
   if (!supabaseClient || !activeAuthUser) {
-    showToast("로그인 후 장착할 수 있어");
+    showToast("로그인 필요");
     return;
   }
   const [type, rawId] = button.dataset.equipCosmetic.split(":");
@@ -6902,13 +6833,13 @@ async function equipFarmCosmetic(button) {
   } catch (error) {
     if (activeAuthUser?.id !== userId || farmSessionGeneration !== sessionGeneration) return;
     console.error("Farmodoro cosmetic equip failed", error);
-    showToast(targetId ? "장착하지 못했어. 잠시 후 다시 시도해줘." : "해제하지 못했어. 잠시 후 다시 시도해줘.");
+    showToast(targetId ? "장착 실패" : "해제 실패");
     button.disabled = false;
     return;
   }
   if (activeAuthUser?.id !== userId || farmSessionGeneration !== sessionGeneration) return;
   if (type === "farm_theme") state.equippedFarmTheme = targetId;
-  showToast(targetId ? `${entry.name}을 장착했어` : `${COSMETIC_TYPE_LABELS[type]}를 해제했어`);
+  showToast(targetId ? `${entry.name} 장착됨` : `${COSMETIC_TYPE_LABELS[type]} 해제됨`);
   render();
 }
 
@@ -7013,7 +6944,7 @@ focusFullscreenButton.addEventListener("click", async () => {
     }
     await syncFocusWakeLock();
   } catch {
-    showToast("이 브라우저에서는 전체 화면을 사용할 수 없어");
+    showToast("전체 화면 미지원 브라우저");
   }
 });
 
@@ -7106,11 +7037,11 @@ document.querySelector("#saveFocusSettings").addEventListener("click", async (ev
       flushFocusTime(),
     ]);
     closeFocusSettings({ restoreFocus: true });
-    showToast("집중 설정을 저장했어");
+    showToast("집중 설정 저장됨");
   } catch (error) {
     console.error("Farmodoro focus settings could not be saved", error);
     const reason = error.message ? `: ${error.message}` : "";
-    showToast(`집중 설정을 저장하지 못했어${reason}`);
+    showToast(`집중 설정 저장 실패${reason}`);
   } finally {
     saveButton.disabled = false;
   }
@@ -7360,7 +7291,7 @@ window.flushFarmodoroDataBeforeReload = async () => {
     if (isFocusTimerOwner()) operations.push(syncFocusTimerDatabaseImmediately());
     const results = await Promise.allSettled(operations);
     const failed = results.some((result) => result.status === "rejected");
-    if (failed) showToast("저장에 실패해서 자동 업데이트를 멈췄어. 연결을 확인해.");
+    if (failed) showToast("저장 실패 · 자동 업데이트 중지");
     return !failed;
   } finally {
     exitFlushKeepAlive = false;
@@ -7436,7 +7367,6 @@ maintainTaskArchive();
 
 setInterval(() => {
   refreshHabitHeatmapDay();
-  updateDailyFocusQuote();
   const archiveChanged = maintainTaskArchive();
   const farmRankingChanged = ensureWeeklyFarmRanking();
   if (archiveChanged || farmRankingChanged) render();

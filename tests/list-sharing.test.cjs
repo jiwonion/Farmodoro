@@ -199,7 +199,7 @@ let ws;
   await execute("state.tasks=[];await openListSharePreview('tasks',document.querySelector('#shareTasks'));");
   assert.equal(await evaluate("getComputedStyle(listShareModal).display==='none'&&toast.textContent.includes('공유할')"), true, "Empty lists provide guidance");
   await execute("taskDataHydrated=false;await openListSharePreview('habits',document.querySelector('#shareHabits'));");
-  assert.equal(await evaluate("getComputedStyle(listShareModal).display==='none'&&toast.textContent.includes('불러온')"), true, "Unloaded data is not shared");
+  assert.equal(await evaluate("getComputedStyle(listShareModal).display==='none'&&toast.textContent.includes('불러오는')"), true, "Unloaded data is not shared");
   console.log("Long Korean titles, complete pagination and empty/loading/cancelled encoding states PASS");
 
   await evaluate("taskDataHydrated=true;selectedHabitDate=null;showPage('habits');toast.classList.remove('show');");

@@ -46,7 +46,6 @@
         <h2>${firstDate.getUTCFullYear()}년 ${firstDate.getUTCMonth() + 1}월</h2>
         <button type="button" data-calendar-move="1" aria-label="다음 달">›</button>
         <button type="button" data-calendar-today>오늘</button></div></div>
-      <p class="calendar-hint">미래의 반복 항목은 예정이야. 날짜가 되면 완료할 수 있는 할 일로 생겨.</p>
       <div class="calendar-layout"><div class="calendar-month"><div class="calendar-weekdays">${['일','월','화','수','목','금','토'].map(day => `<span>${day}</span>`).join('')}</div>
       <div class="calendar-grid">${Array.from({ length: cells }, (_, i) => {
         const date = addDays(start, i), events = eventsFor(date), done = events.filter(event => event.status === 'done').length;
@@ -57,13 +56,11 @@
       }).join('')}</div></div>
       <section class="calendar-day-detail" aria-label="선택한 날짜의 할 일"><h3>${selected.replaceAll('-', '. ')}</h3>
       ${daily.length ? daily.map(event => `<article class="calendar-agenda-item ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}"><div><strong>${escape(event.title)}</strong><small>${event.planned ? '반복 예정' : event.status === 'done' ? '완료' : '할 일'}${event.recurrenceId ? ' · 반복' : ''}</small></div>
-        ${!event.planned ? `<button type="button" data-calendar-edit="${event.id}">수정</button>` : ''}</article>`).join('') : '<p class="calendar-empty">이날 등록된 할 일이 없어.</p>'}
+        ${!event.planned ? `<button type="button" data-calendar-edit="${event.id}">수정</button>` : ''}</article>`).join('') : '<p class="calendar-empty">할 일 없음</p>'}
       </section></div>
       <details class="recurring-manager"><summary>반복 할 일 관리 · ${rules.filter(rule => rule.active).length}개 사용 중</summary>
-      ${rules.length ? rules.map(rule => `<div class="recurring-rule"><div><strong>${escape(rule.title)}</strong><small>${rule.frequency === 'daily' ? '매일' : rule.frequency === 'weekly' ? `요일별 · ${rule.weekdays.map(day => ['월','화','수','목','금','토','일'][day - 1]).join('·')}` : `매월 ${rule.month_day}일`} · ${rule.active ? '사용 중' : '중단됨'}</small></div><button type="button" data-recurring-toggle="${rule.id}" ${busy ? 'disabled' : ''}>${rule.active ? '반복 중단' : '다시 시작'}</button></div>`).join('') : '<p>할 일 메뉴에서 새 할 일의 반복 일정을 정할 수 있어.</p>'}
-      <p>반복을 중단해도 이미 만들어진 할 일은 남아. 수정은 날짜별 항목에 적용돼.</p></details>
-      ${pending ? '<button class="secondary-button" type="button" data-recurring-retry>반복 할 일 저장 대기 · 다시 시도</button>' : ''}
-      <p class="calendar-hint">날짜 없는 할 일은 할 일 메뉴에서 볼 수 있어. 지난 항목은 기존 보관 정책을 따라.</p>`;
+      ${rules.length ? rules.map(rule => `<div class="recurring-rule"><div><strong>${escape(rule.title)}</strong><small>${rule.frequency === 'daily' ? '매일' : rule.frequency === 'weekly' ? `요일별 · ${rule.weekdays.map(day => ['월','화','수','목','금','토','일'][day - 1]).join('·')}` : `매월 ${rule.month_day}일`} · ${rule.active ? '사용 중' : '중단됨'}</small></div><button type="button" data-recurring-toggle="${rule.id}" ${busy ? 'disabled' : ''}>${rule.active ? '반복 중단' : '다시 시작'}</button></div>`).join('') : '<p>반복 할 일 없음</p>'}</details>
+      ${pending ? '<button class="secondary-button" type="button" data-recurring-retry>반복 할 일 저장 대기 · 다시 시도</button>' : ''}`;
   }
   function resetForm() {
     $('taskScheduledDate').value = productivitySchedulingAvailable ? (currentPage === 'today' ? getTaskViewDate() : today()) : '';
@@ -101,7 +98,7 @@
       if (activeAuthUser?.id !== id) return false;
       localStorage.removeItem(intentKey(id));
       closeTaskCreate();
-      showToast('반복 할 일을 저장했어');
+      showToast('반복 할 일 저장됨');
       await taskDataLoadPromise;
       if (activeAuthUser?.id !== id) return false;
       await loadTaskDataFromDatabase(activeAuthUser, { force: true });
@@ -109,7 +106,7 @@
     } catch (error) {
       if (activeAuthUser?.id === id) {
         logProductivityEvent('recurrence_save_failed', { code: String(error.code || 'network') });
-        showToast('반복 일정을 아직 저장하지 못했어. 연결되면 다시 시도할게');
+        showToast('반복 일정 저장 대기 중 · 연결 시 재시도');
       }
       return false;
     } finally {
@@ -122,7 +119,7 @@
     const frequency = $('taskRepeatFrequency').value;
     if (frequency === 'none') return false;
     if (busy) return true;
-    if (!productivitySchedulingAvailable) { showToast('반복 일정 기능을 준비 중이야. 서버 업데이트 후 다시 시도해줘'); return true; }
+    if (!productivitySchedulingAvailable) { showToast('반복 일정 기능 준비 중'); return true; }
     const id = activeAuthUser?.id;
     if (!id) return true;
     if (readIntent(id)) { await commitIntent(id); return true; }
@@ -130,14 +127,14 @@
     const weekdays = [...document.querySelectorAll('[name="taskRepeatWeekday"]:checked')].map(input => Number(input.value));
     const monthDay = Number($('taskRepeatMonthDay').value);
     if (start < today() || (end && end < start) || (frequency === 'weekly' && !weekdays.length) || !Number.isInteger(monthDay) || monthDay < 1 || monthDay > 31) {
-      showToast('시작·종료일과 반복 요일 또는 날짜를 확인해'); return true;
+      showToast('날짜·반복 설정 확인 필요'); return true;
     }
     const intent = { p_id: crypto.randomUUID(), p_title: $('taskInput').value.trim(),
       p_group_id: $('taskGroup').value || null, p_frequency: frequency,
       p_weekdays: weekdays.length ? weekdays : [1,2,3,4,5,6,7], p_month_day: monthDay,
       p_start_date: start, p_end_date: end };
     try { localStorage.setItem(intentKey(id), JSON.stringify(intent)); }
-    catch { showToast('기기에 복구 사본을 저장하지 못했어. 저장 공간을 확인해줘'); return true; }
+    catch { showToast('기기 복구 사본 저장 실패'); return true; }
     await commitIntent(id);
     return true;
   }
@@ -167,7 +164,7 @@
         const { error } = await supabaseClient.rpc('set_my_recurring_task_active', { p_id: rule.id, p_active: !rule.active });
         if (error) throw error;
         if (activeAuthUser?.id === id) await loadTaskDataFromDatabase(activeAuthUser, { force: true });
-      } catch { if (activeAuthUser?.id === id) showToast('반복 설정을 바꾸지 못했어. 다시 시도해줘'); }
+      } catch { if (activeAuthUser?.id === id) showToast('반복 설정 변경 실패'); }
       finally { busy = false; render(); }
     }
   });
