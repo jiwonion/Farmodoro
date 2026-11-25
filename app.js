@@ -493,7 +493,6 @@ async function applyAuthSession(session) {
   const isSignedIn = Boolean(session?.user);
   const previousUserId = activeAuthUser?.id ?? null;
   activeAuthUser = session?.user ?? null;
-  window.GoogleCalendarSync?.selectUser(activeAuthUser?.id ?? null);
   window.SyncDiagnostics?.selectUser(activeAuthUser?.id ?? null);
   if (previousUserId !== (session?.user?.id ?? null)) {
     farmSessionGeneration += 1;

@@ -30,8 +30,8 @@
 ### 달력
 
 - 월별 실제 할 일과 미래 반복 예정을 확인하고 선택한 할 일을 수정한다. 새 할 일은 할 일 메뉴에서 추가한다.
-- 반복을 중단·재시작하고 선택한 할 일을 Google 캘린더의 일정 작성 화면으로 보낸다.
-- Google 계정을 연결해 선택한 캘린더의 실제 일정을 함께 표시한다. [Google 연동 설정](google-calendar.md)을 따른다.
+- 반복을 중단·재시작하고 날짜별 할 일과 미래 반복 예정을 월별 달력에서 확인한다.
+- 달력에는 파머도로 기록만 표시하며 Google 계정은 기본 로그인에 사용한다. [연동 제거 기록](google-calendar.md).
 
 ### 습관
 
@@ -99,6 +99,5 @@
 - `productivity-recovery.js` / `sync-diagnostics.js`: 계정별 미전송 내용 복구·진단 기록과 내보내기
 - `task-planner.js` / `task-planner.css`: 날짜·반복 할 일과 월간 달력
 - `focus-pomodoro.css`: 테마에 맞는 토마토 타이머
-- `google-calendar.js`: Google OAuth 읽기 권한과 실제 일정 조회·계정 격리
 - [2026-11-25 개선 기록](optimization-2026-11-25.md): 적용 순서·검증·밭 통합 검토
 - `supabase/migrations`: 서버 상태, 권한, 재화 원장과 이전 시스템 정산

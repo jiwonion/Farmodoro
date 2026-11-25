@@ -21,14 +21,7 @@
       !actual.some(task => task.recurrenceId === rule.id)).map(rule => ({
         id: `${rule.id}:${date}`, title: rule.title, scheduledDate: date, recurrenceId: rule.id, planned: true,
       })) : [];
-    return [...actual, ...future, ...(window.GoogleCalendarSync?.eventsForDate(date) || [])];
-  }
-  function googleUrl(event) {
-    const url = new URL('https://calendar.google.com/calendar/render');
-    url.search = new URLSearchParams({ action: 'TEMPLATE', text: event.title,
-      dates: `${event.scheduledDate.replaceAll('-', '')}/${addDays(event.scheduledDate, 1).replaceAll('-', '')}`,
-      details: 'Farmodoro에서 추가한 할 일이야. 완료 상태는 Farmodoro에서 관리해.', ctz: 'Asia/Seoul' });
-    return url.href;
+    return [...actual, ...future];
   }
   function readIntent(id) {
     try { return JSON.parse(localStorage.getItem(intentKey(id)) || 'null'); } catch { return null; }
@@ -45,11 +38,9 @@
     const next = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() + 1, 1));
     const daysInMonth = (next - firstDate) / 86400000;
     const cells = Math.ceil((((firstDate.getUTCDay() + 6) % 7) + daysInMonth) / 7) * 7;
-    window.GoogleCalendarSync?.setRange(start, addDays(start, cells));
     const daily = eventsFor(selected);
     const pending = activeAuthUser && readIntent(activeAuthUser.id);
     root.innerHTML = `
-      ${window.GoogleCalendarSync?.connectionMarkup() || ''}
       <div class="calendar-toolbar"><div class="calendar-month-controls">
         <button type="button" data-calendar-move="-1" aria-label="이전 달">‹</button>
         <h2>${firstDate.getUTCFullYear()}년 ${firstDate.getUTCMonth() + 1}월</h2>
@@ -61,20 +52,18 @@
         const date = addDays(start, i), events = eventsFor(date), done = events.filter(event => event.status === 'done').length;
         return `<button type="button" data-calendar-date="${date}" class="calendar-day ${date.startsWith(month) ? '' : 'outside'} ${date === now ? 'today' : ''}" aria-pressed="${selected === date}" aria-label="${date}, 할 일 ${events.length}개, 완료 ${done}개">
           <span class="calendar-day-number">${Number(date.slice(-2))}</span>
-          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.google ? 'google' : ''} ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}">${escape(event.google ? `G · ${event.title}` : event.title)}</span>`).join('')}
+          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}">${escape(event.title)}</span>`).join('')}
           ${events.length ? `<small>${events.length}개${events.length > 2 ? ` · +${events.length - 2}` : ''}</small>` : ''}</button>`;
       }).join('')}</div></div>
       <section class="calendar-day-detail" aria-label="선택한 날짜의 할 일"><h3>${selected.replaceAll('-', '. ')}</h3>
-      ${daily.length ? daily.map(event => `<article class="calendar-agenda-item ${event.google ? 'google-agenda-item' : ''}"><div><strong>${escape(event.title)}</strong><small>${event.google ? `Google · ${escape(event.timeLabel)} · ${escape(event.calendarName)}` : event.planned ? '반복 예정' : event.status === 'done' ? '완료' : '할 일'}${event.recurrenceId ? ' · 반복' : ''}</small></div>
-        ${event.google ? (event.href ? `<a href="${escape(event.href)}" target="_blank" rel="noopener noreferrer">Google에서 보기</a>` : '') : `<a href="${escape(googleUrl(event))}" target="_blank" rel="noopener noreferrer">Google 캘린더에 추가</a>`}
-        ${!event.planned && !event.google ? `<button type="button" data-calendar-edit="${event.id}">수정</button>` : ''}</article>`).join('') : '<p class="calendar-empty">이날 등록된 할 일이 없어.</p>'}
-      <small class="calendar-google-note">Google 일정은 연결해서 불러와. 파머도로 할 일을 Google에 추가할 때는 Google 화면에서 저장해줘.</small></section></div>
+      ${daily.length ? daily.map(event => `<article class="calendar-agenda-item"><div><strong>${escape(event.title)}</strong><small>${event.planned ? '반복 예정' : event.status === 'done' ? '완료' : '할 일'}${event.recurrenceId ? ' · 반복' : ''}</small></div>
+        ${!event.planned ? `<button type="button" data-calendar-edit="${event.id}">수정</button>` : ''}</article>`).join('') : '<p class="calendar-empty">이날 등록된 할 일이 없어.</p>'}
+      </section></div>
       <details class="recurring-manager"><summary>반복 할 일 관리 · ${rules.filter(rule => rule.active).length}개 사용 중</summary>
       ${rules.length ? rules.map(rule => `<div class="recurring-rule"><div><strong>${escape(rule.title)}</strong><small>${rule.frequency === 'daily' ? '매일' : rule.frequency === 'weekly' ? `요일별 · ${rule.weekdays.map(day => ['월','화','수','목','금','토','일'][day - 1]).join('·')}` : `매월 ${rule.month_day}일`} · ${rule.active ? '사용 중' : '중단됨'}</small></div><button type="button" data-recurring-toggle="${rule.id}" ${busy ? 'disabled' : ''}>${rule.active ? '반복 중단' : '다시 시작'}</button></div>`).join('') : '<p>할 일 메뉴에서 새 할 일의 반복 일정을 정할 수 있어.</p>'}
       <p>반복을 중단해도 이미 만들어진 할 일은 남아. 수정은 날짜별 항목에 적용돼.</p></details>
       ${pending ? '<button class="secondary-button" type="button" data-recurring-retry>반복 할 일 저장 대기 · 다시 시도</button>' : ''}
       <p class="calendar-hint">날짜 없는 할 일은 할 일 메뉴에서 볼 수 있어. 지난 항목은 기존 보관 정책을 따라.</p>`;
-    if (activeAuthUser) void window.GoogleCalendarSync?.prepare();
   }
   function resetForm() {
     $('taskScheduledDate').value = '';
@@ -186,6 +175,6 @@
       lastDay = today(); scheduleProductivityRealtimeRefresh(activeAuthUser.id);
     }
   }, 60000);
-  window.TaskPlanner = { matches, googleUrl, eventsFor, render, resetForm, editForm, saveRecurringFromForm, applyState,
+  window.TaskPlanner = { matches, eventsFor, render, resetForm, editForm, saveRecurringFromForm, applyState,
     snapshotRules: () => rules, reset: () => { rules = []; month = null; selected = null; lastDay = null; } };
 })();

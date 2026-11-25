@@ -9,7 +9,8 @@ function fixture() {
   window.testRead = () => JSON.parse(localStorage.getItem(`test-server:${activeAuthUser.id}`) || JSON.stringify(empty()));
   window.testWrite = data => localStorage.setItem(`test-server:${activeAuthUser.id}`, JSON.stringify(data));
   const client = {
-    auth: { getSession: () => new Promise(() => {}), onAuthStateChange: () => {} },
+    auth: { getSession: () => new Promise(() => {}), onAuthStateChange: () => {},
+      signInWithIdToken: async payload => { window.fixtureIdTokenRequest = payload; return { error: null }; } },
     rpc: async (name, params) => {
       if (name === 'get_my_productivity_state') return { data: testRead() };
       if (name === 'save_my_recurring_task') {
@@ -53,21 +54,18 @@ function fixture() {
   };
   window.supabase = { createClient: () => client };
   window.fixtureGoogleRequests = [];
-  window.google = { accounts: { oauth2: {
-    hasGrantedAllScopes: (response, ...scopes) => scopes.every(scope => response.scope.split(' ').includes(scope)),
-    initTokenClient(config) { return { requestAccessToken() {
-      setTimeout(() => { void config.callback({ access_token: 'google-fixture-token', expires_in: 3600, scope: config.scope }); }, 0);
-    } }; },
+  window.google = { accounts: { id: {
+    initialize(config) { window.fixtureGoogleSignIn = config; },
+    renderButton(target) { target.innerHTML = '<button type="button">Google 계정으로 계속하기</button>'; },
   } } };
   const nativeFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
     const url = new URL(String(input), location.href);
-    if (url.origin !== 'https://www.googleapis.com') return nativeFetch(input, init);
-    fixtureGoogleRequests.push({ url: url.href, method: init?.method || 'GET' });
-    return { ok: true, json: async () => ({ items: url.pathname.endsWith('/calendarList')
-      ? [{ id: 'fixture-primary', summary: 'Personal', primary: true, accessRole: 'owner' }]
-      : [{ id: 'meeting', summary: 'Google meeting', start: { dateTime: `${toProductivityDateString()}T09:00:00+09:00` }, end: { dateTime: `${toProductivityDateString()}T10:00:00+09:00` }, htmlLink: 'https://calendar.google.com/calendar/event?eid=fixture' }],
-    }) };
+    if (url.origin === 'https://www.googleapis.com' && url.pathname.startsWith('/calendar/')) {
+      fixtureGoogleRequests.push({ url: url.href, method: init?.method || 'GET' });
+      throw Error('Calendar API must not be requested');
+    }
+    return nativeFetch(input, init);
   };
 }
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
@@ -122,6 +120,11 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   await call('Runtime.enable');
   await call('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
   await settle('document.readyState === "complete" && !!window.TaskPlanner');
+  await evaluate('document.documentElement.className="";await prepareGoogleSignIn()');
+  assert.equal(await evaluate('!!fixtureGoogleSignIn.client_id && /^[a-f0-9]{64}$/.test(fixtureGoogleSignIn.nonce)'),true);
+  await evaluate('fixtureGoogleSignIn.callback({credential:"fixture-google-id-token"})');
+  assert.deepEqual(await evaluate('({provider:fixtureIdTokenRequest.provider,token:fixtureIdTokenRequest.token,validNonce:fixtureIdTokenRequest.nonce===googleSignInNonce})'),
+    {provider:'google',token:'fixture-google-id-token',validNonce:true});
   await evaluate(`${session} await loadTaskDataFromDatabase(activeAuthUser); window.failWrites=true;
     document.querySelector('#openTaskForm').click();taskInput.value='mobile unsaved draft';taskForm.requestSubmit();`);
   assert.equal(await evaluate(`JSON.parse(localStorage.getItem('farmodoro-productivity:'+activeAuthUser.id)).snapshot.tasks[0].title`), 'mobile unsaved draft', 'edit is durable synchronously');
@@ -152,14 +155,11 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   assert.equal(await evaluate('document.querySelector("#taskCalendarRoot").textContent.includes("할 일 추가")'),false);
   assert.equal(await evaluate('taskForm.classList.contains("hidden")'),true);
   assert.equal(await evaluate('document.querySelectorAll(".calendar-agenda-item").length'),1);
-  const link=await evaluate('document.querySelector(".calendar-agenda-item a").href');
-  assert.equal(new URL(link).origin,'https://calendar.google.com');
-  assert.equal(new URL(link).searchParams.get('text'),'planned normal task');
-  await evaluate('document.querySelector("[data-google-connect]").click()');
-  await settle('document.querySelectorAll(".google-agenda-item").length===1');
-  assert.equal(await evaluate('document.querySelectorAll(".calendar-agenda-item").length'),2);
-  assert.equal(await evaluate('document.querySelector(".google-agenda-item").textContent.includes("Google meeting")'),true);
-  assert.equal(await evaluate('fixtureGoogleRequests.every(request=>request.method==="GET")'),true);
+  assert.equal(await evaluate('document.querySelector(".calendar-agenda-item").textContent.includes("planned normal task")'),true);
+  assert.equal(await evaluate('document.querySelectorAll("[data-calendar-edit]").length'),1);
+  assert.equal(await evaluate('document.querySelectorAll("[data-google-connect], [data-google-disconnect], .google-calendar-connection, a[href*=\\"calendar.google.com\\"]").length'),0);
+  assert.equal(await evaluate('typeof window.GoogleCalendarSync'),'undefined');
+  assert.deepEqual(await evaluate('fixtureGoogleRequests'),[]);
   await evaluate('window.SyncDiagnostics.record("productivity_save_failed",{code:"offline",title:"private title",token:"private token"});await window.SyncDiagnostics.flush()');
   assert.equal(await evaluate('JSON.stringify(window.uploadedLogs).includes("private")'),false);
   fs.mkdirSync(capture,{recursive:true});
@@ -209,5 +209,5 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
     }
   }
   assert.deepEqual(exceptions,[]);
-  console.log('PASS: synchronous mobile checkpoint, real reload recovery, remote completion preservation, automatic retry, dated/recurring forms, month calendar 320/390/768/1366, Google link, diagnostics privacy.');
+  console.log('PASS: basic Google sign-in, synchronous mobile checkpoint, real reload recovery, remote completion preservation, automatic retry, dated/recurring forms, local task calendar 320/390/768/1366 without Calendar API, diagnostics privacy.');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>{socket?.close();chrome?.kill();server.close();});
