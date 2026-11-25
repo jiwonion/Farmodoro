@@ -52,7 +52,7 @@
         const date = addDays(start, i), events = eventsFor(date), done = events.filter(event => event.status === 'done').length;
         return `<button type="button" data-calendar-date="${date}" class="calendar-day ${date.startsWith(month) ? '' : 'outside'} ${date === now ? 'today' : ''}" aria-pressed="${selected === date}" aria-label="${date}, 할 일 ${events.length}개, 완료 ${done}개">
           <span class="calendar-day-number">${Number(date.slice(-2))}</span>
-          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}">${escape(event.title)}</span>`).join('')}
+          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}">- ${escape(event.title)}</span>`).join('')}
           ${events.length ? `<small>${events.length}개${events.length > 2 ? ` · +${events.length - 2}` : ''}</small>` : ''}</button>`;
       }).join('')}</div></div>
       <section class="calendar-day-detail" aria-label="선택한 날짜의 할 일"><h3>${selected.replaceAll('-', '. ')}</h3>
