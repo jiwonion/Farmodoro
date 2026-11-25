@@ -7,6 +7,17 @@
 .task-schedule-fields input[type="checkbox"] { min-height: 22px; width: 22px; }
 .task-schedule-fields [hidden] { display: none !important; }
 .task-scheduled-date { font-size: .875rem; color: var(--muted); }
+body #todayTaskDateControls { display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px auto; align-items: center; gap: 6px; width: 100%; max-width: 340px; margin: 0 0 8px; }
+body #todayTaskDateControls[hidden], #todayTaskDateHint[hidden] { display: none !important; }
+body #todayTaskDateControls > button, body #todayTaskDateControls .themed-date-trigger { min-width: 0; min-height: 36px; padding: 7px 10px; border: 1px solid var(--line) !important; border-radius: 7px !important; background: var(--paper) !important; color: var(--ink) !important; box-shadow: none !important; font: inherit; font-size: .8125rem; }
+body #todayTaskDateControls .themed-date-picker { min-width: 0; }
+body #todayTaskDateControls .themed-date-trigger { width: 100%; }
+body #todayTaskDateControls #todayTaskDateReset { color: var(--pixel-accent) !important; background: var(--pixel-soft) !important; }
+body #todayTaskDateControls #todayTaskDateReset:disabled { opacity: .5; cursor: default; }
+.today-task-date-hint { margin: 0 0 16px; font-size: .75rem; line-height: 1.6; color: var(--muted); }
+body #todayPage .task-planned-marker { grid-area: check; align-self: center; color: var(--muted); font-size: 20px; text-align: center; }
+body #todayPage .task-card.planned .task-top h4 { color: var(--muted); }
+@media (max-width: 400px) { body #todayTaskDateControls { grid-template-columns: 30px minmax(0, 1fr) 30px auto; width: 100%; } body #todayTaskDateControls > button, body #todayTaskDateControls .themed-date-trigger { padding-inline: 7px; font-size: .75rem; } }
 #calendarPage { color: var(--ink); }
 .calendar-toolbar, .calendar-month-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .calendar-toolbar { justify-content: space-between; }

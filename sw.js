@@ -1,4 +1,4 @@
-const CACHE_VERSION = "farmodoro-v413";
+const CACHE_VERSION = "farmodoro-v414";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
@@ -23,14 +23,14 @@ const APP_SHELL = [
   "./scenery-workspace.css?v=9",
   "./farm-v3.css?v=22",
   "./focus-pomodoro.css?v=2",
-  "./task-planner.css?v=4",
+  "./task-planner.css?v=5",
   "./supabase-config.js",
   "./mobile-orientation.js?v=1",
   "./scenery-theme-presets.js?v=4",
   "./productivity-recovery.js?v=1",
   "./sync-diagnostics.js?v=1",
-  "./task-planner.js?v=7",
-  "./app.js?v=356",
+  "./task-planner.js?v=8",
+  "./app.js?v=357",
   "./garden-art.js?v=10",
   "./scenery-creation-art.js?v=4",
   "./scenery-creations.js?v=10",

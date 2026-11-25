@@ -198,6 +198,42 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   assert.equal(await evaluate('document.querySelectorAll("[data-google-connect], [data-google-disconnect], .google-calendar-connection, a[href*=\\"calendar.google.com\\"]").length'),0);
   assert.equal(await evaluate('typeof window.GoogleCalendarSync'),'undefined');
   assert.deepEqual(await evaluate('fixtureGoogleRequests'),[]);
+  // Today uses calendar dates, with future recurrence previews kept out of saved tasks.
+  await evaluate('showPage("today")');
+  assert.equal(await evaluate('document.querySelector("#todayTaskDateControls").hidden'),false);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="planned normal task")'),true);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="edited dated task")'),false);
+  const beforeDateNavigation=await evaluate('serializeTaskDatabaseState()');
+  await evaluate('document.querySelector("#todayTaskDate")._themedDateTrigger.click();document.querySelector("[data-date-calendar-nav=\\"1\\"]").click();document.querySelector(".themed-date-calendar [data-calendar-date]:not(.outside)").click()');
+  assert.equal(await evaluate('getTaskViewDate()'),manuallySelectedDate);
+  assert.equal(await evaluate('document.querySelector("#todayTaskDate")._themedDateTrigger.textContent.trim()===formatThemedDateValue(getTaskViewDate())'),true);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="edited dated task")'),true);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="planned normal task")'),false);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="intentionally undated")'),true);
+  assert.equal(await evaluate('document.querySelectorAll("[data-task-planned]").length===window.TaskPlanner.eventsFor(getTaskViewDate()).filter(task=>task.planned).length'),true);
+  assert.equal(await evaluate('document.querySelectorAll("[data-task-planned] button, [data-task-planned][data-task-id]").length'),0);
+  assert.equal(await evaluate('getListShareSnapshot("tasks").date'),manuallySelectedDate);
+  assert.equal(await evaluate('serializeTaskDatabaseState()'),beforeDateNavigation,'browsing recurrence previews never creates saved tasks');
+  await evaluate('document.querySelector("#openTaskForm").click()');
+  assert.equal(await evaluate('document.querySelector("#taskScheduledDate").value'),manuallySelectedDate,'adding from a selected date keeps that date');
+  await evaluate('closeTaskCreate();showPage("tasks")');
+  assert.equal(await evaluate('document.querySelector("#todayTaskDateControls").hidden'),true);
+  assert.equal(await evaluate('getVisibleTasks("waiting").some(task=>task.title==="planned normal task")'),true,'all-tasks navigation remains unfiltered by date');
+  fs.mkdirSync(capture,{recursive:true});
+  for(const width of [1366,390,320]) {
+    await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
+    for(const theme of ['white','dark']) {
+      await evaluate(`applyWorkspaceTheme(${JSON.stringify(theme)});showPage("today")`);
+      assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth'),false,`selected date ${theme} ${width} overflow`);
+      assert.equal(await evaluate('(()=>{const controls=document.querySelector("#todayTaskDateControls").getBoundingClientRect(),date=document.querySelector("#todayTaskDate")._themedDateTrigger.getBoundingClientRect();return date.width>0&&date.left>=controls.left&&date.right<=controls.right;})()'),true);
+      const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
+      fs.writeFileSync(path.join(capture,`today-selected-date-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+    }
+  }
+  await evaluate('document.querySelector("[data-task-date-step=\\"-1\\"]").click()');
+  assert.notEqual(await evaluate('getTaskViewDate()'),manuallySelectedDate);
+  await evaluate('document.querySelector("#todayTaskDateReset").click();applyWorkspaceTheme("white")');
+  assert.equal(await evaluate('getTaskViewDate()===toProductivityDateString()&&document.querySelector("#todayTaskDateReset").disabled'),true);
   await evaluate('window.SyncDiagnostics.record("productivity_save_failed",{code:"offline",title:"private title",token:"private token"});await window.SyncDiagnostics.flush()');
   assert.equal(await evaluate('JSON.stringify(window.uploadedLogs).includes("private")'),false);
   fs.mkdirSync(capture,{recursive:true});

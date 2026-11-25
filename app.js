@@ -1069,6 +1069,7 @@ let activeFocus = null;
 let currentPage = "today";
 let taskGroupFilter = "all";
 let taskArchiveView = false;
+let selectedTaskDate = null;
 let habitCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let lastHabitHeatmapDate = "";
 let selectedHabitDate = null;
@@ -1957,6 +1958,7 @@ function resetTaskDatabaseState() {
   productivityStorageFailed = false;
   productivityCheckpointCache = "";
   productivitySchedulingAvailable = false;
+  selectedTaskDate = null;
   window.TaskPlanner?.reset();
 }
 
@@ -2817,13 +2819,43 @@ function renderTaskFilters() {
     archiveActive ? "보관된 할 일" : "완료";
 }
 
-function getVisibleTasks(status) {
-  return state.tasks.filter((task) => {
-    if (currentPage === "today" && task.scheduledDate && task.scheduledDate > toProductivityDateString()) return false;
-    if (status === "waiting" ? task.status === "done" : task.status !== "done") return false;
+function getTaskViewDate() {
+  return selectedTaskDate || toProductivityDateString();
+}
 
-    const archiveActive = currentPage === "tasks" && taskArchiveView;
-    if (archiveActive !== Boolean(task.archived)) return false;
+function renderTaskDateControls() {
+  const controls = document.querySelector("#todayTaskDateControls");
+  const hint = document.querySelector("#todayTaskDateHint");
+  controls.hidden = hint.hidden = currentPage !== "today";
+  if (controls.hidden) return;
+  const date = getTaskViewDate(), today = toProductivityDateString();
+  const input = document.querySelector("#todayTaskDate");
+  input.value = date;
+  refreshThemedDateTrigger(input);
+  document.querySelector("#todayTaskDateReset").disabled = date === today;
+  taskSection.querySelector(".section-header h2").textContent = date === today ? "오늘의 할 일" : `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 할 일`;
+  hint.textContent = date > today
+    ? "선택한 날짜의 할 일과 반복 예정이야. 날짜 없는 할 일도 함께 보여."
+    : "선택한 날짜의 할 일이야. 날짜 없는 할 일도 함께 보여.";
+}
+
+function setTaskViewDate(value) {
+  if (!parseDateInputValue(value)) return;
+  selectedTaskDate = value === toProductivityDateString() ? null : value;
+  renderTasks();
+}
+
+function getVisibleTasks(status) {
+  const date = getTaskViewDate();
+  const planned = currentPage === "today" ? (window.TaskPlanner?.eventsFor(date) || []).filter(task => task.planned) : [];
+  return [...state.tasks, ...planned].filter((task) => {
+    if (currentPage === "today") {
+      if (task.scheduledDate ? task.scheduledDate !== date : task.archived) return false;
+    } else {
+      const archiveActive = currentPage === "tasks" && taskArchiveView;
+      if (archiveActive !== Boolean(task.archived)) return false;
+    }
+    if (status === "waiting" ? task.status === "done" : task.status !== "done") return false;
     if (taskGroupFilter === "all") return true;
     if (taskGroupFilter === "none") return !task.groupId;
     return task.groupId === taskGroupFilter;
@@ -2832,6 +2864,7 @@ function getVisibleTasks(status) {
 
 function renderTasks() {
   renderTaskFilters();
+  renderTaskDateControls();
 
   ["waiting", "done"].forEach((status) => {
     const list = document.querySelector(`[data-list="${status}"]`);
@@ -2840,6 +2873,12 @@ function renderTasks() {
     list.innerHTML = tasks
       .map((task) => {
         const group = getGroup(task.groupId);
+        if (task.planned) return `
+          <article class="task-card planned" data-task-planned="${escapeHtml(task.id)}">
+            <span class="task-planned-marker" aria-hidden="true">◷</span>
+            <div class="task-top"><h4>${escapeHtml(task.title)}</h4></div>
+            <div class="task-meta"><span class="task-scheduled-date">반복 예정 · ${escapeHtml(task.scheduledDate)}</span>${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}</div>
+          </article>`;
         const isEditing = false;
         const editingGroup = isEditing ? getGroup(editingTaskGroupId) : null;
         const inlineGroupOptions = isEditing
@@ -2903,7 +2942,7 @@ function renderTasks() {
                     <h4>${escapeHtml(task.title)}</h4>
                   </div>
                   <div class="task-meta">
-                    ${task.scheduledDate ? `<span class="task-scheduled-date">${task.recurrenceId ? "반복 · " : ""}${escapeHtml(task.scheduledDate)}</span>` : ""}
+                    ${task.scheduledDate ? `<span class="task-scheduled-date">${task.recurrenceId ? "반복 · " : ""}${escapeHtml(task.scheduledDate)}</span>` : currentPage === "today" ? '<span class="task-scheduled-date">날짜 없음</span>' : ""}
                     ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
                     ${
                       task.archived
@@ -3783,7 +3822,7 @@ function renderSummaryProgress(selector, ratio) {
 }
 
 function renderSummary() {
-  const activeTasks = state.tasks.filter((task) => !task.archived && (!task.scheduledDate || task.scheduledDate <= toProductivityDateString()));
+  const activeTasks = state.tasks.filter((task) => task.scheduledDate ? task.scheduledDate === toProductivityDateString() : !task.archived);
   const todoDone = activeTasks.filter((task) => task.status === "done").length;
   const scheduledHabits = state.habits.filter(isHabitScheduledToday);
   const habitDone = scheduledHabits.filter(isHabitCompleteToday).length;
@@ -4308,7 +4347,7 @@ function showToast(message) {
 }
 
 function getListShareSnapshot(kind) {
-  const date = kind === "habits" ? getHabitViewDate() : toProductivityDateString();
+  const date = kind === "habits" ? getHabitViewDate() : currentPage === "today" ? getTaskViewDate() : toProductivityDateString();
   const viewDate = new Date(`${date}T12:00:00`);
   let subtitle = date.replaceAll("-", ".");
   let items;
@@ -4318,7 +4357,7 @@ function getListShareSnapshot(kind) {
     subtitle += ` · ${groupLabel}${currentPage === "tasks" && taskArchiveView ? " · 보관함" : ""}`;
     items = [...getVisibleTasks("waiting"), ...getVisibleTasks("done")].map((task) => ({
       title: task.title,
-      status: task.status === "done" ? "완료" : "미완료",
+      status: task.planned ? "반복 예정" : task.status === "done" ? "완료" : "미완료",
       complete: task.status === "done",
       offDay: false,
       detail: getGroup(task.groupId)?.name || "그룹 없음",
@@ -5641,6 +5680,18 @@ function initializeThemedDatePickers(root = document) {
 }
 
 initializeThemedDatePickers();
+
+document.querySelector("#todayTaskDate").addEventListener("change", event => {
+  setTaskViewDate(event.target.value || toProductivityDateString());
+});
+document.querySelector("#todayTaskDateReset").addEventListener("click", () => setTaskViewDate(toProductivityDateString()));
+document.querySelectorAll("[data-task-date-step]").forEach(button => {
+  button.addEventListener("click", () => {
+    const date = new Date(`${getTaskViewDate()}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + Number(button.dataset.taskDateStep));
+    setTaskViewDate(date.toISOString().slice(0, 10));
+  });
+});
 
 document.addEventListener("pointerdown", (event) => {
   if (!activeThemedDateInput) return;

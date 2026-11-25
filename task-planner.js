@@ -19,7 +19,7 @@
     const actual = state.tasks.filter(task => task.scheduledDate === date);
     const future = date > today() ? rules.filter(rule => matches(rule, date) &&
       !actual.some(task => task.recurrenceId === rule.id)).map(rule => ({
-        id: `${rule.id}:${date}`, title: rule.title, scheduledDate: date, recurrenceId: rule.id, planned: true,
+        id: `${rule.id}:${date}`, title: rule.title, groupId: rule.group_id || null, scheduledDate: date, recurrenceId: rule.id, planned: true,
       })) : [];
     return [...actual, ...future];
   }
@@ -66,7 +66,7 @@
       <p class="calendar-hint">날짜 없는 할 일은 할 일 메뉴에서 볼 수 있어. 지난 항목은 기존 보관 정책을 따라.</p>`;
   }
   function resetForm() {
-    $('taskScheduledDate').value = productivitySchedulingAvailable ? today() : '';
+    $('taskScheduledDate').value = productivitySchedulingAvailable ? (currentPage === 'today' ? getTaskViewDate() : today()) : '';
     $('taskScheduledDate').disabled = false;
     $('taskRepeatField').hidden = false;
     $('taskRepeatFrequency').value = 'none';

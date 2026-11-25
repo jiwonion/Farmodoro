@@ -55,7 +55,7 @@
     <link rel="stylesheet" href="./scenery-workspace.css?v=9" />
     <link rel="stylesheet" href="./farm-v3.css?v=22" />
     <link rel="stylesheet" href="./focus-pomodoro.css?v=2" />
-    <link rel="stylesheet" href="./task-planner.css?v=4" />
+    <link rel="stylesheet" href="./task-planner.css?v=5" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -295,7 +295,7 @@
             <div class="progress-stats">
               <div>
                 <span class="stat-dot todo-dot"></span>
-                <p>할 일</p>
+                <p>오늘 할 일</p>
                 <strong><span id="todoDone">1</span> / <span id="todoTotal">4</span></strong>
                 <span class="strip-progress" id="stripTaskProgress" aria-hidden="true"></span>
               </div>
@@ -331,7 +331,14 @@
               </div>
             </div>
 
-            <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="오늘의 할 일 그룹 필터"></div>
+            <nav class="today-task-date-controls" id="todayTaskDateControls" aria-label="할 일 조회 날짜" hidden>
+              <button type="button" data-task-date-step="-1" aria-label="이전 날짜의 할 일">‹</button>
+              <input id="todayTaskDate" type="date" aria-label="할 일 조회 날짜" />
+              <button type="button" data-task-date-step="1" aria-label="다음 날짜의 할 일">›</button>
+              <button type="button" id="todayTaskDateReset">오늘</button>
+            </nav>
+            <p class="today-task-date-hint" id="todayTaskDateHint" aria-live="polite" hidden></p>
+            <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="선택한 날짜의 할 일 그룹 필터"></div>
 
             <section id="taskCreateModal" class="inline-composer hidden" aria-labelledby="taskCreateTitle">
             <header><h2 id="taskCreateTitle">할 일 추가</h2><button class="pixel-close-button" type="button" data-close-task-create aria-label="할 일 추가 닫기">×</button></header>
@@ -802,8 +809,8 @@
     <script defer src="./scenery-theme-presets.js?v=4"></script>
     <script defer src="./productivity-recovery.js?v=1"></script>
     <script defer src="./sync-diagnostics.js?v=1"></script>
-    <script defer src="./task-planner.js?v=7"></script>
-    <script defer src="./app.js?v=356"></script>
+    <script defer src="./task-planner.js?v=8"></script>
+    <script defer src="./app.js?v=357"></script>
     <script defer src="./garden-art.js?v=10"></script>
     <script defer src="./scenery-creation-art.js?v=4"></script>
     <script defer src="./scenery-creations.js?v=10"></script>
