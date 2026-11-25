@@ -1089,9 +1089,6 @@ const taskFormSubmit = document.querySelector("#taskFormSubmit");
 const groupManager = document.querySelector("#groupManager");
 const groupInput = document.querySelector("#groupInput");
 const habitForm = document.querySelector("#habitForm");
-const habitFocusMinutes = document.querySelector("#habitFocusMinutes");
-const habitMinimumFocusMinutes = document.querySelector("#habitMinimumFocusMinutes");
-const habitFocusEnabled = document.querySelector("#habitFocusEnabled");
 const habitModal = document.querySelector("#habitModal");
 const habitModalKicker = habitModal.querySelector(".section-kicker");
 const habitModalTitle = document.querySelector("#habitModalTitle");
@@ -2655,6 +2652,8 @@ function getLinkedFocusSeconds(item = getFocusItem()) {
   return getHabitDailyFocusSeconds(item);
 }
 
+// Compatibility for timer sessions saved before item focus was removed.
+// Current habit forms, completion controls and share images do not use durations.
 function getHabitFocusMinutes(habit, dateString = toProductivityDateString(), completionLevel = "max") {
   if (habit?.measureType !== "time") return 0;
   if (completionLevel === "min") {
@@ -3076,9 +3075,7 @@ function isHabitCompleteToday(habit) {
 }
 
 function hasHabitMinimum(habit) {
-  const minutes = Number(habit?.minimumFocusMinutes);
-  return Boolean(habit?.minimumTitle?.trim()) ||
-    (habit?.measureType === "time" && Number.isInteger(minutes) && minutes > 0 && minutes <= 9999);
+  return Boolean(habit?.minimumTitle?.trim());
 }
 
 // A minimum name matching the habit name adds nothing, so it is treated as absent.
@@ -3407,7 +3404,6 @@ function renderHabits() {
           ${scheduledToday && !recordBusy ? "" : "disabled"}
         >✓</button>
       `;
-      const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
       const tierBadge = hasMinimum
         ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"}</span>` : "";
       // The switch only picks which goal to complete; a completed tier must be undone before switching.
@@ -3419,7 +3415,7 @@ function renderHabits() {
           <span class="habit-copy">
             ${hasMinimum ? `<span class="habit-title-line"><strong>${escapeHtml(shownTitle)}</strong>${tierBadge}</span>` : `<strong>${escapeHtml(habit.title)}</strong>`}
             <small class="habit-summary">
-              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? (completionLevel === "min" ? "최소 달성" : hasMinimum ? "최대 달성" : "완료") : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}${targetMinutes > 0 ? ` · 목표 ${targetMinutes}분` : ""} <span data-habit-focus-time data-focus-date="${dateString}" ${getHabitFocusMinutes(habit) > 0 || getHabitDailyFocusSeconds(habit, dateString) > 0 ? "" : "hidden"}>· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, dateString))}</span></span>
+              <span class="habit-summary-primary">${scheduledToday ? (completeToday ? (completionLevel === "min" ? "최소 달성" : hasMinimum ? "최대 달성" : "완료") : "미완료") : "쉬는 날"} · ${escapeHtml(formatHabitSchedule(habit, currentPage === "habits"))}</span>
             </small>
           </span>
           <span class="habit-actions">
@@ -4335,13 +4331,12 @@ function getListShareSnapshot(kind) {
       const level = getHabitCompletionLevel(habit, date);
       const tiered = hasHabitMinimum(habit);
       const viewLevel = tiered ? level || habitTierViewLevels.get(`${habit.id}:${date}`) || "max" : "max";
-      const targetMinutes = getHabitFocusMinutes(habit, date, viewLevel);
       return {
         title: getHabitGoalTitle(habit, viewLevel),
         status: offDay ? "쉬는 날" : level === "min" ? "최소 달성" : level ? (tiered ? "최대 달성" : "완료") : "미완료",
         complete: Boolean(level) && !offDay,
         offDay,
-        detail: `${formatHabitSchedule(habit, currentPage === "habits")}${targetMinutes > 0 ? ` · 목표 ${targetMinutes}분` : ""}`,
+        detail: formatHabitSchedule(habit, currentPage === "habits"),
       };
     });
   }
@@ -4994,13 +4989,6 @@ function updateProductivityFocusLabels() {
     const label = card.querySelector("[data-task-focus-time]");
     if (task && label) label.textContent = `◷ 집중 ${formatFocusTime(task.focusSeconds)}`;
   });
-  document.querySelectorAll("[data-habit-id]").forEach((card) => {
-    const habit = state.habits.find((item) => item.id === card.dataset.habitId);
-    const label = card.querySelector("[data-habit-focus-time]");
-    if (habit && label) {
-      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(habit, label.dataset.focusDate))}`;
-    }
-  });
 }
 
 function updateActiveFocusCard() {
@@ -5015,11 +5003,6 @@ function updateActiveFocusCard() {
     return;
   }
 
-  document
-    .querySelectorAll(`[data-habit-id="${item.id}"] [data-habit-focus-time]`)
-    .forEach((label) => {
-      label.textContent = `· 집중 ${formatFocusTime(getHabitDailyFocusSeconds(item, label.dataset.focusDate))}`;
-    });
 }
 
 function updateFocusActionButton() {
@@ -5709,7 +5692,6 @@ function closeHabitModal() {
 function resetHabitForm() {
   habitInput.value = "";
   habitMinimumInput.value = "";
-  habitMinimumFocusMinutes.value = "";
   document
     .querySelectorAll('[name="habitWeekday"]')
     .forEach((input) => (input.checked = true));
@@ -5723,9 +5705,6 @@ function resetHabitForm() {
 function openHabitModal(habit = null) {
   habitStartDate.max = toProductivityDateString();
   editingHabitId = habit?.id ?? null;
-  habitFocusEnabled.checked = habit?.measureType === "time";
-  habitFocusMinutes.value = String(getHabitFocusMinutes(habit, null) || 25);
-  habitMinimumFocusMinutes.value = habit?.minimumFocusMinutes == null ? "" : String(habit.minimumFocusMinutes);
   habitMinimumInput.value = habit?.minimumTitle || "";
   if (habit) {
     habitModalKicker.textContent = "EDIT ROUTINE";
@@ -5748,12 +5727,6 @@ function openHabitModal(habit = null) {
     resetHabitForm();
   }
 
-  document.querySelector("#habitFocusWeekdays").innerHTML = ["월", "화", "수", "목", "금", "토", "일"].map((day, index) => {
-    const weekday = index + 1;
-    const value = habit?.measureType === "time" ? habit.targetByWeekday?.[weekday] : null;
-    return `<label><span>${day}요일 (분)</span><input type="number" data-habit-focus-weekday="${weekday}" min="1" max="9999" step="1" value="${value == null ? "" : Math.min(9999, Math.max(1, Math.floor(Number(value) || 25)))}" /></label>`;
-  }).join("");
-  updateHabitFocusWeekdayInputs();
   updateHabitGoalLabel();
   habitModalFormSlot.appendChild(habitForm);
   habitModal.classList.remove("hidden");
@@ -5763,33 +5736,11 @@ function openHabitModal(habit = null) {
 }
 
 function updateHabitGoalLabel() {
-  const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
+  const hasMinimum = Boolean(habitMinimumInput.value.trim());
   document.querySelector("#habitGoalLabel").textContent = hasMinimum ? "최대 목표" : "기본 목표";
-  updateHabitFocusWeekdayInputs();
 }
 
 habitMinimumInput.addEventListener("input", updateHabitGoalLabel);
-habitMinimumFocusMinutes.addEventListener("input", updateHabitGoalLabel);
-
-function updateHabitFocusWeekdayInputs() {
-  document.querySelector("#habitFocusSettings").hidden = !habitFocusEnabled.checked;
-  habitFocusMinutes.disabled = !habitFocusEnabled.checked;
-  const hasMinimum = Boolean(habitMinimumInput.value.trim()) || (habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== "");
-  const minimumEnabled = habitFocusEnabled.checked;
-  document.querySelector("#habitMinimumFocusField").hidden = !minimumEnabled;
-  habitMinimumFocusMinutes.disabled = !minimumEnabled;
-  document.querySelector("#habitFocusMinutesLabel").textContent = hasMinimum ? "최대 목표 집중 시간 (분)" : "기본 목표 집중 시간 (분)";
-  document.querySelector("#habitFocusWeekdayLegend").textContent = hasMinimum ? "요일별 최대 목표 집중 시간" : "요일별 목표 집중 시간";
-  document.querySelectorAll("[data-habit-focus-weekday]").forEach((input) => {
-    input.disabled = !habitFocusEnabled.checked || !habitForm.querySelector(`[name="habitWeekday"][value="${input.dataset.habitFocusWeekday}"]`).checked;
-    input.placeholder = `기본 ${habitFocusMinutes.value || 25}`;
-  });
-}
-
-habitForm.addEventListener("change", (event) => {
-  if (event.target.matches('[name="habitWeekday"], #habitFocusEnabled')) updateHabitGoalLabel();
-});
-habitFocusMinutes.addEventListener("input", updateHabitFocusWeekdayInputs);
 
 function openHabitDeleteModal(habit) {
   pendingHabitDeleteId = habit.id;
@@ -6108,34 +6059,7 @@ habitForm.addEventListener("submit", (event) => {
     return;
   }
   const editingHabit = state.habits.find((habit) => habit.id === editingHabitId);
-  const focusMinutes = Number(habitFocusMinutes.value);
-  if (habitFocusEnabled.checked && (habitFocusMinutes.value === "" || !Number.isInteger(focusMinutes) || focusMinutes < 1 || focusMinutes > 9999)) {
-    showToast("목표 집중 시간은 1~9999분 사이의 정수로 입력해");
-    return;
-  }
-  const targetByWeekday = {};
-  for (const input of habitForm.querySelectorAll("[data-habit-focus-weekday]")) {
-    if (!habitFocusEnabled.checked) break;
-    if (input.value === "") continue;
-    const minutes = Number(input.value);
-    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 9999) {
-      showToast("요일별 목표 집중 시간은 1~9999분 사이의 정수로 입력해");
-      return;
-    }
-    targetByWeekday[input.dataset.habitFocusWeekday] = minutes;
-  }
-  const minimumFocusMinutes = habitFocusEnabled.checked && habitMinimumFocusMinutes.value !== ""
-    ? Number(habitMinimumFocusMinutes.value) : null;
-  // A timed minimum already differs from the maximum, so a repeated habit name is dropped.
-  const minimumTitle = minimumFocusMinutes !== null && typedMinimumTitle === title ? "" : typedMinimumTitle;
-  if (minimumFocusMinutes !== null && (!Number.isInteger(minimumFocusMinutes) || minimumFocusMinutes < 1 || minimumFocusMinutes > 9999)) {
-    showToast("최소 목표 집중 시간은 1~9999분 사이의 정수로 입력해");
-    return;
-  }
-  if (minimumFocusMinutes !== null && (minimumFocusMinutes >= focusMinutes || weekdays.some(day => minimumFocusMinutes >= (targetByWeekday[day] ?? focusMinutes)))) {
-    showToast("최소 목표 집중 시간은 기본·요일별 최대 목표보다 짧게 설정해");
-    return;
-  }
+  const minimumTitle = typedMinimumTitle;
   const startDate = habitStartDate.value;
   if (!startDate || startDate > toProductivityDateString() || (habitEndDate.value && habitEndDate.value < startDate)) {
     showToast("시작일은 오늘 이전으로, 종료일은 시작일 이후로 설정해");
@@ -6145,11 +6069,11 @@ habitForm.addEventListener("submit", (event) => {
     Object.assign(editingHabit, {
       title,
       minimumTitle,
-      minimumFocusMinutes,
-      measureType: habitFocusEnabled.checked ? "time" : "amount",
-      targetValue: habitFocusEnabled.checked ? focusMinutes : 1,
-      targetByWeekday,
-      unit: habitFocusEnabled.checked ? "분" : "완료",
+      minimumFocusMinutes: null,
+      measureType: "amount",
+      targetValue: 1,
+      targetByWeekday: {},
+      unit: "완료",
       weekdays,
       endDate: habitEndDate.value,
       startDate,
@@ -6159,25 +6083,24 @@ habitForm.addEventListener("submit", (event) => {
       id: createUuid(),
       title,
       minimumTitle,
-      minimumFocusMinutes,
+      minimumFocusMinutes: null,
       complete: false,
       completedDate: "",
       completionDates: [],
       progressByDate: {},
       focusSecondsByDate: {},
       recordMetaByDate: {},
-      measureType: habitFocusEnabled.checked ? "time" : "amount",
-      targetValue: habitFocusEnabled.checked ? focusMinutes : 1,
-      targetByWeekday,
-      unit: habitFocusEnabled.checked ? "분" : "완료",
+      measureType: "amount",
+      targetValue: 1,
+      targetByWeekday: {},
+      unit: "완료",
       weekdays,
       startDate,
       endDate: habitEndDate.value,
     });
   }
   const wasEditing = Boolean(editingHabit);
-  if (editingHabit && activeFocus?.type === "habit" && activeFocus.id === editingHabit.id &&
-      (!habitFocusEnabled.checked || (activeFocus.completionLevel === "min" && !minimumFocusMinutes))) {
+  if (editingHabit && activeFocus?.type === "habit" && activeFocus.id === editingHabit.id) {
     endFocusSession("linked");
   }
   closeHabitModal();

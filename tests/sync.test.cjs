@@ -168,7 +168,7 @@ test("habit card date navigation crosses month boundaries and stops at today", (
   assert.equal(ctx.getHabitViewDate(), "2026-03-01");
 });
 
-test("past habit card displays binary completion, schedule and focus", () => {
+test("past habit card displays completion and schedule without retired focus labels", () => {
   const elements = new Map();
   const ctx = context([
     "renderHabits", "getHabitViewDate", "isHabitScheduledOn", "getHabitTargetForDate",
@@ -194,7 +194,7 @@ test("past habit card displays binary completion, schedule and focus", () => {
   ctx.renderHabits();
   const html = elements.get("#habitList").innerHTML;
   assert.match(html, /미완료 · 매일/);
-  assert.match(html, /집중 120/);
+  assert.doesNotMatch(html, /집중|목표 \d+분|data-habit-focus-time/);
   assert.doesNotMatch(html, /새 습관|쉬는 습관|data-focus-habit|data-adjust-habit|habit-count-control/);
   assert.equal((html.match(/data-toggle-habit=/g) ?? []).length, 2);
   assert.equal(elements.get("#nextHabitDate").disabled, false);
@@ -254,7 +254,7 @@ test("a tiered habit shows one check row for its current tier with a switch to t
   }
 });
 
-test("a timed minimum without a distinct name keeps the habit name and shows the tier's target minutes", () => {
+test("legacy timed habits show named tiers without focus durations", () => {
   for (const minimumTitle of ["", "Self study", " Self study "]) {
     const habitTierViewLevels = new Map([["habit:2026-09-09", "min"]]);
     const { html } = renderTieredHabit({ title: "Self study", minimumTitle, measureType: "time", minimumFocusMinutes: 30 }, {
@@ -262,8 +262,9 @@ test("a timed minimum without a distinct name keeps the habit name and shows the
     });
     const text = html().replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
     assert.equal(text.match(/Self study/g).length, 1, JSON.stringify(minimumTitle));
-    assert.match(text, /Self study 최소/);
-    assert.match(text, /목표 30분/);
+    if (minimumTitle.trim()) assert.match(text, /Self study 최소/);
+    else assert.doesNotMatch(html(), /habit-tier-switch|data-habit-level/);
+    assert.doesNotMatch(text, /목표 \d+분|집중/);
   }
 });
 

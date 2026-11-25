@@ -113,7 +113,7 @@ let ws;
   const habits = await evaluate("getListShareSnapshot('habits')");
   assert.deepEqual(habits.items.map((item) => item.status), ["최소 달성", "미완료"]);
   assert.equal(habits.items[0].title, "영어 단어 3개");
-  assert.match(habits.items[1].detail, /목표 5분/, "Time-only minimum goals remain distinguishable in the PNG");
+  assert.equal(habits.items[1].detail, "매일", "Habit sharing omits retired focus goals");
   assert.equal(habits.completed, 1);
   assert.equal(habits.eligible, 2);
   const past = await evaluate(`selectedHabitDate='2026-01-07';getListShareSnapshot('habits')`);

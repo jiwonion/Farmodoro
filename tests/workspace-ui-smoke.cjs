@@ -202,7 +202,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       assert.equal(await evaluate(`state.tasks.some(t=>t.title==='화면에서 추가한 할 일')`),false,'Korean composition Enter does not submit task');
       await evaluate(`taskFormSubmit.click()`);
       assert.equal(await evaluate(`state.tasks.some(t=>t.title==='화면에서 추가한 할 일'&&t.groupId===null)`),true,'Inline task registration submits');
-      await evaluate(`openHabitFormButton.click();habitInput.value='화면에서 추가한 습관';habitFocusEnabled.checked=true;habitFocusEnabled.dispatchEvent(new Event('change',{bubbles:true}));habitFocusMinutes.value='30';habitForm.querySelector('[data-habit-focus-weekday="1"]').value='45'`);
+      await evaluate(`openHabitFormButton.click();habitInput.value='화면에서 추가한 습관'`);
       assert.equal(await evaluate(`habitModal.closest('#habitSection')!==null&&getComputedStyle(habitModal).position==='static'&&!habitModal.hasAttribute('aria-modal')`),true,`${width} ${theme} inline habit editor`);
       assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,`${width} ${theme} expanded habit editor fits`);
       if ([1440,390].includes(width)) {
@@ -210,7 +210,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         fs.writeFileSync(path.join(captureRoot,`add-habit-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
       await evaluate(`habitSubmitButton.click()`);
-      assert.equal(await evaluate(`state.habits.some(h=>h.title==='화면에서 추가한 습관'&&h.measureType==='time'&&h.targetByWeekday[1]===45)`),true,'Inline habit registration retains weekday targets');
+      assert.equal(await evaluate(`state.habits.some(h=>h.title==='화면에서 추가한 습관'&&h.measureType==='amount'&&h.targetValue===1&&Object.keys(h.targetByWeekday).length===0)`),true,'Inline habit registration creates a checkable habit');
       await evaluate(`state.tasks=state.tasks.filter(t=>t.title!=='화면에서 추가한 할 일');state.habits=state.habits.filter(h=>h.title!=='화면에서 추가한 습관');state.groups=state.groups.filter(g=>g.id!=='${newGroupId}');render();`);
       console.log(`${width}px ${theme}: navigation, 12 tasks, all page bounds PASS`);
     }

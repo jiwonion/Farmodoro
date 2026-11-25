@@ -113,13 +113,13 @@ test("minimum focus stays optional for legacy and untimed goals, while a name is
   assert.equal(ctx.getHabitFocusMinutes({ ...habit, minimumFocusMinutes: 5, minimumTitle: "" }, today, "min"), 5);
 });
 
-test("a time-only minimum survives database round trips without inventing a second goal name", () => {
+test("retired time-only minimum data survives round trips without offering a new minimum goal", () => {
   const ctx = context(["mapDatabaseHabit", "serializeTaskDatabaseState", "getHabitFocusMinutes"], {
     state: { groups: [], tasks: [], habits: [] }, getHabitTargetForDate: () => 1,
   });
   const habit = ctx.mapDatabaseHabit({ ...databaseHabit, minimum_title: null,
     measure_type: "time", target_value: 25, minimum_focus_minutes: 5 }, [record(today, "min", 1)]);
-  assert.equal(ctx.hasHabitMinimum(habit), true);
+  assert.equal(ctx.hasHabitMinimum(habit), false);
   assert.equal(ctx.getHabitGoalTitle(habit, "min"), habit.title);
   assert.equal(ctx.getHabitFocusMinutes(habit, today, "min"), 5);
   assert.equal(ctx.getHabitFocusMinutes(habit, today, "max"), 25);
@@ -129,22 +129,47 @@ test("a time-only minimum survives database round trips without inventing a seco
   assert.equal(snapshot.habits[0].minimum_title, null);
   assert.equal(snapshot.habits[0].minimum_focus_minutes, 5);
   const restored = ctx.mapDatabaseHabit(snapshot.habits[0], snapshot.habitRecords);
-  assert.equal(ctx.hasHabitMinimum(restored), true);
+  assert.equal(ctx.hasHabitMinimum(restored), false);
   assert.equal(ctx.getHabitGoalTitle(restored, "min"), habit.title);
   assert.equal(ctx.getHabitFocusMinutes(restored, today, "min"), 5);
   assert.equal(restored.recordMetaByDate[today].completionLevel, "min");
   assert.equal(restored.completionReward, 1);
 });
 
-test("a minimum goal needs a name or a valid timed duration", () => {
+test("minimum goals use names rather than retired focus durations", () => {
   const ctx = context([]);
   assert.equal(ctx.hasHabitMinimum({ minimumTitle: "   ", measureType: "time" }), false);
   assert.equal(ctx.hasHabitMinimum({ minimumTitle: "Read one word" }), true);
   for (const invalid of [null, "", 0, -1, 2.5, 10000, "abc"]) {
     assert.equal(ctx.hasHabitMinimum({ minimumTitle: "", measureType: "time", minimumFocusMinutes: invalid }), false, String(invalid));
   }
-  assert.equal(ctx.hasHabitMinimum({ minimumTitle: "", measureType: "time", minimumFocusMinutes: 5 }), true);
+  assert.equal(ctx.hasHabitMinimum({ minimumTitle: "", measureType: "time", minimumFocusMinutes: 5 }), false);
   assert.equal(ctx.hasHabitMinimum({ minimumTitle: "", measureType: "amount", minimumFocusMinutes: 5 }), false);
+});
+
+
+test("retired time-only minimum completion remains undoable without changing historical focus", () => {
+  const habit = emptyHabit("");
+  Object.assign(habit, {
+    measureType: "time", targetValue: 25, minimumFocusMinutes: 5,
+    complete: true, completedDate: today, completionDates: [today], completionReward: 1,
+    focusSecondsByDate: { [today]: 300 },
+    recordMetaByDate: { [today]: {
+      completionLevel: "min", completionReward: 1, completionCycleId: "historical-minimum",
+      completedAt: `${today}T12:00:00+09:00`, completedWithFreePass: false,
+    } },
+  });
+  const { ctx } = completionContext(habit);
+  ctx.state.coins = 4;
+  assert.equal(ctx.hasHabitMinimum(habit), false);
+  assert.equal(ctx.getHabitCompletionLevel(habit), "min");
+  ctx.toggleHabit(habit.id);
+  assert.equal(ctx.getHabitCompletionLevel(habit), null);
+  assert.equal(ctx.state.coins, 3, "Undo returns exactly the historical payout");
+  ctx.toggleHabit(habit.id);
+  assert.equal(ctx.getHabitCompletionLevel(habit), "max");
+  assert.equal(ctx.state.coins, 4, "The next direct check earns one coin");
+  assert.equal(habit.focusSecondsByDate[today], 300);
 });
 
 test("ordinary habit snapshots cannot set or overwrite the server's rewarded completion level", async () => {
@@ -505,8 +530,8 @@ test("finishing minimum and maximum timers awards one coin total for the habit d
   assert.equal(confirmations.length, 2);
 });
 
-test("time-only minimum and maximum timers share one coin, using the tier-aware server RPC", async () => {
-  const habit = emptyHabit("");
+test("legacy named minimum and maximum timers share one coin, using the tier-aware server RPC", async () => {
+  const habit = emptyHabit("Read one word");
   Object.assign(habit, { measureType: "time", targetValue: 25, minimumFocusMinutes: 5 });
   const { ctx } = completionContext(habit);
   const calls = [];

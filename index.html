@@ -39,7 +39,7 @@
         }
       }, 8000);
     </script>
-    <link rel="stylesheet" href="./styles.css?v=277" />
+    <link rel="stylesheet" href="./styles.css?v=278" />
     <link rel="stylesheet" href="./pixel-theme.css?v=195" />
     <link rel="stylesheet" href="./pixel-layout.css?v=275" />
     <link rel="stylesheet" href="./farm-scenery.css?v=302" />
@@ -460,8 +460,8 @@
               </label>
               <label class="habit-goal-field" for="habitMinimumInput">
                 <span>최소 목표 이름 <small>선택</small></span>
-                <input id="habitMinimumInput" type="text" maxlength="30" placeholder="예: 영어 단어 3개 보기 · 비우면 위와 같은 이름" aria-describedby="habitMinimumHint" autocomplete="off" />
-                <small id="habitMinimumHint">다른 활동으로 줄이고 싶을 때만 이름을 적어봐. 이름 없이 아래에서 최소 집중 시간만 설정해도 돼.</small>
+                <input id="habitMinimumInput" type="text" maxlength="30" placeholder="예: 영어 단어 3개 보기" aria-describedby="habitMinimumHint" autocomplete="off" />
+                <small id="habitMinimumHint">바쁜 날에도 할 수 있는 작은 목표를 적어봐. 비워두면 기본 목표만 체크해.</small>
               </label>
               <fieldset class="weekday-field">
                 <legend>반복 요일</legend>
@@ -484,25 +484,6 @@
                   <span>종료일</span>
                   <input id="habitEndDate" type="date" />
                 </label>
-              </div>
-              <label class="habit-focus-toggle"><input id="habitFocusEnabled" type="checkbox" /> 목표 집중 시간 사용</label>
-              <div id="habitFocusSettings" hidden>
-              <div class="habit-date-row">
-                <label for="habitFocusMinutes">
-                  <span id="habitFocusMinutesLabel">기본 목표 집중 시간 (분)</span>
-                  <input id="habitFocusMinutes" type="number" min="1" max="9999" step="1" value="25" required />
-                </label>
-                <label for="habitMinimumFocusMinutes" id="habitMinimumFocusField" hidden>
-                  <span>최소 목표 집중 시간 (분) · 선택</span>
-                  <input id="habitMinimumFocusMinutes" type="number" min="1" max="9999" step="1" placeholder="예: 5" aria-describedby="habitMinimumFocusHint" />
-                  <small id="habitMinimumFocusHint">최소 목표 이름을 비워도 시간만 설정할 수 있어. 최대 목표보다 짧게 설정해. 시간을 비워두면 최소 목표는 직접 체크해.</small>
-                </label>
-              </div>
-              <fieldset class="habit-focus-weekday-field">
-                <legend id="habitFocusWeekdayLegend">요일별 목표 집중 시간</legend>
-                <p>비워두면 기본 시간을 사용해요. 반복하는 요일만 입력할 수 있어요.</p>
-                <div class="habit-focus-weekdays" id="habitFocusWeekdays"></div>
-              </fieldset>
               </div>
               <button class="primary-button compact habit-submit" type="submit">습관 추가</button>
                   </form>
@@ -822,7 +803,7 @@
     <script defer src="./productivity-recovery.js?v=1"></script>
     <script defer src="./sync-diagnostics.js?v=1"></script>
     <script defer src="./task-planner.js?v=5"></script>
-    <script defer src="./app.js?v=355"></script>
+    <script defer src="./app.js?v=356"></script>
     <script defer src="./garden-art.js?v=10"></script>
     <script defer src="./scenery-creation-art.js?v=4"></script>
     <script defer src="./scenery-creations.js?v=10"></script>

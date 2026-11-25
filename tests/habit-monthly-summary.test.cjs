@@ -200,7 +200,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const tierUpdates = await evaluate(`(() => {
     const saved={habits:state.habits,coins:state.coins,wallet:farmWalletHydrated,confirm:confirmHabitCompletionWithServer,undo:confirmHabitUncompletionWithServer};
-    const row={id:'minimum-summary-live',title:'영어 공부',minimum_title:null,minimum_focus_minutes:5,measure_type:'time',target_value:25,unit:'분',weekdays:[1,2,3,4,5,6,7],start_date:'2026-10-11'};
+    const row={id:'minimum-summary-live',title:'영어 공부',minimum_title:'영어 단어 보기',minimum_focus_minutes:null,measure_type:'amount',target_value:1,unit:'완료',weekdays:[1,2,3,4,5,6,7],start_date:'2026-10-11'};
     const record={record_date:'2026-10-11',completed_at:'2026-10-11T12:00:00+09:00',completion_level:'min',completion_reward:1,progress_value:1};
     const minimum=mapDatabaseHabit(row,[record]);
     const normal=mapDatabaseHabit({...row,id:'normal-summary-live',title:'비타민',minimum_focus_minutes:null,measure_type:'amount',target_value:1},[{...record,completion_level:undefined}]);
