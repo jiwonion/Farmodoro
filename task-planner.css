@@ -23,13 +23,25 @@ body .calendar-day[aria-pressed="true"] { background: var(--pixel-soft); box-sha
 .calendar-day-number { align-self: flex-start; display: grid; place-items: center; min-width: 28px; height: 28px; font-size: .875rem; }
 .calendar-day.today .calendar-day-number { color: var(--pixel-on-accent); background: var(--pixel-accent); border-radius: 50%; }
 .calendar-day.outside .calendar-day-number { color: var(--muted); opacity: .6; }
-.calendar-event { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .875rem; color: var(--ink); }
-.calendar-event.planned { color: var(--muted); }
-.calendar-event.done { text-decoration: line-through; color: var(--muted); }
+.calendar-event, .calendar-agenda-item {
+  --event-accent: var(--pixel-accent);
+  --event-background: color-mix(in srgb, var(--pixel-accent) 6%, var(--paper));
+  --event-border: color-mix(in srgb, var(--pixel-accent) 16%, var(--line));
+}
+.calendar-event.planned, .calendar-agenda-item.planned,
+.calendar-event.done, .calendar-agenda-item.done {
+  --event-accent: color-mix(in srgb, var(--muted) 65%, var(--paper));
+  --event-background: color-mix(in srgb, var(--muted) 4%, var(--paper));
+  --event-border: var(--line);
+  color: var(--muted);
+}
+.calendar-event { display: block; min-width: 0; padding: 4px 6px; border: 1px solid var(--event-border); border-left: 3px solid var(--event-accent); border-radius: 5px; background: var(--event-background); font-size: .75rem; line-height: 1.45; color: var(--ink); }
+.calendar-event-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-event.done .calendar-event-title { text-decoration: line-through; }
 .calendar-day small { margin-top: auto; font-size: .75rem; color: var(--pixel-accent); }
 .calendar-day-detail { align-self: start; padding: 20px; border: 1px solid var(--line); border-radius: 16px; }
 .calendar-day-detail h3 { margin: 0 0 18px; }
-.calendar-agenda-item { display: grid; gap: 10px; padding: 16px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.calendar-agenda-item { display: grid; gap: 10px; margin-top: 10px; padding: 14px; border: 1px solid var(--event-border); border-left: 3px solid var(--event-accent); border-radius: 8px; background: var(--event-background); overflow-wrap: anywhere; }
 .calendar-agenda-item strong { display: block; font-size: 1rem; }
 .calendar-agenda-item small { display: block; color: var(--muted); margin-top: 6px; font-size: .875rem; }
 .calendar-agenda-item button, .recurring-rule button { justify-self: start; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--paper); font: inherit; cursor: pointer; }

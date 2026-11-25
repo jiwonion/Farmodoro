@@ -52,11 +52,11 @@
         const date = addDays(start, i), events = eventsFor(date), done = events.filter(event => event.status === 'done').length;
         return `<button type="button" data-calendar-date="${date}" class="calendar-day ${date.startsWith(month) ? '' : 'outside'} ${date === now ? 'today' : ''}" aria-pressed="${selected === date}" aria-label="${date}, 할 일 ${events.length}개, 완료 ${done}개">
           <span class="calendar-day-number">${Number(date.slice(-2))}</span>
-          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}">- ${escape(event.title)}</span>`).join('')}
+          ${events.slice(0, 2).map(event => `<span class="calendar-event ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}" title="${escape(event.title)}"><span class="calendar-event-title">${escape(event.title)}</span></span>`).join('')}
           ${events.length ? `<small>${events.length}개${events.length > 2 ? ` · +${events.length - 2}` : ''}</small>` : ''}</button>`;
       }).join('')}</div></div>
       <section class="calendar-day-detail" aria-label="선택한 날짜의 할 일"><h3>${selected.replaceAll('-', '. ')}</h3>
-      ${daily.length ? daily.map(event => `<article class="calendar-agenda-item"><div><strong>${escape(event.title)}</strong><small>${event.planned ? '반복 예정' : event.status === 'done' ? '완료' : '할 일'}${event.recurrenceId ? ' · 반복' : ''}</small></div>
+      ${daily.length ? daily.map(event => `<article class="calendar-agenda-item ${event.planned ? 'planned' : event.status === 'done' ? 'done' : ''}"><div><strong>${escape(event.title)}</strong><small>${event.planned ? '반복 예정' : event.status === 'done' ? '완료' : '할 일'}${event.recurrenceId ? ' · 반복' : ''}</small></div>
         ${!event.planned ? `<button type="button" data-calendar-edit="${event.id}">수정</button>` : ''}</article>`).join('') : '<p class="calendar-empty">이날 등록된 할 일이 없어.</p>'}
       </section></div>
       <details class="recurring-manager"><summary>반복 할 일 관리 · ${rules.filter(rule => rule.active).length}개 사용 중</summary>
