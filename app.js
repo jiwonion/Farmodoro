@@ -5477,6 +5477,7 @@ function refreshThemedDateTrigger(input) {
   if (!trigger) return;
   const valueLabel = trigger.querySelector(".themed-date-value");
   if (valueLabel) valueLabel.textContent = formatThemedDateValue(input.value);
+  trigger.disabled = input.disabled;
   trigger.classList.toggle("empty", !input.value);
 }
 

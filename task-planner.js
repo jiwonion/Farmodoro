@@ -34,10 +34,10 @@
     if (!month) month = now.slice(0, 7);
     if (!selected || !selected.startsWith(month)) selected = `${month}-01`;
     const first = `${month}-01`, firstDate = dateOf(first);
-    const start = addDays(first, -((firstDate.getUTCDay() + 6) % 7));
-    const next = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() + 1, 1));
-    const daysInMonth = (next - firstDate) / 86400000;
-    const cells = Math.ceil((((firstDate.getUTCDay() + 6) % 7) + daysInMonth) / 7) * 7;
+    const offset = firstDate.getUTCDay();
+    const start = addDays(first, -offset);
+    const daysInMonth = new Date(Date.UTC(firstDate.getUTCFullYear(), firstDate.getUTCMonth() + 1, 0)).getUTCDate();
+    const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
     const daily = eventsFor(selected);
     const pending = activeAuthUser && readIntent(activeAuthUser.id);
     root.innerHTML = `
@@ -47,7 +47,7 @@
         <button type="button" data-calendar-move="1" aria-label="다음 달">›</button>
         <button type="button" data-calendar-today>오늘</button></div></div>
       <p class="calendar-hint">미래의 반복 항목은 예정이야. 날짜가 되면 완료할 수 있는 할 일로 생겨.</p>
-      <div class="calendar-layout"><div class="calendar-month"><div class="calendar-weekdays">${['월','화','수','목','금','토','일'].map(day => `<span>${day}</span>`).join('')}</div>
+      <div class="calendar-layout"><div class="calendar-month"><div class="calendar-weekdays">${['일','월','화','수','목','금','토'].map(day => `<span>${day}</span>`).join('')}</div>
       <div class="calendar-grid">${Array.from({ length: cells }, (_, i) => {
         const date = addDays(start, i), events = eventsFor(date), done = events.filter(event => event.status === 'done').length;
         return `<button type="button" data-calendar-date="${date}" class="calendar-day ${date.startsWith(month) ? '' : 'outside'} ${date === now ? 'today' : ''}" aria-pressed="${selected === date}" aria-label="${date}, 할 일 ${events.length}개, 완료 ${done}개">
@@ -66,11 +66,13 @@
       <p class="calendar-hint">날짜 없는 할 일은 할 일 메뉴에서 볼 수 있어. 지난 항목은 기존 보관 정책을 따라.</p>`;
   }
   function resetForm() {
-    $('taskScheduledDate').value = '';
+    $('taskScheduledDate').value = productivitySchedulingAvailable ? today() : '';
     $('taskScheduledDate').disabled = false;
     $('taskRepeatField').hidden = false;
     $('taskRepeatFrequency').value = 'none';
     $('taskRepeatEndDate').value = '';
+    refreshThemedDateTrigger($('taskScheduledDate'));
+    refreshThemedDateTrigger($('taskRepeatEndDate'));
     updateForm();
   }
   function editForm(task) {
@@ -78,6 +80,7 @@
     $('taskScheduledDate').value = task.scheduledDate || '';
     $('taskScheduledDate').disabled = !!task.recurrenceId;
     $('taskRepeatField').hidden = true;
+    refreshThemedDateTrigger($('taskScheduledDate'));
   }
   function updateForm() {
     const frequency = $('taskRepeatFrequency').value;
