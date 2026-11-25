@@ -6,7 +6,10 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "../app.js"), "utf8");
 function context(names, globals = {}) {
-  const ctx = vm.createContext({ console, habitCompletionRequests: new Map(), habitRecordEditsInFlight: new Set(), habitTierViewLevels: new Map(), ...globals });
+  const ctx = vm.createContext({ console, habitCompletionRequests: new Map(), habitRecordEditsInFlight: new Set(), habitTierViewLevels: new Map(),
+    readProductivityCheckpoint: () => null, recoverProductivityCheckpoint: () => {},
+    persistProductivityCheckpoint: () => true, logProductivityEvent: () => {},
+    updateProductivitySyncStatus: () => {}, window: {}, ...globals });
   for (const name of new Set(["hasHabitMinimum", "getHabitGoalTitle", "getHabitDistinctMinimumTitle", ...names])) {
     const match = source.match(new RegExp(`(?:async )?function ${name}\\([^]*?^\\}`, "m"));
     assert.ok(match, name);
@@ -1132,4 +1135,25 @@ test("queued timer writes cannot overwrite a remote state accepted after a confl
   await Promise.all([ctx.syncFocusTimerDatabaseImmediately(), ctx.syncFocusTimerDatabaseImmediately()]);
   assert.equal(writes, 1);
   assert.equal(ctx.focusTimerWritesPending, 0);
+});
+
+test("usable app is revealed after productivity/preferences without waiting for profile or farm artwork", async () => {
+  let releaseBackground, revealed = 0;
+  const background = new Promise(resolve => { releaseBackground = resolve; });
+  const ctx = context(["applyAuthSession"], {
+    window: { setTimeout }, currentPage: "today", activeAuthUser: null, farmSessionGeneration: 0,
+    closeListSharePreview: noop, authGate: {}, document: { body: { classList: { toggle: noop } } },
+    getProfileFallback: () => ({}), updateProfileFromUser: noop,
+    appStateHydrated: false, taskDataHydrated: false, farmWalletHydrated: false, farmDataHydrated: false,
+    appStateUserId: null, taskDataUserId: null, farmWalletUserId: null, farmDataUserId: null,
+    loadUserProfile: () => background, loadUserPreferences: async () => {},
+    loadTaskDataFromDatabase: async () => {}, loadFarmWallet: () => background,
+    loadFarmDataFromDatabase: () => background, loadFocusProgress: async () => {}, loadFocusTimerFromDatabase: async () => {},
+    finishAuthResolution: () => { revealed++; }, performance: { now: () => 120 },
+    startProductivityRealtime: noop, startAppStateRealtime: noop, startFarmRealtime: noop, startFocusRealtime: noop,
+  });
+  const loading = ctx.applyAuthSession({ user: { id: "user" } });
+  await new Promise(setImmediate);
+  assert.equal(revealed, 1);
+  releaseBackground(); await loading;
 });

@@ -6,6 +6,7 @@ const os = require("node:os");
 const http = require("node:http");
 const { spawn } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
+const captureRoot = process.env.RESPONSIVE_CAPTURE_DIR || path.join(root, 'docs/previews/workspace');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "farmodoro-ui-"));
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 // Run the actual application; omit only external authentication and service worker
@@ -105,8 +106,10 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if(theme==='white') dimensions.push({width,height,focusHeight:focus.frameHeight,timer:focus.timerSize});
       if (theme==='white'||width===1024) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-        fs.writeFileSync(path.join(root,'docs/previews/workspace',`focus-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+        fs.mkdirSync(captureRoot,{recursive:true});
+        fs.writeFileSync(path.join(captureRoot,`focus-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
+      if (process.env.FOCUS_ONLY === '1') continue;
       await evaluate(`showPage('farm')`);
       await pause(120);
       const farm=await evaluate(`(() => {
@@ -129,7 +132,8 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if(theme==='white') Object.assign(dimensions.at(-1),{farmWidth:farm.mapWidth,farmHeight:farm.mapHeight});
       if (theme==='white'||width===1024) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-        fs.writeFileSync(path.join(root,'docs/previews/workspace',`farm-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+        fs.mkdirSync(captureRoot,{recursive:true});
+        fs.writeFileSync(path.join(captureRoot,`farm-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
     }
     console.log(`${width}x${height} white/dark focus & farm responsive PASS`);
@@ -137,9 +141,9 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   console.log(JSON.stringify(dimensions));
   const monitor=dimensions.find(({width})=>width===1920),laptop=dimensions.find(({width})=>width===1366);
   assert.ok(monitor.timer>laptop.timer,'Monitor timer scales larger than laptop');
-  assert.ok(monitor.farmWidth>laptop.farmWidth,'Monitor farm scales larger than laptop');
+  if (process.env.FOCUS_ONLY !== '1') assert.ok(monitor.farmWidth>laptop.farmWidth,'Monitor farm scales larger than laptop');
   await call('Emulation.setDeviceMetricsOverride',{width:1366,height:768,deviceScaleFactor:1,mobile:false});
-  for (const terrain of ['whiteDay','galaxyNight','volcano']) {
+  for (const terrain of process.env.FOCUS_ONLY === '1' ? [] : ['whiteDay','galaxyNight','volcano']) {
     await evaluate(`state.equippedFarmTheme='${terrain}';renderFarm();showPage('farm');`);
     await pause(80);
     const geometry=await evaluate(`(() => {
@@ -148,11 +152,11 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     })()`);
     assert.deepEqual(geometry,{ratio:true,objectFits:true,overflow:false},`${terrain} scenery stays within the scene`);
   }
-  await evaluate(`showPage('focus');document.querySelector('#toggleFocusFarmBackground').click();`);
+  await evaluate(`showPage('focus');`);
   await pause(80);
-  assert.equal(await evaluate(`!!document.querySelector('#focusPage .focus-farm-background')`),true,'Farm focus background still renders');
-  assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,'Farm focus background has no page overflow');
-  await evaluate(`document.querySelector('#toggleFocusFarmBackground').click()`);
+  assert.equal(await evaluate(`!!document.querySelector('#focusItemTrigger, #focusBackgroundInput, #toggleFocusFarmBackground, #resetFocusBackground, #toggleFocusAudio, #focusPage .focus-farm-background')`),false,'Retired focus controls and backgrounds are removed');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('#focusPageStage')).backgroundImage`),'none','Pomodoro has no background image');
+  assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,'Pomodoro has no page overflow');
   assert.deepEqual(exceptions,[],'No browser runtime exceptions');
-  console.log('Monitor/laptop scaling, terrain coordinates, farm focus background PASS');
+  console.log('Monitor/laptop scaling, terrain coordinates, theme-only pomodoro PASS');
 })().catch((error)=>{console.error(error);process.exitCode=1;}).finally(()=>{ws?.close();chrome?.kill();server.close();});

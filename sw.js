@@ -1,8 +1,40 @@
-const CACHE_VERSION = "farmodoro-v404";
+const CACHE_VERSION = "farmodoro-v408";
 const APP_CACHE = `${CACHE_VERSION}-app`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
+  "./index.html",
+  "./about.html",
+  "./privacy.html",
+  "./public-pages.css?v=1",
+  "./manifest.webmanifest",
+  "./styles.css?v=277",
+  "./pixel-theme.css?v=195",
+  "./pixel-layout.css?v=275",
+  "./farm-scenery.css?v=302",
+  "./workspace.css?v=9",
+  "./workspace-controls.css?v=7",
+  "./workspace-responsive.css?v=7",
+  "./workspace-forms.css?v=5",
+  "./habit-tiers.css?v=12",
+  "./farm-workspace.css?v=3",
+  "./garden-shell.css?v=9",
+  "./garden-modals.css?v=5",
+  "./scenery-creations.css?v=5",
+  "./scenery-workspace.css?v=9",
   "./farm-v3.css?v=22",
+  "./focus-pomodoro.css?v=2",
+  "./task-planner.css?v=2",
+  "./supabase-config.js",
+  "./mobile-orientation.js?v=1",
+  "./scenery-theme-presets.js?v=4",
+  "./productivity-recovery.js?v=1",
+  "./sync-diagnostics.js?v=1",
+  "./google-calendar.js?v=2",
+  "./task-planner.js?v=3",
+  "./app.js?v=353",
+  "./garden-art.js?v=10",
+  "./scenery-creation-art.js?v=4",
+  "./scenery-creations.js?v=10",
   "./farm-v3-catalog.js?v=8",
   "./farm-v3-crop-art.js?v=1",
   "./farm-v3-character-art.js?v=5",
@@ -11,75 +43,7 @@ const APP_SHELL = [
   "./farm-v3-art.js?v=9",
   "./farm-v3-views.js?v=15",
   "./farm-v3.js?v=14",
-  "./assets/farm-v3/worlds-v1.png",
-  "./assets/farm-v3/mascots-v1.png",
-  "./assets/farm-v3/mascots-fishing-v1.png",
-  "./assets/farm-v3/mascots-expansion-v1.png",
-  "./assets/farm-v3/mascots-fishing-expansion-v1.png",
-  "./assets/farm-v3/fish-expansion-v1.png",
-  "./assets/farm-v3/collectibles-v1.png",
-  "./assets/garden-v2/crop-atlas.png",
-  "./assets/garden-v3/plants-atlas.png",
-  "./assets/garden-v3/soil-atlas.png",
-  "./assets/garden-v3/stages-atlas.png",
-  "./assets/farm-b-v1/objects/rustic/noticeboard.png",
-  "./assets/farm-b-v1/objects/rustic/well.png",
-  "./assets/farm-b-v1/objects/rustic/produce-crate.png",
-  "./assets/farm-b-v1/objects/rustic/fence-horizontal.png",
-  "./assets/farm-b-v1/objects/rustic/seed-chest.png",
-  "./index.html",
-  "./styles.css?v=277",
-  "./pixel-theme.css?v=195",
-  "./pixel-layout.css?v=275",
-  "./farm-scenery.css?v=302",
-  "./workspace.css?v=9",
-  "./workspace-controls.css?v=5",
-  "./workspace-responsive.css?v=7",
-  "./workspace-forms.css?v=5",
-  "./habit-tiers.css?v=12",
-  "./farm-workspace.css?v=3",
-  "./garden-shell.css?v=9",
-  "./garden-modals.css?v=5",
-  "./mobile-orientation.js?v=1",
-  "./scenery-theme-presets.js?v=4",
-  "./app.js?v=351",
-  "./garden-art.js?v=10",
-  "./scenery-creation-art.js?v=4",
-  "./scenery-creations.js?v=10",
-  "./scenery-creations.css?v=5",
-  "./scenery-workspace.css?v=9",
-  "./assets/scenery-creations/nature-v1.png",
-  "./assets/scenery-creations/winter-v1.png",
-  "./assets/scenery-creations/fantasy-v1.png",
-  "./assets/scenery-creations/ocean-scene-v1.png",
-  "./assets/scenery-creations/space-scene-v1.png",
-  "./assets/scenery-creations/cat-park-scene-v1.png",
-  "./assets/scenery-creations/space-tree-v1.png",
-  "./assets/scenery-creations/tuxedo-cat-v1.png",
-  "./assets/scenery-creations/theme-nature-v1.png",
-  "./assets/scenery-creations/theme-events-v1.png",
-  "./assets/scenery-creations/theme-weather-v1.png",
-  "./assets/scenery-creations/theme-fantasy-v1.png",
-  "./pwa-register.js?v=177",
-  "./assets/fonts/Mulmaru.woff2",
-  "./assets/fonts/PretendardVariable.woff2",
-  "./supabase-config.js",
-  "./manifest.webmanifest",
-  "./assets/pixel/crops-atlas.png",
-  "./assets/pixel/themes-atlas.png",
-  "./assets/garden-v3/terrain-atlas.png",
-  "./assets/garden-v4/cozy-atlas.png",
-  "./assets/garden-v4/festivals-atlas.png",
-  "./assets/garden-v4/fantasy-atlas.png",
-  "./assets/garden-v4/seasons-atlas.png",
-  "./assets/focus-farm-background.png",
-  "./assets/focus/default-focus-room.png?v=2",
-  "./assets/fonts/Maplestory-Light.ttf",
-  "./assets/fonts/Maplestory-Bold.ttf",
-  "./assets/icons/pixel-clock-192.png?v=268",
-  "./assets/icons/pixel-clock-512.png?v=268",
-  "./assets/icons/pixel-clock-maskable-512.png?v=268",
-  "./assets/icons/pixel-clock-apple-touch.png?v=268"
+  "./pwa-register.js?v=177"
 ];
 const APP_SHELL_URLS = new Set(
   APP_SHELL.map((path) => new URL(path, self.location.href).href),
@@ -112,12 +76,34 @@ const cacheResponse = async (cacheName, request, response) => {
   return response;
 };
 
-const networkFirst = async (request) => {
-  try {
-    return await fetch(request);
-  } catch {
-    return (await caches.match(request)) || (await caches.match("./index.html"));
+const navigationCacheKey = (request) => {
+  const base = new URL("./", self.location.href);
+  const requested = new URL(request.url || "./", base);
+  if (requested.origin !== base.origin) return null;
+  if (requested.pathname === base.pathname || requested.pathname === `${base.pathname}index.html`) return "./index.html";
+  for (const page of ["./about.html", "./privacy.html"]) {
+    if (requested.pathname === new URL(page, base).pathname) return page;
   }
+  return null;
+};
+
+const networkFirst = async (request, event) => {
+  // Public information pages must never receive or overwrite the signed-in app shell.
+  const cacheKey = navigationCacheKey(request);
+  if (!cacheKey) return fetch(request);
+  const cached = await caches.match(cacheKey);
+  const network = fetch(request).then(response => {
+    if (!response.ok) {
+      if (cached) return cached;
+      return response;
+    }
+    return cacheResponse(APP_CACHE, cacheKey, response);
+  }).catch(() => cached || Response.error());
+  event.waitUntil(network.then(() => {}));
+  if (!cached) return network;
+  let timeout;
+  const fallback = new Promise(resolve => { timeout = setTimeout(() => resolve(cached), 1800); });
+  return Promise.race([network, fallback]).finally(() => clearTimeout(timeout));
 };
 
 const cacheFirstAppShell = async (request) => {
@@ -141,7 +127,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin === self.location.origin && request.mode === "navigate") {
-    event.respondWith(networkFirst(request));
+    event.respondWith(networkFirst(request, event));
     return;
   }
 

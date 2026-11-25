@@ -6,6 +6,7 @@ const os = require("node:os");
 const http = require("node:http");
 const { spawn } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
+const captureRoot = process.env.WORKSPACE_CAPTURE_DIR || path.join(root, 'docs/previews/workspace');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "farmodoro-ui-"));
 const chromePath = process.env.CHROME_PATH || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 // Run the actual application; omit only external authentication and service worker
@@ -83,7 +84,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   assert.equal(await evaluate(`document.fonts.check('500 15px "Pretendard Variable"','한글')`),true);
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.task-card h4')).fontFamily.startsWith('"Pretendard Variable"')`),true);
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.brand')).fontFamily.includes('Mulmaru')`),true);
-  fs.mkdirSync(path.join(root,'docs/previews/workspace'),{recursive:true});
+  fs.mkdirSync(path.join(captureRoot),{recursive:true});
   for (const width of [1440,1024,768,390,320]) {
     await call('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false});
     for(const theme of ['white','dark']) {
@@ -113,16 +114,16 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if (width>=1100) assert.equal(splitterState.value,30,`${width} default right width`);
       const checkHabitFocusPosition = async () => {
         const result=await evaluate(`(() => {
-          const row=document.querySelector('[data-habit-id="habit-1"]'),copy=row.querySelector('.habit-copy'),button=row.querySelector('[data-focus-habit]');
+          const row=document.querySelector('[data-habit-id="habit-1"]'),copy=row.querySelector('.habit-copy'),button=row.querySelector('.habit-actions');
           const r=row.getBoundingClientRect(),c=copy.getBoundingClientRect(),b=button.getBoundingClientRect();
           const task=document.querySelector('#taskBoard .task-card');
           const expected='${theme === 'white' ? 'rgb(185, 198, 216)' : 'rgb(74, 90, 115)'}';
           return {right:b.left>=c.right-1,centered:Math.abs((b.top+b.height/2)-(r.top+r.height/2))<2,
-            fits:b.right<=r.right,readable:b.width>70,action:button.parentElement.classList.contains('habit-actions'),
+            fits:b.right<=r.right,readable:b.width>20,action:button.classList.contains('habit-actions'),removed:!row.querySelector('[data-focus-habit]'),
             habitDivider:getComputedStyle(row).borderBottomColor===expected,
             taskDivider:getComputedStyle(task).borderBottomColor===expected};
         })()`);
-        assert.deepEqual(result,{right:true,centered:true,fits:true,readable:true,action:true,habitDivider:true,taskDivider:true},`${width} ${theme} habit focus and row boundaries`);
+        assert.deepEqual(result,{right:true,centered:true,fits:true,readable:true,action:true,removed:true,habitDivider:true,taskDivider:true},`${width} ${theme} habit actions and row boundaries`);
       };
       await checkHabitFocusPosition();
       for(const page of ['tasks','habits','focus','farm']) {
@@ -141,7 +142,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
           assert.deepEqual(navigationStyle,{rounded:true,flat:true,themed:true,reset:true},`${width} ${theme} minor button theme`);
           if ([1440,390].includes(width)) {
             const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-            fs.writeFileSync(path.join(root,'docs/previews/workspace',`habits-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+            fs.writeFileSync(path.join(captureRoot,`habits-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
           }
         }
         if (page === 'tasks') {
@@ -163,7 +164,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             assert.equal(await evaluate(`document.querySelector('#toggleArchiveView').getAttribute('aria-pressed')`),String(archived));
             if ([1440,390].includes(width)) {
               const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-              fs.writeFileSync(path.join(root,'docs/previews/workspace',`${archived?'archive':'tasks'}-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+              fs.writeFileSync(path.join(captureRoot,`${archived?'archive':'tasks'}-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
             }
             if (archived) await evaluate(`document.querySelector('#toggleArchiveView').click()`);
           }
@@ -172,7 +173,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await evaluate(`showPage('today')`);
       if([1440,768,390].includes(width)) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-        fs.writeFileSync(path.join(root,'docs/previews/workspace',`${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+        fs.writeFileSync(path.join(captureRoot,`${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
       await evaluate(`document.querySelector('#openTaskForm').click(); document.querySelector('#toggleGroupManager').click()`);
       const inlineEditors=await evaluate(`(() => {
@@ -186,7 +187,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       assert.deepEqual(inlineEditors,{task:true,group:true,flow:true,fits:true,dialog:false,expanded:true},`${width} ${theme} inline task/group editors`);
       if ([1440,390].includes(width)) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-        fs.writeFileSync(path.join(root,'docs/previews/workspace',`add-task-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+        fs.writeFileSync(path.join(captureRoot,`add-task-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
       await evaluate(`groupInput.value='화면 등록 그룹';groupInput.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',isComposing:true,bubbles:true}))`);
       assert.equal(await evaluate(`state.groups.some(g=>g.name==='화면 등록 그룹')`),false,'Korean composition Enter does not create group');
@@ -206,7 +207,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       assert.equal(await evaluate(`document.documentElement.scrollWidth>innerWidth`),false,`${width} ${theme} expanded habit editor fits`);
       if ([1440,390].includes(width)) {
         const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});
-        fs.writeFileSync(path.join(root,'docs/previews/workspace',`add-habit-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
+        fs.writeFileSync(path.join(captureRoot,`add-habit-${theme}-${width}.png`),Buffer.from(shot.data,'base64'));
       }
       await evaluate(`habitSubmitButton.click()`);
       assert.equal(await evaluate(`state.habits.some(h=>h.title==='화면에서 추가한 습관'&&h.measureType==='time'&&h.targetByWeekday[1]===45)`),true,'Inline habit registration retains weekday targets');
@@ -275,13 +276,14 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   assert.equal(await evaluate(`Number(document.querySelector('#todaySplitter').getAttribute('aria-valuenow'))`),30);
   assert.equal(await evaluate(`localStorage.getItem('farmodoro-today-right-percent')`),'30');
   await evaluate(`state.groups=[{id:'work',name:'업무',colorIndex:0}];state.tasks=[{id:'task-0',title:'보고서',groupId:'work',status:'waiting',focusSeconds:0}];state.habits=[{id:'habit-1',title:'운동',measureType:'time',targetValue:50,weekdays:[1,2,3,4,5,6,7],startDate:toLocalDateString(),endDate:'',completionDates:[],progressByDate:{},focusByDate:{}}];taskDataHydrated=true;render();showPage('today');`);
-  await evaluate(`showPage('today'); document.querySelector('[data-focus-task="task-0"]').click()`);
-  assert.equal(await evaluate(`activeFocus.id`),'task-0');
+  await evaluate(`showPage('today')`);
+  assert.equal(await evaluate(`document.querySelector('[data-focus-task], [data-focus-habit], [data-focus-mode]')===null`),true);
   await evaluate(`document.querySelector('[data-edit-task="task-0"]').click()`);
   assert.equal(await evaluate(`!taskForm.classList.contains('hidden') && editingTaskId === 'task-0'`),true);
   await evaluate(`closeTaskInlineEdit()`);
-  await evaluate(`document.querySelector('[data-focus-habit="habit-1"]').click()`);
-  assert.equal(await evaluate(`activeFocus.type + ':' + activeFocus.id`),'habit:habit-1');
+  await evaluate(`document.querySelector('#focusButton').click();showPage('focus');`);
+  assert.equal(await evaluate(`focusMode + ':' + runningFocusMode`),'quick:quick');
+  await evaluate(`document.querySelector('#focusButton').click()`);
   const toggle=await evaluate(`applyWorkspaceTheme('white'); document.querySelector('#themeToggle').click();
     ({theme:document.documentElement.dataset.theme,saved:localStorage.getItem('farmodoro-ui-theme'),pressed:document.querySelector('#themeToggle').getAttribute('aria-pressed')})`);
   assert.deepEqual(toggle,{theme:'dark',saved:'dark',pressed:'true'});
@@ -293,7 +295,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   assert.equal(await evaluate(`!taskForm.classList.contains('hidden')`),true);
   await evaluate(`closeTaskCreate(); showPage('habits'); document.querySelector('#openHabitForm').click();`);
   assert.equal(await evaluate(`!habitModal.classList.contains('hidden')`),true);
-  await evaluate(`closeHabitModal(); showPage('today');document.querySelector('[data-focus-mode="quick"]').click();`);
+  await evaluate(`closeHabitModal(); showPage('today');`);
   assert.equal(await evaluate(`document.querySelector('#focusButton').disabled`),false);
   assert.deepEqual(exceptions,[], 'No browser runtime exceptions');
   console.log('Inline task/habit/group registration, Korean input, theme controls, splitter and dialogs PASS');

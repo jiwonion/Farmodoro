@@ -10,7 +10,7 @@ window.__farmodoroAppJsLoaded = true;
 const APP_VERSION = new URL(document.currentScript?.src ?? "", location.href)
   .searchParams.get("v") ?? "?";
 
-const APP_PAGES = ["today", "tasks", "habits", "focus", "farm"];
+const APP_PAGES = ["today", "tasks", "calendar", "habits", "focus", "farm"];
 const GROUP_COLOR_COUNT = 8;
 
 function applyWorkspaceTheme(theme) {
@@ -186,6 +186,10 @@ let taskDataUserId = null;
 let taskDataLoadPromise = null;
 let taskSyncTimer = null;
 let taskSyncChain = Promise.resolve();
+let taskSyncRetryAttempt = 0;
+let productivityStorageFailed = false;
+let productivityCheckpointCache = "";
+let productivitySchedulingAvailable = false;
 const taskStatusSyncChains = new Map();
 let lastTaskSyncSignature = "";
 // Tracks the last-uploaded content per (habit_id, record_date) so a sync only
@@ -268,7 +272,10 @@ function loadGoogleIdentityScript() {
     document.head.appendChild(script);
   });
 
-  return googleIdentityScriptPromise;
+  return googleIdentityScriptPromise.catch(error => {
+    googleIdentityScriptPromise = null;
+    throw error;
+  });
 }
 
 async function createGoogleNonce() {
@@ -426,9 +433,6 @@ async function loadUserProfile(user) {
   }
 
   if (activeAuthUser?.id === user.id) updateProfileFromUser(user, currentProfile);
-  if (activeAuthUser?.id === user.id) {
-    await loadFocusBackgroundFromDatabase(user, currentProfile.focus_background_path);
-  }
   return currentProfile;
 }
 
@@ -489,6 +493,8 @@ async function applyAuthSession(session) {
   const isSignedIn = Boolean(session?.user);
   const previousUserId = activeAuthUser?.id ?? null;
   activeAuthUser = session?.user ?? null;
+  window.GoogleCalendarSync?.selectUser(activeAuthUser?.id ?? null);
+  window.SyncDiagnostics?.selectUser(activeAuthUser?.id ?? null);
   if (previousUserId !== (session?.user?.id ?? null)) {
     farmSessionGeneration += 1;
     closeListSharePreview(false);
@@ -516,28 +522,34 @@ async function applyAuthSession(session) {
       return;
     }
     const needsAppStateLoad = !appStateHydrated || appStateUserId !== session.user.id;
+    const profileLoad = loadUserProfile(session.user);
+    const walletLoad = !farmWalletHydrated || farmWalletUserId !== session.user.id
+      ? loadFarmWallet(session.user) : Promise.resolve();
+    const needsFarmLoad = !farmDataHydrated || farmDataUserId !== session.user.id;
+    // Preferences preserve live productivity/wallet/farm state. Start the
+    // independent reads together; artwork and profile uploads are not a boot gate.
     await Promise.all([
-      loadUserProfile(session.user),
       needsAppStateLoad ? loadUserPreferences(session.user) : Promise.resolve(),
-    ]);
-
-    await Promise.all([
       !taskDataHydrated || taskDataUserId !== session.user.id
         ? loadTaskDataFromDatabase(session.user)
         : Promise.resolve(),
-      !farmWalletHydrated || farmWalletUserId !== session.user.id
-        ? loadFarmWallet(session.user)
-        : Promise.resolve(),
-      !farmDataHydrated || farmDataUserId !== session.user.id
-        ? loadFarmDataFromDatabase(session.user)
-        : Promise.resolve(),
     ]);
+    if (activeAuthUser?.id !== session.user.id) return;
+    finishAuthResolution();
+    logProductivityEvent("app_ready", { durationMs: Math.round(performance.now()) });
+    const farmLoad = needsFarmLoad
+      ? new Promise(resolve => window.setTimeout(resolve, currentPage === "farm" ? 0 : 250))
+        .then(() => activeAuthUser?.id === session.user.id ? loadFarmDataFromDatabase(session.user) : undefined)
+      : Promise.resolve();
     startProductivityRealtime(session.user);
     startAppStateRealtime(session.user);
-
     startFarmRealtime(session.user);
-    await loadFocusProgress(session.user);
-    await loadFocusTimerFromDatabase(session.user);
+    const focusLoad = (async () => {
+      await loadFocusProgress(session.user);
+      if (activeAuthUser?.id === session.user.id) await loadFocusTimerFromDatabase(session.user);
+    })();
+    await Promise.all([profileLoad, walletLoad, farmLoad, focusLoad]);
+    if (activeAuthUser?.id !== session.user.id) return;
     startFocusRealtime(session.user);
   } else {
     resetTaskDatabaseState();
@@ -1015,7 +1027,7 @@ let focusLastTickAt = 0;
 let focusSeconds = 0;
 let focusRunning = false;
 let focusSessionStarted = false;
-let focusMode = "linked";
+let focusMode = "quick";
 let focusModeUserSelected = false;
 let runningFocusMode = null;
 let timerPhase = "focus";
@@ -1107,8 +1119,6 @@ const habitCompletionRequests = new Map();
 // Unsaved per-day choice of which tier an incomplete tiered habit shows.
 const habitTierViewLevels = new Map();
 const toast = document.querySelector("#toast");
-const miniFocusMusic = document.querySelector("#miniFocusMusic");
-const miniFocusMusicTitle = document.querySelector("#miniFocusMusicTitle");
 const miniFocusTimer = document.querySelector("#miniFocusTimer");
 const miniFocusStatus = document.querySelector("#miniFocusStatus");
 const miniFocusTitle = document.querySelector("#miniFocusTitle");
@@ -1173,9 +1183,7 @@ function scheduleFarmContentRealtimeRefresh(userId) {
     // in response to that fed an endless save -> event -> save loop, and any
     // push racing a concurrent load reported FARM_STATE_STALE and spammed a
     // toast + reload. A remote change is a signal to READ, never to write.
-    const farmUiVisible =
-      ["farm", "today"].includes(currentPage) ||
-      (currentPage === "focus" && document.querySelector("#toggleFocusFarmBackground")?.getAttribute("aria-pressed") === "true");
+    const farmUiVisible = currentPage === "farm";
     if (farmUiVisible) await loadFarmDataFromDatabase(activeAuthUser);
   }, 500);
 }
@@ -1688,7 +1696,9 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
     }
   }
   if (!focusModeUserSelected) {
-    focusMode = ["linked", "quick"].includes(payload.focusMode) ? payload.focusMode : "linked";
+    // New sessions use one Pomodoro timer everywhere. Only an already running
+    // legacy linked session may finish through the compatibility runtime.
+    focusMode = payload.runningMode === "linked" ? "linked" : "quick";
   }
   runningFocusMode = ["linked", "quick"].includes(payload.runningMode)
     ? payload.runningMode
@@ -1796,7 +1806,6 @@ function applyFocusTimerDatabaseState(payload, updatedAt = "") {
   if (focusMode === "linked") {
     closeFocusSettings();
   }
-  renderFocusPicker();
   updateFocusActionButton();
   updateFocusDisplay();
   updateFocusTarget();
@@ -1948,6 +1957,79 @@ function resetTaskDatabaseState() {
   pendingTaskDatabaseDeletes.clear();
   pendingHabitDatabaseDeletes.clear();
   pendingGroupDatabaseDeletes.clear();
+  taskSyncRetryAttempt = 0;
+  productivityStorageFailed = false;
+  productivityCheckpointCache = "";
+  productivitySchedulingAvailable = false;
+  window.TaskPlanner?.reset();
+}
+
+function logProductivityEvent(event, metadata = {}) {
+  window.SyncDiagnostics?.record(event, { version: APP_VERSION, online: navigator.onLine !== false, ...metadata });
+}
+
+function updateProductivitySyncStatus(status) {
+  const label = document.querySelector("#productivitySyncStatus");
+  if (!label) return;
+  label.dataset.status = status;
+  label.textContent = {
+    saved: "모든 변경사항 저장됨", pending: "기기에 보관됨 · 동기화 중",
+    offline: "기기에 보관됨 · 연결 후 재시도", error: "저장 실패 · 다시 시도",
+  }[status] || "저장 상태 확인 중";
+}
+
+function readProductivityCheckpoint(userId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`farmodoro-productivity:${userId}`) || "null");
+    if (saved?.version === 1 && saved.userId === userId && saved.base && saved.snapshot &&
+        ["groups", "tasks", "habits", "habitRecords"].every(name => Array.isArray(saved.base[name]) && Array.isArray(saved.snapshot[name]))) return saved;
+  } catch { logProductivityEvent("checkpoint_read_failed"); }
+  return null;
+}
+
+function persistProductivityCheckpoint() {
+  if (!taskDataHydrated || !activeAuthUser || activeAuthUser.id !== taskDataUserId) return false;
+  try {
+    const snapshot = JSON.parse(serializeTaskDatabaseState());
+    const content = JSON.stringify({
+      version: 1, userId: taskDataUserId,
+      base: lastTaskSyncSignature ? JSON.parse(lastTaskSyncSignature) : { groups: [], tasks: [], habits: [], habitRecords: [] },
+      snapshot, deletes: { tasks: [...pendingTaskDatabaseDeletes], habits: [...pendingHabitDatabaseDeletes], groups: [...pendingGroupDatabaseDeletes] },
+      schedulingVersion: productivitySchedulingAvailable ? 1 : 0,
+      recurringTasks: window.TaskPlanner?.snapshotRules() || [],
+    });
+    if (content !== productivityCheckpointCache) {
+      localStorage.setItem(`farmodoro-productivity:${taskDataUserId}`, content);
+      productivityCheckpointCache = content;
+    }
+    productivityStorageFailed = false;
+    return true;
+  } catch {
+    if (!productivityStorageFailed) {
+      showToast("기기에 복구 사본을 저장하지 못했어. 서버 저장이 끝날 때까지 앱을 열어둬");
+      logProductivityEvent("checkpoint_write_failed");
+    }
+    productivityStorageFailed = true;
+    updateProductivitySyncStatus("error");
+    return false;
+  }
+}
+
+function applyProductivitySnapshot(snapshot) {
+  state.groups = snapshot.groups.map(mapDatabaseTaskGroup);
+  state.tasks = snapshot.tasks.map(mapDatabaseTask);
+  state.habits = snapshot.habits.map(habit => mapDatabaseHabit(habit,
+    snapshot.habitRecords.filter(record => record.habit_id === habit.id)));
+}
+
+function recoverProductivityCheckpoint(checkpoint) {
+  if (!checkpoint || !window.ProductivityRecovery) return;
+  const baseline = JSON.parse(lastTaskSyncSignature);
+  applyProductivitySnapshot(window.ProductivityRecovery.recover(baseline, checkpoint));
+  for (const [name, pending] of [["tasks", pendingTaskDatabaseDeletes], ["habits", pendingHabitDatabaseDeletes], ["groups", pendingGroupDatabaseDeletes]]) {
+    (checkpoint.deletes?.[name] || []).forEach(id => pending.add(id));
+  }
+  logProductivityEvent("checkpoint_recovered", { count: state.tasks.length });
 }
 
 function serializeTaskDatabaseState() {
@@ -2013,6 +2095,8 @@ function serializeTaskDatabaseState() {
       completed_on: task.completedDate || null,
       completion_cycle_id: task.completionCycleId || null,
       archived_at: task.archivedAt || null,
+      ...(productivitySchedulingAvailable ? { scheduled_on: task.scheduledDate || null } : {}),
+      ...(task.recurrenceId ? { recurrence_id: task.recurrenceId } : {}),
     })),
     habits: state.habits.map((habit, sortOrder) => ({
       id: habit.id,
@@ -2071,6 +2155,8 @@ function mapDatabaseTask(task) {
     completionCycleId: task.completion_cycle_id || "",
     archived: Boolean(task.archived_at),
     archivedAt: task.archived_at || "",
+    scheduledDate: task.scheduled_on || "",
+    recurrenceId: task.recurrence_id || "",
   };
 }
 
@@ -2141,9 +2227,14 @@ function mapDatabaseHabit(habit, records) {
 async function loadTaskDataFromDatabase(user, { force = false } = {}) {
   if (!supabaseClient || !user) return;
   if (taskDataUserId === user.id && taskDataHydrated && !force) return;
-  if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
+  if (taskDataUserId === user.id && taskDataLoadPromise) {
+    if (force) scheduleProductivityRealtimeRefresh(user.id);
+    return taskDataLoadPromise;
+  }
 
   const hadCurrentData = taskDataUserId === user.id && taskDataHydrated;
+  const checkpoint = hadCurrentData ? null : readProductivityCheckpoint(user.id);
+  const loadStartedAt = Date.now();
   if (hadCurrentData) await taskSyncChain;
   if (hadCurrentData && serializeTaskDatabaseState() !== lastTaskSyncSignature) {
     try {
@@ -2157,7 +2248,10 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
     if (activeAuthUser?.id !== user.id) return;
     if (serializeTaskDatabaseState() !== lastTaskSyncSignature) return;
   }
-  if (taskDataUserId === user.id && taskDataLoadPromise) return taskDataLoadPromise;
+  if (taskDataUserId === user.id && taskDataLoadPromise) {
+    if (force) scheduleProductivityRealtimeRefresh(user.id);
+    return taskDataLoadPromise;
+  }
   const requestSignature = serializeTaskDatabaseState();
   const requestSyncChain = taskSyncChain;
   const previousRenderSignature = hadCurrentData ? serializeTaskRenderSignature() : "";
@@ -2189,6 +2283,9 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
       scheduleProductivityRealtimeRefresh(requestedUserId);
       return;
     }
+
+    productivitySchedulingAvailable = data?.schedulingVersion === 1;
+    window.TaskPlanner?.applyState(data);
 
     state.groups = groupRows.map(mapDatabaseTaskGroup);
     state.tasks = taskRows.map(mapDatabaseTask);
@@ -2230,12 +2327,26 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
         JSON.stringify(record),
       ]),
     );
+    recoverProductivityCheckpoint(checkpoint);
+    persistProductivityCheckpoint();
+    logProductivityEvent("productivity_loaded", { durationMs: Date.now() - loadStartedAt, count: state.tasks.length });
+    scheduleTaskDatabaseSync(0);
     if (nextRenderSignature !== previousRenderSignature) render();
     else updateProductivityFocusLabels();
   })()
     .catch((error) => {
       console.error("Farmodoro task data could not be loaded", error);
       if (activeAuthUser?.id === requestedUserId) {
+        logProductivityEvent("productivity_load_failed", { code: String(error.code || "network") });
+        if (!hadCurrentData && checkpoint) {
+          productivitySchedulingAvailable = checkpoint.schedulingVersion === 1;
+          window.TaskPlanner?.applyState(checkpoint);
+          lastTaskSyncSignature = JSON.stringify(checkpoint.base);
+          recoverProductivityCheckpoint(checkpoint);
+          taskDataHydrated = true;
+          render();
+          scheduleTaskDatabaseSync(1000);
+        }
         showToast("할 일과 습관 데이터를 불러오지 못했어. 잠시 후 다시 시도해줘");
       }
     })
@@ -2248,6 +2359,8 @@ async function loadTaskDataFromDatabase(user, { force = false } = {}) {
 
 function scheduleTaskDatabaseSync(delay = 300) {
   if (!taskDataHydrated || !activeAuthUser || activeAuthUser.id !== taskDataUserId) return;
+  // Never wait for a timer, pagehide, or a fetch to make an edit durable.
+  persistProductivityCheckpoint();
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const hasInvalidId =
     state.groups.some((group) => !uuidPattern.test(String(group.id))) ||
@@ -2264,7 +2377,12 @@ function scheduleTaskDatabaseSync(delay = 300) {
     return;
   }
   const signature = serializeTaskDatabaseState();
-  if (signature === lastTaskSyncSignature) return;
+  if (signature === lastTaskSyncSignature && !pendingTaskDatabaseDeletes.size &&
+      !pendingHabitDatabaseDeletes.size && !pendingGroupDatabaseDeletes.size) {
+    updateProductivitySyncStatus("saved");
+    return;
+  }
+  updateProductivitySyncStatus(productivityStorageFailed ? "error" : navigator.onLine === false ? "offline" : "pending");
 
   if (taskSyncTimer) {
     if (delay > 0) return;
@@ -2272,24 +2390,7 @@ function scheduleTaskDatabaseSync(delay = 300) {
   }
   taskSyncTimer = window.setTimeout(() => {
     taskSyncTimer = null;
-    const userId = activeAuthUser?.id;
-    const snapshot = JSON.parse(serializeTaskDatabaseState());
-    const snapshotSignature = JSON.stringify(snapshot);
-    if (!userId || userId !== taskDataUserId) return;
-
-    taskSyncChain = taskSyncChain
-      .then(() => syncTaskDatabaseSnapshot(userId, snapshot))
-      .then(() => {
-        if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
-      })
-      .catch((error) => {
-        console.error("Farmodoro task data could not be saved", error);
-        if (activeAuthUser?.id === userId) {
-          const scope = error.syncScope ? ` · ${error.syncScope}` : "";
-          const reason = error.message ? `: ${error.message}` : "";
-          showToast(`DB 저장 실패${scope}${reason}`);
-        }
-      });
+    void syncTaskDatabaseImmediately().catch(() => {});
   }, delay);
 }
 
@@ -2305,6 +2406,7 @@ async function syncTaskDatabaseImmediately() {
   taskSyncTimer = null;
 
   const userId = activeAuthUser.id;
+  persistProductivityCheckpoint();
   const snapshot = JSON.parse(serializeTaskDatabaseState());
   const snapshotSignature = JSON.stringify(snapshot);
   const hasPendingDeletes =
@@ -2316,8 +2418,25 @@ async function syncTaskDatabaseImmediately() {
     return;
   }
   const operation = taskSyncChain.then(async () => {
-    await syncTaskDatabaseSnapshot(userId, snapshot);
-    if (activeAuthUser?.id === userId) lastTaskSyncSignature = snapshotSignature;
+    if (activeAuthUser?.id !== userId || taskDataUserId !== userId) return;
+    const startedAt = Date.now();
+    try {
+      await syncTaskDatabaseSnapshot(userId, snapshot);
+      if (activeAuthUser?.id !== userId || taskDataUserId !== userId) return;
+      lastTaskSyncSignature = snapshotSignature;
+      taskSyncRetryAttempt = 0;
+      persistProductivityCheckpoint();
+      logProductivityEvent("productivity_saved", { durationMs: Date.now() - startedAt });
+      scheduleTaskDatabaseSync();
+    } catch (error) {
+      if (activeAuthUser?.id === userId && taskDataUserId === userId) {
+        taskSyncRetryAttempt += 1;
+        logProductivityEvent("productivity_save_failed", { code: String(error.code || "network"), scope: error.syncScope || "", attempt: taskSyncRetryAttempt });
+        scheduleTaskDatabaseSync(Math.min(30000, 1000 * 2 ** Math.min(taskSyncRetryAttempt, 5)));
+        updateProductivitySyncStatus(productivityStorageFailed ? "error" : "offline");
+      }
+      throw error;
+    }
   });
   taskSyncChain = operation.catch(() => {});
   await operation;
@@ -2382,6 +2501,7 @@ async function syncTaskDatabaseSnapshot(userId, snapshot) {
       completed_with_free_pass,
       completion_cycle_id,
       archived_at,
+      recurrence_id,
       ...syncedFields
     } = task;
     return { ...syncedFields, user_id: userId };
@@ -2701,6 +2821,7 @@ function renderTaskFilters() {
 
 function getVisibleTasks(status) {
   return state.tasks.filter((task) => {
+    if (currentPage === "today" && task.scheduledDate && task.scheduledDate > toProductivityDateString()) return false;
     if (status === "waiting" ? task.status === "done" : task.status !== "done") return false;
 
     const archiveActive = currentPage === "tasks" && taskArchiveView;
@@ -2784,6 +2905,7 @@ function renderTasks() {
                     <h4>${escapeHtml(task.title)}</h4>
                   </div>
                   <div class="task-meta">
+                    ${task.scheduledDate ? `<span class="task-scheduled-date">${task.recurrenceId ? "반복 · " : ""}${escapeHtml(task.scheduledDate)}</span>` : ""}
                     ${group ? `<span class="task-category ${getGroupColorClass(group)}">${escapeHtml(group.name)}</span>` : ""}
                     ${
                       task.archived
@@ -2797,17 +2919,7 @@ function renderTasks() {
                         `
                         : task.status === "done"
                           ? `<span class="task-focus-pill completed-focus-time" data-task-focus-time>◷ 집중 ${formatFocusTime(task.focusSeconds)}</span>`
-                          : `
-                          <button
-                            class="task-focus-pill"
-                            type="button"
-                            data-focus-task="${task.id}"
-                            data-task-focus-time
-                            aria-label="${escapeHtml(task.title)} 집중 시작"
-                          >
-                            ◷ 집중 ${formatFocusTime(task.focusSeconds)}
-                          </button>
-                        `
+                          : ""
                     }
                   </div>
                 `
@@ -3205,10 +3317,11 @@ function openTaskInlineEdit(task) {
   editingTaskFocusMinutes = String(Math.floor((task.focusSeconds ?? 0) / 60));
   taskModalTitle.textContent = "할 일 수정";
   taskFormSubmit.textContent = "수정 저장";
-  taskModalFocusRow.hidden = false;
+  taskModalFocusRow.hidden = true;
   taskInput.value = editingTaskTitle;
   taskFocusMinutesInput.value = editingTaskFocusMinutes;
   taskGroup.value = editingTaskGroupId || "";
+  window.TaskPlanner?.editForm(task);
   renderGroups();
   document.querySelector("#taskCreateModal").classList.remove("hidden");
   document.querySelector("#openTaskForm").setAttribute("aria-expanded", "true");
@@ -3237,6 +3350,7 @@ function closeTaskInlineEdit() {
   document.querySelector("#openTaskForm").setAttribute("aria-expanded", "false");
   closeTaskGroupMenu();
   closeGroupManager();
+  window.TaskPlanner?.resetForm();
 }
 
 function getHabitViewDate() {
@@ -3294,15 +3408,6 @@ function renderHabits() {
           ${scheduledToday && !recordBusy ? "" : "disabled"}
         >✓</button>
       `;
-      const renderFocusAction = (level) => {
-        const minutes = getHabitFocusMinutes(habit, dateString, level);
-        if (isPast || completionLevel === "max" || minutes <= 0 || (level === "min" && completeToday)) return "";
-        const active = activeFocus?.type === "habit" && activeFocus.id === habit.id && (activeFocus.completionLevel || "max") === level;
-        const label = hasMinimum ? `${level === "min" ? "최소" : "최대"} ${minutes}분` : "집중 시작";
-        return `<button class="habit-focus-button ${active ? "active" : ""}" type="button" data-focus-habit="${habit.id}" data-focus-level="${level}" data-focus-label="${label}" aria-label="${escapeHtml(getHabitGoalTitle(habit, level))} ${label} 집중" aria-disabled="${!scheduledToday}">◷ ${active ? (runningFocusMode === "linked" ? "집중 중" : "계속하기") : label}</button>`;
-      };
-      // After a minimum completion the maximum timer stays available as the upgrade path.
-      const focusLevel = completionLevel === "min" ? "max" : viewLevel;
       const targetMinutes = getHabitFocusMinutes(habit, dateString, viewLevel);
       const tierBadge = hasMinimum
         ? `<span class="habit-tier-badge" data-habit-tier="${viewLevel}">${viewLevel === "min" ? "최소" : "최대"}</span>` : "";
@@ -3319,7 +3424,6 @@ function renderHabits() {
             </small>
           </span>
           <span class="habit-actions">
-            ${renderFocusAction(focusLevel)}
             ${tierSwitch}
             <span class="streak">${getHabitStreak(habit, dateString)}일</span>
             ${currentPage === "habits" ? `<button class="habit-edit" type="button" data-edit-habit="${habit.id}" aria-label="${escapeHtml(habit.title)} 수정">✎</button>` : ""}
@@ -3660,78 +3764,9 @@ function renderFarm() {
   renderFarmDashboard();
   window.FarmV3?.render();
   window.SceneryCreations?.render();
-  renderFocusFarmBackground();
   refreshOpenSceneryPreview();
 }
 
-function renderFocusPicker() {
-  const label = document.querySelector("#focusItemLabel");
-  const menu = document.querySelector("#focusItemMenu");
-  if (!label || !menu) return;
-
-  const taskOptions = state.tasks
-    .filter((task) => !task.archived && task.status !== "done")
-    .map((task) => ({
-      value: `task:${task.id}`,
-      label: task.title,
-    }));
-  const habitOptions = state.habits
-    .filter((habit) => isHabitScheduledToday(habit) && getHabitCompletionLevel(habit) !== "max" && getHabitFocusMinutes(habit) > 0)
-    .flatMap((habit) => [
-      ...(!getHabitCompletionLevel(habit) && getHabitFocusMinutes(habit, toProductivityDateString(), "min") > 0
-        ? [{ value: `habit:${habit.id}:min`, label: `${getHabitGoalTitle(habit, "min")} · 최소 ${getHabitFocusMinutes(habit, toProductivityDateString(), "min")}분` }] : []),
-      { value: `habit:${habit.id}`, label: hasHabitMinimum(habit) ? `${habit.title} · 최대 ${getHabitFocusMinutes(habit)}분` : habit.title },
-    ]);
-
-  const selectedValue = activeFocus ? `${activeFocus.type}:${activeFocus.id}${activeFocus.completionLevel === "min" ? ":min" : ""}` : "";
-  const selectedOption = [...taskOptions, ...habitOptions].find(
-    (option) => option.value === selectedValue,
-  );
-  label.textContent = selectedOption
-    ? `${activeFocus.type === "task" ? "할 일" : "습관"} · ${selectedOption.label}`
-    : "할 일 또는 습관 선택";
-
-  const renderGroup = (title, options) =>
-    options.length
-      ? `
-        <div class="focus-item-group-label">${title}</div>
-        ${options
-          .map(
-            (option) => `
-              <button
-                class="focus-item-option custom-group-option focus-${option.value.split(":")[0]}${option.value === selectedValue ? " selected" : ""}"
-                type="button"
-                role="option"
-                aria-selected="${option.value === selectedValue}"
-                data-focus-value="${option.value}"
-              >
-                <i></i><span>${escapeHtml(option.label)}</span><b>✓</b>
-              </button>
-            `,
-          )
-          .join("")}
-      `
-      : "";
-
-  menu.innerHTML = `
-    <button
-      class="focus-item-option custom-group-option clear-option${selectedValue ? "" : " selected"}"
-      type="button"
-      role="option"
-      aria-selected="${!selectedValue}"
-      data-focus-value=""
-    >
-      <i></i><span>선택 안 함</span><b>✓</b>
-    </button>
-    ${renderGroup("할 일", taskOptions)}
-    ${renderGroup("습관", habitOptions)}
-    ${
-      !taskOptions.length && !habitOptions.length
-        ? '<p class="focus-item-empty">선택할 항목이 없어</p>'
-        : ""
-    }
-  `;
-}
 
 const SUMMARY_PROGRESS_SEGMENTS = 10;
 
@@ -3753,7 +3788,7 @@ function renderSummaryProgress(selector, ratio) {
 }
 
 function renderSummary() {
-  const activeTasks = state.tasks.filter((task) => !task.archived);
+  const activeTasks = state.tasks.filter((task) => !task.archived && (!task.scheduledDate || task.scheduledDate <= toProductivityDateString()));
   const todoDone = activeTasks.filter((task) => task.status === "done").length;
   const scheduledHabits = state.habits.filter(isHabitScheduledToday);
   const habitDone = scheduledHabits.filter(isHabitCompleteToday).length;
@@ -3791,15 +3826,14 @@ function render() {
   renderHabits();
   renderHabitHeatmap();
   renderFarm();
-  renderFocusPicker();
   renderSummary();
+  window.TaskPlanner?.render();
   saveState();
 }
 
 function renderHabitUpdates() {
   renderHabits();
   renderHabitHeatmap();
-  renderFocusPicker();
   updateDailyFocusQuote();
   renderSummary();
   renderFarm();
@@ -4570,23 +4604,16 @@ function updateFocusDisplay() {
     "--timer-ring-color",
     "#ffd65c",
   );
+  timerRing.style.setProperty("--pomodoro-progress", `${(1 - remainingRatio) * 360}deg`);
+  timerRing.dataset.running = String(focusRunning);
   timerRing.querySelector("span").textContent = isLinkedStopwatch ? "STOPWATCH" : "FOCUS";
   updateMiniFocusTimer();
 }
 
 function updateMiniFocusTimer() {
-  const fullTimerVisible = currentPage === "focus";
+  const fullTimerVisible = ["today", "focus"].includes(currentPage);
   const linkedRuntime = focusRuntimeByMode.linked;
   const linkedRunning = runningFocusMode === "linked";
-  document.querySelectorAll("[data-focus-habit]").forEach((button) => {
-    const isActive = activeFocus?.type === "habit" && button.dataset.focusHabit === activeFocus.id && (button.dataset.focusLevel || "max") === (activeFocus.completionLevel || "max");
-    button.classList.toggle("active", isActive);
-    button.textContent = isActive
-      ? linkedRunning
-        ? "◷ 집중 중"
-        : "◷ 계속하기"
-      : `◷ ${button.dataset.focusLabel || "집중 시작"}`;
-  });
   const visibleMode =
     runningFocusMode ||
     (focusRuntimeByMode[focusMode]?.started
@@ -4607,8 +4634,8 @@ function updateMiniFocusTimer() {
   miniFocusStatus.textContent = timerRunning ? "집중 중" : "일시정지";
   miniFocusTitle.textContent =
     visibleMode === "quick"
-      ? "빠른 집중"
-      : activeFocus?.type === "habit" && runtime.completionLevel === "min" ? item?.minimumTitle || item?.title || "최소 목표" : item?.title ?? "항목 집중";
+      ? "뽀모도로"
+      : activeFocus?.type === "habit" && runtime.completionLevel === "min" ? item?.minimumTitle || item?.title || "최소 목표" : item?.title ?? "이전 집중";
   miniFocusTime.textContent = `${minutes}:${seconds}`;
   miniFocusPause.textContent = timerRunning ? "일시정지" : "계속";
 
@@ -4735,7 +4762,7 @@ function updateFocusTarget() {
   if (focusMode === "quick") {
     focusButton.disabled = false;
     const sessionMinutes = focusRuntimeByMode.quick.sessionMinutes ?? settings.focusMinutes;
-    target.textContent = `그냥 ${sessionMinutes}분 집중해`;
+    target.textContent = `${sessionMinutes}분 집중`;
     description.textContent = "";
     description.hidden = true;
     fitFocusTargetText();
@@ -4790,7 +4817,8 @@ function stopProductivityRealtime() {
 
 function scheduleProductivityRealtimeRefresh(userId) {
   if (activeAuthUser?.id !== userId) return;
-  if (productivityRealtimeRefreshTimer) clearTimeout(productivityRealtimeRefreshTimer);
+  // Throttle a burst instead of postponing it forever during active edits.
+  if (productivityRealtimeRefreshTimer) return;
   productivityRealtimeRefreshTimer = window.setTimeout(async () => {
     productivityRealtimeRefreshTimer = null;
     if (activeAuthUser?.id !== userId) return;
@@ -4800,7 +4828,7 @@ function scheduleProductivityRealtimeRefresh(userId) {
     } catch (error) {
       console.warn("Farmodoro realtime productivity refresh failed", error);
     }
-  }, Math.max(500, productivityRealtimeMutedUntil - Date.now()));
+  }, 180);
 }
 
 function startProductivityRealtime(user) {
@@ -4812,7 +4840,7 @@ function startProductivityRealtime(user) {
   };
   productivityRealtimeChannel = subscribeToUserTables(
     supabaseClient.channel(`productivity:${user.id}`),
-    ["task_groups", "tasks", "habits"],
+    ["task_groups", "tasks", "habits", ...(productivitySchedulingAvailable ? ["recurring_tasks"] : [])],
     user.id,
     handleChange,
   )
@@ -4821,7 +4849,9 @@ function startProductivityRealtime(user) {
       if (status === "SUBSCRIBED") scheduleProductivityRealtimeRefresh(user.id);
       if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
         console.warn(`Farmodoro productivity realtime subscription: ${status}`);
+        logProductivityEvent("realtime_unavailable", { code: status });
       }
+      if (status === "SUBSCRIBED") logProductivityEvent("realtime_connected");
     });
 }
 
@@ -5325,7 +5355,6 @@ function toggleFocus() {
     updateMiniFocusTimer();
     renderTasks();
     renderHabits();
-    renderFocusPicker();
     renderSummary();
     saveState();
     scheduleTaskDatabaseSync(0);
@@ -5380,7 +5409,6 @@ function endFocusSession(mode = focusMode) {
   resetToFocus();
   renderTasks();
   renderHabits();
-  renderFocusPicker();
   renderSummary();
   saveState();
   scheduleTaskDatabaseSync(0);
@@ -5413,48 +5441,6 @@ function setFocusMode(mode) {
   syncFocusSettingsForm();
 }
 
-function startItemFocus(type, id, completionLevel = "max") {
-  const collection = type === "task" ? state.tasks : state.habits;
-  const item = collection.find((entry) => entry.id === id);
-  if (!item) return;
-  if (!["min", "max"].includes(completionLevel)) return;
-  if (type === "habit" && !getHabitFocusMinutes(item, toProductivityDateString(), completionLevel)) return;
-  if (type === "task" && item.status === "done") {
-    showToast("이미 완료한 할 일이야");
-    return;
-  }
-  if (type === "habit" && (getHabitCompletionLevel(item) === "max" || getHabitCompletionLevel(item) === completionLevel)) {
-    showToast("이미 완료한 습관이야");
-    return;
-  }
-  if (type === "habit" && !isHabitScheduledToday(item)) {
-    showToast("오늘 일정에 없는 습관이야");
-    return;
-  }
-
-  if (runningFocusMode) advanceRunningFocusTimer(runningFocusMode);
-  if (type === "habit" && (getHabitCompletionLevel(item) === "max" || getHabitCompletionLevel(item) === completionLevel)) return;
-  saveCurrentFocusRuntime();
-  stopFocusTimer();
-  focusMode = "linked";
-  focusModeUserSelected = true;
-  timerPhase = "focus";
-  activeFocus = { type, id, ...(type === "habit" && completionLevel === "min" ? { completionLevel } : {}) };
-  focusSettingsButton.hidden = true;
-  closeFocusSettings();
-
-  prepareLinkedFocusRuntime(item);
-  document.querySelectorAll("[data-focus-mode]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.focusMode === "linked");
-  });
-  updateFocusDisplay();
-  updateFocusTarget();
-  render();
-  toggleFocus();
-  scheduleTaskDatabaseSync(0);
-  location.hash = "focus";
-  showToast(`‘${type === "habit" ? getHabitGoalTitle(item, completionLevel) : item.title}’ 집중 측정을 시작했어`);
-}
 
 document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("ko-KR", {
   month: "long",
@@ -6060,7 +6046,7 @@ confirmTaskDelete.addEventListener("click", async () => {
   }
 });
 
-taskForm.addEventListener("submit", (event) => {
+taskForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!taskDataHydrated) {
     showToast("할 일 데이터를 불러오는 중이야");
@@ -6070,13 +6056,13 @@ taskForm.addEventListener("submit", (event) => {
   if (!title) return;
 
   const editingTask = state.tasks.find((task) => task.id === editingTaskId);
+  if (!editingTask && document.querySelector("#taskRepeatFrequency")?.value !== "none" && await window.TaskPlanner?.saveRecurringFromForm()) return;
+  const scheduledDate = document.querySelector("#taskScheduledDate")?.value || "";
+  if (scheduledDate && !productivitySchedulingAvailable) { showToast("일정 기능을 준비 중이야. 서버 업데이트 후 다시 시도해줘"); return; }
   if (editingTask) {
     editingTask.title = title;
     editingTask.groupId = taskGroup.value || null;
-    editingTask.focusSeconds = Math.min(
-      9999,
-      Math.max(0, Math.floor(Number(taskFocusMinutesInput.value) || 0)),
-    ) * 60;
+    if (!editingTask.recurrenceId) editingTask.scheduledDate = scheduledDate;
     closeTaskCreate();
     render();
     scheduleTaskDatabaseSync(0);
@@ -6093,6 +6079,7 @@ taskForm.addEventListener("submit", (event) => {
     archived: false,
     archivedAt: "",
     completedDate: "",
+    scheduledDate,
   });
   closeTaskCreate();
   showToast("대기 목록에 추가했어");
@@ -6203,7 +6190,6 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
   const inlineGroupTrigger = event.target.closest("[data-inline-group-trigger]");
   const inlineGroupOption = event.target.closest("[data-inline-task-group]");
   const cancelEditButton = event.target.closest("[data-cancel-task-edit]");
-  const focusButton = event.target.closest("[data-focus-task]");
   const editButton = event.target.closest("[data-edit-task]");
   const deleteButton = event.target.closest("[data-delete-task]");
   const archiveButton = event.target.closest("[data-archive-task]");
@@ -6236,7 +6222,6 @@ document.querySelector("#taskBoard").addEventListener("click", (event) => {
     if (task.status === statusButton.dataset.taskStatus) scheduleTaskDatabaseSync(0);
     return;
   }
-  if (focusButton) startItemFocus("task", focusButton.dataset.focusTask);
   if (editButton) {
     const task = state.tasks.find((item) => item.id === editButton.dataset.editTask);
     if (task) openTaskInlineEdit(task);
@@ -6676,7 +6661,6 @@ installTouchReorder(document.querySelector("#taskBoard"), "task");
 installTouchReorder(document.querySelector("#habitList"), "habit");
 
 document.querySelector("#habitList").addEventListener("click", async (event) => {
-  const focusButton = event.target.closest("[data-focus-habit]");
   const toggleButton = event.target.closest("[data-toggle-habit]");
   const editButton = event.target.closest("[data-edit-habit]");
   const deleteButton = event.target.closest("[data-delete-habit]");
@@ -6718,7 +6702,6 @@ document.querySelector("#habitList").addEventListener("click", async (event) => 
     return;
   }
 
-  if (focusButton) startItemFocus("habit", focusButton.dataset.focusHabit, focusButton.dataset.focusLevel || "max");
   if (toggleButton && !toggleButton.disabled) toggleHabit(toggleButton.dataset.toggleHabit, toggleButton.dataset.habitLevel || "max");
   if (editButton) {
     const habit = state.habits.find((item) => item.id === editButton.dataset.editHabit);
@@ -6965,7 +6948,6 @@ document.addEventListener("keydown", (event) => {
     closeHabitDeleteModal();
     closeHabitResetModal();
     closeTaskDeleteModal();
-    closeFocusItemMenu();
     closeTaskGroupMenu();
   }
 });
@@ -6997,78 +6979,13 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.querySelector("#focusButton").addEventListener("click", toggleFocus);
-document.querySelectorAll("[data-focus-mode]").forEach((button) => {
-  button.addEventListener("click", () => setFocusMode(button.dataset.focusMode));
-});
 document.querySelector("#focusAlertDismissButton").addEventListener("click", hideFocusAlertBanner);
 document.querySelector("#focusAlertMuteButton").addEventListener("click", stopFocusAlarmSound);
-
-const focusItemPicker = document.querySelector(".focus-item-picker");
-const focusItemTrigger = document.querySelector("#focusItemTrigger");
-const focusItemMenu = document.querySelector("#focusItemMenu");
-
-function closeFocusItemMenu() {
-  focusItemMenu.classList.add("hidden");
-  focusItemTrigger.setAttribute("aria-expanded", "false");
-}
-
-focusItemTrigger.addEventListener("click", () => {
-  const willOpen = focusItemMenu.classList.contains("hidden");
-  focusItemMenu.classList.toggle("hidden", !willOpen);
-  focusItemTrigger.setAttribute("aria-expanded", String(willOpen));
-});
-
-focusItemMenu.addEventListener("click", (event) => {
-  const option = event.target.closest("[data-focus-value]");
-  if (!option) return;
-  focusTimerOwnerId = FOCUS_TIMER_CLIENT_ID;
-  if (runningFocusMode === "linked") {
-    advanceRunningFocusTimer("linked");
-    stopFocusTimer();
-  }
-  const [type, id, completionLevel] = option.dataset.focusValue.split(":");
-  activeFocus = type && id ? { type, id, ...(type === "habit" && completionLevel === "min" ? { completionLevel } : {}) } : null;
-  prepareLinkedFocusRuntime();
-  setFocusMode("linked");
-  renderFocusPicker();
-  closeFocusItemMenu();
-  if (activeFocus) {
-    const item = getFocusItem();
-    showToast(`‘${item.title}’을 집중 항목으로 골랐어`);
-  }
-  scheduleFocusTimerDatabaseSync(0);
-});
-
-document.addEventListener("click", (event) => {
-  if (!focusItemPicker.contains(event.target)) closeFocusItemMenu();
-});
 
 const focusPageStage = document.querySelector("#focusPageStage");
 const focusFullscreenButton = document.querySelector("#toggleFocusFullscreen");
 let focusWakeLock = null;
 let focusWakeLockRequest = null;
-const focusAudioButton = document.querySelector("#toggleFocusAudio");
-const focusBackgroundInput = document.querySelector("#focusBackgroundInput");
-const resetFocusBackgroundButton = document.querySelector("#resetFocusBackground");
-const FOCUS_PLAYLIST = [
-  { title: "Sunlit Field Walk 1", src: "./assets/audio/sunlit-field-walk-1.mp3" },
-  { title: "Sunlit Field Walk 2", src: "./assets/audio/sunlit-field-walk-2.mp3" },
-  { title: "Riverbend Afterglow 1", src: "./assets/audio/riverbend-afterglow-1.mp3" },
-  { title: "Riverbend Afterglow 2", src: "./assets/audio/riverbend-afterglow-2.mp3" },
-  { title: "Velvet Pocket Duel 1", src: "./assets/audio/velvet-pocket-duel-1.mp3" },
-  { title: "Velvet Pocket Duel 2", src: "./assets/audio/velvet-pocket-duel-2.mp3" },
-  { title: "Hayfield Afterglow 1", src: "./assets/audio/hayfield-afterglow-1.mp3" },
-  { title: "Hayfield Afterglow 2", src: "./assets/audio/hayfield-afterglow-2.mp3" },
-  { title: "Late Afternoon Harvest 1", src: "./assets/audio/late-afternoon-harvest-1.mp3" },
-  { title: "Late Afternoon Harvest 2", src: "./assets/audio/late-afternoon-harvest-2.mp3" },
-  { title: "Dust on the Porch 1", src: "./assets/audio/dust-on-the-porch-1.mp3" },
-  { title: "Dust on the Porch 2", src: "./assets/audio/dust-on-the-porch-2.mp3" },
-];
-let focusAudioPlayer = null;
-let focusPlaylistQueue = [];
-let currentFocusTrack = null;
-let focusBackgroundObjectUrl = null;
-
 function shouldHoldFocusWakeLock() {
   return (
     "wakeLock" in navigator &&
@@ -7113,172 +7030,6 @@ async function syncFocusWakeLock() {
   await releaseFocusWakeLock();
 }
 
-function updateFocusMusicIndicator() {
-  const defaultMusicPlaying = Boolean(
-    focusAudioPlayer && !focusAudioPlayer.paused && !focusAudioPlayer.ended,
-  );
-  const showIndicator = currentPage !== "focus" && defaultMusicPlaying;
-  miniFocusMusic.hidden = !showIndicator;
-  if (!showIndicator) return;
-  miniFocusMusicTitle.textContent = currentFocusTrack?.title || "기본 집중 음악";
-}
-
-function renderFocusFarmBackground() {
-  const stage = document.querySelector("#focusPageStage");
-  stage.querySelector(".focus-farm-background")?.remove();
-  if (document.querySelector("#toggleFocusFarmBackground").getAttribute("aria-pressed") !== "true") return;
-  if (window.FarmV3?.snapshot()) {
-    const background = document.createElement("div");
-    background.className = "focus-farm-background fv-focus-background";
-    background.setAttribute("aria-hidden", "true"); background.inert = true;
-    background.innerHTML = window.FarmV3.previewMarkup();
-    stage.prepend(background); void window.FarmV3Art?.paintAll(background);
-    return;
-  }
-  const source = document.querySelector("#sceneryCreationScene");
-  if (!source) return;
-  const scene = source.cloneNode(true);
-  scene.className = "scenery-creation-scene scenery-focus-scene";
-  [scene, ...scene.querySelectorAll("*")].forEach(element => {
-    element.removeAttribute("id");
-    for (const attribute of [...element.attributes]) if (attribute.name.startsWith("data-")) element.removeAttribute(attribute.name);
-  });
-  const background = document.createElement("div");
-  background.className = "focus-farm-background cosmetic-farm-preview";
-  background.setAttribute("aria-hidden", "true");
-  background.inert = true;
-  background.append(scene);
-  stage.prepend(background);
-}
-
-document.querySelector("#toggleFocusFarmBackground").addEventListener("click", (event) => {
-  const button = event.currentTarget;
-  const enabled = button.getAttribute("aria-pressed") !== "true";
-  button.setAttribute("aria-pressed", String(enabled));
-  button.classList.toggle("active", enabled);
-  renderFocusFarmBackground();
-});
-
-function applyFocusBackground(file) {
-  const farmButton = document.querySelector("#toggleFocusFarmBackground");
-  farmButton.setAttribute("aria-pressed", "false");
-  farmButton.classList.remove("active");
-  document.querySelector(".focus-farm-background")?.remove();
-  if (focusBackgroundObjectUrl) URL.revokeObjectURL(focusBackgroundObjectUrl);
-  focusBackgroundObjectUrl = file ? URL.createObjectURL(file) : null;
-  if (focusBackgroundObjectUrl) {
-    focusPageStage.style.setProperty(
-      "--focus-background-image",
-      `url("${focusBackgroundObjectUrl}")`,
-    );
-  } else {
-    focusPageStage.style.removeProperty("--focus-background-image");
-  }
-}
-
-async function loadFocusBackgroundFromDatabase(user, path) {
-  if (!supabaseClient || !user || activeAuthUser?.id !== user.id) return;
-  if (!path) {
-    applyFocusBackground(null);
-    return;
-  }
-  const { data, error } = await supabaseClient.storage
-    .from("focus-backgrounds")
-    .download(path);
-  if (activeAuthUser?.id !== user.id) return;
-  if (error) {
-    console.warn("Farmodoro focus background could not be loaded", error);
-    applyFocusBackground(null);
-    return;
-  }
-  applyFocusBackground(data);
-}
-
-function getFocusBackgroundExtension(file) {
-  return {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-  }[file.type] ?? "";
-}
-
-async function uploadFocusBackground(user, file) {
-  const extension = getFocusBackgroundExtension(file);
-  if (!extension) throw new Error("Unsupported focus background type");
-  const previousPath = currentProfile?.focus_background_path || "";
-  const path = `${user.id}/focus-background.${extension}`;
-  const { error: uploadError } = await supabaseClient.storage
-    .from("focus-backgrounds")
-    .upload(path, file, { cacheControl: "3600", upsert: true });
-  if (uploadError) throw uploadError;
-
-  const { error: profileError } = await supabaseClient
-    .from("profiles")
-    .update({ focus_background_path: path })
-    .eq("id", user.id);
-  if (profileError) throw profileError;
-
-  if (previousPath && previousPath !== path) {
-    const { error: removeError } = await supabaseClient.storage
-      .from("focus-backgrounds")
-      .remove([previousPath]);
-    if (removeError) console.warn("Previous focus background could not be removed", removeError);
-  }
-  currentProfile = { ...currentProfile, focus_background_path: path };
-  return path;
-}
-
-focusBackgroundInput.addEventListener("change", async () => {
-  const [file] = focusBackgroundInput.files;
-  if (!file) return;
-  if (!file.type.startsWith("image/")) {
-    showToast("이미지 파일만 배경으로 사용할 수 있어");
-    return;
-  }
-  if (!getFocusBackgroundExtension(file)) {
-    showToast("배경은 JPG, PNG, WEBP 이미지만 사용할 수 있어");
-    return;
-  }
-  if (file.size > 15 * 1024 * 1024) {
-    showToast("배경 이미지는 15MB 이하로 골라");
-    return;
-  }
-
-  try {
-    if (!activeAuthUser || !supabaseClient) throw new Error("Authentication required");
-    await uploadFocusBackground(activeAuthUser, file);
-    applyFocusBackground(file);
-    showToast("집중 배경을 바꿨어");
-  } catch {
-    showToast("배경 이미지를 저장하지 못했어");
-  } finally {
-    focusBackgroundInput.value = "";
-  }
-});
-
-resetFocusBackgroundButton.addEventListener("click", async () => {
-  try {
-    if (!activeAuthUser || !supabaseClient) throw new Error("Authentication required");
-    const path = currentProfile?.focus_background_path;
-    if (path) {
-      const { error: removeError } = await supabaseClient.storage
-        .from("focus-backgrounds")
-        .remove([path]);
-      if (removeError) throw removeError;
-    }
-    const { error: profileError } = await supabaseClient
-      .from("profiles")
-      .update({ focus_background_path: null })
-      .eq("id", activeAuthUser.id);
-    if (profileError) throw profileError;
-    currentProfile = { ...currentProfile, focus_background_path: null };
-    applyFocusBackground(null);
-    showToast("기본 집중 배경으로 돌렸어");
-  } catch {
-    showToast("기본 배경으로 변경하지 못했어");
-  }
-});
-
 focusFullscreenButton.addEventListener("click", async () => {
   try {
     if (document.fullscreenElement === focusPageStage) {
@@ -7305,87 +7056,6 @@ document.addEventListener("fullscreenchange", () => {
 
 document.addEventListener("visibilitychange", () => {
   void syncFocusWakeLock();
-});
-
-function stopFocusAudio() {
-  focusAudioPlayer?.pause();
-  focusAudioButton.classList.remove("active");
-  focusAudioButton.setAttribute("aria-pressed", "false");
-  focusAudioButton.innerHTML = focusAudioPlayer && !focusAudioPlayer.ended
-    ? '<span aria-hidden="true">♪</span> 음악 계속 듣기'
-    : '<span aria-hidden="true">♪</span> 기본 음악';
-  updateFocusMusicIndicator();
-}
-
-function shuffleFocusPlaylist() {
-  const tracks = [...FOCUS_PLAYLIST];
-  for (let index = tracks.length - 1; index > 0; index -= 1) {
-    const target = Math.floor(Math.random() * (index + 1));
-    [tracks[index], tracks[target]] = [tracks[target], tracks[index]];
-  }
-
-  if (tracks[0] === currentFocusTrack && tracks.length > 1) {
-    [tracks[0], tracks[1]] = [tracks[1], tracks[0]];
-  }
-  focusPlaylistQueue = tracks;
-}
-
-function takeNextFocusTrack() {
-  if (!focusPlaylistQueue.length) shuffleFocusPlaylist();
-  return focusPlaylistQueue.shift();
-}
-
-function createFocusAudio(track) {
-  const audio = new Audio(new URL(track.src, document.baseURI).href);
-  audio.preload = "metadata";
-  audio.volume = 0.5;
-  audio.dataset.title = track.title;
-  audio.addEventListener("ended", playNextFocusTrack, { once: true });
-  return audio;
-}
-
-async function playNextFocusTrack() {
-  currentFocusTrack = takeNextFocusTrack();
-  focusAudioPlayer = createFocusAudio(currentFocusTrack);
-  focusAudioButton.disabled = true;
-  focusAudioButton.innerHTML = '<span aria-hidden="true">♪</span> 음악 불러오는 중';
-  try {
-    await focusAudioPlayer.play();
-  } catch (error) {
-    console.warn("Farmodoro focus music could not be played", error);
-    stopFocusAudio();
-    showToast("음악을 재생하지 못했어");
-    return;
-  } finally {
-    focusAudioButton.disabled = false;
-  }
-  focusAudioButton.classList.add("active");
-  focusAudioButton.setAttribute("aria-pressed", "true");
-  focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
-  updateFocusMusicIndicator();
-}
-
-async function startFocusAudio() {
-  if (focusAudioPlayer && focusAudioPlayer.paused && !focusAudioPlayer.ended) {
-    try {
-      await focusAudioPlayer.play();
-      focusAudioButton.classList.add("active");
-      focusAudioButton.setAttribute("aria-pressed", "true");
-      focusAudioButton.innerHTML = '<span aria-hidden="true">Ⅱ</span> 음악 끄기';
-      updateFocusMusicIndicator();
-    } catch (error) {
-      console.warn("Farmodoro focus music could not be resumed", error);
-      stopFocusAudio();
-      showToast("음악을 재생하지 못했어");
-    }
-    return;
-  }
-  await playNextFocusTrack();
-}
-
-focusAudioButton.addEventListener("click", async () => {
-  if (focusAudioPlayer && !focusAudioPlayer.paused) stopFocusAudio();
-  else await startFocusAudio();
 });
 
 const focusSettings = document.querySelector("#focusSettings");
@@ -7520,7 +7190,6 @@ function closePageModals() {
   closeHabitModal();
   closeHabitDeleteModal();
   closeTaskDeleteModal();
-  closeFocusItemMenu();
   closeTaskGroupMenu();
   document
     .querySelectorAll(".market-modal, .habit-modal")
@@ -7548,7 +7217,7 @@ async function refreshPageData(page = currentPage) {
   pageDataRefreshingPage = requestedPage;
   void pollFocusTimerFromDatabase();
   pageDataRefreshPromise = (async () => {
-    if (["today", "tasks", "habits"].includes(requestedPage)) {
+    if (["today", "tasks", "habits", "calendar"].includes(requestedPage)) {
       await loadTaskDataFromDatabase(user, { force: true });
     }
 
@@ -7619,6 +7288,7 @@ function showPage(page) {
   if (validPage === "focus") {
     focusPageSlot.appendChild(focusCard);
     focusCard.classList.add("standalone");
+    if (!focusRuntimeByMode.linked.started) setFocusMode("quick");
     scheduleFocusStageCenterUpdate();
   } else {
     focusCard.style.removeProperty("--focus-stage-center-y");
@@ -7632,14 +7302,14 @@ function showPage(page) {
     link.classList.toggle("active", link.dataset.page === validPage);
   });
 
-  const titles = { today: "오늘", tasks: "할 일", habits: "습관", focus: "집중", farm: "내 농장" };
+  const titles = { today: "오늘", tasks: "할 일", calendar: "달력", habits: "습관", focus: "집중", farm: "내 농장" };
   document.title = `${titles[validPage]} · Farmodoro`;
   renderTasks();
   renderHabits();
   renderHabitHeatmap();
   updateFocusTarget();
   updateMiniFocusTimer();
-  updateFocusMusicIndicator();
+  window.TaskPlanner?.render();
   document.documentElement.classList.remove("app-initializing");
   if (pageChanged) void refreshPageData(validPage);
 }
@@ -7727,16 +7397,23 @@ window.addEventListener("pagehide", () => {
   void flushFarmodoroDataOnExit();
 });
 
+window.addEventListener("online", () => {
+  logProductivityEvent("network_online");
+  scheduleTaskDatabaseSync(0);
+  if (activeAuthUser) scheduleProductivityRealtimeRefresh(activeAuthUser.id);
+});
+window.addEventListener("offline", () => {
+  logProductivityEvent("network_offline");
+  scheduleTaskDatabaseSync();
+});
+document.querySelector("#productivitySyncStatus")?.addEventListener("click", () => {
+  scheduleTaskDatabaseSync(0);
+  if (activeAuthUser) scheduleProductivityRealtimeRefresh(activeAuthUser.id);
+});
+document.querySelector("#downloadSyncDiagnostics")?.addEventListener("click", () => window.SyncDiagnostics?.download());
+
 document.querySelector("#openMiniFocus").addEventListener("click", () => {
   location.hash = "focus";
-});
-
-document.querySelector("#openMiniFocusMusic").addEventListener("click", () => {
-  location.hash = "focus";
-});
-
-document.querySelector("#stopMiniFocusMusic").addEventListener("click", () => {
-  stopFocusAudio();
 });
 
 miniFocusPause.addEventListener("click", () => {

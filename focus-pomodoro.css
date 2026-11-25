@@ -1,0 +1,98 @@
+/* The focus page is a quiet timer. No image, music, or item-picker layers. */
+body #focusPage .focus-page-stage {
+  position: relative; border: 1px solid var(--line); border-radius: 24px !important;
+  background: var(--paper) !important; box-shadow: none !important;
+  height: calc(100dvh - var(--workspace-viewport-inset) - 46px) !important;
+}
+body #focusPage .focus-page-stage::before,
+body #focusPage .focus-page-stage::after,
+body #focusPage .focus-card::before,
+body #focusPage .focus-card::after { display: none !important; }
+body #focusPage .focus-page-stage .focus-stage-toolbar { justify-content: space-between; align-items: center; padding: 24px 32px; }
+.pomodoro-heading { display: grid; gap: 5px; }
+.pomodoro-heading span { font-size: .875rem; letter-spacing: .16em; color: var(--muted); }
+.pomodoro-heading strong { font-size: 1rem; font-weight: 600; color: var(--ink); }
+body #focusPage .focus-page-stage .focus-card.standalone {
+  --focus-stage-visual-size: clamp(180px, min(30cqw, 34dvh), 340px);
+  display: flex !important; flex-direction: column !important; align-items: center;
+  justify-content: center; gap: 22px; background: transparent !important; box-shadow: none !important;
+}
+body #focusPage .focus-page-stage .focus-card.standalone .focus-visual {
+  position: relative !important; inset: auto !important; display: grid !important; place-items: center;
+  overflow: visible; margin: 0 !important; padding: 0 !important; transform: none !important;
+}
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring {
+  position: relative !important; inset: auto !important; isolation: isolate; overflow: visible; border: 0 !important;
+  display: grid !important; place-items: center; margin: 0 !important;
+  border-radius: 46% 46% 44% 44% !important;
+  background: #ed6255 !important;
+  box-shadow: inset -12px -14px 0 #d84d43, inset 8px 6px 0 #ff8d73, 0 18px 0 -8px #b1362d1a !important;
+  transform: none !important; animation: none;
+}
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring::before {
+  content: ""; position: absolute; z-index: 3; top: -15%; left: 25%; width: 50%; height: 30%;
+  background: #298c62; clip-path: polygon(50% 0, 60% 32%, 100% 24%, 78% 53%, 100% 75%, 61% 68%, 50% 100%, 39% 68%, 0 75%, 22% 53%, 0 24%, 40% 32%);
+}
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring::after {
+  display: block !important; content: "" !important; position: absolute; inset: 14%; border: 0; border-radius: 50%;
+  background: conic-gradient(#fff9 var(--pomodoro-progress, 0deg), #ffffff24 0);
+  mask: radial-gradient(transparent 67%, #000 68%);
+}
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring > div { z-index: 4; position: relative; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring strong { color: #fff !important; text-shadow: none !important; font-family: "Pretendard Variable", system-ui, sans-serif !important; font-variant-numeric: tabular-nums; font-weight: 650; letter-spacing: -.045em; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring > div::after { display: none !important; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring span { color: #fff2e4 !important; font-size: .875rem; letter-spacing: .18em; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-progress { display: none; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .sprout { display: none; }
+body #focusPage .focus-page-stage .focus-card.standalone .focus-copy {
+  position: static !important; inset: auto !important; transform: none !important; margin: 0 !important;
+  width: min(560px, 100%) !important; align-self: center; color: var(--ink) !important; text-align: center;
+}
+body #focusPage .focus-copy h2 { color: var(--ink) !important; text-shadow: none !important; }
+body #focusPage .focus-mode-switch { display: none !important; }
+body #focusPage .focus-mode-row { justify-content: center; margin-bottom: 12px; }
+body #focusPage .focus-settings-button { position: static !important; border-radius: 50% !important; }
+body #focusPage .focus-controls button { min-height: 48px; padding-inline: 24px; border-radius: 12px !important; }
+body #focusPage .focus-reward { color: var(--muted) !important; background: var(--pixel-soft) !important; border: 0 !important; border-radius: 12px !important; padding: 12px 16px; }
+body #focusPage .focus-card.standalone .focus-reward * { color: var(--muted) !important; text-shadow: none !important; }
+body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring[data-running="true"] { animation: tomato-breathe 4s ease-in-out infinite; }
+@keyframes tomato-breathe { 50% { transform: scale(1.025); } }
+body #todayPage #focusCard {
+  display: grid !important; grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-areas: none !important;
+  gap: 16px !important; padding: 20px !important; overflow: visible;
+}
+body #todayPage #focusCard .focus-strip-heading { grid-column: 1; grid-row: 1; }
+body #todayPage #focusCard .focus-visual {
+  grid-column: 1; grid-row: 2; position: relative !important; inset: auto !important;
+  display: grid !important; place-items: center; justify-self: center;
+  width: 140px !important; height: 140px !important; min-height: 0; margin: 16px 0 0; transform: none !important;
+}
+body #todayPage #focusCard .timer-ring { width: 132px !important; height: 132px !important; }
+body #todayPage #focusCard .timer-ring strong { font-size: 36px !important; color: #fff !important; }
+body #todayPage #focusCard .timer-ring span { font-size: .75rem; }
+body #todayPage #focusCard .focus-copy {
+  grid-column: 1; grid-row: 3; position: static !important; inset: auto !important;
+  display: flex !important; flex-direction: column; align-items: stretch; gap: 10px;
+  width: 100%; min-width: 0; transform: none !important; text-align: center;
+}
+body #todayPage #focusCard .focus-mode-row { display: flex !important; justify-content: center; margin: 0 auto 8px; }
+body #todayPage #focusCard #focusTarget { font-size: 18px !important; text-align: center; }
+body #todayPage #focusCard #focusButton { border-radius: 10px !important; min-height: 44px; }
+body #todayPage #focusCard .focus-settings-button { position: static !important; }
+@media (prefers-reduced-motion: reduce) { body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring[data-running="true"] { animation: none; } }
+@media (max-width: 700px) {
+  body #focusPage .focus-page-stage { border-radius: 18px !important; min-height: 550px !important; }
+  body #focusPage .focus-page-stage .focus-stage-toolbar { padding: 18px; }
+  body #focusPage .focus-card.standalone { gap: 18px; padding: 26px 16px; }
+  body #focusPage .focus-card.standalone .timer-ring strong { font-size: clamp(36px, 12cqw, 52px); }
+  body #todayPage #focusCard { grid-template-columns: 110px minmax(0, 1fr) !important; gap: 12px !important; padding: 16px !important; }
+  body #todayPage #focusCard .focus-strip-heading { grid-column: 1 / -1; display: flex !important; }
+  body #todayPage #focusCard .focus-strip-heading small { display: none; }
+  body #todayPage #focusCard .focus-visual { grid-column: 1; grid-row: 2; width: 108px !important; height: 108px !important; margin-top: 12px; }
+  body #todayPage #focusCard .timer-ring { width: 104px !important; height: 104px !important; }
+  body #todayPage #focusCard .timer-ring strong { font-size: 30px !important; }
+  body #todayPage #focusCard .focus-copy { grid-column: 2; grid-row: 2; }
+  body #todayPage #focusCard #focusTarget { font-size: 14px !important; }
+  body #todayPage #focusCard #focusButton { width: 100%; padding-inline: 6px; font-size: 13px; }
+}

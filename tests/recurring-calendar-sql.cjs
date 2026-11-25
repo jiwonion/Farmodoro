@@ -1,0 +1,82 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { PGlite } = require(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+const source = name => fs.readFileSync(path.join(__dirname, '../supabase/migrations', name), 'utf8');
+const uid = '00000000-0000-4000-8000-000000000001', other = '00000000-0000-4000-8000-000000000002';
+(async () => {
+  const db = new PGlite();
+  const value = async (sql, args) => Object.values((await db.query(sql, args)).rows[0])[0];
+  const day = date => value("select set_config('test.day',$1,false)", [date]);
+  const user = id => value("select set_config('test.user',$1,false)", [id]);
+  try {
+    await db.exec(`create role anon; create role authenticated; create schema auth; create schema private;
+      create table auth.users(id uuid primary key); insert into auth.users values('${uid}'),('${other}');
+      create function auth.uid() returns uuid language sql as $$select nullif(current_setting('test.user',true),'')::uuid$$;
+      grant usage on schema auth to authenticated,anon;
+      create function public.productivity_today() returns date language sql as $$select current_setting('test.day')::date$$;
+      create function private.farmodoro_encrypt_text(v text) returns text language sql as $$select case when v like 'sv1:%' then v else 'sv1:'||v end$$;
+      create function private.farmodoro_decrypt_text(v text) returns text language sql as $$select case when v like 'sv1:%' then substr(v,5) else v end$$;`);
+    await db.exec(source('005_tasks_and_habits.sql').split('create extension if not exists pg_cron')[0]);
+    await db.exec(`alter table public.tasks add column completion_cycle_id uuid;
+      alter table public.habits add column minimum_title text, add column minimum_focus_minutes integer, add column target_by_weekday jsonb default '{}';
+      alter table public.habit_daily_records add column completion_cycle_id uuid, add column completion_level text, add column focus_seconds integer default 0;
+      create publication supabase_realtime;`);
+    const base = source('092_habit_minimum_focus_minutes.sql').match(/create or replace function public.get_my_productivity_state\([^]*?\$\$;/)[0];
+    await db.exec(base);
+    await db.exec(source('107_recurring_tasks_and_calendar.sql'));
+    await db.exec(source('108_sync_diagnostics.sql'));
+    await user(uid); await day('2026-01-31');
+    const create = (id, frequency='daily', start='2026-01-31', weekdays=[1,2,3,4,5,6,7], monthDay=31, end=null, group=null) =>
+      value('select public.save_my_recurring_task($1,$2,$3,$4,$5::smallint[],$6,$7::date,$8::date)',
+        [id,'반복 할 일',group,frequency,weekdays,monthDay,start,end]);
+    const daily='10000000-0000-4000-8000-000000000001', monthly='10000000-0000-4000-8000-000000000002';
+    await create(daily); await create(daily); await create(monthly,'monthly');
+    let result = await value('select public.get_my_productivity_state()');
+    assert.equal(result.schedulingVersion,1); assert.equal(result.tasks.length,2);
+    assert.ok(result.tasks.every(task => task.title==='반복 할 일' && task.scheduled_on==='2026-01-31' && task.status==='waiting'));
+    assert.equal(await value("select title like 'sv1:%' from public.recurring_tasks limit 1"),true);
+    await day('2026-02-02');
+    result = await value('select public.get_my_productivity_state()');
+    assert.equal(result.tasks.filter(task => task.recurrence_id===daily).length,3);
+    const deleted = result.tasks.find(task => task.recurrence_id===daily && task.scheduled_on==='2026-02-02');
+    await db.query('delete from public.tasks where id=$1',[deleted.id]);
+    await value('select public.get_my_productivity_state()');
+    assert.equal(await value('select count(*)::int from public.tasks where id=$1',[deleted.id]),0,'deleted occurrence stays deleted');
+    await db.query('select public.set_my_recurring_task_active($1,false)',[daily]);
+    await day('2026-02-04');
+    await db.query('select public.set_my_recurring_task_active($1,true)',[daily]);
+    assert.equal(await value("select count(*)::int from public.tasks where recurrence_id=$1 and scheduled_on='2026-02-03'",[daily]),0,'paused days do not backfill');
+    await day('2026-02-28');
+    result=await value('select public.get_my_productivity_state()');
+    assert.equal(result.tasks.filter(task => task.recurrence_id===monthly && task.scheduled_on==='2026-02-28').length,1,'31st clamps to month end');
+    const weekly='10000000-0000-4000-8000-000000000003';
+    await create(weekly,'weekly','2026-02-23',[1,3],1,'2026-02-25');
+    result=await value('select public.get_my_productivity_state()');
+    assert.deepEqual(result.tasks.filter(task=>task.recurrence_id===weekly).map(task=>task.scheduled_on).sort(),['2026-02-23','2026-02-25']);
+    await user(other);
+    await assert.rejects(create(daily),/Not found/);
+    await assert.rejects(db.query('select public.set_my_recurring_task_active($1,false)',[daily]),/Not found/);
+    result=await value('select public.get_my_productivity_state()'); assert.deepEqual(result.tasks,[]);
+    await user(uid);
+    await db.exec('set role authenticated');
+    await assert.rejects(db.exec("insert into public.recurring_tasks(id,title,frequency,start_date) values(gen_random_uuid(),'x','daily',current_date)"),/permission denied/);
+    await assert.rejects(db.exec('select private.get_my_productivity_state()'),/permission denied/);
+    const event={id:'20000000-0000-4000-8000-000000000001',event:'productivity_save_failed',code:'offline',title:'MUST NOT STORE',token:'secret'};
+    await value('select public.log_my_sync_events($1::jsonb)',[JSON.stringify([event])]);
+    await value('select public.log_my_sync_events($1::jsonb)',[JSON.stringify([event])]);
+    let logs=(await db.query('select * from public.sync_diagnostics')).rows;
+    assert.equal(logs.length,1); assert.deepEqual(logs[0].metadata,{code:'offline'});
+    await user(other); assert.equal((await db.query('select * from public.sync_diagnostics')).rows.length,0,'logs are account scoped');
+    await db.exec('reset role'); await user(uid);
+    for(let i=0;i<26;i++) {
+      const events=Array.from({length:20},(_,j)=>({id:`30000000-0000-4000-8000-${String(i*20+j).padStart(12,'0')}`,event:'productivity_saved'}));
+      await value('select public.log_my_sync_events($1::jsonb)',[JSON.stringify(events)]);
+    }
+    assert.equal(await value('select count(*)::int from public.sync_diagnostics where user_id=$1',[uid]),500);
+    await user(''); await assert.rejects(value('select public.get_my_productivity_state()'),/Authentication required/);
+    await db.query('delete from auth.users where id=$1',[uid]);
+    assert.equal(await value('select count(*)::int from public.recurring_tasks where user_id=$1',[uid]),0,'account deletion cascades through recurring tasks');
+    console.log('PASS: recurrence idempotency, per-date generation, month end, pause/resume, deletion tombstones, encryption, account isolation, RPC permissions, bounded/allowlisted diagnostics.');
+  } finally { await db.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1;});
