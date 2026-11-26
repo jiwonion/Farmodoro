@@ -58,41 +58,33 @@ body #focusPage .focus-card.standalone .focus-reward * { color: var(--muted) !im
 body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring[data-running="true"] { animation: tomato-breathe 4s ease-in-out infinite; }
 @keyframes tomato-breathe { 50% { transform: scale(1.025); } }
 body #todayPage #focusCard {
-  display: grid !important; grid-template-columns: minmax(0, 1fr) !important;
+  display: grid !important; grid-template-columns: 84px minmax(0, 1fr) !important;
   grid-template-areas: none !important;
-  gap: 16px !important; padding: 20px !important; overflow: visible;
+  align-items: center; gap: 12px !important; padding: 0 !important; overflow: visible;
 }
-body #todayPage #focusCard .focus-strip-heading { grid-column: 1; grid-row: 1; }
+body #todayPage #focusCard .focus-strip-heading { grid-column: 1 / -1; grid-row: 1; display: flex !important; }
 body #todayPage #focusCard .focus-visual {
-  grid-column: 1; grid-row: 2; position: relative !important; inset: auto !important;
+  grid-area: auto !important; grid-column: 1 !important; grid-row: 2 !important; position: relative !important; inset: auto !important;
   display: grid !important; place-items: center; justify-self: center;
-  width: 140px !important; height: 140px !important; min-height: 0; margin: 16px 0 0; transform: none !important;
+  width: 84px !important; height: 84px !important; min-height: 0; margin: 10px 0 0 !important; transform: none !important;
 }
-body #todayPage #focusCard .timer-ring { width: 132px !important; height: 132px !important; }
-body #todayPage #focusCard .timer-ring strong { font-size: 36px !important; color: #fff !important; }
-body #todayPage #focusCard .timer-ring span { font-size: .75rem; }
+body #todayPage #focusCard .timer-ring { width: 80px !important; height: 80px !important; justify-items: center; }
+body #todayPage #focusCard .timer-ring strong { font-size: 25px !important; color: #fff !important; }
+body #todayPage #focusCard :is(.section-kicker, .focus-reward) { display: none !important; }
 body #todayPage #focusCard .focus-copy {
-  grid-column: 1; grid-row: 3; position: static !important; inset: auto !important;
-  display: flex !important; flex-direction: column; align-items: stretch; gap: 10px;
+  grid-column: 2; grid-row: 2; position: static !important; inset: auto !important;
+  display: grid !important; grid-template-columns: minmax(0, 1fr) 28px; align-items: center; gap: 8px 4px;
   width: 100%; min-width: 0; transform: none !important; text-align: center;
 }
-body #todayPage #focusCard .focus-mode-row { display: flex !important; justify-content: center; margin: 0 auto 8px; }
-body #todayPage #focusCard #focusTarget { font-size: 18px !important; text-align: center; }
-body #todayPage #focusCard #focusButton { border-radius: 10px !important; min-height: 44px; }
-body #todayPage #focusCard .focus-settings-button { position: static !important; }
+body #todayPage #focusCard .focus-mode-row { grid-area: auto !important; grid-column: 2 !important; grid-row: 1 !important; display: flex !important; justify-content: end; width: auto; margin: 0; }
+body #todayPage #focusCard #focusTarget { grid-area: auto !important; grid-column: 1 !important; grid-row: 1 !important; margin: 0; font-size: .875rem !important; text-align: left; }
+body #todayPage #focusCard .focus-controls { grid-area: auto !important; grid-column: 1 / -1 !important; grid-row: 2 !important; }
+body #todayPage #focusCard #focusButton { border-radius: 8px !important; min-height: 40px; padding: 8px; font-size: .875rem; }
+body #todayPage #focusCard .focus-settings-button { position: static !important; width: 28px; height: 28px; min-height: 28px; padding: 0; }
 @media (prefers-reduced-motion: reduce) { body :is(#todayPage, #focusPage) #focusCard.pomodoro-timer .timer-ring[data-running="true"] { animation: none; } }
 @media (max-width: 700px) {
   body #focusPage .focus-page-stage { border-radius: 18px !important; min-height: 550px !important; }
   body #focusPage .focus-page-stage .focus-stage-toolbar { padding: 18px; }
   body #focusPage .focus-card.standalone { gap: 18px; padding: 26px 16px; }
   body #focusPage .focus-card.standalone .timer-ring strong { font-size: clamp(36px, 12cqw, 52px); }
-  body #todayPage #focusCard { grid-template-columns: 110px minmax(0, 1fr) !important; gap: 12px !important; padding: 16px !important; }
-  body #todayPage #focusCard .focus-strip-heading { grid-column: 1 / -1; display: flex !important; }
-  body #todayPage #focusCard .focus-strip-heading small { display: none; }
-  body #todayPage #focusCard .focus-visual { grid-column: 1; grid-row: 2; width: 108px !important; height: 108px !important; margin-top: 12px; }
-  body #todayPage #focusCard .timer-ring { width: 104px !important; height: 104px !important; }
-  body #todayPage #focusCard .timer-ring strong { font-size: 30px !important; }
-  body #todayPage #focusCard .focus-copy { grid-column: 2; grid-row: 2; }
-  body #todayPage #focusCard #focusTarget { font-size: 14px !important; }
-  body #todayPage #focusCard #focusButton { width: 100%; padding-inline: 6px; font-size: 13px; }
 }

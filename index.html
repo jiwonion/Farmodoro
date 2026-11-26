@@ -44,7 +44,7 @@
     <link rel="stylesheet" href="./pixel-layout.css?v=275" />
     <link rel="stylesheet" href="./farm-scenery.css?v=302" />
     <link rel="stylesheet" href="./workspace.css?v=10" />
-    <link rel="stylesheet" href="./workspace-controls.css?v=7" />
+    <link rel="stylesheet" href="./workspace-controls.css?v=8" />
     <link rel="stylesheet" href="./workspace-responsive.css?v=7" />
     <link rel="stylesheet" href="./workspace-forms.css?v=5" />
     <link rel="stylesheet" href="./habit-tiers.css?v=12" />
@@ -54,8 +54,8 @@
     <link rel="stylesheet" href="./scenery-creations.css?v=5" />
     <link rel="stylesheet" href="./scenery-workspace.css?v=9" />
     <link rel="stylesheet" href="./farm-v3.css?v=22" />
-    <link rel="stylesheet" href="./focus-pomodoro.css?v=2" />
-    <link rel="stylesheet" href="./task-planner.css?v=6" />
+    <link rel="stylesheet" href="./focus-pomodoro.css?v=3" />
+    <link rel="stylesheet" href="./task-planner.css?v=10" />
   </head>
   <body class="auth-gated">
     <div class="auth-boot" role="status" aria-label="로그인 상태 확인 중">
@@ -128,16 +128,16 @@
             <span class="nav-label">오늘</span>
             <span class="nav-index">01</span>
           </a>
+          <a class="nav-item" href="#calendar" data-page="calendar">
+            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18m-13 4h2m4 0h2"/></svg></span>
+            <span class="nav-label">달력</span>
+          </a>
           <a class="nav-item" href="#tasks" data-page="tasks">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="m8 12 2 2 5-5M8 17h7M9 4V2m6 2V2"/></svg>
             </span>
             <span class="nav-label">할 일</span>
             <span class="nav-index">02</span>
-          </a>
-          <a class="nav-item" href="#calendar" data-page="calendar">
-            <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18m-13 4h2m4 0h2"/></svg></span>
-            <span class="nav-label">달력</span>
           </a>
           <a class="nav-item" href="#habits" data-page="habits">
             <span class="nav-icon" aria-hidden="true">
@@ -197,7 +197,6 @@
       </aside>
 
       <main class="main-content">
-        <button class="productivity-sync-status" id="productivitySyncStatus" type="button" data-status="loading" aria-live="polite" title="동기화 재시도">저장 상태 확인 중</button>
         <section class="page-view" id="todayPage" data-view="today">
         <div class="today-splitter" id="todaySplitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="할 일과 오른쪽 영역 너비 조절" aria-controls="taskSection summaryGrid habitSection" aria-valuemin="20" aria-valuemax="60" aria-valuenow="30" aria-valuetext="할 일 70%, 오른쪽 30%" title="드래그 또는 방향키로 너비 조절 · 더블클릭으로 초기화"></div>
         <header class="topbar">
@@ -261,6 +260,14 @@
             </div>
           </article>
 
+          <section class="today-calendar" aria-labelledby="todayCalendarTitle">
+            <header class="today-calendar-heading">
+              <h2 id="todayCalendarTitle">달력</h2>
+              <a href="#calendar">크게 보기</a>
+            </header>
+            <div id="todayCalendarRoot"></div>
+          </section>
+
           <article class="progress-card">
             <div class="card-heading">
               <div>
@@ -310,12 +317,6 @@
               </div>
             </div>
 
-            <nav class="today-task-date-controls" id="todayTaskDateControls" aria-label="할 일 조회 날짜" hidden>
-              <button type="button" data-task-date-step="-1" aria-label="이전 날짜의 할 일">‹</button>
-              <input id="todayTaskDate" type="date" aria-label="할 일 조회 날짜" />
-              <button type="button" data-task-date-step="1" aria-label="다음 날짜의 할 일">›</button>
-              <button type="button" id="todayTaskDateReset">오늘</button>
-            </nav>
             <div class="task-filter-list" id="todayTaskGroupFilters" role="group" aria-label="선택한 날짜의 할 일 그룹 필터"></div>
 
             <section id="taskCreateModal" class="inline-composer hidden" aria-labelledby="taskCreateTitle">
@@ -776,8 +777,8 @@
     <script defer src="./scenery-theme-presets.js?v=4"></script>
     <script defer src="./productivity-recovery.js?v=1"></script>
     <script defer src="./sync-diagnostics.js?v=1"></script>
-    <script defer src="./task-planner.js?v=9"></script>
-    <script defer src="./app.js?v=358"></script>
+    <script defer src="./task-planner.js?v=12"></script>
+    <script defer src="./app.js?v=361"></script>
     <script defer src="./garden-art.js?v=10"></script>
     <script defer src="./scenery-creation-art.js?v=4"></script>
     <script defer src="./scenery-creations.js?v=11"></script>

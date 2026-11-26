@@ -253,16 +253,7 @@ body :is(#todayPage, #focusPage) #focusCard .focus-mode-switch button:focus-visi
 }
 @media (max-width: 700px) {body #habitsPage .heatmap-header-actions { gap: 6px; }body #habitsPage #openHabitReset { padding: 7px 9px; font-size: 12px; }body #focusPage .focus-stage-actions :is(button, label) { min-height: 36px; }
 }
-body .productivity-sync-status {
-  display: block; margin: 0 0 10px auto; padding: 6px 10px;
-  border: 0; border-radius: 8px; background: var(--pixel-soft); color: var(--muted);
-  font: inherit; font-size: .875rem; cursor: pointer; min-height: 36px;
-}
 .auth-resolving :is(.auth-gate, .app-shell) { display: none !important; }
-@media (max-width: 700px) { body .productivity-sync-status { margin-right: 48px; font-size: .8125rem; } }
-body .productivity-sync-status[data-status="saved"] { background: transparent; }
 body .public-info-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 20px; margin: 12px 0; font-size: 13px; line-height: 1.6; }
 body .public-info-links a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
 body .public-info-links a:focus-visible { outline: 2px solid var(--pixel-accent); outline-offset: 4px; }
-body .productivity-sync-status:is([data-status="offline"], [data-status="error"]) { color: #a13b28; background: #fff0e8; }
-:root[data-theme="dark"] body .productivity-sync-status:is([data-status="offline"], [data-status="error"]) { color: #ffbc9f; background: #472c25; }

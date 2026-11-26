@@ -1965,16 +1965,6 @@ function logProductivityEvent(event, metadata = {}) {
   window.SyncDiagnostics?.record(event, { version: APP_VERSION, online: navigator.onLine !== false, ...metadata });
 }
 
-function updateProductivitySyncStatus(status) {
-  const label = document.querySelector("#productivitySyncStatus");
-  if (!label) return;
-  label.dataset.status = status;
-  label.textContent = {
-    saved: "모든 변경사항 저장됨", pending: "기기에 보관됨 · 동기화 중",
-    offline: "기기에 보관됨 · 연결 후 재시도", error: "저장 실패 · 다시 시도",
-  }[status] || "저장 상태 확인 중";
-}
-
 function readProductivityCheckpoint(userId) {
   try {
     const saved = JSON.parse(localStorage.getItem(`farmodoro-productivity:${userId}`) || "null");
@@ -2007,7 +1997,6 @@ function persistProductivityCheckpoint() {
       logProductivityEvent("checkpoint_write_failed");
     }
     productivityStorageFailed = true;
-    updateProductivitySyncStatus("error");
     return false;
   }
 }
@@ -2376,10 +2365,8 @@ function scheduleTaskDatabaseSync(delay = 300) {
   const signature = serializeTaskDatabaseState();
   if (signature === lastTaskSyncSignature && !pendingTaskDatabaseDeletes.size &&
       !pendingHabitDatabaseDeletes.size && !pendingGroupDatabaseDeletes.size) {
-    updateProductivitySyncStatus("saved");
     return;
   }
-  updateProductivitySyncStatus(productivityStorageFailed ? "error" : navigator.onLine === false ? "offline" : "pending");
 
   if (taskSyncTimer) {
     if (delay > 0) return;
@@ -2430,7 +2417,6 @@ async function syncTaskDatabaseImmediately() {
         taskSyncRetryAttempt += 1;
         logProductivityEvent("productivity_save_failed", { code: String(error.code || "network"), scope: error.syncScope || "", attempt: taskSyncRetryAttempt });
         scheduleTaskDatabaseSync(Math.min(30000, 1000 * 2 ** Math.min(taskSyncRetryAttempt, 5)));
-        updateProductivitySyncStatus(productivityStorageFailed ? "error" : "offline");
       }
       throw error;
     }
@@ -2819,15 +2805,9 @@ function getTaskViewDate() {
   return selectedTaskDate || toProductivityDateString();
 }
 
-function renderTaskDateControls() {
-  const controls = document.querySelector("#todayTaskDateControls");
-  controls.hidden = currentPage !== "today";
-  if (controls.hidden) return;
+function renderTaskDateHeading() {
+  if (currentPage !== "today") return;
   const date = getTaskViewDate(), today = toProductivityDateString();
-  const input = document.querySelector("#todayTaskDate");
-  input.value = date;
-  refreshThemedDateTrigger(input);
-  document.querySelector("#todayTaskDateReset").disabled = date === today;
   taskSection.querySelector(".section-header h2").textContent = date === today ? "오늘의 할 일" : `${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 할 일`;
 }
 
@@ -2835,6 +2815,7 @@ function setTaskViewDate(value) {
   if (!parseDateInputValue(value)) return;
   selectedTaskDate = value === toProductivityDateString() ? null : value;
   renderTasks();
+  window.TaskPlanner?.render();
 }
 
 function getVisibleTasks(status) {
@@ -2856,7 +2837,7 @@ function getVisibleTasks(status) {
 
 function renderTasks() {
   renderTaskFilters();
-  renderTaskDateControls();
+  renderTaskDateHeading();
 
   ["waiting", "done"].forEach((status) => {
     const list = document.querySelector(`[data-list="${status}"]`);
@@ -5614,18 +5595,6 @@ function initializeThemedDatePickers(root = document) {
 
 initializeThemedDatePickers();
 
-document.querySelector("#todayTaskDate").addEventListener("change", event => {
-  setTaskViewDate(event.target.value || toProductivityDateString());
-});
-document.querySelector("#todayTaskDateReset").addEventListener("click", () => setTaskViewDate(toProductivityDateString()));
-document.querySelectorAll("[data-task-date-step]").forEach(button => {
-  button.addEventListener("click", () => {
-    const date = new Date(`${getTaskViewDate()}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + Number(button.dataset.taskDateStep));
-    setTaskViewDate(date.toISOString().slice(0, 10));
-  });
-});
-
 document.addEventListener("pointerdown", (event) => {
   if (!activeThemedDateInput) return;
   const trigger = activeThemedDateInput._themedDateTrigger;
@@ -7310,10 +7279,6 @@ window.addEventListener("online", () => {
 window.addEventListener("offline", () => {
   logProductivityEvent("network_offline");
   scheduleTaskDatabaseSync();
-});
-document.querySelector("#productivitySyncStatus")?.addEventListener("click", () => {
-  scheduleTaskDatabaseSync(0);
-  if (activeAuthUser) scheduleProductivityRealtimeRefresh(activeAuthUser.id);
 });
 document.querySelector("#downloadSyncDiagnostics")?.addEventListener("click", () => window.SyncDiagnostics?.download());
 
